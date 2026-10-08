@@ -1,0 +1,74 @@
+[project]
+name = "keelson-adapter-sidecar"
+version = "0.1.0"
+description = "Keelson adapter sidecar template: scn/1.0 snapshot export (tier B), change feed (tier C) and a change-set facade (tier W) in front of a CSV, SQL or REST system, over MCP."
+readme = "README.md"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    "keelson-contracts",
+    "fastapi==0.142.2",
+    "pydantic==2.13.5",
+    "uvicorn[standard]==0.54.0",
+    "fastmcp==4.0.11",
+    "mcp==2.3.0",
+    "httpx==0.28.1",
+    "httpx2==2.13.1",
+    "sqlalchemy[asyncio]==2.1.3",
+    "aiosqlite==0.22.1",
+    "asyncpg==0.31.0",
+    "pyarrow==25.0.1",
+    "pyjwt[crypto]==2.15.1",
+    "cryptography==50.0.2",
+    "pyyaml==6.0.3",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+    "respx==0.23.1",
+]
+
+[project.scripts]
+adapter-sidecar = "adapter_sidecar.__main__:main"
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/adapter_sidecar"]
+
+[tool.uv]
+# Linux containers only (python:3.14-slim-trixie).
+environments = ["sys_platform == 'linux'"]
+# Transitive pins kept equal to the other services' lockfiles.
+constraint-dependencies = ["platformdirs==4.12.3"]
+
+[tool.uv.sources]
+keelson-contracts = { path = "../../packages/contracts-py", editable = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+asyncio_default_test_loop_scope = "function"
+markers = [
+    "postgres: needs a Postgres server (SIDECAR_TEST_PG_DSN); skipped otherwise",
+]
+filterwarnings = [
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC", "RUF"]
+ignore = ["RUF001", "RUF002", "RUF003", "B008"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["adapter_sidecar", "keelson_contracts"]

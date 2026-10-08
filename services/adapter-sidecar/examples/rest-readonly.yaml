@@ -1,0 +1,107 @@
+# Adapter sidecar example: a read-only JSON REST API behind tiers A·B·C (no change sets in M8).
+#
+# Every table is crawled from one endpoint into a staging table, then mapped with plain SQL like
+# the other backends. A crawl is not a point-in-time read, so snapshots say consistency: crawled
+# with the as_of_range they were read in (Keelson treats plans built on them as advisory).
+# The API key comes from ERP_API_TOKEN; next-page links must stay on base_url's origin.
+version: 1
+
+system:
+  name: Fernhill Web API
+  vendor: Fernhill
+
+backend:
+  kind: rest
+  rest:
+    base_url: http://erp.example.test
+    auth: {kind: header, header: X-Api-Key, token_env: ERP_API_TOKEN}
+    max_pages: 200
+    max_response_bytes: 5000000
+    timeout_s: 30
+    min_crawl_interval_s: 60
+
+tables:
+  warehouses:
+    endpoint:
+      path: /api/v1/warehouses
+      items_path: $.data
+      pagination: {kind: page, param: page, size_param: per_page, size: 50, start: 1}
+    columns:
+      code: {type: text, path: $.id}
+      name: text
+      country: {type: text, path: $.address.country}
+      city: {type: text, path: $.address.city}
+      lat: {type: real, path: $.geo.lat}
+      lon: {type: real, path: $.geo.lon}
+      rev: {type: int, path: $.version}
+    key: [code]
+    version_col: rev
+    affects: {location: "dc:{{code}}"}
+  products:
+    endpoint:
+      path: /api/v1/products
+      items_path: $
+      pagination: {kind: link}
+    columns: {code: text, name: text, family: text, colour: text, retail_price_cents: int, currency: text, rev: int}
+    key: [code]
+    version_col: rev
+    affects: {item: "style:{{code}}"}
+  skus:
+    endpoint:
+      path: /api/v1/skus
+      params: {active: true}
+      items_path: $.items
+      pagination: {kind: cursor, param: cursor, cursor_path: $.next_cursor, size_param: limit, size: 100}
+    columns:
+      sku: text
+      style: text
+      size: text
+      size_seq: int
+      unit_cost_cents: {type: int, path: $.cost.cents}
+      rev: int
+    key: [sku]
+    version_col: rev
+    affects: {item: "sku:{{sku}}"}
+  stock:
+    endpoint:
+      path: /api/v1/stock
+      items_path: $.results
+      pagination: {kind: offset, param: offset, size_param: limit, size: 100}
+    columns: {site: text, site_kind: text, sku: text, on_hand: int, allocated: int, reserved: int, in_transit: int,
+              rev: int}
+    key: [site, sku]
+    version_col: rev
+    affects: {inventory_position: "{{site_kind}}/{{site}}/{{sku}}"}
+
+entities:
+  location:
+    sql: |
+      SELECT 'dc:' || code AS source_id, 'dc' AS kind, code, name, country, city, lat, lon, NULL AS parent_code,
+             NULL AS grade, NULL AS climate, NULL AS unlocode, rev AS src_version
+        FROM warehouses ORDER BY 1
+  item:
+    sql: |
+      SELECT 'style:' || p.code AS source_id, 'style' AS kind, p.code AS code, p.code AS style_code,
+             p.family AS family, p.colour AS colour, NULL AS size, NULL AS size_seq,
+             p.retail_price_cents AS retail_price_cents,
+             (SELECT min(k.unit_cost_cents) FROM skus k WHERE k.style = p.code) AS unit_cost_cents,
+             p.currency AS currency, p.rev AS src_version
+        FROM products p
+      UNION ALL
+      SELECT 'sku:' || k.sku, 'sku', k.sku, k.style, p.family, p.colour, k.size, k.size_seq, p.retail_price_cents,
+             k.unit_cost_cents, p.currency, k.rev
+        FROM skus k JOIN products p ON p.code = k.style
+      ORDER BY 1
+  inventory_position:
+    sql: |
+      SELECT site_kind || '/' || site || '/' || sku AS source_id, site_kind AS location_kind, site AS location_code,
+             sku AS sku_code, on_hand, allocated, reserved, in_transit, rev AS src_version
+        FROM stock WHERE site_kind = 'dc' ORDER BY 1
+
+auth:
+  static_header:
+    header: X-Adapter-Key
+    keys:
+      - name: keelson
+        key_env: SIDECAR_API_KEY
+        scopes: [catalog:read, snapshot:read]

@@ -1,0 +1,250 @@
+# Adapter sidecar example: a SQL database (Postgres or SQLite) behind tier B/C/W.
+# The schema is examples/sql-schema.sql (the Fernhill tables as SQL tables); the backend URL comes
+# from the environment variable named by url_env (e.g. ERP_DATABASE_URL=postgresql+asyncpg://…).
+#
+# * Snapshots read every entity in one REPEATABLE READ, READ ONLY transaction.
+# * An apply is one transaction in the ERP database plus a marker row in keelson_sidecar_apply
+#   (exactly-once: an apply left in doubt by a crash is settled at start-up from the marker).
+# * fingerprint_sql lets scn.changes_since notice writes made by other ERP clients.
+# Only the tables the ops touch (or that should be watched for drift) are declared; entity SQL may
+# read any table.
+version: 1
+
+system:
+  name: Fernhill ERP (SQL)
+  vendor: Fernhill
+
+backend:
+  kind: sql
+  sql:
+    url_env: ERP_DATABASE_URL
+    apply_marker_table: keelson_sidecar_apply
+    manage_marker_table: true
+
+tables:
+  warehouses:
+    columns: {code: text, name: text, country: text, city: text, lat: real, lon: real, rev: int}
+    key: [code]
+    version_col: rev
+    affects: {location: "dc:{{code}}"}
+    fingerprint_sql: SELECT count(*), max(rev), sum(rev) FROM warehouses
+  skus:
+    columns: {sku: text, style: text, size: text, size_seq: int, unit_cost_cents: int, rev: int}
+    key: [sku]
+    version_col: rev
+    affects: {item: "sku:{{sku}}"}
+    fingerprint_sql: SELECT count(*), sum(rev), sum(unit_cost_cents) FROM skus
+  purchase_lines:
+    columns: {po: text, line_no: int, sku: text, qty_ordered: int, qty_received: int, eta: date, status: text,
+              rev: int}
+    key: [po, line_no]
+    version_col: rev
+    affects: {po_line: "{{po}}#{{line_no}}"}
+    fingerprint_sql: SELECT count(*), sum(rev), sum(qty_ordered), sum(qty_received) FROM purchase_lines
+  stock:
+    columns: {site: text, site_kind: text, sku: text, on_hand: int, allocated: int, reserved: int, in_transit: int,
+              rev: int}
+    key: [site, sku]
+    version_col: rev
+    affects: {inventory_position: "{{site_kind}}/{{site}}/{{sku}}"}
+    fingerprint_sql: SELECT count(*), sum(rev), sum(on_hand), sum(allocated), sum(reserved), sum(in_transit) FROM stock
+  store_allocations:
+    columns: {code: text, sku: text, from_wh: text, shop: text, ship_week: text, qty: int, status: text, rev: int}
+    key: [code]
+    version_col: rev
+    affects: {allocation: "{{code}}"}
+    fingerprint_sql: SELECT count(*), sum(rev), sum(qty) FROM store_allocations
+  transfers:
+    columns: {code: text, from_wh: text, to_wh: text, ship_date: date, eta_date: date, status: text,
+              created_via: text, rev: int}
+    key: [code]
+    version_col: rev
+    affects: {transfer_order_line: "{{code}}"}
+    fingerprint_sql: SELECT count(*), sum(rev) FROM transfers
+  transfer_lines:
+    columns: {transfer_code: text, line_no: int, sku: text, qty: int, rev: int}
+    key: [transfer_code, line_no]
+    version_col: rev
+    affects: {transfer_order_line: "{{transfer_code}}#{{line_no}}"}
+    fingerprint_sql: SELECT count(*), sum(rev), sum(qty) FROM transfer_lines
+
+# One SELECT per scn/1.0 entity (columns named exactly as SCN_COLUMNS). The other seven entities
+# (bom_line, lane, lane_rate, sailing, production_order, online_order_line, promotion) are exported
+# empty.
+entities:
+  location:
+    sql: |
+      SELECT 'dc:' || code AS source_id, 'dc' AS kind, code, name, country, city, lat, lon,
+             NULL AS parent_code, NULL AS grade, NULL AS climate, NULL AS unlocode, rev AS src_version
+        FROM warehouses
+      UNION ALL
+      SELECT 'cluster:' || cluster, 'cluster', cluster, min(home_wh) || ' ' || min(climate) || ' ' ||
+             CASE WHEN cluster LIKE '%-A' THEN 'A' ELSE 'B/C' END,
+             min(country), NULL, NULL, NULL, min(home_wh), CASE WHEN cluster LIKE '%-A' THEN 'A' ELSE 'BC' END,
+             min(climate), NULL, max(rev)
+        FROM shops GROUP BY cluster
+      UNION ALL
+      SELECT 'store:' || code, 'store', code, name, country, city, lat, lon, cluster, grade, climate, NULL, rev
+        FROM shops
+      UNION ALL
+      SELECT 'supplier:' || code, 'supplier', code, name, country, NULL, NULL, NULL, NULL, NULL, NULL, NULL, rev
+        FROM suppliers
+      ORDER BY 1
+  item:
+    sql: |
+      SELECT 'style:' || p.code AS source_id, 'style' AS kind, p.code AS code, p.code AS style_code,
+             p.family AS family, p.colour AS colour, NULL AS size, NULL AS size_seq,
+             p.retail_price_cents AS retail_price_cents,
+             (SELECT min(k.unit_cost_cents) FROM skus k WHERE k.style = p.code) AS unit_cost_cents,
+             p.currency AS currency, p.rev AS src_version
+        FROM products p
+      UNION ALL
+      SELECT 'sku:' || k.sku, 'sku', k.sku, k.style, p.family, p.colour, k.size, k.size_seq,
+             p.retail_price_cents, k.unit_cost_cents, p.currency, k.rev
+        FROM skus k JOIN products p ON p.code = k.style
+      ORDER BY 1
+  po_line:
+    sql: |
+      SELECT l.po || '#' || l.line_no AS source_id, l.po AS po_code, l.line_no AS line_no,
+             p.supplier AS supplier_code, NULL AS factory_code, p.dest_wh AS dest_dc_code, l.sku AS sku_code,
+             l.qty_ordered AS qty_ordered, l.qty_received AS qty_received, p.ex_factory AS ex_factory_date,
+             l.eta AS eta_dc, l.status AS status, NULL AS shipment_code, NULL AS sailing_code,
+             l.rev AS src_version
+        FROM purchase_lines l JOIN purchase_orders p ON p.po = l.po
+       ORDER BY l.po, l.line_no
+  inventory_position:
+    sql: |
+      SELECT site_kind || '/' || site || '/' || sku AS source_id, site_kind AS location_kind,
+             site AS location_code, sku AS sku_code, on_hand, allocated, reserved, in_transit, rev AS src_version
+        FROM stock ORDER BY site_kind, site, sku
+  demand_forecast:
+    sql: |
+      SELECT style || '|' || shop || '|' || iso_week AS source_id, style AS style_code, 'store' AS location_kind,
+             shop AS location_code, iso_week, units, rev AS forecast_version
+        FROM weekly_forecast ORDER BY style, shop, iso_week
+  size_curve:
+    sql: |
+      SELECT family || '|' || cluster || '|' || size AS source_id, family, cluster AS cluster_code, size, share_bp
+        FROM size_mix ORDER BY 1
+  allocation:
+    sql: |
+      SELECT code AS source_id, code, sku AS sku_code, from_wh AS dc_code, shop AS store_code, ship_week, qty,
+             status, rev AS src_version
+        FROM store_allocations ORDER BY code
+  transfer_order_line:
+    sql: |
+      SELECT l.transfer_code || '#' || l.line_no AS source_id, l.transfer_code AS to_code, t.from_wh AS from_dc,
+             t.to_wh AS to_dc, t.ship_date AS ship_date, t.eta_date AS eta_date, l.sku AS sku_code, l.qty AS qty,
+             t.status AS status, l.rev + t.rev - 1 AS src_version
+        FROM transfer_lines l JOIN transfers t ON t.code = l.transfer_code
+       ORDER BY l.transfer_code, l.line_no
+
+views:
+  transfer_orders:
+    header_sql: SELECT code, from_wh AS from_dc, to_wh AS to_dc, ship_date, eta_date, status, created_via FROM transfers
+    lines_sql: SELECT transfer_code AS code, line_no, sku, qty FROM transfer_lines
+
+ops:
+  transfer_order.create:
+    code: {format: "TR-{n:05d}", table: transfers, column: code}
+    steps:
+      - require: {table: warehouses, key: {code: "{{payload.from_dc}}"}, missing_error: unknown_warehouse}
+      - require: {table: warehouses, key: {code: "{{payload.to_dc}}"}, missing_error: unknown_warehouse}
+      - require:
+          table: stock
+          for_each: payload.lines
+          key: {site: "{{payload.from_dc}}", sku: "{{item.sku}}"}
+          in: {site_kind: [dc]}
+          at_least: {expr: {on_hand: 1, allocated: -1, reserved: -1}, value: "{{item.qty}}"}
+          error: insufficient_atp
+          missing_error: insufficient_atp
+      - insert:
+          table: transfers
+          values:
+            code: "{{code}}"
+            from_wh: "{{payload.from_dc}}"
+            to_wh: "{{payload.to_dc}}"
+            ship_date: "{{payload.ship_date}}"
+            status: planned
+            created_via: "change_set:{{change_set.code}}"
+      - insert:
+          table: transfer_lines
+          for_each: payload.lines
+          values: {transfer_code: "{{code}}", line_no: "{{index}}", sku: "{{item.sku}}", qty: "{{item.qty}}"}
+      - adjust:
+          table: stock
+          for_each: payload.lines
+          key: {site: "{{payload.from_dc}}", sku: "{{item.sku}}"}
+          add: {reserved: "{{item.qty}}"}
+      - adjust:
+          table: stock
+          for_each: payload.lines
+          key: {site: "{{payload.to_dc}}", sku: "{{item.sku}}"}
+          add: {in_transit: "{{item.qty}}"}
+          upsert: {site_kind: dc, on_hand: 0, allocated: 0, reserved: 0, in_transit: 0}
+    units:
+      for_each: payload.lines
+      qty: "{{item.qty}}"
+      price: {table: skus, key: {sku: "{{item.sku}}"}, column: unit_cost_cents}
+    guide:
+      title: "Create a transfer {{payload.from_dc}} → {{payload.to_dc}}"
+      instructions: >-
+        In Fernhill open Logistics › Transfers › New. From warehouse {{payload.from_dc}} to {{payload.to_dc}},
+        ship date {{payload.ship_date}}. Add the lines {{list}} and save the transfer as planned.
+      list: {for_each: payload.lines, item: "{{item.sku}} × {{item.qty}}"}
+      expected:
+        entity_type: transfer_order
+        entity_ref: null
+        match: {from_dc: "{{payload.from_dc}}", to_dc: "{{payload.to_dc}}", ship_date: "{{payload.ship_date}}"}
+
+  allocation.set_qty:
+    target: {table: store_allocations, key: {code: "{{target_ref}}"}}
+    check_version: true
+    steps:
+      - require:
+          table: store_allocations
+          key: {code: "{{target_ref}}"}
+          in: {status: [planned, released]}
+          error: allocation_locked
+      - update: {table: store_allocations, key: {code: "{{target_ref}}"}, set: {qty: "{{payload.qty}}"}}
+    units:
+      delta: qty
+      price: {table: skus, key: {sku: "{{before.sku}}"}, column: unit_cost_cents}
+    guide:
+      title: "Set allocation {{target_ref}} to {{payload.qty}} units"
+      instructions: >-
+        In Fernhill open Merchandising › Store allocations › {{target_ref}}, set the quantity to {{payload.qty}}
+        and save (expected record version {{expected_version}}).
+      expected:
+        entity_type: allocation
+        entity_ref: "{{target_ref}}"
+        match: {qty: "{{payload.qty}}"}
+
+invariants:
+  stock:
+    - expr: {on_hand: 1, allocated: -1, reserved: -1}
+      min: 0
+      error: negative_atp
+
+auth:
+  static_header:
+    header: X-Adapter-Key
+    keys:
+      - name: keelson
+        key_env: SIDECAR_API_KEY
+        scopes: [catalog:read, orders:read, snapshot:read, changes:preview, changes:apply, changes:apply:auto]
+
+receipts:
+  tenants: [northwind-test]
+  expected_ext_sub: "connector:fernhill"
+  autocommit:
+    ops: [transfer_order.create, allocation.set_qty]
+    max_items: 50
+    max_units: 5000
+
+snapshot:
+  part_rows: 50000
+  ttl_s: 7200
+
+changes:
+  retention: 10000

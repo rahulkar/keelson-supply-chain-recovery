@@ -542,7 +542,8 @@ def _location_pair(d: _Draft) -> None:
         return
     options = col_type(entity, "location_kind").options
     found = [(o, src.path(f"{o}_code")) for o in options]
-    present = [(o, p) for o, p in found if p is not None and p.shape in ("code", "int_text", "text")]
+    # an all-null path (e.g. store codes absent from the sampled page) still says the field exists
+    present = [(o, p) for o, p in found if p is not None and p.shape in ("code", "int_text", "text", "empty")]
     if not present:
         return
     if len(present) == 1:

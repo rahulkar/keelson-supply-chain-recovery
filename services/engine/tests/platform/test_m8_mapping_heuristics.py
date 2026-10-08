@@ -343,3 +343,20 @@ def test_entity_vocabulary() -> None:
     assert mh.col_type("demand_forecast", "iso_week").kind == "week"
     assert mh.col_type("location", "src_version").version and mh.col_type("location", "kind").kind == "literal"
     assert mh.col_type("location", "lat").kind == "float" and mh.col_type("po_line", "eta_dc").kind == "date"
+
+
+def test_location_pair_with_codes_absent_from_the_sample() -> None:
+    """A sampled page of cluster-level forecasts only (every store_code null) still proposes the
+    store-or-cluster pair: the path exists, its values were just all null in the sample."""
+    notes = mp.Notes()
+    items = [{"style_code": "S1", "store_code": None, "cluster_code": f"C{i}", "iso_week": "2026-W01", "units": 3,
+              "version": 1} for i in range(3)]
+    src = ReadSource(tool="list_items", args={"type": "forecast"}, page_param="page", page_size_param="page_size",
+                     page_size=200, items_path="$.items", cursor_path=None, max_pages=10)
+    profile = SourceProfile(ref="S1", source=src, variant="forecast", items_sampled=3, total_hint=3,
+                            paths=mp.profile_items(items, where="t", notes=notes))
+    result = mh.propose([profile], [], kinds=["read"], notes=notes)
+    assert result.read is not None
+    fc = {f.column: f.expression for f in result.read.entities[0].fields}
+    assert fc["location_kind"] == "if_present($.store_code, 'store', 'cluster')"
+    assert fc["location_code"] == "coalesce($.store_code, $.cluster_code)"

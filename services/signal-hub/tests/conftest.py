@@ -30,7 +30,8 @@ SCENARIOS = FIXTURES / "scenarios"
 REPO = HERE.parents[2]
 GEO_DIR = Path(os.environ.get("GEO_DIR") or REPO / "data" / "geo")
 SECRET = "test-secret-" + "s" * 40
-TEST_DB = "signals_test"
+# Overridable so parallel runs against one Postgres server do not drop each other's database.
+TEST_DB = os.environ.get("SIGNAL_HUB_TEST_DB") or "signals_test"
 TEST_PASSWORD = "signals-test-pw"
 
 T0 = dt.datetime(2026, 10, 7, tzinfo=dt.UTC)

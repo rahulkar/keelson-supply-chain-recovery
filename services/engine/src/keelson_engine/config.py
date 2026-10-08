@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, field_validator
@@ -182,6 +183,34 @@ class Settings(BaseSettings):
     evals_list_limit: int = Field(default=10, ge=1, le=50)
     scn_crawl_max_rows: int = Field(default=2_000_000, ge=1000, le=10_000_000)
     """Upper bound of the rows one tier-A crawl may load."""
+
+    # ── M8 mapping compiler + proposed mappings (121) ─────────────────────────
+    scn_mapping_engine: Literal["duckdb", "interpreter"] = "duckdb"
+    """Tier-A crawl engine: the DuckDB mapping compiler, or ``interpreter`` = the exact M7 path
+    (same rows; kept as the reference and a kill switch)."""
+    scn_raw_staging: bool = True
+    """Keep the raw pages of a crawl (current snapshot + latest failed attempt) for staged previews;
+    off = raw data lives only inside the crawl's DuckDB session."""
+    scn_raw_max_bytes: int = Field(default=512 * 1024 * 1024, ge=1024 * 1024, le=8 * 1024 * 1024 * 1024)
+    """Raw JSON one crawl may fetch (all sources); above it the crawl fails ``too_many_rows``."""
+    duckdb_memory_limit_mb: int = Field(default=256, ge=32, le=4096)
+    """Per DuckDB session (one crawl / preview); it spills to a private temp dir beyond it."""
+    duckdb_threads: int = Field(default=2, ge=1, le=8)
+    mapping_preview_max_items: int = Field(default=20_000, ge=1, le=50_000)
+    """Upper bound of items per source a staged preview maps in engine-api."""
+    mapping_proposer: Literal["auto", "heuristic", "off"] = "auto"
+    """``auto``: rule-based drafts refined by the LLM when available; ``heuristic``: rules only (no
+    model call); ``off``: proposals disabled (409)."""
+    mapping_proposer_alias: str = "fast-default"
+    """LiteLLM alias of the ``mapping_proposer`` agent (Flash / Flash-Lite only; Pro is refused)."""
+    mapping_propose_max_calls: int = Field(default=24, ge=1, le=200)
+    """Read-tool calls one proposal may make while sampling."""
+    mapping_propose_sample_size: int = Field(default=20, ge=1, le=200)
+    """Items per sampled page."""
+    mapping_propose_timeout_s: float = Field(default=120.0, ge=5.0, le=600.0)
+    mapping_propose_llm_timeout_s: float = Field(default=60.0, ge=5.0, le=300.0)
+    mapping_propose_max_profile_chars: int = Field(default=24_000, ge=2_000, le=200_000)
+    """Upper bound of the profile data block sent to the model."""
 
     # ── runs ─────────────────────────────────────────────────────────────────
     run_lease_seconds: int = 60

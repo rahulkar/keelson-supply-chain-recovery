@@ -1,0 +1,348 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Answer of the read preview (and of the M7 ``…/read/test``, whose fields it keeps): per\nentity mapping the rows that mapped, sample rows, the first error, per-column null rates,\ndistinct counts and failure counts, plus the FK / duplicate checks. Nothing is stored.",
+  "properties": {
+    "capped": {
+      "default": false,
+      "title": "Capped",
+      "type": "boolean"
+    },
+    "checks": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "enum": [
+              "fk",
+              "duplicate_source_id"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "entity": {
+            "enum": [
+              "location",
+              "item",
+              "bom_line",
+              "lane",
+              "lane_rate",
+              "sailing",
+              "po_line",
+              "production_order",
+              "inventory_position",
+              "demand_forecast",
+              "size_curve",
+              "allocation",
+              "transfer_order_line",
+              "online_order_line",
+              "promotion"
+            ],
+            "title": "Entity",
+            "type": "string"
+          },
+          "examples": {
+            "items": {
+              "maxLength": 300,
+              "type": "string"
+            },
+            "maxItems": 5,
+            "title": "Examples",
+            "type": "array"
+          },
+          "label": {
+            "maxLength": 500,
+            "title": "Label",
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "error",
+              "warning"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "violations": {
+            "minimum": 0,
+            "title": "Violations",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "label",
+          "entity",
+          "severity",
+          "violations",
+          "examples"
+        ],
+        "title": "ReadPreviewCheck",
+        "type": "object"
+      },
+      "title": "Checks",
+      "type": "array"
+    },
+    "engine": {
+      "default": "duckdb",
+      "enum": [
+        "duckdb",
+        "interpreter"
+      ],
+      "title": "Engine",
+      "type": "string"
+    },
+    "entities": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "columns": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "column": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "title": "Column",
+                  "type": "string"
+                },
+                "distinct": {
+                  "minimum": 0,
+                  "title": "Distinct",
+                  "type": "integer"
+                },
+                "failures": {
+                  "minimum": 0,
+                  "title": "Failures",
+                  "type": "integer"
+                },
+                "first_failure": {
+                  "anyOf": [
+                    {
+                      "maxLength": 500,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "First Failure"
+                },
+                "null_bp": {
+                  "maximum": 10000,
+                  "minimum": 0,
+                  "title": "Null Bp",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "column",
+                "null_bp",
+                "distinct",
+                "failures",
+                "first_failure"
+              ],
+              "title": "ReadPreviewColumn",
+              "type": "object"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "entity": {
+            "enum": [
+              "location",
+              "item",
+              "bom_line",
+              "lane",
+              "lane_rate",
+              "sailing",
+              "po_line",
+              "production_order",
+              "inventory_position",
+              "demand_forecast",
+              "size_curve",
+              "allocation",
+              "transfer_order_line",
+              "online_order_line",
+              "promotion"
+            ],
+            "title": "Entity",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "failed": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Failed",
+            "type": "integer"
+          },
+          "rows": {
+            "minimum": 0,
+            "title": "Rows",
+            "type": "integer"
+          },
+          "sample": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "maxItems": 20,
+            "title": "Sample",
+            "type": "array"
+          },
+          "skipped": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Skipped",
+            "type": "integer"
+          },
+          "where": {
+            "maxLength": 500,
+            "title": "Where",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entity",
+          "where",
+          "rows",
+          "sample",
+          "error"
+        ],
+        "title": "ReadPreviewEntity",
+        "type": "object"
+      },
+      "title": "Entities",
+      "type": "array"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Error"
+    },
+    "lookups": {
+      "additionalProperties": {
+        "minimum": 0,
+        "type": "integer"
+      },
+      "title": "Lookups",
+      "type": "object"
+    },
+    "ok": {
+      "title": "Ok",
+      "type": "boolean"
+    },
+    "pages": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Pages",
+      "type": "integer"
+    },
+    "rows_seen": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Rows Seen",
+      "type": "integer"
+    },
+    "source": {
+      "default": "live",
+      "enum": [
+        "live",
+        "staged"
+      ],
+      "title": "Source",
+      "type": "string"
+    },
+    "staged": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "fetched_from": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fetched From"
+            },
+            "fetched_to": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fetched To"
+            },
+            "snapshot_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Snapshot Id",
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "complete",
+                "failed"
+              ],
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          "required": [
+            "snapshot_id",
+            "status",
+            "fetched_from",
+            "fetched_to"
+          ],
+          "title": "ReadPreviewStaged",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "truncated": {
+      "items": {
+        "maxLength": 500,
+        "type": "string"
+      },
+      "title": "Truncated",
+      "type": "array"
+    }
+  },
+  "required": [
+    "ok",
+    "error",
+    "entities"
+  ],
+  "title": "ReadPreview",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.mapping.ReadPreview"
+}

@@ -10,7 +10,8 @@ import-light so services only pay for what they use.
 ``policy`` (approval rules, CEL context, decision, quorum) · ``demo`` (demo reset log) · M6:
 ``signals`` · M7: ``admin`` (four-eyes change requests, users) · ``agents`` (custom specialists,
 playground) · ``mapping`` (tier-A read/action mappings, safe expression grammar) · ``commit``
-(per-op commit ledger).
+(per-op commit ledger) · M8: ``mapping_proposal`` (sampled source profiles, proposed read / action
+mappings, the strict LLM proposal schema).
 """
 
 __version__ = "0.1.0"

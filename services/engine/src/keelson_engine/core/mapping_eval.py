@@ -10,10 +10,14 @@ module **walks** that AST over plain JSON values. It is a hand-written interpret
   or ``$.items`` on a Python object would just be "missing" (``None``);
 * every function is a fixed table entry (:data:`_FUNCTIONS`); the parser already pinned the arity.
 
+This interpreter is the **normative semantics** of the expression language: the M8 DuckDB mapping
+compiler (:mod:`keelson_engine.core.mapping_compiler`) must agree with it on every value, ``null``
+and error (differential tests), and it produces every error message the compiler reports.
+
 Three users:
 
 * the **crawl** (:mod:`keelson_engine.core.scn_crawl`): :func:`evaluate` per ``fields`` column of
-  each crawled item (``lookups`` resolved beforehand into :class:`Lookups`);
+  each crawled item (``lookups`` / record tables resolved beforehand into :class:`Lookups`);
 * **action rendering** (per-op commit + admin dry-run): :func:`render_template` fills
   ``{{payload.*}}`` / ``{{target_ref}}`` / ``{{expected_version}}`` / ``{{request_id}}`` /
   ``{{op}}`` placeholders and ``{"$json": …}`` wrappers (:class:`ActionContext`);
@@ -26,13 +30,15 @@ shortened to 60 characters).
 from __future__ import annotations
 
 import datetime as dt
+import functools
 import json
 import re
+import string
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Final
 
-from keelson_contracts.common import MAX_SAFE_INTEGER
+from keelson_contracts.common import MAX_SAFE_INTEGER, weeks_in_year
 from keelson_contracts.mapping import (
     CallExpr,
     ConcatExpr,
@@ -47,21 +53,34 @@ __all__ = [
     "ActionContext",
     "Lookups",
     "MappingEvalError",
+    "aggregate",
     "canonical_json",
     "evaluate",
     "evaluate_text",
     "get_path",
+    "key_text",
     "readback_items",
     "readback_match",
     "render_template",
     "values_equal",
 ]
 
-_INT_RE: Final = re.compile(r"[+-]?[0-9]{1,16}")
-_ISO_DATE_RE: Final = re.compile(r"([0-9]{4})-([0-9]{2})-([0-9]{2})(?:[T ][0-9:.]+(?:Z|[+-][0-9]{2}:?[0-9]{2})?)?")
+INT_PATTERN: Final = r"[+-]?[0-9]{1,16}"
+ISO_DATE_PATTERN: Final = r"([0-9]{4})-([0-9]{2})-([0-9]{2})(?:[T ][0-9:.]+(?:Z|[+-][0-9]{2}:?[0-9]{2})?)?"
+ISO_WEEK_TEXT_PATTERN: Final = r"([0-9]{4})-?W([0-9]{2})"
+DECIMAL_PATTERN: Final = r"([+-]?)([0-9]{1,16})(?:\.([0-9]{1,16}))?"
+ASCII_SPACE: Final = " \t\n\r\x0b\x0c"
+"""What ``trim()`` strips (ASCII whitespace only)."""
+_INT_RE: Final = re.compile(INT_PATTERN)
+_ISO_DATE_RE: Final = re.compile(ISO_DATE_PATTERN)
+_ISO_WEEK_RE: Final = re.compile(ISO_WEEK_TEXT_PATTERN)
+_DECIMAL_RE: Final = re.compile(DECIMAL_PATTERN)
 _TOKEN_RE: Final = re.compile(r"YYYY|MM|DD")
-_MAX_TEXT: Final = 100_000
+_UPPER: Final = str.maketrans(string.ascii_lowercase, string.ascii_uppercase)
+_LOWER: Final = str.maketrans(string.ascii_uppercase, string.ascii_lowercase)
+MAX_TEXT: Final = 100_000
 """Upper bound of a concatenated text value (a mapping can only grow it a little per node)."""
+_MAX_TEXT: Final = MAX_TEXT
 
 
 class MappingEvalError(ValueError):
@@ -134,16 +153,24 @@ def _to_int(value: Any) -> int | None:
     raise MappingEvalError(f"int(): not an integer: {_short(value)}")
 
 
+def _iso_day(value: str, fn: str) -> dt.date:
+    m = _ISO_DATE_RE.fullmatch(value.strip())
+    if m is None:
+        raise MappingEvalError(f"{fn}: not an ISO date: {_short(value)}")
+    y, mo, d = (int(g) for g in m.groups())
+    try:
+        return dt.date(y, mo, d)
+    except ValueError:
+        raise MappingEvalError(f"{fn}: not a calendar date: {_short(value)}") from None
+
+
 def _to_date(value: Any, fmt: str | None) -> str | None:
     if value is None:
         return None
     if not isinstance(value, str):
         raise MappingEvalError(f"date(): not a date string: {_short(value)}")
     if fmt is None:
-        m = _ISO_DATE_RE.fullmatch(value.strip())
-        if m is None:
-            raise MappingEvalError(f"date(): not an ISO date: {_short(value)}")
-        y, mo, d = (int(g) for g in m.groups())
+        return _iso_day(value, "date()").isoformat()
     else:
         sep = fmt[4] if fmt.startswith("YYYY") else fmt[2]
         tokens = _TOKEN_RE.findall(fmt)
@@ -160,14 +187,101 @@ def _to_date(value: Any, fmt: str | None) -> str | None:
         raise MappingEvalError(f"date(): not a calendar date: {_short(value)}") from None
 
 
+def _to_cents(value: Any) -> int | None:
+    """An exact decimal amount → integer minor units (digit arithmetic, never binary floats: a JSON
+    number is read through its shortest ``repr``, so ``12.99`` → ``1299`` and ``0.1 + 0.2`` → error)."""
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        raise MappingEvalError(f"cents(): a boolean is not an amount ({_short(value)})")
+    if isinstance(value, int):
+        out = value * 100
+    elif isinstance(value, (str, float)):
+        m = _DECIMAL_RE.fullmatch(value if isinstance(value, str) else repr(value))
+        if m is None:
+            raise MappingEvalError(f"cents(): not a decimal amount: {_short(value)}")
+        sign, whole, frac = m.group(1), m.group(2), m.group(3) or ""
+        if frac[2:].strip("0"):
+            raise MappingEvalError(f"cents(): more than 2 decimals: {_short(value)}")
+        out = int(whole) * 100 + int((frac + "00")[:2])
+        if sign == "-":
+            out = -out
+    else:
+        raise MappingEvalError(f"cents(): not an amount: {_short(value)}")
+    if abs(out) > MAX_SAFE_INTEGER:
+        raise MappingEvalError("cents(): amount out of range")
+    return out
+
+
+def _to_iso_week(value: Any) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise MappingEvalError(f"iso_week(): not a week or date string: {_short(value)}")
+    m = _ISO_WEEK_RE.fullmatch(value.strip())
+    if m is not None:
+        year, week = int(m.group(1)), int(m.group(2))
+        if year < 1 or not 1 <= week <= weeks_in_year(year):
+            raise MappingEvalError(f"iso_week(): not an ISO week: {_short(value)}")
+        return f"{year:04d}-W{week:02d}"
+    iso = _iso_day(value, "iso_week()").isocalendar()
+    return f"{iso.year:04d}-W{iso.week:02d}"
+
+
+def _text_only(value: Any, fn: str) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise MappingEvalError(f"{fn}: not a string: {_short(value)}")
+    return value
+
+
+def key_text(value: Any, what: str) -> str | None:
+    """A lookup / record / group key as text (the ``+`` operand rule; ``None`` stays ``None``;
+    floats and containers raise :class:`MappingEvalError`)."""
+    return _text(value, what)
+
+
+def aggregate(fn: str, current: Any, kind: type | None, value: Any) -> tuple[Any, type | None]:
+    """One item of a ``sum`` / ``min`` / ``max`` aggregate (M8 ``group_by``): ``(current, kind)`` →
+    the new state. ``null`` values are ignored; ``sum`` takes integers within ±(2^53-1) and keeps
+    its running total in that range; ``min`` / ``max`` take integers (same range) or text, never
+    both in one group."""
+    if value is None:
+        return current, kind
+    if fn == "sum":
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise MappingEvalError(f"sum(): not an integer: {_short(value)}")
+        if abs(value) > MAX_SAFE_INTEGER:
+            raise MappingEvalError("sum(): integer out of range")
+        total = value if current is None else current + value
+        if abs(total) > MAX_SAFE_INTEGER:
+            raise MappingEvalError("sum(): total out of range")
+        return total, int
+    if fn not in ("min", "max"):
+        raise MappingEvalError(f"unknown aggregate {fn!r}")
+    if isinstance(value, bool) or not isinstance(value, (int, str)):
+        raise MappingEvalError(f"{fn}(): only integers or text: {_short(value)}")
+    if isinstance(value, int) and abs(value) > MAX_SAFE_INTEGER:
+        raise MappingEvalError(f"{fn}(): integer out of range")
+    k: type = int if isinstance(value, int) else str
+    if kind is not None and kind is not k:
+        raise MappingEvalError(f"{fn}(): mixes integers and text")
+    if current is None or (value < current if fn == "min" else value > current):
+        current = value
+    return current, k
+
+
 # ───────────────────────────────── lookups ──────────────────────────────────
 
 
 @dataclass(slots=True)
 class Lookups:
-    """Resolved lookup tables: name → {key text → scalar}."""
+    """Resolved lookup tables: name → {key text → scalar}; record tables (M8, ``field()``):
+    name → {key text → source item}."""
 
     tables: dict[str, dict[str, Any]] = field(default_factory=dict)
+    records: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def get(self, table: str, key: Any, default: Any = None) -> Any:
         values = self.tables.get(table)
@@ -177,6 +291,16 @@ class Lookups:
         if text is None:
             return default
         return values.get(text, default)
+
+    def record(self, table: str, key: Any) -> Any:
+        """The item of record table ``table`` under ``key`` (``None`` for a ``null`` key / a miss)."""
+        items = self.records.get(table)
+        if items is None:
+            raise MappingEvalError(f"field(): unknown record table {table!r}")
+        text = _text(key, "field() key")
+        if text is None:
+            return None
+        return items.get(text)
 
 
 _EMPTY_LOOKUPS: Final = Lookups()
@@ -258,6 +382,43 @@ def _fn_if_present(args: Sequence[Expr], item: Any, tables: Lookups) -> Any:
     return evaluate(chosen, item, tables)
 
 
+@functools.lru_cache(maxsize=1024)
+def _const_path(text: str) -> PathExpr:
+    return parse_path(text)
+
+
+def _fn_field(args: Sequence[Expr], item: Any, tables: Lookups) -> Any:
+    table, path = args[0], args[2]
+    if not (isinstance(table, ConstExpr) and isinstance(table.value, str)
+            and isinstance(path, ConstExpr) and isinstance(path.value, str)):
+        raise MappingEvalError("field(): the table and the path must be constants")
+    record = tables.record(table.value, evaluate(args[1], item, tables))
+    return None if record is None else get_path(record, _const_path(path.value))
+
+
+def _fn_cents(args: Sequence[Expr], item: Any, tables: Lookups) -> Any:
+    return _to_cents(evaluate(args[0], item, tables))
+
+
+def _fn_iso_week(args: Sequence[Expr], item: Any, tables: Lookups) -> Any:
+    return _to_iso_week(evaluate(args[0], item, tables))
+
+
+def _fn_trim(args: Sequence[Expr], item: Any, tables: Lookups) -> Any:
+    text = _text_only(evaluate(args[0], item, tables), "trim()")
+    return None if text is None else text.strip(ASCII_SPACE)
+
+
+def _fn_upper(args: Sequence[Expr], item: Any, tables: Lookups) -> Any:
+    text = _text_only(evaluate(args[0], item, tables), "upper()")
+    return None if text is None else text.translate(_UPPER)
+
+
+def _fn_lower(args: Sequence[Expr], item: Any, tables: Lookups) -> Any:
+    text = _text_only(evaluate(args[0], item, tables), "lower()")
+    return None if text is None else text.translate(_LOWER)
+
+
 _FUNCTIONS: Final = {
     "int": _fn_int,
     "str": _fn_str,
@@ -265,7 +426,15 @@ _FUNCTIONS: Final = {
     "lookup": _fn_lookup,
     "coalesce": _fn_coalesce,
     "if_present": _fn_if_present,
+    # M8
+    "field": _fn_field,
+    "cents": _fn_cents,
+    "iso_week": _fn_iso_week,
+    "trim": _fn_trim,
+    "upper": _fn_upper,
+    "lower": _fn_lower,
 }
+"""Aggregates (``first`` …) are not functions: the crawl's group pass applies them."""
 
 
 def evaluate_text(expression: str, item: Any, lookups: Lookups | None = None) -> Any:

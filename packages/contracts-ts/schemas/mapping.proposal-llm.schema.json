@@ -1,0 +1,439 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Strict output of the ``mapping_proposer`` agent (tool-free). ``injection_suspected``: the\nmodel saw instructions inside the data — the whole output is discarded.",
+  "properties": {
+    "entities": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "dedupe": {
+            "title": "Dedupe",
+            "type": "boolean"
+          },
+          "entity": {
+            "enum": [
+              "location",
+              "item",
+              "bom_line",
+              "lane",
+              "lane_rate",
+              "sailing",
+              "po_line",
+              "production_order",
+              "inventory_position",
+              "demand_forecast",
+              "size_curve",
+              "allocation",
+              "transfer_order_line",
+              "online_order_line",
+              "promotion"
+            ],
+            "title": "Entity",
+            "type": "string"
+          },
+          "fields": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "column": {
+                  "title": "Column",
+                  "type": "string"
+                },
+                "confidence": {
+                  "enum": [
+                    "high",
+                    "medium",
+                    "low"
+                  ],
+                  "title": "Confidence",
+                  "type": "string"
+                },
+                "expression": {
+                  "title": "Expression",
+                  "type": "string"
+                },
+                "rationale": {
+                  "title": "Rationale",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "column",
+                "expression",
+                "confidence",
+                "rationale"
+              ],
+              "title": "LlmProposedField",
+              "type": "object"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "group_by": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Group By",
+            "type": "array"
+          },
+          "rationale": {
+            "title": "Rationale",
+            "type": "string"
+          },
+          "source_ref": {
+            "title": "Source Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entity",
+          "source_ref",
+          "fields",
+          "dedupe",
+          "group_by",
+          "rationale"
+        ],
+        "title": "LlmProposedEntity",
+        "type": "object"
+      },
+      "title": "Entities",
+      "type": "array"
+    },
+    "injection_suspected": {
+      "title": "Injection Suspected",
+      "type": "boolean"
+    },
+    "lookups": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "kind": {
+            "enum": [
+              "static",
+              "source",
+              "record"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "source_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Ref"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "values": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "title": "Key",
+                  "type": "string"
+                },
+                "value": {
+                  "title": "Value",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "key",
+                "value"
+              ],
+              "title": "LlmLookupEntry",
+              "type": "object"
+            },
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "source_ref",
+          "key",
+          "value",
+          "values"
+        ],
+        "title": "LlmProposedLookup",
+        "type": "object"
+      },
+      "title": "Lookups",
+      "type": "array"
+    },
+    "ops": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "args": {
+            "items": {
+              "additionalProperties": false,
+              "description": "One argument: ``template`` = a text template (``\"{{payload.qty}}\"``), ``json_template`` = a\nJSON template text sent as canonical JSON (``{\"$json\": …}``), or a literal.",
+              "properties": {
+                "boolean": {
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Boolean"
+                },
+                "integer": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Integer"
+                },
+                "kind": {
+                  "enum": [
+                    "template",
+                    "json_template",
+                    "integer",
+                    "boolean",
+                    "null"
+                  ],
+                  "title": "Kind",
+                  "type": "string"
+                },
+                "name": {
+                  "title": "Name",
+                  "type": "string"
+                },
+                "text": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Text"
+                }
+              },
+              "required": [
+                "name",
+                "kind",
+                "text",
+                "integer",
+                "boolean"
+              ],
+              "title": "LlmArg",
+              "type": "object"
+            },
+            "title": "Args",
+            "type": "array"
+          },
+          "confidence": {
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ],
+            "title": "Confidence",
+            "type": "string"
+          },
+          "op": {
+            "title": "Op",
+            "type": "string"
+          },
+          "rationale": {
+            "title": "Rationale",
+            "type": "string"
+          },
+          "readback_args": {
+            "items": {
+              "additionalProperties": false,
+              "description": "One argument: ``template`` = a text template (``\"{{payload.qty}}\"``), ``json_template`` = a\nJSON template text sent as canonical JSON (``{\"$json\": …}``), or a literal.",
+              "properties": {
+                "boolean": {
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Boolean"
+                },
+                "integer": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Integer"
+                },
+                "kind": {
+                  "enum": [
+                    "template",
+                    "json_template",
+                    "integer",
+                    "boolean",
+                    "null"
+                  ],
+                  "title": "Kind",
+                  "type": "string"
+                },
+                "name": {
+                  "title": "Name",
+                  "type": "string"
+                },
+                "text": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Text"
+                }
+              },
+              "required": [
+                "name",
+                "kind",
+                "text",
+                "integer",
+                "boolean"
+              ],
+              "title": "LlmArg",
+              "type": "object"
+            },
+            "title": "Readback Args",
+            "type": "array"
+          },
+          "readback_items_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Readback Items Path"
+          },
+          "readback_match": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "title": "Path",
+                  "type": "string"
+                },
+                "template": {
+                  "title": "Template",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "template"
+              ],
+              "title": "LlmMatch",
+              "type": "object"
+            },
+            "title": "Readback Match",
+            "type": "array"
+          },
+          "readback_tool": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Readback Tool"
+          },
+          "request_id_arg": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id Arg"
+          },
+          "tool": {
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "op",
+          "tool",
+          "args",
+          "request_id_arg",
+          "readback_tool",
+          "readback_args",
+          "readback_items_path",
+          "readback_match",
+          "confidence",
+          "rationale"
+        ],
+        "title": "LlmProposedOp",
+        "type": "object"
+      },
+      "title": "Ops",
+      "type": "array"
+    }
+  },
+  "required": [
+    "entities",
+    "lookups",
+    "ops",
+    "injection_suspected"
+  ],
+  "title": "MappingProposalLlm",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.mapping_proposal.MappingProposalLlm"
+}

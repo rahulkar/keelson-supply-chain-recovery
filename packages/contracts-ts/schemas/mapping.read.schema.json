@@ -6,7 +6,7 @@
     "entities": {
       "items": {
         "additionalProperties": false,
-        "description": "Rows of one ``scn/1.0`` entity from one source. Several mappings may fill the same entity\n(e.g. ``location`` from DCs and from stores). ``dedupe``: rows with the same ``source_id``\ncollapse into the first one (derived rows such as store clusters).",
+        "description": "Rows of one ``scn/1.0`` entity from one source. Several mappings may fill the same entity\n(e.g. ``location`` from DCs and from stores). ``dedupe``: rows with the same ``source_id``\ncollapse into the first one (derived rows such as store clusters). ``group_by`` (M8): one row\nper distinct group key tuple, fields may aggregate (see the module docstring); omitted from\ndumps while unset.",
         "properties": {
           "dedupe": {
             "default": false,
@@ -43,6 +43,25 @@
             "minProperties": 1,
             "title": "Fields",
             "type": "object"
+          },
+          "group_by": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 500,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxItems": 4,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Group By"
           },
           "source": {
             "additionalProperties": false,
@@ -203,7 +222,7 @@
             },
             {
               "additionalProperties": false,
-              "description": "A table crawled from a read tool before the entities: ``key`` → ``value`` per item. Its\nexpressions may not call ``lookup()`` (no chains, no cycles).",
+              "description": "A table crawled from a read tool before the entities: ``key`` → ``value`` per item (keys as\ntext, first item wins; a ``null`` key is skipped). Its expressions may not call ``lookup()`` or\n``field()`` (no chains, no cycles).",
               "properties": {
                 "key": {
                   "maxLength": 500,
@@ -322,10 +341,126 @@
               ],
               "title": "SourceLookup",
               "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "M8: a table of whole source items keyed by ``key`` (text, first item wins; a ``null`` key\nis skipped), read with ``field('table', key, '$.path')``. Replaces one ``source`` lookup per\nattribute of the same record (a style's family, colour and prices; a PO header's supplier,\nfactory and dates). Its key may not call ``lookup()`` or ``field()``.",
+              "properties": {
+                "key": {
+                  "maxLength": 500,
+                  "minLength": 1,
+                  "title": "Key",
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "record",
+                  "title": "Kind",
+                  "type": "string"
+                },
+                "source": {
+                  "additionalProperties": false,
+                  "description": "One paged read-tool call sequence.\n\nPaging: with ``cursor_path`` null the crawler sends page numbers ``first_page, first_page+1, …``\nunder ``page_param`` and stops at an empty or short page (fewer than ``page_size`` items);\nwith ``cursor_path`` set it sends no cursor first, then the cursor read from the previous\nresult under ``page_param``, and stops when the cursor is missing, ``null``, ``\"\"`` or\nrepeats. It never fetches more than ``max_pages`` (hitting the cap is reported as truncation).\n``page_size`` is sent under ``page_size_param`` when that is set. Without ``page_param`` the\ntool is called once (``max_pages`` must be 1). ``items_path`` selects the result's list of\nitems (``$`` = the result itself).",
+                  "properties": {
+                    "args": {
+                      "additionalProperties": true,
+                      "title": "Args",
+                      "type": "object"
+                    },
+                    "cursor_path": {
+                      "anyOf": [
+                        {
+                          "maxLength": 200,
+                          "minLength": 1,
+                          "pattern": "^\\$",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Cursor Path"
+                    },
+                    "first_page": {
+                      "default": 1,
+                      "maximum": 1,
+                      "minimum": 0,
+                      "title": "First Page",
+                      "type": "integer"
+                    },
+                    "items_path": {
+                      "maxLength": 200,
+                      "minLength": 1,
+                      "pattern": "^\\$",
+                      "title": "Items Path",
+                      "type": "string"
+                    },
+                    "max_pages": {
+                      "maximum": 10000,
+                      "minimum": 1,
+                      "title": "Max Pages",
+                      "type": "integer"
+                    },
+                    "page_param": {
+                      "anyOf": [
+                        {
+                          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Page Param"
+                    },
+                    "page_size": {
+                      "maximum": 1000,
+                      "minimum": 1,
+                      "title": "Page Size",
+                      "type": "integer"
+                    },
+                    "page_size_param": {
+                      "anyOf": [
+                        {
+                          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "title": "Page Size Param"
+                    },
+                    "tool": {
+                      "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+                      "title": "Tool",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "tool",
+                    "page_param",
+                    "page_size",
+                    "items_path",
+                    "cursor_path",
+                    "max_pages"
+                  ],
+                  "title": "ReadSource",
+                  "type": "object"
+                }
+              },
+              "required": [
+                "kind",
+                "source",
+                "key"
+              ],
+              "title": "RecordLookup",
+              "type": "object"
             }
           ],
           "discriminator": {
             "mapping": {
+              "record": "#/$defs/RecordLookup",
               "source": "#/$defs/SourceLookup",
               "static": "#/$defs/StaticLookup"
             },

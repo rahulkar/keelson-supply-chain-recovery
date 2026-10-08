@@ -81,6 +81,10 @@ def test_expected_schema_set(script: ModuleType) -> None:
             "agents.playground-result", "mapping.read", "mapping.action", "mapping.dry-run-request",
             "mapping.dry-run-result", "scn.snapshot-label", "commit.ledger-entry", "connectors.capabilities",
         )),
+        # M8 (121): mapping compiler explain + preview, proposed mappings
+        *(f"mapping.{n}.schema.json" for n in (
+            "plan", "preview-request", "preview", "propose-request", "proposal", "proposal-llm",
+        )),
     }
     assert names == expected
 

@@ -149,7 +149,8 @@
         "embedding_profile",
         "connector_delete",
         "kb_delete",
-        "user_roles"
+        "user_roles",
+        "connector_mapping"
       ],
       "title": "Kind",
       "type": "string"
@@ -182,7 +183,8 @@
               "embedding_profile_changed",
               "connector_deleted",
               "kb_deleted",
-              "admin_role_granted"
+              "admin_role_granted",
+              "ai_proposed_action_mapping"
             ],
             "title": "Code",
             "type": "string"

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Annotated, Any, Final, Literal
 from urllib.parse import urlsplit
@@ -47,12 +48,14 @@ __all__ = [
     "SnapshotLabel",
     "SCN_COLUMNS",
     "SCN_ENTITIES",
+    "SCN_FOREIGN_KEYS",
     "SCN_ROW_MODELS",
     "AllocationRow",
     "BomLineRow",
     "ChangeEntry",
     "ChangesSince",
     "DemandForecastRow",
+    "ForeignKey",
     "InventoryPositionRow",
     "ItemRow",
     "LaneRateRow",
@@ -379,6 +382,66 @@ SCN_COLUMNS: Final[Mapping[str, tuple[str, ...]]] = {
     name: tuple(model.model_fields) for name, model in SCN_ROW_MODELS.items()
 }
 """Entity name -> column names in contract order."""
+
+
+@dataclass(frozen=True, slots=True)
+class ForeignKey:
+    """M8 (``121-m8-mapping-compiler.md``): a reference between ``scn/1.0`` entities that loaded
+    rows should satisfy. Rows whose ``columns`` hold a ``null`` are not checked; ``kinds`` /
+    ``target_kinds`` restrict the source / target rows by their ``kind`` column. ``error``
+    references fail a load (the checks every sync ran since M3); ``warning`` ones are reported."""
+
+    entity: str
+    columns: tuple[str, ...]
+    target_entity: str
+    target_columns: tuple[str, ...]
+    severity: Literal["error", "warning"]
+    label: str
+    kinds: tuple[str, ...] = ()
+    target_kinds: tuple[str, ...] = ()
+
+
+def _fk(entity: str, columns: tuple[str, ...], target: str, target_columns: tuple[str, ...], label: str, *,
+        error: bool = False, kinds: tuple[str, ...] = (), target_kinds: tuple[str, ...] = ()) -> ForeignKey:
+    return ForeignKey(entity, columns, target, target_columns, "error" if error else "warning", label, kinds,
+                      target_kinds)
+
+
+SCN_FOREIGN_KEYS: Final[tuple[ForeignKey, ...]] = (
+    # errors: the two references every snapshot load checked since M3 (engine scn_sync.FK_CHECKS)
+    _fk("po_line", ("sku_code",), "item", ("code",), "po_line.sku_code → item(sku)", error=True,
+        target_kinds=("sku",)),
+    _fk("inventory_position", ("location_kind", "location_code"), "location", ("kind", "code"),
+        "inventory_position.location → location", error=True),
+    # warnings: references plans rely on that a partial vendor read may break
+    _fk("po_line", ("dest_dc_code",), "location", ("code",), "po_line.dest_dc_code → location(dc)",
+        target_kinds=("dc",)),
+    _fk("item", ("style_code",), "item", ("code",), "item(sku).style_code → item(style)", kinds=("sku",),
+        target_kinds=("style",)),
+    _fk("location", ("parent_code",), "location", ("code",), "location.parent_code → location"),
+    _fk("demand_forecast", ("location_kind", "location_code"), "location", ("kind", "code"),
+        "demand_forecast.location → location"),
+    _fk("demand_forecast", ("style_code",), "item", ("code",), "demand_forecast.style_code → item(style)",
+        target_kinds=("style",)),
+    _fk("allocation", ("sku_code",), "item", ("code",), "allocation.sku_code → item(sku)", target_kinds=("sku",)),
+    _fk("allocation", ("dc_code",), "location", ("code",), "allocation.dc_code → location(dc)",
+        target_kinds=("dc",)),
+    _fk("allocation", ("store_code",), "location", ("code",), "allocation.store_code → location(store)",
+        target_kinds=("store",)),
+    _fk("transfer_order_line", ("sku_code",), "item", ("code",), "transfer_order_line.sku_code → item(sku)",
+        target_kinds=("sku",)),
+    _fk("transfer_order_line", ("from_dc",), "location", ("code",), "transfer_order_line.from_dc → location(dc)",
+        target_kinds=("dc",)),
+    _fk("transfer_order_line", ("to_dc",), "location", ("code",), "transfer_order_line.to_dc → location(dc)",
+        target_kinds=("dc",)),
+    _fk("lane_rate", ("lane_code",), "lane", ("code",), "lane_rate.lane_code → lane"),
+    _fk("sailing", ("lane_code",), "lane", ("code",), "sailing.lane_code → lane"),
+    _fk("size_curve", ("cluster_code",), "location", ("code",), "size_curve.cluster_code → location(cluster)",
+        target_kinds=("cluster",)),
+    _fk("bom_line", ("style_code",), "item", ("code",), "bom_line.style_code → item(style)",
+        target_kinds=("style",)),
+)
+"""Every checked reference between ``scn/1.0`` entities, errors first."""
 
 
 def parse_row(entity: str, row: Mapping[str, Any]) -> ScnRow:

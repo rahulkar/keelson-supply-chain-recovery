@@ -31,6 +31,7 @@ from keelson_contracts import agui
 from keelson_contracts.admin import (
     CHANGE_REQUEST_KINDS,
     GUARD_REASON_CODES,
+    GUARD_REASONS_BY_KIND,
     VERSIONED_CHANGE_KINDS,
     AdminChangeRequest,
     PasswordSetup,
@@ -125,9 +126,11 @@ def test_user_roles_change_request_shape() -> None:
 
 @pytest.mark.parametrize("kind", sorted(VERSIONED_CHANGE_KINDS))
 def test_versioned_kinds_need_base_version(kind: str) -> None:
+    code = sorted(GUARD_REASONS_BY_KIND[kind])[0]  # a reason that applies to this kind
+    reasons = [{"code": code, "field": "x", "reason": "guarded"}]
     with pytest.raises(ValidationError, match="base_version"):
-        AdminChangeRequest.model_validate(_cr(kind=kind, base_version=None))
-    assert AdminChangeRequest.model_validate(_cr(kind=kind)).base_version == "v3"
+        AdminChangeRequest.model_validate(_cr(kind=kind, base_version=None, reasons=reasons))
+    assert AdminChangeRequest.model_validate(_cr(kind=kind, reasons=reasons)).base_version == "v3"
 
 
 def test_kb_delete_needs_no_base_version() -> None:

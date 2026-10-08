@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "``POST /api/admin/connectors/{slug}/mappings/proposals``. ``proposer: heuristic`` never\ncalls a model; ``auto`` refines the rule-based draft with the LLM when one is available\n(otherwise the rule-based draft comes back with a note). ``sample: false`` proposes from the\ntool catalogue alone (no vendor call; also for a connector that is not active).",
+  "properties": {
+    "entities": {
+      "anyOf": [
+        {
+          "items": {
+            "enum": [
+              "location",
+              "item",
+              "bom_line",
+              "lane",
+              "lane_rate",
+              "sailing",
+              "po_line",
+              "production_order",
+              "inventory_position",
+              "demand_forecast",
+              "size_curve",
+              "allocation",
+              "transfer_order_line",
+              "online_order_line",
+              "promotion"
+            ],
+            "type": "string"
+          },
+          "maxItems": 15,
+          "minItems": 1,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Entities"
+    },
+    "kinds": {
+      "items": {
+        "enum": [
+          "read",
+          "action"
+        ],
+        "type": "string"
+      },
+      "maxItems": 2,
+      "minItems": 1,
+      "title": "Kinds",
+      "type": "array"
+    },
+    "ops": {
+      "anyOf": [
+        {
+          "items": {
+            "maxLength": 64,
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+            "type": "string"
+          },
+          "maxItems": 32,
+          "minItems": 1,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ops"
+    },
+    "proposer": {
+      "default": "auto",
+      "enum": [
+        "auto",
+        "heuristic"
+      ],
+      "title": "Proposer",
+      "type": "string"
+    },
+    "sample": {
+      "default": true,
+      "title": "Sample",
+      "type": "boolean"
+    },
+    "sources": {
+      "items": {
+        "additionalProperties": false,
+        "description": "An admin-named read to sample in addition to the discovered ones.",
+        "properties": {
+          "args": {
+            "additionalProperties": true,
+            "title": "Args",
+            "type": "object"
+          },
+          "tool": {
+            "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tool"
+        ],
+        "title": "ProposeSource",
+        "type": "object"
+      },
+      "maxItems": 16,
+      "title": "Sources",
+      "type": "array"
+    }
+  },
+  "required": [
+    "kinds"
+  ],
+  "title": "MappingProposeRequest",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.mapping_proposal.MappingProposeRequest"
+}

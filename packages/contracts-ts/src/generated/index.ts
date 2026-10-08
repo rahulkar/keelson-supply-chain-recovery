@@ -58,6 +58,12 @@ export { llmUntrustedItemSchema, type LlmUntrustedItem } from "./llm-untrusted-i
 export { mappingActionSchema, type MappingAction } from "./mapping-action";
 export { mappingDryRunRequestSchema, type MappingDryRunRequest } from "./mapping-dry-run-request";
 export { mappingDryRunResultSchema, type MappingDryRunResult } from "./mapping-dry-run-result";
+export { mappingPlanSchema, type MappingPlan } from "./mapping-plan";
+export { mappingPreviewSchema, type MappingPreview } from "./mapping-preview";
+export { mappingPreviewRequestSchema, type MappingPreviewRequest } from "./mapping-preview-request";
+export { mappingProposalSchema, type MappingProposal } from "./mapping-proposal";
+export { mappingProposalLlmSchema, type MappingProposalLlm } from "./mapping-proposal-llm";
+export { mappingProposeRequestSchema, type MappingProposeRequest } from "./mapping-propose-request";
 export { mappingReadSchema, type MappingRead } from "./mapping-read";
 export { policyContextSchema, type PolicyContext } from "./policy-context";
 export { policyDecisionSchema, type PolicyDecision } from "./policy-decision";

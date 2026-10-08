@@ -1,0 +1,1329 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A stored proposal (``connector_mapping_proposal``): drafts for review, never active.",
+  "properties": {
+    "accepted": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "action": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Action"
+            },
+            "read": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Read"
+            }
+          },
+          "title": "ProposalVersions",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "action": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "ops": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "confidence_bp": {
+                    "maximum": 10000,
+                    "minimum": 0,
+                    "title": "Confidence Bp",
+                    "type": "integer"
+                  },
+                  "generic": {
+                    "default": false,
+                    "title": "Generic",
+                    "type": "boolean"
+                  },
+                  "mapping": {
+                    "additionalProperties": false,
+                    "description": "One canonical op → one vendor tool call. ``idempotency`` is the admin-confirmed guarantee\nof that tool: ``enforced`` needs ``request_id_arg`` (the per-op idempotency key is sent\nthere); ``best_effort`` / ``none`` need a ``readback`` (read back before any retry; ``none``\nops are never auto-retried).",
+                    "properties": {
+                      "args": {
+                        "additionalProperties": true,
+                        "title": "Args",
+                        "type": "object"
+                      },
+                      "idempotency": {
+                        "enum": [
+                          "enforced",
+                          "best_effort",
+                          "none"
+                        ],
+                        "title": "Idempotency",
+                        "type": "string"
+                      },
+                      "op": {
+                        "maxLength": 64,
+                        "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+                        "title": "Op",
+                        "type": "string"
+                      },
+                      "readback": {
+                        "anyOf": [
+                          {
+                            "additionalProperties": false,
+                            "description": "How to confirm an op took effect without repeating it: call ``tool`` with ``args`` (a\nread tool; same placeholders as the action), take the items at ``items_path`` (``null`` = the\nresult is the single item; a path to an object = that single item; to a list = its items) and\nsucceed when some item has every ``match`` path (JSONPath-lite relative to the item) equal to\nthe rendered value.",
+                            "properties": {
+                              "args": {
+                                "additionalProperties": true,
+                                "title": "Args",
+                                "type": "object"
+                              },
+                              "items_path": {
+                                "anyOf": [
+                                  {
+                                    "maxLength": 200,
+                                    "minLength": 1,
+                                    "pattern": "^\\$",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "default": null,
+                                "title": "Items Path"
+                              },
+                              "match": {
+                                "additionalProperties": true,
+                                "maxProperties": 32,
+                                "minProperties": 1,
+                                "title": "Match",
+                                "type": "object"
+                              },
+                              "tool": {
+                                "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+                                "title": "Tool",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "tool",
+                              "match"
+                            ],
+                            "title": "Readback",
+                            "type": "object"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "request_id_arg": {
+                        "anyOf": [
+                          {
+                            "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$",
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "title": "Request Id Arg"
+                      },
+                      "tool": {
+                        "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+                        "title": "Tool",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "op",
+                      "tool",
+                      "args",
+                      "idempotency",
+                      "request_id_arg",
+                      "readback"
+                    ],
+                    "title": "ActionOpMapping",
+                    "type": "object"
+                  },
+                  "origin": {
+                    "enum": [
+                      "heuristic",
+                      "llm",
+                      "both"
+                    ],
+                    "title": "Origin",
+                    "type": "string"
+                  },
+                  "rationale": {
+                    "maxLength": 300,
+                    "title": "Rationale",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "mapping",
+                  "confidence_bp",
+                  "origin",
+                  "rationale"
+                ],
+                "title": "ProposedOp",
+                "type": "object"
+              },
+              "title": "Ops",
+              "type": "array"
+            }
+          },
+          "required": [
+            "ops"
+          ],
+          "title": "ProposedAction",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "base_versions": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Action"
+        },
+        "read": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Read"
+        }
+      },
+      "title": "ProposalVersions",
+      "type": "object"
+    },
+    "connector": {
+      "maxLength": 63,
+      "minLength": 1,
+      "title": "Connector",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "created_by": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Created By"
+    },
+    "id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Id",
+      "type": "string"
+    },
+    "inputs_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Inputs Hash",
+      "type": "string"
+    },
+    "llm_calls": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Llm Calls",
+      "type": "integer"
+    },
+    "model_alias": {
+      "anyOf": [
+        {
+          "maxLength": 100,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Model Alias"
+    },
+    "notes": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "enum": [
+              "llm_disabled",
+              "llm_unavailable",
+              "llm_failed",
+              "replay_miss",
+              "llm_output_dropped",
+              "injection_suspected",
+              "description_flagged",
+              "sample_value_withheld",
+              "sampling_truncated",
+              "schema_only",
+              "required_column_unmapped",
+              "entity_unmapped",
+              "op_unmapped",
+              "path_not_in_sample",
+              "type_mismatch",
+              "generic_update_tool",
+              "source_unused",
+              "key_dropped",
+              "sample_failed"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "info",
+              "warning"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "where": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Where"
+          }
+        },
+        "required": [
+          "code",
+          "severity",
+          "where",
+          "message"
+        ],
+        "title": "ProposalNote",
+        "type": "object"
+      },
+      "title": "Notes",
+      "type": "array"
+    },
+    "profiles": {
+      "items": {
+        "additionalProperties": false,
+        "description": "A sampled paged read: ``source`` is the paging the sampler detected (a ready\n:class:`~keelson_contracts.mapping.ReadSource` for a draft), ``ref`` how proposals name it.",
+        "properties": {
+          "items_sampled": {
+            "minimum": 0,
+            "title": "Items Sampled",
+            "type": "integer"
+          },
+          "paths": {
+            "items": {
+              "additionalProperties": false,
+              "description": "One item path of a sampled source, reduced to shape statistics.",
+              "properties": {
+                "distinct_count": {
+                  "minimum": 0,
+                  "title": "Distinct Count",
+                  "type": "integer"
+                },
+                "examples": {
+                  "items": {
+                    "maxLength": 80,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "maxItems": 3,
+                  "title": "Examples",
+                  "type": "array"
+                },
+                "max_len": {
+                  "minimum": 0,
+                  "title": "Max Len",
+                  "type": "integer"
+                },
+                "null_count": {
+                  "minimum": 0,
+                  "title": "Null Count",
+                  "type": "integer"
+                },
+                "path": {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "pattern": "^\\$",
+                  "title": "Path",
+                  "type": "string"
+                },
+                "shape": {
+                  "enum": [
+                    "code",
+                    "int",
+                    "int_text",
+                    "decimal_text",
+                    "date",
+                    "datetime",
+                    "iso_week",
+                    "bool",
+                    "float",
+                    "text",
+                    "object",
+                    "list",
+                    "empty"
+                  ],
+                  "title": "Shape",
+                  "type": "string"
+                },
+                "types": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "count": {
+                        "minimum": 0,
+                        "title": "Count",
+                        "type": "integer"
+                      },
+                      "type": {
+                        "enum": [
+                          "null",
+                          "str",
+                          "int",
+                          "bool",
+                          "float",
+                          "object",
+                          "list"
+                        ],
+                        "title": "Type",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "count"
+                    ],
+                    "title": "ShapeCount",
+                    "type": "object"
+                  },
+                  "maxItems": 7,
+                  "title": "Types",
+                  "type": "array"
+                },
+                "unique": {
+                  "title": "Unique",
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "path",
+                "shape",
+                "types",
+                "null_count",
+                "distinct_count",
+                "unique",
+                "max_len",
+                "examples"
+              ],
+              "title": "PathProfile",
+              "type": "object"
+            },
+            "maxItems": 200,
+            "title": "Paths",
+            "type": "array"
+          },
+          "ref": {
+            "pattern": "^S[1-9][0-9]{0,2}$",
+            "title": "Ref",
+            "type": "string"
+          },
+          "source": {
+            "additionalProperties": false,
+            "description": "One paged read-tool call sequence.\n\nPaging: with ``cursor_path`` null the crawler sends page numbers ``first_page, first_page+1, …``\nunder ``page_param`` and stops at an empty or short page (fewer than ``page_size`` items);\nwith ``cursor_path`` set it sends no cursor first, then the cursor read from the previous\nresult under ``page_param``, and stops when the cursor is missing, ``null``, ``\"\"`` or\nrepeats. It never fetches more than ``max_pages`` (hitting the cap is reported as truncation).\n``page_size`` is sent under ``page_size_param`` when that is set. Without ``page_param`` the\ntool is called once (``max_pages`` must be 1). ``items_path`` selects the result's list of\nitems (``$`` = the result itself).",
+            "properties": {
+              "args": {
+                "additionalProperties": true,
+                "title": "Args",
+                "type": "object"
+              },
+              "cursor_path": {
+                "anyOf": [
+                  {
+                    "maxLength": 200,
+                    "minLength": 1,
+                    "pattern": "^\\$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Cursor Path"
+              },
+              "first_page": {
+                "default": 1,
+                "maximum": 1,
+                "minimum": 0,
+                "title": "First Page",
+                "type": "integer"
+              },
+              "items_path": {
+                "maxLength": 200,
+                "minLength": 1,
+                "pattern": "^\\$",
+                "title": "Items Path",
+                "type": "string"
+              },
+              "max_pages": {
+                "maximum": 10000,
+                "minimum": 1,
+                "title": "Max Pages",
+                "type": "integer"
+              },
+              "page_param": {
+                "anyOf": [
+                  {
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Page Param"
+              },
+              "page_size": {
+                "maximum": 1000,
+                "minimum": 1,
+                "title": "Page Size",
+                "type": "integer"
+              },
+              "page_size_param": {
+                "anyOf": [
+                  {
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Page Size Param"
+              },
+              "tool": {
+                "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+                "title": "Tool",
+                "type": "string"
+              }
+            },
+            "required": [
+              "tool",
+              "page_param",
+              "page_size",
+              "items_path",
+              "cursor_path",
+              "max_pages"
+            ],
+            "title": "ReadSource",
+            "type": "object"
+          },
+          "total_hint": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Hint"
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant"
+          }
+        },
+        "required": [
+          "ref",
+          "source",
+          "variant",
+          "items_sampled",
+          "total_hint",
+          "paths"
+        ],
+        "title": "SourceProfile",
+        "type": "object"
+      },
+      "title": "Profiles",
+      "type": "array"
+    },
+    "proposer": {
+      "enum": [
+        "heuristic",
+        "llm+heuristic"
+      ],
+      "title": "Proposer",
+      "type": "string"
+    },
+    "read": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "entities": {
+              "items": {
+                "additionalProperties": false,
+                "description": "An entity mapping draft. ``missing_required`` lists required columns nobody could map:\nsuch an entity is shown but left out of :meth:`MappingProposal.read_draft`.",
+                "properties": {
+                  "confidence_bp": {
+                    "maximum": 10000,
+                    "minimum": 0,
+                    "title": "Confidence Bp",
+                    "type": "integer"
+                  },
+                  "dedupe": {
+                    "default": false,
+                    "title": "Dedupe",
+                    "type": "boolean"
+                  },
+                  "entity": {
+                    "enum": [
+                      "location",
+                      "item",
+                      "bom_line",
+                      "lane",
+                      "lane_rate",
+                      "sailing",
+                      "po_line",
+                      "production_order",
+                      "inventory_position",
+                      "demand_forecast",
+                      "size_curve",
+                      "allocation",
+                      "transfer_order_line",
+                      "online_order_line",
+                      "promotion"
+                    ],
+                    "title": "Entity",
+                    "type": "string"
+                  },
+                  "fields": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "alternatives": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "confidence_bp": {
+                                "maximum": 10000,
+                                "minimum": 0,
+                                "title": "Confidence Bp",
+                                "type": "integer"
+                              },
+                              "expression": {
+                                "maxLength": 500,
+                                "minLength": 1,
+                                "title": "Expression",
+                                "type": "string"
+                              },
+                              "origin": {
+                                "enum": [
+                                  "heuristic",
+                                  "llm",
+                                  "both"
+                                ],
+                                "title": "Origin",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "expression",
+                              "origin",
+                              "confidence_bp"
+                            ],
+                            "title": "ProposedAlternative",
+                            "type": "object"
+                          },
+                          "maxItems": 3,
+                          "title": "Alternatives",
+                          "type": "array"
+                        },
+                        "column": {
+                          "maxLength": 64,
+                          "minLength": 1,
+                          "title": "Column",
+                          "type": "string"
+                        },
+                        "confidence_bp": {
+                          "maximum": 10000,
+                          "minimum": 0,
+                          "title": "Confidence Bp",
+                          "type": "integer"
+                        },
+                        "expression": {
+                          "maxLength": 500,
+                          "minLength": 1,
+                          "title": "Expression",
+                          "type": "string"
+                        },
+                        "origin": {
+                          "enum": [
+                            "heuristic",
+                            "llm",
+                            "both"
+                          ],
+                          "title": "Origin",
+                          "type": "string"
+                        },
+                        "rationale": {
+                          "maxLength": 300,
+                          "title": "Rationale",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "column",
+                        "expression",
+                        "confidence_bp",
+                        "origin",
+                        "rationale"
+                      ],
+                      "title": "ProposedField",
+                      "type": "object"
+                    },
+                    "title": "Fields",
+                    "type": "array"
+                  },
+                  "group_by": {
+                    "anyOf": [
+                      {
+                        "items": {
+                          "maxLength": 500,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "maxItems": 4,
+                        "minItems": 1,
+                        "type": "array"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Group By"
+                  },
+                  "missing_required": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "title": "Missing Required",
+                    "type": "array"
+                  },
+                  "origin": {
+                    "enum": [
+                      "heuristic",
+                      "llm",
+                      "both"
+                    ],
+                    "title": "Origin",
+                    "type": "string"
+                  },
+                  "rationale": {
+                    "maxLength": 300,
+                    "title": "Rationale",
+                    "type": "string"
+                  },
+                  "source": {
+                    "additionalProperties": false,
+                    "description": "One paged read-tool call sequence.\n\nPaging: with ``cursor_path`` null the crawler sends page numbers ``first_page, first_page+1, …``\nunder ``page_param`` and stops at an empty or short page (fewer than ``page_size`` items);\nwith ``cursor_path`` set it sends no cursor first, then the cursor read from the previous\nresult under ``page_param``, and stops when the cursor is missing, ``null``, ``\"\"`` or\nrepeats. It never fetches more than ``max_pages`` (hitting the cap is reported as truncation).\n``page_size`` is sent under ``page_size_param`` when that is set. Without ``page_param`` the\ntool is called once (``max_pages`` must be 1). ``items_path`` selects the result's list of\nitems (``$`` = the result itself).",
+                    "properties": {
+                      "args": {
+                        "additionalProperties": true,
+                        "title": "Args",
+                        "type": "object"
+                      },
+                      "cursor_path": {
+                        "anyOf": [
+                          {
+                            "maxLength": 200,
+                            "minLength": 1,
+                            "pattern": "^\\$",
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "title": "Cursor Path"
+                      },
+                      "first_page": {
+                        "default": 1,
+                        "maximum": 1,
+                        "minimum": 0,
+                        "title": "First Page",
+                        "type": "integer"
+                      },
+                      "items_path": {
+                        "maxLength": 200,
+                        "minLength": 1,
+                        "pattern": "^\\$",
+                        "title": "Items Path",
+                        "type": "string"
+                      },
+                      "max_pages": {
+                        "maximum": 10000,
+                        "minimum": 1,
+                        "title": "Max Pages",
+                        "type": "integer"
+                      },
+                      "page_param": {
+                        "anyOf": [
+                          {
+                            "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$",
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "title": "Page Param"
+                      },
+                      "page_size": {
+                        "maximum": 1000,
+                        "minimum": 1,
+                        "title": "Page Size",
+                        "type": "integer"
+                      },
+                      "page_size_param": {
+                        "anyOf": [
+                          {
+                            "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$",
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "title": "Page Size Param"
+                      },
+                      "tool": {
+                        "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+                        "title": "Tool",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "tool",
+                      "page_param",
+                      "page_size",
+                      "items_path",
+                      "cursor_path",
+                      "max_pages"
+                    ],
+                    "title": "ReadSource",
+                    "type": "object"
+                  },
+                  "source_ref": {
+                    "pattern": "^S[1-9][0-9]{0,2}$",
+                    "title": "Source Ref",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "entity",
+                  "source_ref",
+                  "source",
+                  "fields",
+                  "confidence_bp",
+                  "origin",
+                  "rationale"
+                ],
+                "title": "ProposedEntity",
+                "type": "object"
+              },
+              "title": "Entities",
+              "type": "array"
+            },
+            "lookups": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "confidence_bp": {
+                    "maximum": 10000,
+                    "minimum": 0,
+                    "title": "Confidence Bp",
+                    "type": "integer"
+                  },
+                  "name": {
+                    "pattern": "^[a-z][a-z0-9_]{0,39}$",
+                    "title": "Name",
+                    "type": "string"
+                  },
+                  "origin": {
+                    "enum": [
+                      "heuristic",
+                      "llm",
+                      "both"
+                    ],
+                    "title": "Origin",
+                    "type": "string"
+                  },
+                  "rationale": {
+                    "maxLength": 300,
+                    "title": "Rationale",
+                    "type": "string"
+                  },
+                  "source_ref": {
+                    "anyOf": [
+                      {
+                        "pattern": "^S[1-9][0-9]{0,2}$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Source Ref"
+                  },
+                  "table": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "description": "A fixed key → value table (keys compared as text).",
+                        "properties": {
+                          "kind": {
+                            "const": "static",
+                            "title": "Kind",
+                            "type": "string"
+                          },
+                          "values": {
+                            "additionalProperties": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "integer"
+                                },
+                                {
+                                  "type": "boolean"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "maxProperties": 10000,
+                            "propertyNames": {
+                              "maxLength": 200
+                            },
+                            "title": "Values",
+                            "type": "object"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "values"
+                        ],
+                        "title": "StaticLookup",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "description": "A table crawled from a read tool before the entities: ``key`` → ``value`` per item (keys as\ntext, first item wins; a ``null`` key is skipped). Its expressions may not call ``lookup()`` or\n``field()`` (no chains, no cycles).",
+                        "properties": {
+                          "key": {
+                            "maxLength": 500,
+                            "minLength": 1,
+                            "title": "Key",
+                            "type": "string"
+                          },
+                          "kind": {
+                            "const": "source",
+                            "title": "Kind",
+                            "type": "string"
+                          },
+                          "source": {
+                            "additionalProperties": false,
+                            "description": "One paged read-tool call sequence.\n\nPaging: with ``cursor_path`` null the crawler sends page numbers ``first_page, first_page+1, …``\nunder ``page_param`` and stops at an empty or short page (fewer than ``page_size`` items);\nwith ``cursor_path`` set it sends no cursor first, then the cursor read from the previous\nresult under ``page_param``, and stops when the cursor is missing, ``null``, ``\"\"`` or\nrepeats. It never fetches more than ``max_pages`` (hitting the cap is reported as truncation).\n``page_size`` is sent under ``page_size_param`` when that is set. Without ``page_param`` the\ntool is called once (``max_pages`` must be 1). ``items_path`` selects the result's list of\nitems (``$`` = the result itself).",
+                            "properties": {
+                              "args": {
+                                "additionalProperties": true,
+                                "title": "Args",
+                                "type": "object"
+                              },
+                              "cursor_path": {
+                                "anyOf": [
+                                  {
+                                    "maxLength": 200,
+                                    "minLength": 1,
+                                    "pattern": "^\\$",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "title": "Cursor Path"
+                              },
+                              "first_page": {
+                                "default": 1,
+                                "maximum": 1,
+                                "minimum": 0,
+                                "title": "First Page",
+                                "type": "integer"
+                              },
+                              "items_path": {
+                                "maxLength": 200,
+                                "minLength": 1,
+                                "pattern": "^\\$",
+                                "title": "Items Path",
+                                "type": "string"
+                              },
+                              "max_pages": {
+                                "maximum": 10000,
+                                "minimum": 1,
+                                "title": "Max Pages",
+                                "type": "integer"
+                              },
+                              "page_param": {
+                                "anyOf": [
+                                  {
+                                    "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "title": "Page Param"
+                              },
+                              "page_size": {
+                                "maximum": 1000,
+                                "minimum": 1,
+                                "title": "Page Size",
+                                "type": "integer"
+                              },
+                              "page_size_param": {
+                                "anyOf": [
+                                  {
+                                    "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "default": null,
+                                "title": "Page Size Param"
+                              },
+                              "tool": {
+                                "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+                                "title": "Tool",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "tool",
+                              "page_param",
+                              "page_size",
+                              "items_path",
+                              "cursor_path",
+                              "max_pages"
+                            ],
+                            "title": "ReadSource",
+                            "type": "object"
+                          },
+                          "value": {
+                            "maxLength": 500,
+                            "minLength": 1,
+                            "title": "Value",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "source",
+                          "key",
+                          "value"
+                        ],
+                        "title": "SourceLookup",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "description": "M8: a table of whole source items keyed by ``key`` (text, first item wins; a ``null`` key\nis skipped), read with ``field('table', key, '$.path')``. Replaces one ``source`` lookup per\nattribute of the same record (a style's family, colour and prices; a PO header's supplier,\nfactory and dates). Its key may not call ``lookup()`` or ``field()``.",
+                        "properties": {
+                          "key": {
+                            "maxLength": 500,
+                            "minLength": 1,
+                            "title": "Key",
+                            "type": "string"
+                          },
+                          "kind": {
+                            "const": "record",
+                            "title": "Kind",
+                            "type": "string"
+                          },
+                          "source": {
+                            "additionalProperties": false,
+                            "description": "One paged read-tool call sequence.\n\nPaging: with ``cursor_path`` null the crawler sends page numbers ``first_page, first_page+1, …``\nunder ``page_param`` and stops at an empty or short page (fewer than ``page_size`` items);\nwith ``cursor_path`` set it sends no cursor first, then the cursor read from the previous\nresult under ``page_param``, and stops when the cursor is missing, ``null``, ``\"\"`` or\nrepeats. It never fetches more than ``max_pages`` (hitting the cap is reported as truncation).\n``page_size`` is sent under ``page_size_param`` when that is set. Without ``page_param`` the\ntool is called once (``max_pages`` must be 1). ``items_path`` selects the result's list of\nitems (``$`` = the result itself).",
+                            "properties": {
+                              "args": {
+                                "additionalProperties": true,
+                                "title": "Args",
+                                "type": "object"
+                              },
+                              "cursor_path": {
+                                "anyOf": [
+                                  {
+                                    "maxLength": 200,
+                                    "minLength": 1,
+                                    "pattern": "^\\$",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "title": "Cursor Path"
+                              },
+                              "first_page": {
+                                "default": 1,
+                                "maximum": 1,
+                                "minimum": 0,
+                                "title": "First Page",
+                                "type": "integer"
+                              },
+                              "items_path": {
+                                "maxLength": 200,
+                                "minLength": 1,
+                                "pattern": "^\\$",
+                                "title": "Items Path",
+                                "type": "string"
+                              },
+                              "max_pages": {
+                                "maximum": 10000,
+                                "minimum": 1,
+                                "title": "Max Pages",
+                                "type": "integer"
+                              },
+                              "page_param": {
+                                "anyOf": [
+                                  {
+                                    "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "title": "Page Param"
+                              },
+                              "page_size": {
+                                "maximum": 1000,
+                                "minimum": 1,
+                                "title": "Page Size",
+                                "type": "integer"
+                              },
+                              "page_size_param": {
+                                "anyOf": [
+                                  {
+                                    "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "default": null,
+                                "title": "Page Size Param"
+                              },
+                              "tool": {
+                                "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+                                "title": "Tool",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "tool",
+                              "page_param",
+                              "page_size",
+                              "items_path",
+                              "cursor_path",
+                              "max_pages"
+                            ],
+                            "title": "ReadSource",
+                            "type": "object"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "source",
+                          "key"
+                        ],
+                        "title": "RecordLookup",
+                        "type": "object"
+                      }
+                    ],
+                    "discriminator": {
+                      "mapping": {
+                        "record": "#/$defs/RecordLookup",
+                        "source": "#/$defs/SourceLookup",
+                        "static": "#/$defs/StaticLookup"
+                      },
+                      "propertyName": "kind"
+                    },
+                    "title": "Table"
+                  }
+                },
+                "required": [
+                  "name",
+                  "table",
+                  "source_ref",
+                  "confidence_bp",
+                  "origin",
+                  "rationale"
+                ],
+                "title": "ProposedLookup",
+                "type": "object"
+              },
+              "title": "Lookups",
+              "type": "array"
+            }
+          },
+          "required": [
+            "entities"
+          ],
+          "title": "ProposedRead",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "status": {
+      "enum": [
+        "ready",
+        "accepted",
+        "discarded"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "unmapped_entities": {
+      "items": {
+        "enum": [
+          "location",
+          "item",
+          "bom_line",
+          "lane",
+          "lane_rate",
+          "sailing",
+          "po_line",
+          "production_order",
+          "inventory_position",
+          "demand_forecast",
+          "size_curve",
+          "allocation",
+          "transfer_order_line",
+          "online_order_line",
+          "promotion"
+        ],
+        "type": "string"
+      },
+      "title": "Unmapped Entities",
+      "type": "array"
+    },
+    "unmapped_ops": {
+      "items": {
+        "maxLength": 64,
+        "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+        "type": "string"
+      },
+      "title": "Unmapped Ops",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "connector",
+    "status",
+    "proposer",
+    "model_alias",
+    "created_by",
+    "created_at",
+    "inputs_hash",
+    "base_versions",
+    "profiles",
+    "read",
+    "action"
+  ],
+  "title": "MappingProposal",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.mapping_proposal.MappingProposal"
+}

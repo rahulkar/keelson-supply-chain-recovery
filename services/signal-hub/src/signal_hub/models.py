@@ -152,6 +152,13 @@ class SignalDraft:
     authoritative: bool = False
     """Anchor-capable (GDACS/USGS): becomes the anchor of its event."""
     pack_id: str | None = None
+    # Clustering v2 (docs/contracts/123). Not part of content_hash: adding them re-versions nothing.
+    mentions: tuple[str, ...] = ()
+    """Extracted place / port / chokepoint mentions (resolved or not): cluster terms only."""
+    companies: tuple[str, ...] = ()
+    near_duplicate_of: str | None = None
+    """The original signal of a SimHash near-duplicate news item."""
+    near_duplicate_bits: int | None = None
 
     def content_hash(self) -> str:
         """Hash of the observable content (not ``retrieved_at``/``observed_at``): a re-poll with

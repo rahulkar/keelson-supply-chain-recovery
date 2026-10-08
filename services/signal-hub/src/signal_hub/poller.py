@@ -4,10 +4,12 @@
   Postgres advisory lock held on a dedicated connection; followers wait and retry. The leader polls
   every enabled source whose ``next_poll_at`` is due (GDACS 10 min, USGS 5 min, RSS 15 min; backoff on
   failure) and sweeps expiries every minute. Outbound HTTP goes only through the egress proxy.
-* ``--once --adapter gdacs|usgs|rss|extraction|sweep`` (Cloud Run Jobs triggered by Cloud Scheduler):
-  one run, then exit (0 = ok, 1 = the run failed). ``extraction`` retries pending news extraction
-  (needs LiteLLM: run it where the gateway is reachable; it reads the provisioned extraction key
-  unless ``LITELLM_SIGNALS_KEY`` is set, :mod:`signal_hub.llm_key`).
+* ``--once --adapter gdacs|usgs|rss|extraction|sweep|cluster`` (Cloud Run Jobs triggered by Cloud
+  Scheduler): one run, then exit (0 = ok, 1 = the run failed). ``extraction`` retries pending news
+  extraction (needs LiteLLM: run it where the gateway is reachable; it reads the provisioned
+  extraction key unless ``LITELLM_SIGNALS_KEY`` is set, :mod:`signal_hub.llm_key`). ``cluster`` runs
+  one cluster maintenance round (merge pass; with ``SIGNALS_EMBED_PROVIDER=litellm`` also the
+  embedding jobs, with the same key) — only needed where the API's loop does not run.
 * Tenant subscriptions (``110`` §5) shape the schedule: the cadence is the fastest one a subscribed
   tenant asked for (within limits), and a source every registered tenant disabled is not polled.
 
@@ -33,15 +35,17 @@ from signal_hub.gazetteer import load_gazetteer
 from signal_hub.httpfetch import Fetcher, build_feed_client, build_internal_client
 from signal_hub.llm_key import resolve_llm_key
 from signal_hub.logs import configure_logging, get_logger
+from signal_hub.maintenance import run as run_maintenance
 from signal_hub.pipeline import Pipeline
 from signal_hub.quarantine import LiteLlmClient
 from signal_hub.timeutil import utc_now
+from signal_hub.vectors import LiteLlmEmbedder
 
 __all__ = ["LEADER_LOCK", "main", "run_loop", "run_once"]
 
 log = get_logger("signal_hub.poller")
 LEADER_LOCK: Final = 0x5348_504F_4C4C  # "SHPOLL"
-ADAPTERS: Final = ("gdacs", "usgs", "rss", "extraction", "sweep")
+ADAPTERS: Final = ("gdacs", "usgs", "rss", "extraction", "sweep", "cluster")
 
 
 async def _adapter_lock(conn: Any, adapter: str) -> bool:
@@ -78,6 +82,19 @@ async def run_once(settings: Settings, adapter: str, *, connector: str | None = 
                 if adapter == "extraction":
                     report = await pipeline.process_pending(now=now, limit=settings.extraction_batch)
                     log.info("extraction run", extra=report.as_dict())
+                    return 0
+                if adapter == "cluster":
+                    embedder = None
+                    if settings.embed_provider == "litellm":
+                        settings = await resolve_llm_key(settings, pool)
+                        key = settings.litellm_key
+                        embedder = LiteLlmEmbedder(internal, base_url=settings.litellm_base_url, key=lambda: key,
+                                                   alias=settings.embed_alias, dims=settings.embed_dims,
+                                                   timeout_s=settings.llm_timeout_s)
+                    out = await run_maintenance(pipeline, now=now, embedder=embedder, batch=settings.embed_batch,
+                                                max_attempts=settings.extraction_max_attempts,
+                                                include_headline=settings.embed_include_headline)
+                    log.info("cluster maintenance run", extra={"merged": len(out["merged"]), "embedded": out["embedded"]})
                     return 0
                 if adapter == "sweep":
                     changes = await pipeline.sweep(now)

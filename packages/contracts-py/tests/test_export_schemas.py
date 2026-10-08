@@ -81,6 +81,10 @@ def test_expected_schema_set(script: ModuleType) -> None:
             "agents.playground-result", "mapping.read", "mapping.action", "mapping.dry-run-request",
             "mapping.dry-run-result", "scn.snapshot-label", "commit.ledger-entry", "connectors.capabilities",
         )),
+        # M8 (123): signal clustering — memberships, platform clustering settings + status
+        *(f"signals.{n}.schema.json" for n in (
+            "event-membership", "clustering-config", "clustering-config-update", "clustering-status",
+        )),
     }
     assert names == expected
 

@@ -2,8 +2,12 @@
 
 1. As the pg-core **superuser** (``SIGNALS_ADMIN_DSN``) — only for what needs it:
    ``CREATE ROLE signals`` (or re-sync its password), ``CREATE DATABASE signals OWNER signals``,
-   ``CREATE EXTENSION postgis`` inside it.
-2. As role **signals** (``SIGNALS_DATABASE_URL``): the numbered migrations (tables, RLS FORCE).
+   ``CREATE EXTENSION postgis`` inside it, and ``CREATE EXTENSION vector`` (pinned by
+   ``SIGNALS_VECTOR_VERSION``) **when the server offers it** — optional, a missing pgvector only
+   turns the opt-in remote embedding profile off (``docs/contracts/123`` §6).
+2. As role **signals** (``SIGNALS_DATABASE_URL``): the numbered migrations (tables, RLS FORCE), then
+   the active remote embedding profile when ``SIGNALS_EMBED_PROVIDER=litellm``
+   (:func:`signal_hub.vectors.ensure_profile`; never fatal).
 3. With ``LITELLM_MASTER_KEY`` (given to this one-shot container only): upsert the dedicated
    extraction virtual key and store it encrypted in ``hub_secret`` (:mod:`signal_hub.llm_key`).
    Optional: without the master key, or when LiteLLM is not ready within ``SIGNALS_LITELLM_WAIT_S``
@@ -29,6 +33,8 @@ from signal_hub.config import Settings, load_settings, read_secret
 from signal_hub.llm_key import LiteLlmAdmin, provision_signals_key, redact
 from signal_hub.logs import configure_logging, get_logger
 from signal_hub.migrate import migrate
+from signal_hub.timeutil import utc_now
+from signal_hub.vectors import ensure_profile
 
 __all__ = ["BootstrapError", "check_rls_role", "ensure_database", "main", "provision_llm_key", "run_bootstrap"]
 
@@ -59,7 +65,7 @@ async def _connect_retry(dsn: str, what: str, timeout_s: float = 120.0) -> async
 
 
 async def ensure_database(admin_dsn: str, *, role: str, password: str, database: str,
-                          postgis_version: str | None = None) -> dict[str, bool]:
+                          postgis_version: str | None = None, vector_version: str | None = None) -> dict[str, bool]:
     """Superuser/admin part (idempotent). Returns what was created.
 
     Works with a real superuser (compose pg-core) and with Cloud SQL's ``postgres`` (CREATEROLE +
@@ -69,7 +75,9 @@ async def ensure_database(admin_dsn: str, *, role: str, password: str, database:
         raise BootstrapError("role and database names must be simple lowercase identifiers")
     if postgis_version is not None and not _VERSION_RE.match(postgis_version):
         raise BootstrapError("SIGNALS_POSTGIS_VERSION must look like 3.6.0")
-    created = {"role": False, "database": False, "postgis": False}
+    if vector_version is not None and not _VERSION_RE.match(vector_version):
+        raise BootstrapError("SIGNALS_VECTOR_VERSION must look like 0.8.5")
+    created = {"role": False, "database": False, "postgis": False, "vector": False}
     conn = await _connect_retry(admin_dsn, "pg-core (admin)")
     try:
         exists = await conn.fetchval("SELECT 1 FROM pg_roles WHERE rolname = $1", role)
@@ -110,11 +118,34 @@ async def ensure_database(admin_dsn: str, *, role: str, password: str, database:
             created["postgis"] = True
         elif postgis_version and have != postgis_version:
             log.warning("postgis version differs from the pin", extra={"have": have, "pinned": postgis_version})
+        created["vector"] = await _ensure_vector(conn, vector_version)
         # The owner role creates its own objects in schema public.
         await conn.execute(await conn.fetchval("SELECT format('GRANT ALL ON SCHEMA public TO %I', $1::text)", role))
     finally:
         await conn.close()
     return created
+
+
+async def _ensure_vector(conn: asyncpg.Connection, version: str | None) -> bool:
+    """``CREATE EXTENSION vector`` when the server offers it (optional; never fatal). True = created."""
+    have = await conn.fetchval("SELECT extversion FROM pg_extension WHERE extname = 'vector'")
+    if have is not None:
+        if version and have != version:
+            log.warning("pgvector version differs from the pin", extra={"have": have, "pinned": version})
+        return False
+    if not await conn.fetchval("SELECT 1 FROM pg_available_extensions WHERE name = 'vector'"):
+        log.warning("pgvector is not available on this server: the remote embedding profile stays off")
+        return False
+    try:
+        if version:
+            await conn.execute(f"CREATE EXTENSION IF NOT EXISTS vector VERSION '{version}'")
+        else:
+            await conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
+    except asyncpg.PostgresError as exc:
+        log.warning("pgvector not created: the remote embedding profile stays off",
+                    extra={"error": f"{type(exc).__name__}: {exc}"[:300]})
+        return False
+    return True
 
 
 async def check_rls_role(conn: asyncpg.Connection) -> None:
@@ -173,6 +204,7 @@ async def run_bootstrap(settings: Settings, *, master_key: str | None = None,
             password=settings.signals_db_password,
             database=settings.signals_db_name,
             postgis_version=settings.postgis_version,
+            vector_version=settings.vector_version,
         )
         log.info("database ensured", extra=created)
     else:
@@ -182,6 +214,10 @@ async def run_bootstrap(settings: Settings, *, master_key: str | None = None,
         await check_rls_role(conn)
         applied = await migrate(conn)
         log.info("migrations ready", extra={"applied": applied})
+        try:
+            await ensure_profile(conn, settings, now=utc_now())
+        except (asyncpg.PostgresError, ValueError) as exc:  # never fatal: local clustering needs no profile
+            log.warning("embedding profile not ensured", extra={"error": f"{type(exc).__name__}: {exc}"[:300]})
         await provision_llm_key(settings, conn, master_key, http=http)
     finally:
         await conn.close()

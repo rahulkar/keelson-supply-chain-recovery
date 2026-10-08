@@ -3,6 +3,11 @@
 All writes run in the RLS context of the data they touch (see :mod:`signal_hub.db`). Signal and
 event mutations are serialised by one transaction-scoped advisory lock (:data:`CLUSTER_LOCK`) so the
 poller and the API can ingest concurrently; alert evaluation takes a per-(tenant, event) lock.
+
+Clustering v2 (M8, ``docs/contracts/123``): news items get a SimHash fingerprint at queue time
+(:mod:`signal_hub.neardup`: same-source duplicates, cross-source near-duplicates, extraction reuse);
+every assignment is decided by :func:`signal_hub.cluster.decide` and explained in
+``signal_membership`` (:mod:`signal_hub.membership`); signals store their cluster terms.
 """
 
 from __future__ import annotations
@@ -17,19 +22,22 @@ import asyncpg
 from pydantic import ValidationError
 
 from keelson_contracts.llm import NewsExtraction
-from keelson_contracts.signals import NodeCounts, TenantNetwork
+from keelson_contracts.signals import LOCAL_SIMILARITY_PROFILE, ClusteringConfig, NodeCounts, TenantNetwork
 from keelson_contracts.signals import event_id as make_event_id
 from keelson_contracts.signals import signal_id as make_signal_id
-from signal_hub import scoring
+from signal_hub import embeddings, membership, neardup, scoring
 from signal_hub.admin import event_subscribed
 from signal_hub.alerts import AlertChange, evaluate_alert
-from signal_hub.cluster import Candidate, MemberRow, SignalFeatures, aggregate_event, choose_event
+from signal_hub.cluster import Candidate, Decision, MemberRow, SignalFeatures, aggregate_event, choose_event, decide
+from signal_hub.clustering_config import load_config
 from signal_hub.db import tx
+from signal_hub.explain import explain
 from signal_hub.exposure import compute_exposures, persist_exposures
 from signal_hub.gazetteer import Gazetteer
 from signal_hub.logs import get_logger
 from signal_hub.models import NewsItemDraft, SignalDraft, clip
 from signal_hub.quarantine import ExtractionOutcome, LlmClient, backoff, normalise_subtype, run_quarantine
+from signal_hub.simhash import fingerprint
 
 __all__ = ["CLUSTER_LOCK", "IngestReport", "Pipeline", "draft_from_extraction"]
 
@@ -39,6 +47,8 @@ NEWS_TTL: Final = dt.timedelta(hours=72)
 TEXT_TTL: Final = dt.timedelta(days=14)
 EXTRACTION_LEASE: Final = dt.timedelta(minutes=15)
 """How long a claimed news item is hidden from other workers while its guard/extractor calls run."""
+MAX_CANDIDATES: Final = 500
+"""Open events considered per new signal (nearest first)."""
 
 
 @dataclass(slots=True)
@@ -124,6 +134,8 @@ def draft_from_extraction(item: dict[str, Any], extraction: NewsExtraction, extr
         native_id=str((item.get("context") or {}).get("native_id") or item["native_key"])[:500],
         authoritative=False,
         pack_id=item.get("pack_id"),
+        mentions=tuple([*extraction.places, *extraction.ports, *extraction.chokepoints]),
+        companies=tuple(extraction.companies),
     )
 
 
@@ -171,6 +183,43 @@ class Pipeline:
                    WHERE tenant = $1 RETURNING network_version""", tenant, now)
         return int(version), await self.refresh_tenant(tenant, now)
 
+    # ─────────────────────────── clustering v2 ───────────────────────────
+    async def config(self) -> ClusteringConfig:
+        """The platform clustering settings (``cluster_config``, else the defaults)."""
+        async with tx(self.pool, None) as conn:
+            return await load_config(conn)
+
+    def terms(self, draft: SignalDraft) -> tuple[str, ...]:
+        """Cluster terms of a draft (structured fields + screened mentions; see :mod:`signal_hub.embeddings`)."""
+        return embeddings.cluster_terms(kind=draft.kind, subtype=draft.subtype, location_refs=draft.location_refs,
+                                        gaz=self.gaz, mentions=draft.mentions, companies=draft.companies)
+
+    async def _decide(self, conn: asyncpg.Connection, sid: str, draft: SignalDraft, cfg: ClusteringConfig) -> Decision:
+        candidates = await self._candidates(conn, sid, draft,
+                                            window_hours=cfg.vector.window_hours if cfg.vector.enabled else 72)
+        near_event: str | None = None
+        if cfg.simhash.enabled and draft.near_duplicate_of is not None:
+            near_event = _s(await conn.fetchval("SELECT event_id FROM signal WHERE id = $1", draft.near_duplicate_of))
+        if cfg.vector.enabled and not draft.authoritative and candidates:
+            own = embeddings.local_vector(self.terms(draft))
+            members = await membership.member_terms(conn, [c.event_id for c in candidates])
+            candidates = [
+                replace(c, similarity_bp=max((embeddings.similarity_bp(own, embeddings.local_vector(t))
+                                              for t in members.get(c.event_id, [])), default=0),
+                        similarity_profile=LOCAL_SIMILARITY_PROFILE)
+                for c in candidates
+            ]
+        features = SignalFeatures(
+            kind=draft.kind, subtype=draft.subtype, connector_id=draft.connector_id,
+            authoritative=draft.authoritative, starts_at=draft.starts_at, ends_at=draft.ends_at,
+            refs=frozenset(draft.location_refs), near_dup_event=near_event, near_dup_bits=draft.near_duplicate_bits,
+            duplicate_of=draft.near_duplicate_of,
+        )
+        decision = decide(features, candidates, cfg)
+        log.debug("cluster.decision", extra={"method": decision.method, "similarity_bp": decision.similarity_bp,
+                                             "hamming_bits": decision.hamming_bits, "distance_km": decision.distance_km})
+        return decision
+
     # ─────────────────────────── signals ───────────────────────────
     async def _upsert(self, conn: asyncpg.Connection, draft: SignalDraft, now: dt.datetime) -> tuple[str, bool, str | None, int]:
         """→ (signal id, changed, event id of the previous version, version)."""
@@ -204,26 +253,29 @@ class Pipeline:
             INSERT INTO signal (id, tenant, connector_id, native_key, version, supersedes, is_current, content_hash,
                                 origin, kind, subtype, title, provenance, authoritative, severity_bp, confidence_bp,
                                 authority_bp, observed_at, starts_at, ends_at, expires_at, location_refs, geog,
-                                event_id, pack_id, doc)
+                                event_id, pack_id, doc, cluster_terms)
             VALUES ($1, $2, $3, $4, $5, $6, true, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
                     $21::text[],
                     CASE WHEN $22::text IS NULL THEN NULL ELSE ST_GeomFromGeoJSON($22::text)::geography END,
-                    $23, $24, $25)
+                    $23, $24, $25, $26::text[])
             """,
             sid, draft.tenant, draft.connector_id, draft.native_key, version, _s(current["id"]) if current else None,
             content_hash, signal.origin, signal.kind, signal.subtype, signal.title, signal.provenance,
             draft.authoritative, signal.severity_bp, signal.confidence_bp, draft.authority_bp, signal.observed_at,
             signal.starts_at, signal.ends_at, signal.expires_at, list(signal.location_refs),
             json.dumps(doc["geometry"]) if doc["geometry"] is not None else None,
-            prev_event, draft.pack_id, doc,
+            prev_event, draft.pack_id, doc, list(self.terms(draft)),
         )
         return sid, True, prev_event, version
 
-    async def _candidates(self, conn: asyncpg.Connection, sid: str, draft: SignalDraft) -> list[Candidate]:
+    async def _candidates(self, conn: asyncpg.Connection, sid: str, draft: SignalDraft, *,
+                          window_hours: int = 72) -> list[Candidate]:
+        """Open in-scope events whose window is within ``max(72 h, window_hours)`` of the signal,
+        nearest first (at most :data:`MAX_CANDIDATES`); the v1 rule re-checks its own 72 h."""
         if draft.pack_id is not None:
-            scope_sql, args = "e.tenant = $2 AND e.pack_id = $3", [draft.tenant, draft.pack_id]
+            scope_sql, args = "e.tenant = $3 AND e.pack_id = $4", [draft.tenant, draft.pack_id]
         elif draft.tenant is not None:
-            scope_sql, args = "(e.tenant IS NULL OR e.tenant = $2) AND e.pack_id IS NULL AND NOT e.simulated", [draft.tenant]
+            scope_sql, args = "(e.tenant IS NULL OR e.tenant = $3) AND e.pack_id IS NULL AND NOT e.simulated", [draft.tenant]
         else:
             scope_sql, args = "e.tenant IS NULL AND NOT e.simulated", []
         rows = await conn.fetch(
@@ -238,12 +290,14 @@ class Pipeline:
             JOIN signal s ON s.id = $1
             LEFT JOIN signal a ON a.id = e.anchor_signal_id
             WHERE e.status <> 'resolved' AND e.merged_into IS NULL
-              AND e.window_start <= coalesce(s.ends_at, s.starts_at) + interval '72 hours'
+              AND e.window_start <= coalesce(s.ends_at, s.starts_at) + make_interval(hours => $2)
               AND greatest(coalesce(e.window_end, e.last_observed_at, e.window_start), e.window_start)
-                  >= s.starts_at - interval '72 hours'
+                  >= s.starts_at - make_interval(hours => $2)
               AND {scope_sql}
+            ORDER BY distance_km NULLS LAST, e.id
+            LIMIT {MAX_CANDIDATES}
             """,
-            sid, *args,
+            sid, max(72, window_hours), *args,
         )
         return [
             Candidate(
@@ -266,7 +320,8 @@ class Pipeline:
         rows = await conn.fetch(
             """SELECT id, connector_id, authoritative, is_current, kind, subtype, title, doc->>'summary' AS summary,
                       severity_bp, authority_bp, observed_at, starts_at, ends_at, expires_at, provenance, pack_id,
-                      doc->'geometry' AS geometry, doc->'severity_native' AS severity_native, created_at
+                      doc->'geometry' AS geometry, doc->'severity_native' AS severity_native, created_at,
+                      near_duplicate_of
                FROM signal WHERE event_id = $1 AND tenant IS NOT DISTINCT FROM $2::text""",
             event_id, event_tenant,
         )
@@ -280,6 +335,7 @@ class Pipeline:
                 observed_at=r["observed_at"], starts_at=r["starts_at"], ends_at=r["ends_at"],
                 expires_at=r["expires_at"], provenance=r["provenance"], pack_id=r["pack_id"],
                 geometry=r["geometry"], severity_native=r["severity_native"] or {}, created_at=r["created_at"],
+                near_duplicate_of=_s(r["near_duplicate_of"]),
             )
             for r in rows
         ]
@@ -339,6 +395,9 @@ class Pipeline:
             anchor_event,
         )
         absorbed: list[str] = []
+        cfg_version: int | None = None
+        anchor_connector = await conn.fetchval(
+            "SELECT s.connector_id FROM event e JOIN signal s ON s.id = e.anchor_signal_id WHERE e.id = $1", anchor_event)
         target = Candidate(
             event_id=anchor_event, kind=anchor["kind"], subtype=anchor["subtype"], anchored=True, anchor_connector=None,
             window_start=anchor["window_start"], window_end=anchor["window_end"], last_observed=anchor["last_observed_at"],
@@ -352,6 +411,10 @@ class Pipeline:
             cand = replace(target, distance_km=float(r["distance_km"]) if r["distance_km"] is not None else None)
             if choose_event(features, [cand]) != anchor_event:
                 continue
+            if cfg_version is None:
+                cfg_version = (await load_config(conn)).version
+            await membership.move(conn, from_event=str(r["id"]), tenant=anchor["tenant"], method="absorbed", gaz=self.gaz,
+                                  decided_at=now, config_version=cfg_version, anchor_connector=anchor_connector)
             await conn.execute(
                 """UPDATE signal SET event_id = $1::uuid, doc = jsonb_set(doc, '{event_id}', to_jsonb($1::text))
                    WHERE event_id = $2 AND tenant IS NOT DISTINCT FROM $3::text""",
@@ -370,6 +433,7 @@ class Pipeline:
         global_events: set[str] = set()
         scoped: dict[str, set[str]] = {}  # event -> tenants to refresh (tenant-scoped or tenant-only touch)
         event_scope: dict[str, str | None] = {}
+        cfg = await self.config() if drafts else None
         for draft in drafts:
             try:
                 async with tx(self.pool, draft.tenant) as conn:
@@ -384,26 +448,37 @@ class Pipeline:
                     else:
                         report.updated += 1
                     created = False
+                    assert cfg is not None
                     if prev_event is not None:
                         ev_id = prev_event
                         _, ev_tenant = await self._event_tenant(conn, ev_id)
+                        prev_sid = await conn.fetchval("SELECT supersedes FROM signal WHERE id = $1", sid)
+                        if prev_sid is not None:  # a new version keeps its decision (membership + near-dup link)
+                            await membership.copy_previous(conn, new_id=sid, prev_id=str(prev_sid))
                     else:
-                        features = SignalFeatures(
-                            kind=draft.kind, subtype=draft.subtype, connector_id=draft.connector_id,
-                            authoritative=draft.authoritative, starts_at=draft.starts_at, ends_at=draft.ends_at,
-                            refs=frozenset(draft.location_refs),
-                        )
-                        chosen = choose_event(features, await self._candidates(conn, sid, draft))
-                        if chosen is None:
+                        decision = await self._decide(conn, sid, draft, cfg)
+                        if decision.event_id is None:
                             ev_id = (make_event_id(draft.connector_id, draft.native_key) if draft.authoritative
                                      else make_event_id("signal", draft.connector_id, draft.native_key))
                             ev_tenant = draft.tenant
                             created = True
                         else:
-                            ev_id = chosen
+                            ev_id = decision.event_id
                             _, ev_tenant = await self._event_tenant(conn, ev_id)
-                        await conn.execute("UPDATE signal SET event_id = $1::uuid, doc = jsonb_set(doc, '{event_id}', to_jsonb($1::text)) WHERE id = $2",
-                                           ev_id, sid)
+                        await conn.execute(
+                            """UPDATE signal SET event_id = $1::uuid, doc = jsonb_set(doc, '{event_id}', to_jsonb($1::text)),
+                                 near_duplicate_of = $3::uuid WHERE id = $2""",
+                            ev_id, sid, decision.duplicate_of if decision.method == "near_duplicate" else None)
+                        await membership.record(
+                            conn, signal_id=sid, tenant=draft.tenant, decision=decision, config_version=cfg.version,
+                            explanation=explain(decision.method, gaz=self.gaz, distance_km=decision.distance_km,
+                                                shared_refs=decision.shared_refs, similarity_bp=decision.similarity_bp,
+                                                similarity_profile=decision.similarity_profile,
+                                                hamming_bits=decision.hamming_bits,
+                                                anchor_connector=draft.connector_id,
+                                                window_hours=cfg.vector.window_hours
+                                                if decision.method == "attach_vector" else 72),
+                            decided_at=now)
                     if ev_tenant == draft.tenant:
                         row = await self.recompute_event(conn, ev_id, ev_tenant, now)
                         absorbed = await self._absorb(conn, ev_id, now) if created and row is not None and row["anchor_signal_id"] else []
@@ -504,23 +579,46 @@ class Pipeline:
 
     # ─────────────────────────── news / free text ───────────────────────────
     async def queue_news(self, items: Sequence[NewsItemDraft], *, now: dt.datetime) -> list[str]:
-        """Store new items as ``pending_extraction`` (dedupe by native id / canonical URL)."""
+        """Store new items as ``pending_extraction`` (dedupe by native id / canonical URL). News items
+        get a SimHash fingerprint (:mod:`signal_hub.neardup`): an identical re-post by the same
+        source is stored as ``duplicate`` (not returned: never extracted); a copy from another
+        source keeps ``pending_extraction`` with ``near_duplicate_of``."""
         ids: list[str] = []
+        cfg: ClusteringConfig | None = None
         for item in items:
             nid = make_event_id("news_item", item.tenant or "", item.connector_id, item.native_key)
+            fp = None
+            if neardup.applies(item.connector_id, item.origin):
+                cfg = cfg or await self.config()
+                fp = fingerprint(item.text) if cfg.simhash.enabled else None
             async with tx(self.pool, item.tenant) as conn:
                 inserted = await conn.fetchval(
                     """
                     INSERT INTO news_item (id, tenant, connector_id, native_key, origin, source_name, license, authority_bp,
                                            url, title, snippet, published_at, retrieved_at, status, attempts,
-                                           next_attempt_at, context, pack_id)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'pending_extraction', 0, $14, $15, $16)
+                                           next_attempt_at, context, pack_id, simhash, simhash_bands)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'pending_extraction', 0, $14, $15, $16,
+                            $17, $18::int[])
                     ON CONFLICT DO NOTHING RETURNING id
                     """,
                     nid, item.tenant, item.connector_id, item.native_key, item.origin, item.source_name, item.license,
                     item.authority_bp, item.url, item.title, item.snippet, item.published_at, item.retrieved_at, now,
-                    item.context, item.pack_id,
+                    item.context, item.pack_id, fp.value if fp else None, list(fp.bands) if fp else None,
                 )
+                if inserted is not None and fp is not None and cfg is not None:
+                    same, other = await neardup.find_original(
+                        conn, item_id=nid, tenant=item.tenant, pack_id=item.pack_id, fp=fp,
+                        connector_id=item.connector_id, settings=cfg.simhash, now=now)
+                    if same is not None:
+                        await conn.execute(
+                            """UPDATE news_item SET status = 'duplicate', near_duplicate_of = $2, near_duplicate_bits = 0,
+                               next_attempt_at = NULL WHERE id = $1""", nid, same.id)
+                        log.info("news item is a re-post of the same source", extra={"connector": item.connector_id})
+                        inserted = None
+                    elif other is not None:
+                        await conn.execute(
+                            "UPDATE news_item SET near_duplicate_of = $2, near_duplicate_bits = $3 WHERE id = $1",
+                            nid, other.id, other.bits)
             if inserted is not None:
                 ids.append(nid)
         return ids
@@ -532,6 +630,7 @@ class Pipeline:
         concurrent worker skips it); the guard/extractor calls run outside any transaction, then the
         outcome is written back. A crashed worker's lease simply expires and the item is retried."""
         report = IngestReport()
+        cfg: ClusteringConfig | None = None
         for nid in item_ids:
             async with tx(self.pool, tenant) as conn:
                 row = await conn.fetchrow(
@@ -546,8 +645,27 @@ class Pipeline:
             item = dict(row)
             context = item.get("context") or {}
             prebaked = context.get("prebaked") if isinstance(context.get("prebaked"), dict) else None
-            outcome: ExtractionOutcome = await run_quarantine(
-                clip(f"{item['title']}\n{item.get('snippet') or ''}", 4000) or item["title"],
+            text = clip(f"{item['title']}\n{item.get('snippet') or ''}", 4000) or item["title"]
+            original: dict[str, Any] | None = None
+            reuse: ExtractionOutcome | neardup.Defer | None = None
+            if item.get("near_duplicate_of") is not None:
+                cfg = cfg or await self.config()
+                async with tx(self.pool, tenant) as conn:
+                    orow = await conn.fetchrow(
+                        """SELECT id, status, extraction, extracted_by, next_attempt_at, signal_id FROM news_item
+                           WHERE id = $1""", item["near_duplicate_of"])
+                original = dict(orow) if orow is not None else None
+                if original is not None and prebaked is None and cfg.simhash.reuse_extraction:
+                    reuse = neardup.reuse_outcome(text, original, now)
+            if isinstance(reuse, neardup.Defer):  # the original is still being extracted: wait for it
+                async with tx(self.pool, tenant) as conn:
+                    await conn.execute(
+                        """UPDATE news_item SET next_attempt_at = $2, updated_at = $3
+                           WHERE id = $1 AND status = 'pending_extraction'""", nid, reuse.until, now)
+                report.news_status["pending_extraction"] = report.news_status.get("pending_extraction", 0) + 1
+                continue
+            outcome: ExtractionOutcome = reuse if reuse is not None else await run_quarantine(
+                text,
                 self.llm,
                 prebaked=prebaked,
                 attempts_so_far=int(item.get("bad_outputs") or 0),
@@ -561,7 +679,10 @@ class Pipeline:
                     draft = draft_from_extraction(item, outcome.extraction, outcome.extracted_by or "unknown", self.gaz)
                 except (ValueError, KeyError) as exc:
                     status, outcome.error = "rejected", f"draft: {exc}"[:300]
-            attempts = int(item["attempts"]) + (0 if prebaked is not None else 1)
+            if draft is not None and original is not None and original.get("signal_id") is not None:
+                draft.near_duplicate_of = str(original["signal_id"])  # joins its original's event (cluster.decide)
+                draft.near_duplicate_bits = item.get("near_duplicate_bits")
+            attempts = int(item["attempts"]) + (0 if prebaked is not None or reuse is not None else 1)
             async with tx(self.pool, tenant) as conn:
                 await conn.execute(
                     """UPDATE news_item SET status = $2, attempts = $3, next_attempt_at = $4, last_error = $5,

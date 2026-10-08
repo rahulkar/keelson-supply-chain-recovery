@@ -160,6 +160,21 @@ class Settings:
     signals_role: str = "signals"
     postgis_version: str | None = None
     """Pinned PostGIS version to create (Cloud SQL: ``PIN_POSTGIS``); unset = the server default."""
+    vector_version: str | None = None
+    """Pinned pgvector version (``SIGNALS_VECTOR_VERSION``, Cloud SQL: ``PIN_VECTOR``); the bootstrap
+    creates the extension when the server offers it (optional: remote embeddings only)."""
+
+    # clustering v2 (docs/contracts/123): thresholds live in the DB (platform admin), not here
+    embed_provider: str = "local"
+    """``local`` (default: deterministic term vectors only) or ``litellm`` (opt-in remote embedding
+    profile for the background merge pass)."""
+    embed_alias: str = "embed-default"
+    embed_dims: int = 1536
+    embed_include_headline: bool = False
+    """Append the (untrusted) headline to the text a remote profile embeds (default off)."""
+    embed_batch: int = 16
+    cluster_maintenance_s: float = 60.0
+    """API loop: merge pass + embedding jobs every N seconds (0 = off)."""
 
     @property
     def auth_configured(self) -> bool:
@@ -239,4 +254,18 @@ def load_settings() -> Settings:
         signals_db_name=os.environ.get("SIGNALS_DB_NAME", "signals"),
         signals_role=os.environ.get("SIGNALS_DB_ROLE", "signals"),
         postgis_version=os.environ.get("SIGNALS_POSTGIS_VERSION", "").strip() or None,
+        vector_version=os.environ.get("SIGNALS_VECTOR_VERSION", "").strip() or None,
+        embed_provider=_embed_provider(os.environ.get("SIGNALS_EMBED_PROVIDER", "local")),
+        embed_alias=os.environ.get("SIGNALS_EMBED_ALIAS", "embed-default").strip() or "embed-default",
+        embed_dims=_int("SIGNALS_EMBED_DIMS", 1536),
+        embed_include_headline=_bool("SIGNALS_EMBED_INCLUDE_HEADLINE", False),
+        embed_batch=max(1, _int("SIGNALS_EMBED_BATCH", 16)),
+        cluster_maintenance_s=max(0.0, _float("SIGNALS_CLUSTER_MAINTENANCE_S", 60.0)),
     )
+
+
+def _embed_provider(raw: str) -> str:
+    value = (raw or "local").strip().lower() or "local"
+    if value not in ("local", "litellm"):
+        raise ValueError("SIGNALS_EMBED_PROVIDER must be local or litellm")
+    return value

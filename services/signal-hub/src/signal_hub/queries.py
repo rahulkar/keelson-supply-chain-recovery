@@ -18,6 +18,7 @@ from keelson_contracts.signals import (
     ExposureSummary,
     NodeCounts,
 )
+from signal_hub import membership
 from signal_hub.alerts import alert_from_row
 
 __all__ = [
@@ -99,18 +100,21 @@ async def load_exposures(conn: asyncpg.Connection, tenant: str, event_id: str) -
 
 
 async def event_bundle(conn: asyncpg.Connection, tenant: str, event_id: str) -> dict[str, Any] | None:
-    """``{event, signals, exposures, exposure_summary}`` for ``GET /v1/events/{id}`` / ``get_event``."""
+    """``{event, signals, exposures, exposure_summary, memberships}`` for ``GET /v1/events/{id}`` /
+    ``get_event`` (``memberships``: why each member is grouped, M8 ``123`` §5)."""
     event = await load_event(conn, event_id)
     if event is None:
         return None
     signals = await load_signals(conn, list(event.member_signal_ids))
     exposures = await load_exposures(conn, tenant, event_id)
     summary = ExposureSummary(nodes_by_type=NodeCounts.of(exposures), open_po_lines=None, units_inbound=None)
+    memberships = await membership.load(conn, event_id, list(event.member_signal_ids))
     return {
         "event": event.model_dump(mode="json"),
         "signals": [s.model_dump(mode="json") for s in signals],
         "exposures": [e.model_dump(mode="json") for e in exposures],
         "exposure_summary": summary.model_dump(mode="json"),
+        "memberships": [m.model_dump(mode="json") for m in memberships],
     }
 
 
@@ -157,6 +161,7 @@ async def alert_detail(conn: asyncpg.Connection, tenant: str, alert_id: str) -> 
         event=event,
         signals=await load_signals(conn, list(event.member_signal_ids)),
         exposures=await load_exposures(conn, tenant, str(row["event_id"])),
+        memberships=await membership.load(conn, event.id, list(event.member_signal_ids)),
     )
 
 

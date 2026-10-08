@@ -416,10 +416,34 @@
       "title": "AlertStatusUpdate"
     },
     {
+      "file": "signals.clustering-config.schema.json",
+      "name": "signals.clustering-config",
+      "source": "keelson_contracts.signals.ClusteringConfig",
+      "title": "ClusteringConfig"
+    },
+    {
+      "file": "signals.clustering-config-update.schema.json",
+      "name": "signals.clustering-config-update",
+      "source": "keelson_contracts.signals.ClusteringConfigUpdate",
+      "title": "ClusteringConfigUpdate"
+    },
+    {
+      "file": "signals.clustering-status.schema.json",
+      "name": "signals.clustering-status",
+      "source": "keelson_contracts.signals.ClusteringStatus",
+      "title": "ClusteringStatus"
+    },
+    {
       "file": "signals.event.schema.json",
       "name": "signals.event",
       "source": "keelson_contracts.signals.DisruptionEvent",
       "title": "DisruptionEvent"
+    },
+    {
+      "file": "signals.event-membership.schema.json",
+      "name": "signals.event-membership",
+      "source": "keelson_contracts.signals.EventMembership",
+      "title": "EventMembership"
     },
     {
       "file": "signals.exposure.schema.json",

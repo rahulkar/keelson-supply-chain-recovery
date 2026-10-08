@@ -185,6 +185,21 @@ class Gazetteer:
     def region(self, mention: str) -> str | None:
         return self._lookup(self._region_index, mention)
 
+    def display_name(self, ref: str) -> str | None:
+        """The curated name of a location ref (``UNLOCODE:VNSGN`` → ``Ho Chi Minh City (Cat Lai)``,
+        ``CHOKEPOINT:SUEZ``, ``ISO3166:VN``, ``REGION:…``) from the repo data, else ``None`` (tenant
+        codes such as ``SUPPLIER:…`` and unknown codes). Trusted text: safe for explanations."""
+        scheme, _, code = (ref or "").partition(":")
+        if scheme == "UNLOCODE" and (port := self.ports.get(code)):
+            return port.name
+        if scheme == "CHOKEPOINT" and (choke := self.chokepoints.get(code)):
+            return choke.name
+        if scheme == "ISO3166" and (country := self.countries.get(code)):
+            return str(country.get("name") or code)
+        if scheme == "REGION" and (region := self.regions.get(code)):
+            return str(region.get("name") or code)
+        return None
+
     def iso2(self, code: str) -> str | None:
         """ISO alpha-2 for an alpha-2 or alpha-3 code (``VNM`` → ``VN``), else None."""
         code = (code or "").strip().upper()

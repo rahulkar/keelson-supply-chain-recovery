@@ -82,7 +82,7 @@ async def test_live_gdelt(fetcher: Fetcher, gaz: Gazetteer) -> None:
     settings = load_settings()
     latest = gdelt.parse_lastupdate((await fetcher.get("gdelt", settings.gdelt_lastupdate_url)).body)
     body = (await fetcher.get("gdelt", latest.url, max_bytes=gdelt.MAX_EXPORT_BYTES)).body
-    assert len(body) == latest.size and hashlib.md5(body).hexdigest() == latest.md5  # noqa: S324
+    assert len(body) == latest.size and hashlib.md5(body).hexdigest() == latest.md5
     agg: dict[str, dict[str, object]] = {}
     keys = gdelt.aggregate(agg, gdelt.matching_rows(gdelt.read_export(body), gdelt.DEFAULT_FILTER, gaz))
     _valid(gdelt.drafts_for(agg, keys, _ctx(), gaz))

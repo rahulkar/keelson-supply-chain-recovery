@@ -59,7 +59,7 @@ def _message(error: Exception) -> str:
 
 async def _error(runner: FeedRunner, cid: str, cadence: int, now: dt.datetime, exc: Exception) -> PollResult:
     message = _message(exc)
-    await runner._save(cid, now=now, cadence_s=cadence, status="error", error=message)  # noqa: SLF001 - FeedRunner's own pattern
+    await runner._save(cid, now=now, cadence_s=cadence, status="error", error=message)
     log.warning("poll failed", extra={"connector": cid, "error": message[:300]})
     return PollResult(cid, "error", error=message[:300])
 
@@ -160,7 +160,7 @@ async def poll_nhc(runner: FeedRunner, spec: SourceSpec, now: dt.datetime) -> Po
         result = await runner.fetcher.get(cid, s.nhc_url, etag=cur.get("etag"), last_modified=cur.get("last_modified"),
                                           accept="application/json")
         if result.not_modified:
-            await runner._save(cid, now=now, cadence_s=cadence, status="not_modified")  # noqa: SLF001
+            await runner._save(cid, now=now, cadence_s=cadence, status="not_modified")
             return PollResult(cid, "not_modified")
         doc = _json(result.body)
         active = nhc.storms(doc)  # NhcError (a ValueError) on a malformed feed: nothing is withdrawn
@@ -200,7 +200,7 @@ async def poll_nhc(runner: FeedRunner, spec: SourceSpec, now: dt.datetime) -> Po
         withdrawn, gone = await withdraw_missing(runner, cid, live, now)
         report.merge(gone)
         cursor["advisories"] = {k: v for k, v in sorted(advisories.items()) if k in live}
-        await runner._save(cid, now=now, cadence_s=cadence, status="ok", etag=result.etag,  # noqa: SLF001
+        await runner._save(cid, now=now, cadence_s=cadence, status="ok", etag=result.etag,
                            last_modified=result.last_modified, cursor=cursor, items=len(drafts))
         return PollResult(cid, "ok", len(drafts), report, skipped=len(active) - len(drafts), withdrawn=withdrawn)
     except (FetchError, ValueError, UnicodeDecodeError) as exc:
@@ -218,7 +218,7 @@ async def poll_copernicus_ems(runner: FeedRunner, spec: SourceSpec, now: dt.date
         result = await runner.fetcher.get(cid, s.copernicus_ems_url, etag=cur.get("etag"),
                                           last_modified=cur.get("last_modified"), accept="application/json")
         if result.not_modified:
-            await runner._save(cid, now=now, cadence_s=cadence, status="not_modified")  # noqa: SLF001
+            await runner._save(cid, now=now, cadence_s=cadence, status="not_modified")
             return PollResult(cid, "not_modified")
         drafts, skipped = copernicus_ems.parse_ems(_json(result.body), SourceContext(retrieved_at=now), runner.gaz,
                                                    ttl_days=s.copernicus_ems_ttl_days)
@@ -228,7 +228,7 @@ async def poll_copernicus_ems(runner: FeedRunner, spec: SourceSpec, now: dt.date
         known = await _current_keys(runner, cid, stale)
         fresh = [d for d in drafts if d.expires_at is None or d.expires_at > now or d.native_key in known]
         report = await runner.pipeline.ingest(fresh, now=now)
-        await runner._save(cid, now=now, cadence_s=cadence, status="ok", etag=result.etag,  # noqa: SLF001
+        await runner._save(cid, now=now, cadence_s=cadence, status="ok", etag=result.etag,
                            last_modified=result.last_modified, items=len(fresh))
         return PollResult(cid, "ok", len(fresh), report, skipped=skipped + len(drafts) - len(fresh))
     except (FetchError, ValueError, UnicodeDecodeError) as exc:
@@ -294,7 +294,7 @@ async def poll_ofac(runner: FeedRunner, spec: SourceSpec, now: dt.datetime) -> P
             bodies[name] = result.body
             fresh[name] = {"etag": result.etag, "last_modified": result.last_modified}
         if not bodies:
-            await runner._save(cid, now=now, cadence_s=cadence, status="not_modified")  # noqa: SLF001
+            await runner._save(cid, now=now, cadence_s=cadence, status="not_modified")
             return PollResult(cid, "not_modified")
         for name in unchanged:  # one file changed: the delta needs all three in full
             result = await runner.fetcher.get(cid, urls[name], accept="text/csv", max_bytes=s.ofac_max_bytes)
@@ -313,7 +313,7 @@ async def poll_ofac(runner: FeedRunner, spec: SourceSpec, now: dt.datetime) -> P
             await _write_snapshot(runner, cid, current, sorted(current), [], now)
             cursor["baseline_at"] = now.isoformat()
             log.info("ofac baseline stored (no signal)", extra={"organisations": len(current)})
-            await runner._save(cid, now=now, cadence_s=cadence, status="ok", cursor=cursor)  # noqa: SLF001
+            await runner._save(cid, now=now, cadence_s=cadence, status="ok", cursor=cursor)
             return PollResult(cid, "ok", 0, IngestReport())
         delta = ofac.diff(current, previous)
         drafts = ([ofac.publication_draft(entities, delta, SourceContext(retrieved_at=now), published_at=published,
@@ -324,7 +324,7 @@ async def poll_ofac(runner: FeedRunner, spec: SourceSpec, now: dt.datetime) -> P
         await _write_snapshot(runner, cid, current, [*delta.new, *delta.changed], delta.removed, now)
         cursor["last_delta"] = {"published_at": published.isoformat(), "new": len(delta.new),
                                 "changed": len(delta.changed), "removed": len(delta.removed)}
-        await runner._save(cid, now=now, cadence_s=cadence, status="ok", cursor=cursor,  # noqa: SLF001
+        await runner._save(cid, now=now, cadence_s=cadence, status="ok", cursor=cursor,
                            items=len(drafts))
         return PollResult(cid, "ok", len(drafts), report)
     except (FetchError, ValueError, UnicodeDecodeError) as exc:
@@ -344,7 +344,7 @@ async def poll_gdelt(runner: FeedRunner, spec: SourceSpec, now: dt.datetime) -> 
         result = await runner.fetcher.get(cid, s.gdelt_lastupdate_url, etag=cur.get("etag"),
                                           last_modified=cur.get("last_modified"), accept="text/plain")
         if result.not_modified:
-            await runner._save(cid, now=now, cadence_s=cadence, status="not_modified")  # noqa: SLF001
+            await runner._save(cid, now=now, cadence_s=cadence, status="not_modified")
             return PollResult(cid, "not_modified")
         latest = gdelt.parse_lastupdate(result.body)
         cursor = dict(cur.get("cursor") or {})
@@ -362,7 +362,7 @@ async def poll_gdelt(runner: FeedRunner, spec: SourceSpec, now: dt.datetime) -> 
                     log.warning("gdelt backfill slot skipped", extra={"slot": slot, "error": str(exc)[:200]})
                     continue
                 raise
-            if slot == latest.slot and (len(body) != latest.size or hashlib.md5(body).hexdigest() != latest.md5):  # noqa: S324 - integrity check GDELT publishes
+            if slot == latest.slot and (len(body) != latest.size or hashlib.md5(body).hexdigest() != latest.md5):
                 raise gdelt.GdeltError(f"export {slot}: size/MD5 does not match lastupdate.txt")
             touched |= gdelt.aggregate(agg, gdelt.matching_rows(gdelt.read_export(body), flt, runner.gaz))
         gdelt.prune(agg, now)
@@ -370,7 +370,7 @@ async def poll_gdelt(runner: FeedRunner, spec: SourceSpec, now: dt.datetime) -> 
                                   cap_bp=s.gdelt_max_severity_bp, flt=flt)
         report = await runner.pipeline.ingest(drafts, now=now)
         cursor.update(slot=latest.slot, agg=agg)
-        await runner._save(cid, now=now, cadence_s=cadence, status="ok", etag=result.etag,  # noqa: SLF001
+        await runner._save(cid, now=now, cadence_s=cadence, status="ok", etag=result.etag,
                            last_modified=result.last_modified, cursor=cursor, items=len(drafts))
         return PollResult(cid, "ok", len(drafts), report)
     except (FetchError, ValueError, UnicodeDecodeError) as exc:
@@ -392,7 +392,7 @@ async def poll_meteoalarm(runner: FeedRunner, spec: SourceSpec, now: dt.datetime
         result = await runner.fetcher.get(cid, spec.url, etag=cur.get("etag"), last_modified=cur.get("last_modified"),
                                           accept="application/atom+xml, application/xml;q=0.9")
         if result.not_modified:
-            await runner._save(cid, now=now, cadence_s=cadence, status="not_modified")  # noqa: SLF001
+            await runner._save(cid, now=now, cadence_s=cadence, status="not_modified")
             return PollResult(cid, "not_modified")
         warnings = meteoalarm.parse_atom(result.body)
         cursor = dict(cur.get("cursor") or {})
@@ -431,7 +431,7 @@ async def poll_meteoalarm(runner: FeedRunner, spec: SourceSpec, now: dt.datetime
         cursor["details"] = {k: v for k, v in sorted(known.items()) if k in live}
         if len(cursor["details"]) > MAX_DETAIL_CACHE:
             cursor["details"] = dict(sorted(cursor["details"].items())[-MAX_DETAIL_CACHE:])
-        await runner._save(cid, now=now, cadence_s=cadence, status="ok", etag=result.etag,  # noqa: SLF001
+        await runner._save(cid, now=now, cadence_s=cadence, status="ok", etag=result.etag,
                            last_modified=result.last_modified, cursor=cursor, items=len(drafts))
         return PollResult(cid, "ok", len(drafts), report, skipped=skipped, withdrawn=withdrawn)
     except (FetchError, ValueError, UnicodeDecodeError) as exc:

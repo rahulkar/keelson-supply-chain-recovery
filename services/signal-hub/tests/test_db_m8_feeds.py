@@ -14,7 +14,6 @@ import json
 import logging
 import re
 import zipfile
-from collections.abc import AsyncIterator
 from typing import Any
 
 import asyncpg
@@ -112,7 +111,7 @@ class Upstream:
             if path == "/gdeltv2/lastupdate.txt":
                 if inm == self.gdelt_etag:
                     return httpx.Response(304)
-                md5 = self.gdelt_md5 or hashlib.md5(self.gdelt_export).hexdigest()  # noqa: S324
+                md5 = self.gdelt_md5 or hashlib.md5(self.gdelt_export).hexdigest()
                 body = (f"{len(self.gdelt_export)} {md5} http://data.gdeltproject.org/gdeltv2/{self.gdelt_slot}.export.CSV.zip\n"
                         f"1 {'0' * 32} http://data.gdeltproject.org/gdeltv2/{self.gdelt_slot}.mentions.CSV.zip\n")
                 return httpx.Response(200, content=body.encode(), headers={"ETag": self.gdelt_etag})

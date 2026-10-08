@@ -9,6 +9,7 @@
  * unbalanced brackets) — never evaluated; the engine parses them with its own safe language.
  */
 import {
+  MAPPING_AGGREGATE_FUNCTIONS,
   MAPPING_EXPRESSION_FUNCTIONS,
   connectorsCapabilitiesSchema,
   mappingActionSchema,
@@ -60,13 +61,21 @@ export const mappingEnvelopeSchema = z
     created_by: z.string().nullable().optional(),
     created_at: z.string().nullable().optional(),
     problems: z.array(z.string()).catch([]).default([]),
+    /** M8 provenance: `manual` | `pack` | `proposal` | `change_request` (older engines send none). */
+    origin: z.string().nullable().optional(),
+    proposal_id: z.string().nullable().optional(),
   })
   .loose();
 export type MappingEnvelope = z.infer<typeof mappingEnvelopeSchema>;
 
 /** `PUT …/mappings/{kind}` answer: the stored row (`unchanged: true` = same as the latest version). */
 export const mappingSavedSchema = z
-  .object({ version: z.number().int().positive(), unchanged: z.boolean().optional(), summary: z.string().nullable().optional() })
+  .object({
+    version: z.number().int().positive(),
+    unchanged: z.boolean().optional(),
+    summary: z.string().nullable().optional(),
+    origin: z.string().nullable().optional(),
+  })
   .loose();
 export type MappingSaved = z.infer<typeof mappingSavedSchema>;
 
@@ -76,11 +85,46 @@ export type DryRunResult = MappingDryRunResult;
 export const capabilitiesSchema = connectorsCapabilitiesSchema.strip();
 export type Capabilities = ConnectorsCapabilities;
 
-/** `POST …/mappings/read/test`: one page per source, mapped (nothing stored). */
+const previewColumnSchema = z
+  .object({
+    column: z.string(),
+    null_bp: z.number().int().nonnegative().catch(0).default(0),
+    distinct: z.number().int().nonnegative().catch(0).default(0),
+    failures: z.number().int().nonnegative().catch(0).default(0),
+    first_failure: z.string().nullable().optional(),
+  })
+  .loose();
+
+const previewCheckSchema = z
+  .object({
+    code: z.string(),
+    label: z.string(),
+    entity: z.string().optional(),
+    severity: z.enum(["error", "warning"]).catch("warning"),
+    violations: z.number().int().nonnegative().catch(0).default(0),
+    examples: z.array(z.string()).catch([]).default([]),
+  })
+  .loose();
+
+/**
+ * `POST …/mappings/read/test` (M7: one page per source) and its M8 superset `POST …/read/preview`
+ * (`docs/contracts/121` §2.5: live or the last crawl's staged pages, per-column statistics, the
+ * FK / duplicate checks). Mapped through the DuckDB compiler; nothing is stored. Loose: an older
+ * engine's answer still reads.
+ */
 export const readPreviewSchema = z
   .object({
     ok: z.boolean(),
     error: z.string().nullable().optional(),
+    engine: z.string().nullable().optional(),
+    source: z.enum(["live", "staged"]).catch("live").optional(),
+    staged: z
+      .object({ snapshot_id: z.string(), status: z.string(), fetched_from: z.string().nullable().optional(), fetched_to: z.string().nullable().optional() })
+      .loose()
+      .nullable()
+      .catch(null)
+      .optional(),
+    capped: z.boolean().catch(false).optional(),
     entities: z
       .array(
         z
@@ -88,19 +132,41 @@ export const readPreviewSchema = z
             entity: z.string(),
             where: z.string().nullable().optional(),
             rows: z.number().int().nonnegative().default(0),
+            failed: z.number().int().nonnegative().catch(0).optional(),
+            skipped: z.number().int().nonnegative().catch(0).optional(),
             sample: z.array(z.record(z.string(), z.unknown())).catch([]).default([]),
             error: z.string().nullable().optional(),
+            columns: z.array(previewColumnSchema).catch([]).default([]),
           })
           .loose(),
       )
       .catch([])
       .default([]),
+    checks: z.array(previewCheckSchema).catch([]).default([]),
     pages: z.number().int().nonnegative().nullable().optional(),
     rows_seen: z.number().int().nonnegative().nullable().optional(),
     truncated: z.array(z.string()).catch([]).default([]),
   })
   .loose();
 export type ReadPreview = z.infer<typeof readPreviewSchema>;
+
+/**
+ * `GET …/connectors/{slug}/staged` (M8): the raw pages a staged preview maps — the current
+ * snapshot's crawl or the latest failed attempt's (`status: failed`); 404 when there are none.
+ */
+export const stagedSetSchema = z
+  .object({
+    snapshot_id: z.string(),
+    status: z.enum(["complete", "failed"]).catch("complete"),
+    pages: z.number().int().nonnegative().catch(0).default(0),
+    items: z.number().int().nonnegative().catch(0).default(0),
+    bytes: z.number().int().nonnegative().catch(0).default(0),
+    fetched_from: z.string().nullable().optional(),
+    fetched_to: z.string().nullable().optional(),
+    mapping_version: z.number().int().nullable().optional(),
+  })
+  .loose();
+export type StagedSet = z.infer<typeof stagedSetSchema>;
 
 const isoOrNull = z.string().nullable().optional();
 
@@ -235,9 +301,11 @@ export function parseMappingText(text: string): { doc: Document | null; value: u
 
 /**
  * A light look at one mapping expression (never evaluated): known function names, balanced
- * brackets and quotes, no `__` names. `null` = nothing to say.
+ * brackets and quotes, no `__` names; aggregates (`first`, `min`, `max`, `sum`, `count`) only in
+ * a `group_by` mapping's fields (`aggregates`) and only as the whole expression. `null` = nothing
+ * to say.
  */
-export function expressionProblem(expr: string): string | null {
+export function expressionProblem(expr: string, opts: { aggregates?: boolean } = {}): string | null {
   let depth = 0;
   let quote: string | null = null;
   for (let i = 0; i < expr.length; i++) {
@@ -254,14 +322,34 @@ export function expressionProblem(expr: string): string | null {
   if (quote) return "A quoted text is not closed.";
   if (depth > 0) return "A bracket is not closed.";
   const known = MAPPING_EXPRESSION_FUNCTIONS as Record<string, readonly [number, number]>;
+  const aggregates = MAPPING_AGGREGATE_FUNCTIONS as Record<string, readonly [number, number]>;
   // Function calls outside quoted text.
   const bare = expr.replace(/'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"/g, "''");
+  let aggregateCalls = 0;
   for (const m of bare.matchAll(/([A-Za-z_][A-Za-z0-9_]*)\s*\(/g)) {
     const name = m[1]!;
+    if (Object.hasOwn(aggregates, name)) {
+      if (!opts.aggregates) return `${name}() is an aggregate: only a group_by mapping's fields use it.`;
+      if (++aggregateCalls > 1 || bare.slice(0, m.index).trim() !== "") return NESTED_AGGREGATE;
+      continue;
+    }
     if (!Object.hasOwn(known, name)) return `Unknown function "${name}" (use ${Object.keys(known).join(", ")}).`;
   }
+  if (aggregateCalls === 1 && closingParen(bare, bare.indexOf("(")) !== bare.trimEnd().length - 1) return NESTED_AGGREGATE;
   if (/__/.test(bare)) return "Names with a double underscore are not allowed.";
   return null;
+}
+
+const NESTED_AGGREGATE = "An aggregate is the whole expression, never nested (e.g. first($.x)).";
+
+/** Index of the bracket closing the one at `open` (quotes already blanked), or -1. */
+function closingParen(text: string, open: number): number {
+  let depth = 0;
+  for (let i = open; i < text.length; i++) {
+    if (text[i] === "(") depth++;
+    else if (text[i] === ")" && --depth === 0) return i;
+  }
+  return -1;
 }
 
 type ToolInfo = Pick<ConnectorTool, "name" | "access" | "content_trust" | "status">;
@@ -285,10 +373,16 @@ function toolDiagnostics(doc: Document, counter: LineCounter, kind: MappingKind,
     const read = value as MappingRead;
     read.entities.forEach((e, i) => {
       checkRead(["entities", i, "source", "tool"], e.source.tool, "the crawl");
+      const grouped = Boolean(e.group_by && e.group_by.length);
       for (const [col, expr] of Object.entries(e.fields)) {
-        const p = expressionProblem(expr);
+        const p = expressionProblem(expr, { aggregates: grouped });
         if (p) at(["entities", i, "fields", col], "error", `${e.entity}.${col}: ${p}`);
       }
+      (e.group_by ?? []).forEach((g, j) => {
+        const p = expressionProblem(g);
+        if (p) at(["entities", i, "group_by", j], "error", `${e.entity} group_by[${j}]: ${p}`);
+      });
+      if (grouped && e.dedupe) at(["entities", i, "dedupe"], "error", `${e.entity}: group_by and dedupe exclude each other (a group is already one row).`);
     });
     for (const [name, lk] of Object.entries(read.lookups ?? {})) {
       if (lk.kind === "source") {
@@ -297,6 +391,10 @@ function toolDiagnostics(doc: Document, counter: LineCounter, kind: MappingKind,
           const p = expressionProblem(lk[k]);
           if (p) at(["lookups", name, k], "error", `lookup ${name}.${k}: ${p}`);
         }
+      } else if (lk.kind === "record") {
+        checkRead(["lookups", name, "source", "tool"], lk.source.tool, "record lookups");
+        const p = expressionProblem(lk.key);
+        if (p) at(["lookups", name, "key"], "error", `lookup ${name}.key: ${p}`);
       }
     }
   } else {

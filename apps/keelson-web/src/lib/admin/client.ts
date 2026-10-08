@@ -68,7 +68,7 @@ import {
   type PolicyRuleView,
   type PolicyTestResult,
 } from "./policies";
-import type { AdminUserCreate, AdminUserPatch, MappingDryRunRequest, PolicyContext } from "@keelson/contracts";
+import { mappingPlanSchema, type AdminUserCreate, type AdminUserPatch, type MappingDryRunRequest, type MappingPlan, type PolicyContext } from "@keelson/contracts";
 import { z } from "zod";
 import { ApiError } from "../api/client";
 import { changeRequestAnswerSchema, changeRequestListSchema, guardedSchemaFor, pendingCountSchema, type ChangeRequest, type Guarded } from "./changeRequests";
@@ -82,6 +82,7 @@ import {
   mappingSavedSchema,
   readPreviewSchema,
   snapshotHistorySchema,
+  stagedSetSchema,
   syncQueuedSchema,
   type Capabilities,
   type DryRunResult,
@@ -90,8 +91,18 @@ import {
   type MappingSaved,
   type ReadPreview,
   type SnapshotHistory,
+  type StagedSet,
   type SyncQueued,
 } from "./mappings";
+import {
+  proposalListSchema,
+  proposalSchema,
+  proposerStatusSchema,
+  type Proposal,
+  type ProposalSummary,
+  type ProposeBody,
+  type ProposerStatus,
+} from "./proposals";
 import {
   alertRulesSchema,
   networkCodesSchema,
@@ -503,10 +514,62 @@ export class AdminApi {
   /**
    * New version (`base_version` = the version edited, `null` for the first). `409
    * version_conflict` when it moved; `422 mapping_invalid` with `errors` (contract) / `problems`
-   * (approved-tool checks). An identical mapping answers `unchanged: true`.
+   * (approved-tool checks). An identical mapping answers `unchanged: true`. M8: `proposal_id` =
+   * the proposal the draft was opened from; an action mapping from a proposal is guarded (a tenant
+   * admin gets `202` + change request `connector_mapping`).
    */
-  saveMapping(slug: string, kind: MappingKind, body: { base_version: number | null; mapping: Record<string, unknown> }): Promise<MappingSaved> {
-    return this.api.call(`/api/admin/connectors/${safeSeg(slug)}/mappings/${kind}`, { method: "PUT", body, schema: mappingSavedSchema });
+  async saveMapping(
+    slug: string,
+    kind: MappingKind,
+    body: { base_version: number | null; mapping: Record<string, unknown>; proposal_id?: string | undefined },
+  ): Promise<Guarded<MappingSaved>> {
+    const out = await this.api.callByStatus(`/api/admin/connectors/${safeSeg(slug)}/mappings/${kind}`, { method: "PUT", body }, guardedSchemaFor(mappingSavedSchema));
+    return out.data;
+  }
+
+  /** M8 preview through the DuckDB compiler: `live` (≤ `max_pages` per source) or `staged` (the last crawl, no vendor call). */
+  previewReadMapping(
+    slug: string,
+    body: { source: "live" | "staged"; mapping?: Record<string, unknown> | undefined; max_pages?: number | undefined; sample?: number | undefined },
+  ): Promise<ReadPreview> {
+    return this.api.call(`/api/admin/connectors/${safeSeg(slug)}/mappings/read/preview`, { method: "POST", body, schema: readPreviewSchema });
+  }
+
+  /** M8 explain: what the compiler makes of a draft (or the saved) read mapping — no vendor call. */
+  compileReadMapping(slug: string, mapping?: Record<string, unknown> | undefined): Promise<MappingPlan> {
+    return this.api.call(`/api/admin/connectors/${safeSeg(slug)}/mappings/read/compile`, { method: "POST", body: mapping ? { mapping } : {}, schema: mappingPlanSchema });
+  }
+
+  /** M8: the last crawl's staged raw pages (`null` when there are none: the staged preview is unavailable). */
+  async stagedSet(slug: string): Promise<StagedSet | null> {
+    try {
+      return await this.api.call(`/api/admin/connectors/${safeSeg(slug)}/staged`, { schema: stagedSetSchema });
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) return null;
+      throw err;
+    }
+  }
+
+  /** M8: whether proposals run here and whether the AI step is available. */
+  proposerStatus(): Promise<ProposerStatus> {
+    return this.api.call("/api/admin/mappings/proposer", { schema: proposerStatusSchema });
+  }
+
+  /** M8: sample (when `sample`) and propose read / action drafts; stored for review, never activated. */
+  proposeMappings(slug: string, body: ProposeBody): Promise<Proposal> {
+    return this.api.call(`/api/admin/connectors/${safeSeg(slug)}/mappings/proposals`, { method: "POST", body, schema: proposalSchema });
+  }
+
+  mappingProposals(slug: string): Promise<ProposalSummary[]> {
+    return this.api.call(`/api/admin/connectors/${safeSeg(slug)}/mappings/proposals`, { schema: proposalListSchema });
+  }
+
+  mappingProposal(slug: string, id: string): Promise<Proposal> {
+    return this.api.call(`/api/admin/connectors/${safeSeg(slug)}/mappings/proposals/${uuidSeg(id)}`, { schema: proposalSchema });
+  }
+
+  discardProposal(slug: string, id: string): Promise<Proposal> {
+    return this.api.call(`/api/admin/connectors/${safeSeg(slug)}/mappings/proposals/${uuidSeg(id)}/discard`, { method: "POST", schema: proposalSchema });
   }
 
   /** Crawls at most `max_pages` page(s) per source with a draft (or the saved) read mapping and maps them — nothing is stored. */

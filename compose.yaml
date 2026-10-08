@@ -304,6 +304,9 @@ services:
       # This dev/demo stack records every live call and replays identical requests (fail-closed
       # demos/evals: LLM_REPLAY_MODE=replay); production leaves it unset (= off).
       LLM_REPLAY_MODE: ${LLM_REPLAY_MODE:-record_or_replay}
+      # M8 (121): proposed tier-A mappings — rules only while Gemini credits are depleted (auto = rules
+      # refined by the AI when the tenant has a model; off = proposals disabled).
+      MAPPING_PROPOSER: ${MAPPING_PROPOSER:-heuristic}
       KEYCLOAK_INTERNAL_URL: http://keycloak:8080
       KC_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
       OIDC_ISSUER: http://auth.localhost/realms/keelson
@@ -354,6 +357,8 @@ services:
       <<: *engine-env
       # M7 (110 §6): GET /api/admin/evals lists the latest CLI eval runs (evals/run_live.py)
       EVALS_RESULTS_DIR: /app/evals/results
+      # M8 (121): read previews run a DuckDB session in this 512m container: cap it (the worker keeps 256)
+      DUCKDB_MEMORY_LIMIT_MB: "128"
     volumes:
       - ./models.lock:/app/models.lock:ro
       - ./data/packs:/app/packs:ro

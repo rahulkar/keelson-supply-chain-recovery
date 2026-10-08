@@ -45,6 +45,8 @@ test-results/
 e2e/playwright/artifacts/
 evals/results/*
 !evals/results/.gitkeep
+# scripts/up.*, scripts/verify-infra.* run logs
+logs/
 apps/keelson-web/public/maplibre/
 
 # ─────────────────────────── OS / editors ───────────────────────────
@@ -55,3 +57,7 @@ desktop.ini
 .vscode/
 *.swp
 *.log
+
+# Docker-free Windows mode (startup.bat): tools, venvs, builds, data, logs
+.native/
+.native.path

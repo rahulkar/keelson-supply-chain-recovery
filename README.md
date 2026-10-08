@@ -139,6 +139,20 @@ bash scripts/verify-infra.sh              # or: powershell -File scripts\verify-
 
 **5. Open** <http://keelson.localhost> and sign in (see [Default logins](#default-logins)).
 
+### Without Docker (Windows)
+
+`startup.bat` runs the same stack as native Windows processes — no Docker Desktop needed. It needs **Java 21+** (Keycloak), **Node.js 20+** (web apps), `GEMINI_API_KEY` in your environment and ~6–7 GB of disk. Python, Postgres 18 (+ PostGIS, pgvector), Redis, Keycloak, keycloak-config-cli, LiteLLM, Caddy, uv and pnpm are downloaded (pinned in [`scripts/native/versions.psd1`](scripts/native/versions.psd1)) into a git-ignored `.native\` folder on the first run.
+
+```bat
+startup.bat                              :: first run: download + build (~10-20 min), then start everything
+startup.bat -NativeDir C:\keelson-native :: put tools/venvs/data on another drive (remembered)
+startup.bat status                       :: health of every service
+startup.bat logs engine-worker           :: follow one service's log
+startup.bat stop                         :: stop everything (data is kept)
+```
+
+Every step prints timestamped progress (downloads with MB/s and ETA, build output, which service is still starting and its latest log line). Logs: `.native\logs\startup-<time>.log` plus one `<service>.log` per process. The services call each other through the `*.localhost` names, so `startup.bat` offers to run `scripts\hosts.ps1 -Apply` (one UAC prompt) when they don't resolve. Port 80 is shared with the Docker stack: `startup.bat` offers to `docker compose stop` it. Differences from compose: one Postgres cluster (the three databases become one each), Redis for Windows instead of Valkey, and no Squid egress proxy. With **Windows Smart App Control** on, Windows may refuse to load a downloaded native library it has no reputation for yet (seen once with OR-Tools' `libscip.dll`); `startup.bat` detects that, reports the component as `BLOCKED`, skips it and starts everything else — it never changes that setting.
+
 ---
 
 ## URLs
@@ -247,7 +261,7 @@ docker compose up -d --build engine-api engine-worker   # rebuild after code cha
 docker compose down -v                             # ⚠ wipes ALL data volumes (fresh start)
 ```
 
-On Windows PowerShell use `scripts\up.ps1` (`-Infra`, `-Services a,b`, `-Obs`, `-NoBuild`) and `scripts\demo-reset.ps1`.
+On Windows PowerShell use `scripts\up.ps1` (`-Infra`, `-Services a,b`, `-Obs`, `-NoBuild`, `-TimeoutSec`) and `scripts\demo-reset.ps1`; in bash, `scripts/up.sh` takes the same options (`--infra`, `--services a,b`, `--obs`, `--no-build`, `--timeout N`). Both print timestamped, numbered steps, stream the build, report every service state change while waiting (with the latest log lines of services still starting, and the last 40 lines of any that fail) and write the run to `logs/up-<time>.log`. `scripts/verify-infra.*` print one `PASS`/`FAIL` line per check and keep the raw results in `logs/verify-infra-<time>.log`.
 
 ---
 

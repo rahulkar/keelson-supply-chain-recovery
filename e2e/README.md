@@ -305,6 +305,19 @@ second run took the key-rotation path (northwind-test plans on merxa-lite after
 `api_m7_foreign_erp.py --prepare-only`). `m7-offline` (6 tests) ~1.5 min; with `dev-blocks`,
 `admin-smoke`, `auth`, `m5-offline` under `E2E_NO_MODEL=1`: 15 passed, 1 skipped.
 
+## M8 signal feeds (`docs/contracts/124`): `api_m8_feeds_offline.py`
+
+Runs inside the engine image like the M6/M7 offline scripts (`docker compose run --rm --no-deps -T -v
+<repo>/e2e:/e2e:ro engine-api python -u /e2e/api_m8_feeds_offline.py`); **no model and no internet**.
+Demo reset; the Sources catalogue lists NHC, Copernicus EMS and OFAC as polled `fact` sources with their
+licences and https terms links (the OFAC awareness disclaimer included) and GDELT as an opt-in
+`inference` source, unsubscribed and paused; subscribing GDELT un-pauses it at the hub (900 s) and
+unsubscribing pauses it again; the presenter's `hurricane-cape-route` pack raises exactly one simulated
+alert exposing only the four CAPE-routed lanes (`lane_crosses`, attributed to "NOAA National Hurricane
+Center (demo replay)"), re-notified as critical at the category-3 advisory with the action still `alert`
+(no case drafted); a final demo reset clears it (`--skip-final-reset` keeps it). `scripts/verify-live.sh`
+step `m8-feeds` polls the real NHC / EMS / OFAC / GDELT feeds once through the poller's egress.
+
 ## `api_m3_levers.py` — M3 levers through the API
 
 Same container, command shape and options as `api_thin_slice.py` (it imports that script's

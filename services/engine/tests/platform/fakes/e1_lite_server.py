@@ -22,10 +22,11 @@ from __future__ import annotations
 
 import copy
 import json
-from typing import Any
+from typing import Annotated, Any
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
+from pydantic import Field
 
 from e1_mcp_server import McpTestServer
 
@@ -45,6 +46,9 @@ COLUMNS: dict[str, tuple[str, ...]] = {
     "allocation": ("code", "sku_code", "dc_code", "store_code", "ship_week", "qty", "status", "version"),
     "transfer_order": ("code", "from_dc", "to_dc", "ship_date", "eta_date", "status", "created_via", "version"),
 }
+TYPE_NAMES: tuple[str, ...] = ("sku", "style", "store", "dc", "purchase_order", "po_line", "inventory", "forecast",
+                                "allocation", "transfer_order")
+"""Merxa's ``list_items`` types in its own order (the ``type`` parameter's description lists them)."""
 KEYS: dict[str, tuple[tuple[str, ...], str]] = {
     "po_line": (("po_code", "line_no"), "#"),
     "inventory": (("location_type", "location_code", "sku_code"), "/"),
@@ -161,7 +165,13 @@ class LiteServer(McpTestServer):
         mcp = FastMCP("Merxa Retail Suite (lite) fake")
 
         @mcp.tool(name="list_items", description="List records of a type.", annotations=READ)
-        def list_items(type: str, filter_json: str | None = None, page: int = 1, page_size: int = 50) -> dict[str, Any]:
+        def list_items(
+            type: Annotated[str, Field(description=f"one of {', '.join(TYPE_NAMES)}")],
+            filter_json: Annotated[str | None, Field(description='JSON object of column filters, e.g. {"status":"open"}')]
+            = None,
+            page: Annotated[int, Field(ge=1, le=1_000_000)] = 1,
+            page_size: Annotated[int, Field(ge=1, le=200)] = 50,
+        ) -> dict[str, Any]:
             self.calls.append(("list_items", {"type": type, "filter_json": filter_json, "page": page,
                                               "page_size": page_size}))
             self._check_fail("list_items", type, page)

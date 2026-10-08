@@ -13,6 +13,7 @@ from keelson_engine.api import (
     routes_admin,
     routes_admin_kb,
     routes_admin_m7,
+    routes_admin_mappings,
     routes_admin_playground,
     routes_alerts,
     routes_auth,
@@ -113,6 +114,7 @@ def create_app(*, manage_resources: bool = True) -> FastAPI:
         routes_connectors.router,
         routes_admin.router,
         routes_admin_kb.router,
+        routes_admin_mappings.router,  # M8: before m7 (its GET …/mappings/{kind} would shadow …/proposals)
         routes_admin_m7.router,
         routes_admin_playground.router,
         routes_webhooks.router,

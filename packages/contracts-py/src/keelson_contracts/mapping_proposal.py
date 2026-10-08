@@ -114,7 +114,8 @@ PathShape = Literal[
     "object", "list", "empty",
 ]
 """What the sampled values at a path look like (``empty`` = always null)."""
-SourceRef = Annotated[str, Field(pattern=SOURCE_REF_PATTERN)]
+DateFormat = Literal["DD/MM/YYYY", "MM/DD/YYYY", "DD.MM.YYYY", "DD-MM-YYYY", "YYYY/MM/DD"]
+SourceRef =Annotated[str, Field(pattern=SOURCE_REF_PATTERN)]
 Rationale = Annotated[str, Field(max_length=MAX_RATIONALE)]
 Example = Annotated[str, Field(min_length=1, max_length=80)]
 
@@ -132,6 +133,8 @@ class PathProfile(ContractModel):
 
     path: JsonPathLite
     shape: PathShape
+    date_format: DateFormat | None = None
+    """``date`` shape in a non-ISO layout every sampled value parses with (``date($.x, fmt)``)."""
     types: Annotated[list[ShapeCount], Field(max_length=7)]
     null_count: NonNegInt
     distinct_count: NonNegInt

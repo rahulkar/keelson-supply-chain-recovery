@@ -17,8 +17,11 @@ tool call the commit service would make for a sample action — the action tool 
 egress proxy) and reports whether the sample's effect is visible. Unmapped ops answer the guided
 reason.
 
-Mapping changes are not guarded (they cannot widen what a tool may do: the classification and the
-binding are); they are audited (``connector.mapping.update``).
+Manual mapping changes are not guarded (they cannot widen what a tool may do: the classification and
+the binding are); they are audited (``connector.mapping.update``). M8 (``121-m8-mapping-compiler.md``
+§3.6): every version records its provenance (``origin`` manual / pack / proposal / change_request,
+``proposal_id``), and an **action** mapping saved from a proposed draft is a guarded change (four-eyes,
+change request ``connector_mapping``): the human who accepts it is not the only author.
 """
 
 from __future__ import annotations
@@ -92,17 +95,22 @@ async def approved_classifications(tenant: str, connector: str) -> dict[str, Too
             if t.status == "approved"}
 
 
+_ROW_COLS: Final = "connector, kind, version, mapping, summary, created_by, created_at, origin, proposal_id"
+
+
 def _row(m: Mapping[str, Any]) -> dict[str, Any]:
     return {"connector": m["connector"], "kind": m["kind"], "version": int(m["version"]), "mapping": m["mapping"],
             "summary": m["summary"], "created_by": m["created_by"],
-            "created_at": m["created_at"].isoformat() if m["created_at"] else None}
+            "created_at": m["created_at"].isoformat() if m["created_at"] else None,
+            "origin": m["origin"], "proposal_id": str(m["proposal_id"]) if m["proposal_id"] else None}
 
 
 async def get_mapping(tenant: str, connector: str, kind: str, version: int | None = None) -> dict[str, Any] | None:
     """The latest (or a given) version as ``{connector, kind, version, mapping, summary, created_by,
-    created_at}``, or ``None``."""
+    created_at, origin, proposal_id}`` (M8 provenance: ``manual`` | ``pack`` | ``proposal`` |
+    ``change_request``), or ``None``."""
     _kind(kind)
-    sql = ("SELECT connector, kind, version, mapping, summary, created_by, created_at FROM connector_mapping "
+    sql = (f"SELECT {_ROW_COLS} FROM connector_mapping "
            "WHERE tenant = :t AND connector = :c AND kind = :k "
            + ("AND version = :v" if version is not None else "ORDER BY version DESC LIMIT 1"))
     params: dict[str, Any] = {"t": tenant, "c": connector, "k": kind}
@@ -117,7 +125,7 @@ async def list_versions(tenant: str, connector: str, kind: str) -> list[dict[str
     _kind(kind)
     async with tenant_session(tenant) as s:
         rows = (await s.execute(
-            text("SELECT connector, kind, version, mapping, summary, created_by, created_at FROM connector_mapping "
+            text(f"SELECT {_ROW_COLS} FROM connector_mapping "
                  "WHERE tenant = :t AND connector = :c AND kind = :k ORDER BY version DESC"),
             {"t": tenant, "c": connector, "k": kind})).mappings().all()
     return [{k: v for k, v in _row(r).items() if k != "mapping"} for r in rows]
@@ -179,11 +187,29 @@ def violations(model: ReadMapping | ActionMapping, tools: Mapping[str, ToolClass
     return action_mapping_violations(model, tools=tools)
 
 
+async def _latest(tenant: str, connector: str, kind: str) -> tuple[int | None, Any]:
+    async with tenant_session(tenant) as s:
+        latest = (await s.execute(
+            text("SELECT version, mapping FROM connector_mapping WHERE tenant = :t AND connector = :c AND kind = :k "
+                 "ORDER BY version DESC LIMIT 1"), {"t": tenant, "c": connector, "k": kind})).first()
+    return (int(latest[0]), latest[1]) if latest is not None else (None, None)
+
+
 async def put_mapping(tenant: str, connector: str, kind: str, mapping: Any, *, base_version: int | None,
-                      actor: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+                      actor: dict[str, Any], proposal_id: str | None = None, origin: str | None = None,
+                      platform_admin: bool = False, cosigned: bool = False) -> tuple[dict[str, Any], bool]:
     """Validate + store a new version → ``(row, created)`` (``created`` False when unchanged).
     422 ``mapping_invalid`` (``errors`` = contract errors, ``problems`` = catalogue cross-checks);
-    409 ``version_conflict`` when ``base_version`` is not the latest version (``None`` = none yet)."""
+    409 ``version_conflict`` when ``base_version`` is not the latest version (``None`` = none yet).
+
+    M8 provenance (``origin``): ``manual`` (default), ``pack`` (from-pack installs), ``proposal``
+    (saved with ``proposal_id``: the proposal is marked ``accepted`` with the new version) and
+    ``change_request`` (applied by an approved change request). **Guarded**: an *action* mapping
+    saved from a proposal (rules or AI) needs a second admin — a tenant-admin gets a change request
+    ``connector_mapping`` (reason ``ai_proposed_action_mapping``; ``base_version`` = the current
+    version, ``"0"`` for none); a platform-admin or an approved request (``cosigned``) applies it."""
+    from keelson_engine.core import mapping_proposals
+
     _kind(kind)
     try:
         conn = await reg.get_connector(tenant, connector)
@@ -201,6 +227,25 @@ async def put_mapping(tenant: str, connector: str, kind: str, mapping: Any, *, b
     if problems:
         raise AdminError(422, "mapping_invalid", problems[0], problems=problems[:30])
     stored = model.model_dump(mode="json", by_alias=True)
+    proposal = None
+    if proposal_id is not None:
+        proposal = await mapping_proposals.for_accept(tenant, connector, proposal_id, kind, cosigned=cosigned)
+    origin = "change_request" if cosigned else ("proposal" if proposal_id is not None else (origin or "manual"))
+    if kind == "action" and proposal_id is not None and not (platform_admin or cosigned):
+        current, before = await _latest(tenant, connector, kind)
+        if current != base_version:
+            raise AdminError(409, "version_conflict", "the mapping changed since you loaded it", latest_version=current)
+        from keelson_engine.core.change_requests import GuardedChange, json_diff
+
+        target = f"connector:{connector}/mapping:action"
+        raise GuardedChange(
+            tenant=tenant, actor=actor, kind="connector_mapping", target=target,
+            reasons=[{"code": "ai_proposed_action_mapping", "field": target,
+                      "reason": "an action mapping proposed by the mapping proposer (rules or AI) decides which write "
+                                "tools the commit service calls"}],
+            payload={"connector": connector, "kind": "action", "mapping": stored, "proposal_id": proposal_id},
+            diff=json_diff(before or {}, stored), base_version=str(current or 0),
+            message="an action mapping from a proposal needs a second admin")
     async with tenant_session(tenant) as s:
         await s.execute(text("SELECT pg_advisory_xact_lock(hashtext(:k))"),
                         {"k": f"connector_mapping|{tenant}|{connector}|{kind}"})
@@ -216,17 +261,25 @@ async def put_mapping(tenant: str, connector: str, kind: str, mapping: Any, *, b
         else:
             unchanged = False
             await s.execute(
-                text("INSERT INTO connector_mapping (tenant, connector, kind, version, mapping, summary, created_by) "
-                     "VALUES (:t, :c, :k, :v, CAST(:m AS jsonb), :sum, :by)"),
+                text("INSERT INTO connector_mapping (tenant, connector, kind, version, mapping, summary, created_by, "
+                     "origin, proposal_id) VALUES (:t, :c, :k, :v, CAST(:m AS jsonb), :sum, :by, :o, "
+                     "CAST(:pid AS uuid))"),
                 {"t": tenant, "c": connector, "k": kind, "v": (current or 0) + 1, "m": dumps(stored),
-                 "sum": _summary(kind, model), "by": actor.get("username")},
+                 "sum": _summary(kind, model), "by": actor.get("username"), "o": origin, "pid": proposal_id},
             )
     row = await get_mapping(tenant, connector, kind)
     assert row is not None
+    if proposal_id is not None and proposal is not None:
+        await mapping_proposals.mark_accepted(tenant, connector, proposal_id, kind, row["version"], actor)
     if unchanged:
         return row, False
+    after: dict[str, Any] = {"version": row["version"], "summary": row["summary"], "origin": origin}
+    if proposal_id is not None:
+        after.update(proposal_id=proposal_id, **mapping_proposals.acceptance_counts(proposal, kind, model))
+    if platform_admin and proposal_id is not None and kind == "action" and not cosigned:
+        after["applied_by_platform_admin"] = True
     await admin_audit(actor, "connector.mapping.update", f"connector:{connector}/mapping:{kind}",
-                      {"version": current}, {"version": row["version"], "summary": row["summary"]}, tenant=tenant)
+                      {"version": current}, after, tenant=tenant)
     return row, True
 
 

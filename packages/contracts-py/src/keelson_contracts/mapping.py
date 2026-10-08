@@ -176,6 +176,7 @@ __all__ = [
     "expression_records",
     "is_aggregate",
     "mapping_hash",
+    "op_takes",
     "parse_expression",
     "parse_path",
     "path_text",
@@ -1040,6 +1041,11 @@ def _item_has(op: str, field: str) -> bool:
     if model is None:
         return True
     return model.model_fields[field].annotation is not type(None)
+
+
+def op_takes(op: str, field: str) -> bool:
+    """M8: whether ``op``'s items carry ``target_ref`` / ``expected_version`` (action proposers)."""
+    return _item_has(op, field)
 
 
 def _args_template(value: dict[str, Any]) -> dict[str, Any]:

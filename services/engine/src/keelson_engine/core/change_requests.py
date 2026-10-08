@@ -534,6 +534,21 @@ async def _apply_embedding(tenant: str, cr: AdminChangeRequest, requester: dict[
     return {"job_id": job.get("id"), "status": job.get("status")}
 
 
+@handler("connector_mapping")
+async def _apply_connector_mapping(tenant: str, cr: AdminChangeRequest, requester: dict[str, Any],
+                                   _approver: dict[str, Any]) -> Any:
+    """M8: an action mapping saved from a proposed draft (``121`` §3.6): re-validated against the
+    current catalogue; a mapping version that moved since the request answers 409 ``stale_base``."""
+    from keelson_engine.core import connector_mappings
+
+    p = cr.payload
+    base = int(cr.base_version or 0)
+    row, _created = await connector_mappings.put_mapping(
+        tenant, str(p["connector"]), str(p.get("kind") or "action"), dict(p.get("mapping") or {}),
+        base_version=base or None, actor=requester, proposal_id=p.get("proposal_id"), cosigned=True)
+    return {"version": row["version"]}
+
+
 @handler("user_roles")
 async def _apply_user_roles(tenant: str, cr: AdminChangeRequest, requester: dict[str, Any], _approver: dict[str, Any]) -> Any:
     from keelson_engine.core import users

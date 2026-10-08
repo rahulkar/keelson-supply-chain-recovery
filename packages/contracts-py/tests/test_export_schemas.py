@@ -81,6 +81,11 @@ def test_expected_schema_set(script: ModuleType) -> None:
             "agents.playground-result", "mapping.read", "mapping.action", "mapping.dry-run-request",
             "mapping.dry-run-result", "scn.snapshot-label", "commit.ledger-entry", "connectors.capabilities",
         )),
+        # M8 (128): Evals UI
+        *(f"evals.{n}.schema.json" for n in (
+            "status", "run", "run-detail", "run-create", "run-event", "case-result", "compare", "trends",
+            "threshold", "suite",
+        )),
     }
     assert names == expected
 

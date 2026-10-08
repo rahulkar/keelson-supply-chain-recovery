@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The runner's case catalogue (heartbeat).",
+  "properties": {
+    "cases": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "injects": {
+            "title": "Injects",
+            "type": "boolean"
+          },
+          "needs_live_embeddings": {
+            "title": "Needs Live Embeddings",
+            "type": "boolean"
+          },
+          "tags": {
+            "items": {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Tags",
+            "type": "array"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "turn_kinds": {
+            "items": {
+              "enum": [
+                "message",
+                "action",
+                "signal"
+              ],
+              "type": "string"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Turn Kinds",
+            "type": "array"
+          },
+          "turns": {
+            "maximum": 20,
+            "minimum": 1,
+            "title": "Turns",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "tags",
+          "turns",
+          "turn_kinds",
+          "needs_live_embeddings",
+          "injects"
+        ],
+        "title": "EvalSuiteCase",
+        "type": "object"
+      },
+      "maxItems": 200,
+      "minItems": 1,
+      "title": "Cases",
+      "type": "array"
+    },
+    "suite_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Suite Hash",
+      "type": "string"
+    }
+  },
+  "required": [
+    "suite_hash",
+    "cases"
+  ],
+  "title": "EvalSuiteInfo",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.evals.EvalSuiteInfo"
+}

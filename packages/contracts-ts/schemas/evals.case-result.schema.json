@@ -1,0 +1,1140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One eval case's outcome (``eval_case_result.result``; ``GET …/runs/{id}/cases/{case}``).",
+  "properties": {
+    "case_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$",
+      "title": "Case Id",
+      "type": "string"
+    },
+    "checks": {
+      "items": {
+        "additionalProperties": false,
+        "description": "One assertion of a turn or of the case (``<turn>.<check>`` / ``case.<check>``).",
+        "properties": {
+          "detail": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Detail",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "soft": {
+            "default": false,
+            "title": "Soft",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "ok"
+        ],
+        "title": "EvalCheck",
+        "type": "object"
+      },
+      "maxItems": 300,
+      "title": "Checks",
+      "type": "array"
+    },
+    "duration_ms": {
+      "minimum": 0,
+      "title": "Duration Ms",
+      "type": "integer"
+    },
+    "engine": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "description": "What the engine metered for the linked Keelson case (in-app runs; authoritative).",
+          "properties": {
+            "cost_microusd": {
+              "minimum": 0,
+              "title": "Cost Microusd",
+              "type": "integer"
+            },
+            "llm_calls_live": {
+              "minimum": 0,
+              "title": "Llm Calls Live",
+              "type": "integer"
+            },
+            "llm_calls_replayed": {
+              "minimum": 0,
+              "title": "Llm Calls Replayed",
+              "type": "integer"
+            },
+            "replay_misses": {
+              "minimum": 0,
+              "title": "Replay Misses",
+              "type": "integer"
+            },
+            "tokens_live": {
+              "minimum": 0,
+              "title": "Tokens Live",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "llm_calls_live",
+            "llm_calls_replayed",
+            "tokens_live",
+            "replay_misses",
+            "cost_microusd"
+          ],
+          "title": "EvalEngineAccounting",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "entity_recall_bp": {
+      "anyOf": [
+        {
+          "maximum": 10000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Entity Recall Bp"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "maxLength": 2000,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Error"
+    },
+    "error_code": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z][a-z0-9_]{0,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Error Code"
+    },
+    "guard_flagged": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Guard Flagged"
+    },
+    "keelson_case_id": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Keelson Case Id"
+    },
+    "numeric_grounding_bp": {
+      "anyOf": [
+        {
+          "maximum": 10000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Numeric Grounding Bp"
+    },
+    "status": {
+      "enum": [
+        "pass",
+        "fail",
+        "error",
+        "skipped",
+        "cancelled"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "tags": {
+      "items": {
+        "maxLength": 40,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 20,
+      "title": "Tags",
+      "type": "array"
+    },
+    "title": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "tokens_gateway": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Tokens Gateway"
+    },
+    "tool_calls": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Tool Calls"
+    },
+    "trajectory_recall_bp": {
+      "anyOf": [
+        {
+          "maximum": 10000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Trajectory Recall Bp"
+    },
+    "turns": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "agents_started": {
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Agents Started",
+            "type": "array"
+          },
+          "budgets": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "description": "Milliseconds from posting the turn to its first stage, first exposure strip, recommended\noption and end (``None`` = not reached / no budget).",
+                "properties": {
+                  "exposure_ms": {
+                    "anyOf": [
+                      {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Exposure Ms"
+                  },
+                  "first_stage_ms": {
+                    "anyOf": [
+                      {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "First Stage Ms"
+                  },
+                  "options_ms": {
+                    "anyOf": [
+                      {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Options Ms"
+                  },
+                  "total_ms": {
+                    "anyOf": [
+                      {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Total Ms"
+                  }
+                },
+                "title": "EvalLatency",
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "checks": {
+            "items": {
+              "additionalProperties": false,
+              "description": "One assertion of a turn or of the case (``<turn>.<check>`` / ``case.<check>``).",
+              "properties": {
+                "detail": {
+                  "default": "",
+                  "maxLength": 2000,
+                  "title": "Detail",
+                  "type": "string"
+                },
+                "name": {
+                  "maxLength": 160,
+                  "minLength": 1,
+                  "title": "Name",
+                  "type": "string"
+                },
+                "ok": {
+                  "title": "Ok",
+                  "type": "boolean"
+                },
+                "soft": {
+                  "default": false,
+                  "title": "Soft",
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "name",
+                "ok"
+              ],
+              "title": "EvalCheck",
+              "type": "object"
+            },
+            "maxItems": 300,
+            "title": "Checks",
+            "type": "array"
+          },
+          "entities": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "description": "Affected-entity recall of a turn against its golden list.",
+                "properties": {
+                  "golden": {
+                    "items": {
+                      "maxLength": 80,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "maxItems": 200,
+                    "title": "Golden",
+                    "type": "array"
+                  },
+                  "min_recall_bp": {
+                    "maximum": 10000,
+                    "minimum": 0,
+                    "title": "Min Recall Bp",
+                    "type": "integer"
+                  },
+                  "missing": {
+                    "items": {
+                      "maxLength": 80,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "maxItems": 200,
+                    "title": "Missing",
+                    "type": "array"
+                  },
+                  "recall_bp": {
+                    "maximum": 10000,
+                    "minimum": 0,
+                    "title": "Recall Bp",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "golden",
+                  "missing",
+                  "recall_bp",
+                  "min_recall_bp"
+                ],
+                "title": "EvalEntities",
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "entity_recall_bp": {
+            "anyOf": [
+              {
+                "maximum": 10000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Entity Recall Bp"
+          },
+          "extra": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "maxLength": 300,
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "maxLength": 80,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "maxItems": 50,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Extra",
+            "type": "object"
+          },
+          "final_code": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Final Code"
+          },
+          "id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "message",
+              "action",
+              "signal",
+              "unknown"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "narrative_numbers": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Narrative Numbers"
+          },
+          "numeric_grounding_bp": {
+            "anyOf": [
+              {
+                "maximum": 10000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Numeric Grounding Bp"
+          },
+          "numeric_grounding_min_bp": {
+            "anyOf": [
+              {
+                "maximum": 10000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Numeric Grounding Min Bp"
+          },
+          "plan_version": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Plan Version"
+          },
+          "run_ids": {
+            "items": {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Run Ids",
+            "type": "array"
+          },
+          "skipped": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Skipped"
+          },
+          "timings": {
+            "additionalProperties": false,
+            "description": "Milliseconds from posting the turn to its first stage, first exposure strip, recommended\noption and end (``None`` = not reached / no budget).",
+            "properties": {
+              "exposure_ms": {
+                "anyOf": [
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Exposure Ms"
+              },
+              "first_stage_ms": {
+                "anyOf": [
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "First Stage Ms"
+              },
+              "options_ms": {
+                "anyOf": [
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Options Ms"
+              },
+              "total_ms": {
+                "anyOf": [
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Total Ms"
+              }
+            },
+            "title": "EvalLatency",
+            "type": "object"
+          },
+          "tool_calls": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tool Calls"
+          },
+          "trajectory": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "description": "Tool trajectory of a turn, in any order (plan §20): ``agent:tool`` patterns (``*`` =\nany agent / any tool) that must appear, patterns that must not, and the calls made.",
+                "properties": {
+                  "calls": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "agent": {
+                          "maxLength": 80,
+                          "title": "Agent",
+                          "type": "string"
+                        },
+                        "n": {
+                          "minimum": 1,
+                          "title": "N",
+                          "type": "integer"
+                        },
+                        "tool": {
+                          "maxLength": 128,
+                          "minLength": 1,
+                          "title": "Tool",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "agent",
+                        "tool",
+                        "n"
+                      ],
+                      "title": "EvalTrajectoryCall",
+                      "type": "object"
+                    },
+                    "maxItems": 100,
+                    "title": "Calls",
+                    "type": "array"
+                  },
+                  "forbidden": {
+                    "items": {
+                      "maxLength": 210,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "maxItems": 50,
+                    "title": "Forbidden",
+                    "type": "array"
+                  },
+                  "forbidden_hits": {
+                    "items": {
+                      "maxLength": 210,
+                      "type": "string"
+                    },
+                    "maxItems": 100,
+                    "title": "Forbidden Hits",
+                    "type": "array"
+                  },
+                  "matched": {
+                    "items": {
+                      "maxLength": 210,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "maxItems": 50,
+                    "title": "Matched",
+                    "type": "array"
+                  },
+                  "max_calls": {
+                    "anyOf": [
+                      {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Max Calls"
+                  },
+                  "min_recall_bp": {
+                    "default": 10000,
+                    "maximum": 10000,
+                    "minimum": 0,
+                    "title": "Min Recall Bp",
+                    "type": "integer"
+                  },
+                  "missing": {
+                    "items": {
+                      "maxLength": 210,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "maxItems": 50,
+                    "title": "Missing",
+                    "type": "array"
+                  },
+                  "recall_bp": {
+                    "anyOf": [
+                      {
+                        "maximum": 10000,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Recall Bp"
+                  },
+                  "required": {
+                    "items": {
+                      "maxLength": 210,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "maxItems": 50,
+                    "title": "Required",
+                    "type": "array"
+                  },
+                  "total_calls": {
+                    "minimum": 0,
+                    "title": "Total Calls",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "required",
+                  "matched",
+                  "missing",
+                  "forbidden",
+                  "forbidden_hits",
+                  "calls",
+                  "total_calls",
+                  "recall_bp"
+                ],
+                "title": "EvalTrajectory",
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "trajectory_recall_bp": {
+            "anyOf": [
+              {
+                "maximum": 10000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Trajectory Recall Bp"
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "description": "Exact usage of a turn / case: the sum of ``metadata.usage`` over its runs.",
+                "properties": {
+                  "agents": {
+                    "additionalProperties": {
+                      "additionalProperties": false,
+                      "description": "LLM usage of one agent (or the total): the runs' ``metadata.usage``.",
+                      "properties": {
+                        "calls": {
+                          "default": 0,
+                          "minimum": 0,
+                          "title": "Calls",
+                          "type": "integer"
+                        },
+                        "completion_tokens": {
+                          "default": 0,
+                          "minimum": 0,
+                          "title": "Completion Tokens",
+                          "type": "integer"
+                        },
+                        "cost_microusd": {
+                          "anyOf": [
+                            {
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "default": null,
+                          "title": "Cost Microusd"
+                        },
+                        "latency_ms": {
+                          "default": 0,
+                          "minimum": 0,
+                          "title": "Latency Ms",
+                          "type": "integer"
+                        },
+                        "prompt_tokens": {
+                          "default": 0,
+                          "minimum": 0,
+                          "title": "Prompt Tokens",
+                          "type": "integer"
+                        },
+                        "reasoning_tokens": {
+                          "default": 0,
+                          "minimum": 0,
+                          "title": "Reasoning Tokens",
+                          "type": "integer"
+                        },
+                        "replayed": {
+                          "default": 0,
+                          "minimum": 0,
+                          "title": "Replayed",
+                          "type": "integer"
+                        },
+                        "total_tokens": {
+                          "default": 0,
+                          "minimum": 0,
+                          "title": "Total Tokens",
+                          "type": "integer"
+                        }
+                      },
+                      "title": "EvalUsageRow",
+                      "type": "object"
+                    },
+                    "title": "Agents",
+                    "type": "object"
+                  },
+                  "runs": {
+                    "minimum": 0,
+                    "title": "Runs",
+                    "type": "integer"
+                  },
+                  "total": {
+                    "additionalProperties": false,
+                    "description": "LLM usage of one agent (or the total): the runs' ``metadata.usage``.",
+                    "properties": {
+                      "calls": {
+                        "default": 0,
+                        "minimum": 0,
+                        "title": "Calls",
+                        "type": "integer"
+                      },
+                      "completion_tokens": {
+                        "default": 0,
+                        "minimum": 0,
+                        "title": "Completion Tokens",
+                        "type": "integer"
+                      },
+                      "cost_microusd": {
+                        "anyOf": [
+                          {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "title": "Cost Microusd"
+                      },
+                      "latency_ms": {
+                        "default": 0,
+                        "minimum": 0,
+                        "title": "Latency Ms",
+                        "type": "integer"
+                      },
+                      "prompt_tokens": {
+                        "default": 0,
+                        "minimum": 0,
+                        "title": "Prompt Tokens",
+                        "type": "integer"
+                      },
+                      "reasoning_tokens": {
+                        "default": 0,
+                        "minimum": 0,
+                        "title": "Reasoning Tokens",
+                        "type": "integer"
+                      },
+                      "replayed": {
+                        "default": 0,
+                        "minimum": 0,
+                        "title": "Replayed",
+                        "type": "integer"
+                      },
+                      "total_tokens": {
+                        "default": 0,
+                        "minimum": 0,
+                        "title": "Total Tokens",
+                        "type": "integer"
+                      }
+                    },
+                    "title": "EvalUsageRow",
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "runs",
+                  "total"
+                ],
+                "title": "EvalUsage",
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "id",
+          "kind"
+        ],
+        "title": "EvalTurnResult",
+        "type": "object"
+      },
+      "maxItems": 20,
+      "title": "Turns",
+      "type": "array"
+    },
+    "usage": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "description": "Exact usage of a turn / case: the sum of ``metadata.usage`` over its runs.",
+          "properties": {
+            "agents": {
+              "additionalProperties": {
+                "additionalProperties": false,
+                "description": "LLM usage of one agent (or the total): the runs' ``metadata.usage``.",
+                "properties": {
+                  "calls": {
+                    "default": 0,
+                    "minimum": 0,
+                    "title": "Calls",
+                    "type": "integer"
+                  },
+                  "completion_tokens": {
+                    "default": 0,
+                    "minimum": 0,
+                    "title": "Completion Tokens",
+                    "type": "integer"
+                  },
+                  "cost_microusd": {
+                    "anyOf": [
+                      {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Cost Microusd"
+                  },
+                  "latency_ms": {
+                    "default": 0,
+                    "minimum": 0,
+                    "title": "Latency Ms",
+                    "type": "integer"
+                  },
+                  "prompt_tokens": {
+                    "default": 0,
+                    "minimum": 0,
+                    "title": "Prompt Tokens",
+                    "type": "integer"
+                  },
+                  "reasoning_tokens": {
+                    "default": 0,
+                    "minimum": 0,
+                    "title": "Reasoning Tokens",
+                    "type": "integer"
+                  },
+                  "replayed": {
+                    "default": 0,
+                    "minimum": 0,
+                    "title": "Replayed",
+                    "type": "integer"
+                  },
+                  "total_tokens": {
+                    "default": 0,
+                    "minimum": 0,
+                    "title": "Total Tokens",
+                    "type": "integer"
+                  }
+                },
+                "title": "EvalUsageRow",
+                "type": "object"
+              },
+              "title": "Agents",
+              "type": "object"
+            },
+            "runs": {
+              "minimum": 0,
+              "title": "Runs",
+              "type": "integer"
+            },
+            "total": {
+              "additionalProperties": false,
+              "description": "LLM usage of one agent (or the total): the runs' ``metadata.usage``.",
+              "properties": {
+                "calls": {
+                  "default": 0,
+                  "minimum": 0,
+                  "title": "Calls",
+                  "type": "integer"
+                },
+                "completion_tokens": {
+                  "default": 0,
+                  "minimum": 0,
+                  "title": "Completion Tokens",
+                  "type": "integer"
+                },
+                "cost_microusd": {
+                  "anyOf": [
+                    {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Cost Microusd"
+                },
+                "latency_ms": {
+                  "default": 0,
+                  "minimum": 0,
+                  "title": "Latency Ms",
+                  "type": "integer"
+                },
+                "prompt_tokens": {
+                  "default": 0,
+                  "minimum": 0,
+                  "title": "Prompt Tokens",
+                  "type": "integer"
+                },
+                "reasoning_tokens": {
+                  "default": 0,
+                  "minimum": 0,
+                  "title": "Reasoning Tokens",
+                  "type": "integer"
+                },
+                "replayed": {
+                  "default": 0,
+                  "minimum": 0,
+                  "title": "Replayed",
+                  "type": "integer"
+                },
+                "total_tokens": {
+                  "default": 0,
+                  "minimum": 0,
+                  "title": "Total Tokens",
+                  "type": "integer"
+                }
+              },
+              "title": "EvalUsageRow",
+              "type": "object"
+            }
+          },
+          "required": [
+            "runs",
+            "total"
+          ],
+          "title": "EvalUsage",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "case_id",
+    "title",
+    "tags",
+    "status",
+    "keelson_case_id",
+    "error",
+    "error_code",
+    "duration_ms",
+    "turns",
+    "checks",
+    "entity_recall_bp",
+    "numeric_grounding_bp",
+    "trajectory_recall_bp",
+    "guard_flagged",
+    "tool_calls",
+    "usage",
+    "tokens_gateway"
+  ],
+  "title": "EvalCaseResult",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.evals.EvalCaseResult"
+}

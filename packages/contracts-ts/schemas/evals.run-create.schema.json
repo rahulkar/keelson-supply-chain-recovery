@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "``POST /api/admin/evals/runs``: start an in-app run (platform admins).",
+  "properties": {
+    "acknowledge_reset": {
+      "const": true,
+      "title": "Acknowledge Reset",
+      "type": "boolean"
+    },
+    "budget": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "description": "Caps of one live run (both required): engine-enforced per run (BudgetPlugin) and per eval\nrun (pre-check before every run); never above the installation's ``EVALS_LIVE_MAX_*``.",
+          "properties": {
+            "max_cost_microusd": {
+              "maximum": 100000000,
+              "minimum": 1,
+              "title": "Max Cost Microusd",
+              "type": "integer"
+            },
+            "max_tokens": {
+              "maximum": 50000000,
+              "minimum": 1,
+              "title": "Max Tokens",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "max_tokens",
+            "max_cost_microusd"
+          ],
+          "title": "EvalBudget",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "case_ids": {
+      "anyOf": [
+        {
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$",
+            "type": "string"
+          },
+          "maxItems": 50,
+          "minItems": 1,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Case Ids"
+    },
+    "confirm_live": {
+      "anyOf": [
+        {
+          "maxLength": 20,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Confirm Live"
+    },
+    "mode": {
+      "default": "replay",
+      "enum": [
+        "replay",
+        "record_or_replay",
+        "record"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "note": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Note"
+    }
+  },
+  "required": [
+    "acknowledge_reset"
+  ],
+  "title": "EvalRunCreate",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.evals.EvalRunCreate"
+}

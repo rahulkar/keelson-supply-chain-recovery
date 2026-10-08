@@ -10,16 +10,23 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from . import assertions as A
 from .assertions import Check
 from .cases import Case, Turn, is_soft
 
-__all__ = ["CaseObservation", "TurnObservation", "evaluate_case", "evaluate_turn", "llm_texts", "narrative_texts"]
+__all__ = ["CaseObservation", "TurnObservation", "evaluate_case", "evaluate_turn", "llm_texts", "narrative_texts",
+           "to_bp"]
 
 PLACEHOLDER_RE = re.compile(r"\{\{|\}\}")
 PLAN_KINDS = ("approach_card", "recommended_option", "plan_diff", "scenario_compare")
+
+
+def to_bp(ratio: float) -> int:
+    """A 0–1 ratio as basis points (half-up; the contracts' integer unit)."""
+    return int((Decimal(str(ratio)) * 10_000).quantize(Decimal(1), rounding=ROUND_HALF_UP))
 
 
 @dataclass
@@ -48,6 +55,14 @@ class TurnObservation:
     change_sets_before: list[dict[str, Any]] | None = None
     """(signal turns) Merxa change sets before / after the turn (``None`` = not readable)."""
     change_sets_after: list[dict[str, Any]] | None = None
+    usages: list[dict[str, Any] | None] = field(default_factory=list)
+    """(M8) ``metadata.usage`` of each run's final event (``None`` = the run reported none)."""
+
+    @property
+    def final_code(self) -> str | None:
+        """``RUN_ERROR`` code of the turn's last run (``LLM_REPLAY_MISS``, ``EVAL_CANCELLED``, …)."""
+        code = self.final.get("code") if self.final.get("type") == "RUN_ERROR" else None
+        return str(code) if code else None
 
     @property
     def outcome(self) -> dict[str, Any]:
@@ -214,6 +229,8 @@ def evaluate_turn(
         )
         recall, missing = A.entity_recall(e.affected_entities.golden, observed)
         metrics["entity_recall"] = round(recall, 4)
+        metrics["entities"] = {"golden": list(dict.fromkeys(e.affected_entities.golden)), "missing": missing,
+                               "recall_bp": to_bp(recall), "min_recall_bp": to_bp(e.affected_entities.min_recall)}
         add("affected_entities", recall >= e.affected_entities.min_recall,
             f"recall {recall:.2f} (min {e.affected_entities.min_recall}); missing {missing}")
 
@@ -346,8 +363,38 @@ def evaluate_turn(
         add(f"agent:{slug}", slug in started, f"agents started {sorted(started)}")
     for slug in e.agents_not_started:
         add(f"no_agent:{slug}", slug not in started, f"agents started {sorted(started)}")
+    calls = A.tool_calls(obs.events)
+    if e.trajectory is not None:
+        tx = e.trajectory
+        tm = A.trajectory_match(calls, tx.required, tx.forbidden)
+        problems: list[str] = []
+        if tm["recall"] is not None and tm["recall"] < tx.min_recall:
+            problems.append(f"recall {tm['recall']:.2f} (min {tx.min_recall}); missing {tm['missing']}")
+        if tm["forbidden_hits"]:
+            problems.append(f"forbidden calls {tm['forbidden_hits'][:12]}")
+        if tx.max_calls is not None and tm["total_calls"] > tx.max_calls:
+            problems.append(f"{tm['total_calls']} tool calls > {tx.max_calls}")
+        if tm["recall"] is not None:
+            metrics["trajectory_recall"] = round(tm["recall"], 4)
+        metrics["trajectory"] = {
+            "required": list(dict.fromkeys(tx.required)), "matched": tm["matched"], "missing": tm["missing"],
+            "forbidden": list(dict.fromkeys(tx.forbidden)), "forbidden_hits": tm["forbidden_hits"],
+            "calls": tm["calls"], "total_calls": tm["total_calls"], "max_calls": tx.max_calls,
+            "recall_bp": None if tm["recall"] is None else to_bp(tm["recall"]), "min_recall_bp": to_bp(tx.min_recall),
+        }
+        add("trajectory", not problems, "; ".join(problems) if problems else
+            f"{len(tm['matched'])}/{len(tx.required)} required patterns, no forbidden call, "
+            f"{tm['total_calls']} tool calls")
     metrics["agents_started"] = sorted(started)
-    metrics["tool_calls"] = len(A.tool_calls(obs.events))
+    metrics["tool_calls"] = len(calls)
+    targets: dict[str, Any] = {}
+    if e.latency_s is not None:
+        targets["latency_ms"] = {k: (None if v is None else round(v * 1000))
+                                 for k, v in e.latency_s.model_dump().items()}
+    if e.numeric_grounding is not None:
+        targets["numeric_grounding_min_bp"] = to_bp(e.numeric_grounding.min)
+    if targets:
+        metrics["targets"] = targets
     return checks, metrics
 
 
@@ -441,11 +488,14 @@ def evaluate_case(case: Case, co: CaseObservation) -> tuple[list[Check], dict[st
 
 
 def merge_metrics(turn_metrics: list[Mapping[str, Any]], case_metrics: Mapping[str, Any]) -> dict[str, Any]:
-    """Case metrics: the first measured recall / grounding (the case's main turn), the
-    minimum grounding over turns, plus the case-level metrics."""
+    """Case metrics: the first measured recall (the case's main turn), the minimum grounding and
+    trajectory recall over turns, plus the case-level metrics."""
     out: dict[str, Any] = dict(case_metrics)
     recalls = [m["entity_recall"] for m in turn_metrics if m.get("entity_recall") is not None]
     grounding = [m["numeric_grounding"] for m in turn_metrics if m.get("numeric_grounding") is not None]
+    trajectory = [m["trajectory_recall"] for m in turn_metrics if m.get("trajectory_recall") is not None]
     out["entity_recall"] = recalls[0] if recalls else None
     out["numeric_grounding"] = min(grounding) if grounding else None
+    if trajectory:
+        out["trajectory_recall"] = min(trajectory)
     return out

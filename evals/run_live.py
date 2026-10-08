@@ -35,6 +35,8 @@ import os
 import sys
 import time
 import uuid
+from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -51,10 +53,36 @@ from keelson_evals.evaluate import (  # noqa: E402
     evaluate_turn,
     merge_metrics,
 )
-from keelson_evals.report import CaseResult, TurnResult, render_markdown, summarise, write_results  # noqa: E402
+from keelson_evals.report import SCHEMA, CaseResult, TurnResult, render_markdown, summarise, write_results  # noqa: E402
+from keelson_evals.suite import suite_hash  # noqa: E402
 
 MAX_APPROACH_ROUNDS = 3
 CONNECTOR = "merxa"
+MODE_LABELS = ("replay", "record_or_replay", "record")
+STOP_CODES = {
+    "LLM_REPLAY_MISS": "replay_miss",
+    "EVAL_BUDGET_EXHAUSTED": "budget_exhausted",
+    "BUDGET_EXCEEDED": "budget_exhausted",
+    "EVAL_CANCELLED": "cancelled",
+}
+"""``RUN_ERROR`` codes that end a case early (``keelson_contracts.evals.EVAL_STOP_CODES``): the
+remaining turns could not be evaluated, so the case is ``error`` (``cancelled``) with this code
+instead of a list of consequential check failures."""
+
+
+@dataclass
+class CaseHooks:
+    """(M8) Callbacks of the in-app runner (``runner_service.py``); the CLI passes none.
+
+    ``on_case_created`` runs right after ``POST /api/cases`` and before the first turn (the runner
+    links the case to its eval run there, so the engine applies the run's LLM mode to every run of
+    the case): an exception aborts the case before anything is posted. ``stop_reason`` is checked
+    before each turn (``cancelled`` / ``budget_exhausted`` stop the case; the teardown still runs)."""
+
+    on_case_created: Callable[[str], None] | None = None
+    on_turn_started: Callable[[Turn], None] | None = None
+    on_turn_finished: Callable[[Turn, TurnResult], None] | None = None
+    stop_reason: Callable[[], str | None] | None = None
 
 
 # ─────────────────────────────────── dry run ───────────────────────────────────
@@ -249,6 +277,8 @@ def _absorb(obs: TurnObservation, res: Any) -> None:
     obs.blocks.update(res.blocks)
     obs.final = res.final
     obs.interrupts_seen += [str(i.get("reason")) for i in res.interrupts]
+    usage = (res.final.get("metadata") or {}).get("usage")
+    obs.usages.append(usage if isinstance(usage, dict) else None)
 
 
 def _follow_approach(live: Live, user: Any, case_id: str, turn: Turn, obs: TurnObservation, res: Any) -> Any:
@@ -375,9 +405,10 @@ def _setup_check(case: Case, name: str, ok: bool, detail: str) -> Check:
     return Check(name, ok, detail, soft=is_soft(case, name))
 
 
-def run_case(live: Live, case: Case, stamp: str) -> CaseResult:
+def run_case(live: Live, case: Case, stamp: str, hooks: CaseHooks | None = None) -> CaseResult:
     ts = live.ts
     args = live.args
+    hooks = hooks or CaseHooks()
     result = CaseResult(case.id, case.title, list(case.tags))
     t0 = time.monotonic()
     kb_docs: list[tuple[str, str]] = []
@@ -427,11 +458,21 @@ def run_case(live: Live, case: Case, stamp: str) -> CaseResult:
         case_id = str(r.json()["id"])
         result.case_id = case_id
         ts.say(f"case {case_id}")
+        if hooks.on_case_created is not None:
+            hooks.on_case_created(case_id)  # in-app runner: link to the eval run before the first turn
         co = CaseObservation(case_id=case_id, turns=observations, setup_checks=setup_checks,
                              agents_catalog=agents_catalog, connector_tools=catalog)
         last_rec: dict[str, Any] | None = None
         prompts: list[str] = []
         for turn in case.turns:
+            reason = hooks.stop_reason() if hooks.stop_reason is not None else None
+            if reason:
+                result.error_code = reason
+                result.error = f"stopped before turn {turn.id}: {reason.replace('_', ' ')}"
+                ts.say(f"STOP: {result.error}")
+                break
+            if hooks.on_turn_started is not None:
+                hooks.on_turn_started(turn)
             if turn.message:
                 prompts.append(turn.message)
             obs = run_turn(live, priya, case_id, turn, last_rec)
@@ -441,10 +482,20 @@ def run_case(live: Live, case: Case, stamp: str) -> CaseResult:
                 last_rec = dict(rec_blk.get("props") or {})
             prev = observations[-2] if len(observations) > 1 else None
             checks, metrics = evaluate_turn(case, turn, obs, prev, prompts)
-            result.turns.append(TurnResult(turn.id, turn.kind, obs.run_ids,
-                                           obs.timings, obs.plan_version, checks, metrics, obs.skipped))
+            turn_result = TurnResult(turn.id, turn.kind, obs.run_ids, obs.timings, obs.plan_version, checks, metrics,
+                                     obs.skipped, usage=A.usage_total(obs.usages), final_code=obs.final_code)
+            result.turns.append(turn_result)
             for c in checks:
                 _say_check(ts, c)
+            if hooks.on_turn_finished is not None:
+                hooks.on_turn_finished(turn, turn_result)
+            stop = STOP_CODES.get(obs.final_code or "")
+            if stop is not None:
+                # the remaining turns would only report the consequences (e.g. "no recommended_option yet")
+                result.error_code = stop
+                result.error = f"turn {turn.id}: the run ended with {obs.final_code}"
+                ts.say(f"STOP: {result.error}")
+                break
 
         # 4. case-level observations
         if args.tokens_wait > 0:
@@ -458,6 +509,7 @@ def run_case(live: Live, case: Case, stamp: str) -> CaseResult:
         co.change_sets_after = live.change_sets()
         if tokens_before is not None and tokens_after is not None:
             result.metrics["tokens"] = max(0, tokens_after - tokens_before)
+        result.usage = A.usage_total(u for o in observations for u in o.usages)
     except (ts.E2EFailure, AssertionError) as exc:
         result.error = str(exc)
         ts.say(f"ERROR: {exc}")
@@ -563,6 +615,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--sync-timeout", type=float, default=240.0, help="seconds to wait for one scn sync")
     parser.add_argument("--tokens-wait", type=float, default=15.0,
                         help="seconds to wait before reading token usage after a case (0 = immediately)")
+    parser.add_argument("--mode-label", choices=MODE_LABELS, default=None,
+                        help="the engine's LLM_REPLAY_MODE for this run, recorded in the results file (the "
+                             "Evals UI applies latency / token / cost targets to live modes only); unset = unknown")
     return parser.parse_args(argv)
 
 
@@ -596,11 +651,14 @@ def main(argv: list[str] | None = None) -> int:
     stamp = started.strftime("%Y%m%dT%H%M%SZ")
     results = [run_case(live, case, stamp) for case in cases]
     doc: dict[str, Any] = {
-        "schema": "keelson-evals/1",
+        "schema": SCHEMA,
         "started_at": started.isoformat(timespec="seconds"),
         "finished_at": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
         "keelson_url": ts.KEELSON,
         "merxa_url": ts.MERXA,
+        "mode": args.mode_label,
+        "runner": "cli",
+        "suite_hash": suite_hash(load_cases(args.cases_dir)),
         "cases": [r.to_json() for r in results],
     }
     doc["summary"] = summarise(results)

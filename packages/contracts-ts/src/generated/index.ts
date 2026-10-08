@@ -35,6 +35,16 @@ export { commitLedgerEntrySchema, type CommitLedgerEntry } from "./commit-ledger
 export { connectorsCapabilitiesSchema, type ConnectorsCapabilities } from "./connectors-capabilities";
 export { demoResetRequestSchema, type DemoResetRequest } from "./demo-reset-request";
 export { demoResetResultSchema, type DemoResetResult } from "./demo-reset-result";
+export { evalsCaseResultSchema, type EvalsCaseResult } from "./evals-case-result";
+export { evalsCompareSchema, type EvalsCompare } from "./evals-compare";
+export { evalsRunSchema, type EvalsRun } from "./evals-run";
+export { evalsRunCreateSchema, type EvalsRunCreate } from "./evals-run-create";
+export { evalsRunDetailSchema, type EvalsRunDetail } from "./evals-run-detail";
+export { evalsRunEventSchema, type EvalsRunEvent } from "./evals-run-event";
+export { evalsStatusSchema, type EvalsStatus } from "./evals-status";
+export { evalsSuiteSchema, type EvalsSuite } from "./evals-suite";
+export { evalsThresholdSchema, type EvalsThreshold } from "./evals-threshold";
+export { evalsTrendsSchema, type EvalsTrends } from "./evals-trends";
 export { llmClaimSchema, type LlmClaim } from "./llm-claim";
 export { llmConstraintDeltaSchema, type LlmConstraintDelta } from "./llm-constraint-delta";
 export { llmCritiqueSchema, type LlmCritique } from "./llm-critique";

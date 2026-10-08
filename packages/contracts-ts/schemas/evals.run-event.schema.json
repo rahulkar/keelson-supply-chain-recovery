@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A progress event (``GET …/runs/{id}/events?after=``).",
+  "properties": {
+    "at": {
+      "format": "date-time",
+      "title": "At",
+      "type": "string"
+    },
+    "case_id": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Case Id"
+    },
+    "data": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "maxLength": 300,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "title": "Data",
+      "type": "object"
+    },
+    "seq": {
+      "minimum": 1,
+      "title": "Seq",
+      "type": "integer"
+    },
+    "turn_id": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Turn Id"
+    },
+    "type": {
+      "enum": [
+        "run_started",
+        "case_started",
+        "turn_started",
+        "turn_finished",
+        "case_finished",
+        "note",
+        "run_finished"
+      ],
+      "title": "Type",
+      "type": "string"
+    }
+  },
+  "required": [
+    "seq",
+    "type",
+    "case_id",
+    "turn_id",
+    "data",
+    "at"
+  ],
+  "title": "EvalRunEvent",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.evals.EvalRunEvent"
+}

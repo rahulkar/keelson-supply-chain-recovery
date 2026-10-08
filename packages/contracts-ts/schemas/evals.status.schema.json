@@ -1,0 +1,1260 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "``GET /api/admin/evals/status``.",
+  "properties": {
+    "active_run": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "description": "An eval run (``GET /api/admin/evals/runs[/{id}]``).",
+          "properties": {
+            "breaches": {
+              "minimum": 0,
+              "title": "Breaches",
+              "type": "integer"
+            },
+            "budget": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "description": "Caps of one live run (both required): engine-enforced per run (BudgetPlugin) and per eval\nrun (pre-check before every run); never above the installation's ``EVALS_LIVE_MAX_*``.",
+                  "properties": {
+                    "max_cost_microusd": {
+                      "maximum": 100000000,
+                      "minimum": 1,
+                      "title": "Max Cost Microusd",
+                      "type": "integer"
+                    },
+                    "max_tokens": {
+                      "maximum": 50000000,
+                      "minimum": 1,
+                      "title": "Max Tokens",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "max_tokens",
+                    "max_cost_microusd"
+                  ],
+                  "title": "EvalBudget",
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "cancel_requested": {
+              "title": "Cancel Requested",
+              "type": "boolean"
+            },
+            "case_ids": {
+              "items": {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$",
+                "type": "string"
+              },
+              "maxItems": 100,
+              "title": "Case Ids",
+              "type": "array"
+            },
+            "counters": {
+              "additionalProperties": false,
+              "description": "Engine-side accounting of an in-app run (every linked case's runs; the live budget's base).",
+              "properties": {
+                "cost_microusd": {
+                  "minimum": 0,
+                  "title": "Cost Microusd",
+                  "type": "integer"
+                },
+                "llm_calls_live": {
+                  "minimum": 0,
+                  "title": "Llm Calls Live",
+                  "type": "integer"
+                },
+                "llm_calls_replayed": {
+                  "minimum": 0,
+                  "title": "Llm Calls Replayed",
+                  "type": "integer"
+                },
+                "replay_misses": {
+                  "minimum": 0,
+                  "title": "Replay Misses",
+                  "type": "integer"
+                },
+                "tokens_live": {
+                  "minimum": 0,
+                  "title": "Tokens Live",
+                  "type": "integer"
+                },
+                "tokens_replayed": {
+                  "minimum": 0,
+                  "title": "Tokens Replayed",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "tokens_live",
+                "tokens_replayed",
+                "llm_calls_live",
+                "llm_calls_replayed",
+                "replay_misses",
+                "cost_microusd"
+              ],
+              "title": "EvalCounters",
+              "type": "object"
+            },
+            "created_at": {
+              "format": "date-time",
+              "title": "Created At",
+              "type": "string"
+            },
+            "doc_schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "keelson-evals/1",
+                    "keelson-evals/2"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Doc Schema"
+            },
+            "error": {
+              "anyOf": [
+                {
+                  "maxLength": 2000,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error"
+            },
+            "file_name": {
+              "anyOf": [
+                {
+                  "maxLength": 120,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "File Name"
+            },
+            "finished_at": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Finished At"
+            },
+            "id": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            },
+            "mode": {
+              "enum": [
+                "replay",
+                "record_or_replay",
+                "record",
+                "unknown"
+              ],
+              "title": "Mode",
+              "type": "string"
+            },
+            "note": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Note"
+            },
+            "progress": {
+              "additionalProperties": false,
+              "properties": {
+                "cases_done": {
+                  "minimum": 0,
+                  "title": "Cases Done",
+                  "type": "integer"
+                },
+                "cases_total": {
+                  "minimum": 0,
+                  "title": "Cases Total",
+                  "type": "integer"
+                },
+                "current_case": {
+                  "anyOf": [
+                    {
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Current Case"
+                },
+                "current_turn": {
+                  "anyOf": [
+                    {
+                      "maxLength": 64,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Current Turn"
+                }
+              },
+              "required": [
+                "cases_done",
+                "cases_total",
+                "current_case",
+                "current_turn"
+              ],
+              "title": "EvalProgress",
+              "type": "object"
+            },
+            "requested_by": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": {
+                      "anyOf": [
+                        {
+                          "maxLength": 200,
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Name"
+                    },
+                    "sub": {
+                      "maxLength": 200,
+                      "minLength": 1,
+                      "title": "Sub",
+                      "type": "string"
+                    },
+                    "username": {
+                      "maxLength": 200,
+                      "minLength": 1,
+                      "title": "Username",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "sub",
+                    "username",
+                    "name"
+                  ],
+                  "title": "EvalActor",
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "source": {
+              "enum": [
+                "in_app",
+                "import"
+              ],
+              "title": "Source",
+              "type": "string"
+            },
+            "started_at": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Started At"
+            },
+            "status": {
+              "enum": [
+                "queued",
+                "running",
+                "succeeded",
+                "failed",
+                "cancelled"
+              ],
+              "title": "Status",
+              "type": "string"
+            },
+            "suite_hash": {
+              "anyOf": [
+                {
+                  "pattern": "^[0-9a-f]{64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Suite Hash"
+            },
+            "summary": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "description": "Run-level metrics, computed by the engine from the stored case results (authoritative).",
+                  "properties": {
+                    "adversarial_cases": {
+                      "minimum": 0,
+                      "title": "Adversarial Cases",
+                      "type": "integer"
+                    },
+                    "adversarial_pass_rate_bp": {
+                      "anyOf": [
+                        {
+                          "maximum": 10000,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Adversarial Pass Rate Bp"
+                    },
+                    "cancelled": {
+                      "minimum": 0,
+                      "title": "Cancelled",
+                      "type": "integer"
+                    },
+                    "cases": {
+                      "minimum": 0,
+                      "title": "Cases",
+                      "type": "integer"
+                    },
+                    "checks": {
+                      "minimum": 0,
+                      "title": "Checks",
+                      "type": "integer"
+                    },
+                    "checks_failed": {
+                      "minimum": 0,
+                      "title": "Checks Failed",
+                      "type": "integer"
+                    },
+                    "cost_microusd_total": {
+                      "anyOf": [
+                        {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Cost Microusd Total"
+                    },
+                    "cost_per_case_mean_microusd": {
+                      "anyOf": [
+                        {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Cost Per Case Mean Microusd"
+                    },
+                    "entity_recall_mean_bp": {
+                      "anyOf": [
+                        {
+                          "maximum": 10000,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Entity Recall Mean Bp"
+                    },
+                    "errors": {
+                      "minimum": 0,
+                      "title": "Errors",
+                      "type": "integer"
+                    },
+                    "failed": {
+                      "minimum": 0,
+                      "title": "Failed",
+                      "type": "integer"
+                    },
+                    "latency": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "exposure": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "max_ms": {
+                              "anyOf": [
+                                {
+                                  "minimum": 0,
+                                  "type": "integer"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "title": "Max Ms"
+                            },
+                            "n": {
+                              "minimum": 0,
+                              "title": "N",
+                              "type": "integer"
+                            },
+                            "p50_ms": {
+                              "anyOf": [
+                                {
+                                  "minimum": 0,
+                                  "type": "integer"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "title": "P50 Ms"
+                            }
+                          },
+                          "required": [
+                            "n",
+                            "p50_ms",
+                            "max_ms"
+                          ],
+                          "title": "EvalLatencyStat",
+                          "type": "object"
+                        },
+                        "first_stage": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "max_ms": {
+                              "anyOf": [
+                                {
+                                  "minimum": 0,
+                                  "type": "integer"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "title": "Max Ms"
+                            },
+                            "n": {
+                              "minimum": 0,
+                              "title": "N",
+                              "type": "integer"
+                            },
+                            "p50_ms": {
+                              "anyOf": [
+                                {
+                                  "minimum": 0,
+                                  "type": "integer"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "title": "P50 Ms"
+                            }
+                          },
+                          "required": [
+                            "n",
+                            "p50_ms",
+                            "max_ms"
+                          ],
+                          "title": "EvalLatencyStat",
+                          "type": "object"
+                        },
+                        "options": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "max_ms": {
+                              "anyOf": [
+                                {
+                                  "minimum": 0,
+                                  "type": "integer"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "title": "Max Ms"
+                            },
+                            "n": {
+                              "minimum": 0,
+                              "title": "N",
+                              "type": "integer"
+                            },
+                            "p50_ms": {
+                              "anyOf": [
+                                {
+                                  "minimum": 0,
+                                  "type": "integer"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "title": "P50 Ms"
+                            }
+                          },
+                          "required": [
+                            "n",
+                            "p50_ms",
+                            "max_ms"
+                          ],
+                          "title": "EvalLatencyStat",
+                          "type": "object"
+                        },
+                        "total": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "max_ms": {
+                              "anyOf": [
+                                {
+                                  "minimum": 0,
+                                  "type": "integer"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "title": "Max Ms"
+                            },
+                            "n": {
+                              "minimum": 0,
+                              "title": "N",
+                              "type": "integer"
+                            },
+                            "p50_ms": {
+                              "anyOf": [
+                                {
+                                  "minimum": 0,
+                                  "type": "integer"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "title": "P50 Ms"
+                            }
+                          },
+                          "required": [
+                            "n",
+                            "p50_ms",
+                            "max_ms"
+                          ],
+                          "title": "EvalLatencyStat",
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "first_stage",
+                        "exposure",
+                        "options",
+                        "total"
+                      ],
+                      "title": "EvalLatencySummary",
+                      "type": "object"
+                    },
+                    "llm_calls_live": {
+                      "minimum": 0,
+                      "title": "Llm Calls Live",
+                      "type": "integer"
+                    },
+                    "llm_calls_replayed": {
+                      "minimum": 0,
+                      "title": "Llm Calls Replayed",
+                      "type": "integer"
+                    },
+                    "numeric_grounding_mean_bp": {
+                      "anyOf": [
+                        {
+                          "maximum": 10000,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Numeric Grounding Mean Bp"
+                    },
+                    "numeric_grounding_min_bp": {
+                      "anyOf": [
+                        {
+                          "maximum": 10000,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Numeric Grounding Min Bp"
+                    },
+                    "pass_rate_bp": {
+                      "anyOf": [
+                        {
+                          "maximum": 10000,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Pass Rate Bp"
+                    },
+                    "passed": {
+                      "minimum": 0,
+                      "title": "Passed",
+                      "type": "integer"
+                    },
+                    "replay_misses": {
+                      "minimum": 0,
+                      "title": "Replay Misses",
+                      "type": "integer"
+                    },
+                    "skipped": {
+                      "minimum": 0,
+                      "title": "Skipped",
+                      "type": "integer"
+                    },
+                    "soft_failed": {
+                      "minimum": 0,
+                      "title": "Soft Failed",
+                      "type": "integer"
+                    },
+                    "tokens_per_case_mean": {
+                      "anyOf": [
+                        {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Tokens Per Case Mean"
+                    },
+                    "tokens_source": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "engine",
+                            "gateway",
+                            "mixed"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Tokens Source"
+                    },
+                    "tokens_total": {
+                      "anyOf": [
+                        {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Tokens Total"
+                    },
+                    "trajectory_recall_mean_bp": {
+                      "anyOf": [
+                        {
+                          "maximum": 10000,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Trajectory Recall Mean Bp"
+                    }
+                  },
+                  "required": [
+                    "cases",
+                    "passed",
+                    "failed",
+                    "errors",
+                    "skipped",
+                    "cancelled",
+                    "checks",
+                    "checks_failed",
+                    "soft_failed",
+                    "pass_rate_bp",
+                    "adversarial_cases",
+                    "adversarial_pass_rate_bp",
+                    "entity_recall_mean_bp",
+                    "numeric_grounding_mean_bp",
+                    "numeric_grounding_min_bp",
+                    "trajectory_recall_mean_bp",
+                    "latency",
+                    "tokens_total",
+                    "tokens_per_case_mean",
+                    "tokens_source",
+                    "cost_microusd_total",
+                    "cost_per_case_mean_microusd",
+                    "llm_calls_live",
+                    "llm_calls_replayed",
+                    "replay_misses"
+                  ],
+                  "title": "EvalRunSummary",
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "target": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target"
+            },
+            "tenant": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Tenant",
+              "type": "string"
+            },
+            "threshold_results": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "actual": {
+                    "anyOf": [
+                      {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Actual"
+                  },
+                  "metric": {
+                    "enum": [
+                      "pass_rate_bp",
+                      "adversarial_pass_rate_bp",
+                      "entity_recall_mean_bp",
+                      "numeric_grounding_min_bp",
+                      "trajectory_recall_mean_bp",
+                      "first_stage_p50_ms",
+                      "exposure_max_ms",
+                      "options_max_ms",
+                      "tokens_per_case_mean",
+                      "cost_per_case_mean_microusd"
+                    ],
+                    "title": "Metric",
+                    "type": "string"
+                  },
+                  "op": {
+                    "enum": [
+                      "min",
+                      "max"
+                    ],
+                    "title": "Op",
+                    "type": "string"
+                  },
+                  "outcome": {
+                    "enum": [
+                      "ok",
+                      "breach",
+                      "not_measured",
+                      "not_applicable"
+                    ],
+                    "title": "Outcome",
+                    "type": "string"
+                  },
+                  "value": {
+                    "minimum": 0,
+                    "title": "Value",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "metric",
+                  "op",
+                  "value",
+                  "actual",
+                  "outcome"
+                ],
+                "title": "EvalThresholdResult",
+                "type": "object"
+              },
+              "maxItems": 20,
+              "title": "Threshold Results",
+              "type": "array"
+            },
+            "thresholds": {
+              "items": {
+                "additionalProperties": false,
+                "description": "A target (never a gate): ``op: min`` = actual ≥ value, ``max`` = actual ≤ value.",
+                "properties": {
+                  "metric": {
+                    "enum": [
+                      "pass_rate_bp",
+                      "adversarial_pass_rate_bp",
+                      "entity_recall_mean_bp",
+                      "numeric_grounding_min_bp",
+                      "trajectory_recall_mean_bp",
+                      "first_stage_p50_ms",
+                      "exposure_max_ms",
+                      "options_max_ms",
+                      "tokens_per_case_mean",
+                      "cost_per_case_mean_microusd"
+                    ],
+                    "title": "Metric",
+                    "type": "string"
+                  },
+                  "modes": {
+                    "items": {
+                      "enum": [
+                        "replay",
+                        "record_or_replay",
+                        "record",
+                        "unknown"
+                      ],
+                      "type": "string"
+                    },
+                    "maxItems": 4,
+                    "minItems": 1,
+                    "title": "Modes",
+                    "type": "array"
+                  },
+                  "op": {
+                    "enum": [
+                      "min",
+                      "max"
+                    ],
+                    "title": "Op",
+                    "type": "string"
+                  },
+                  "value": {
+                    "minimum": 0,
+                    "title": "Value",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "metric",
+                  "op",
+                  "value",
+                  "modes"
+                ],
+                "title": "EvalThreshold",
+                "type": "object"
+              },
+              "maxItems": 20,
+              "title": "Thresholds",
+              "type": "array"
+            }
+          },
+          "required": [
+            "id",
+            "tenant",
+            "source",
+            "mode",
+            "status",
+            "case_ids",
+            "requested_by",
+            "note",
+            "budget",
+            "counters",
+            "cancel_requested",
+            "suite_hash",
+            "summary",
+            "thresholds",
+            "threshold_results",
+            "breaches",
+            "doc_schema",
+            "file_name",
+            "target",
+            "error",
+            "created_at",
+            "started_at",
+            "finished_at",
+            "progress"
+          ],
+          "title": "EvalRun",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "live_caps": {
+      "additionalProperties": false,
+      "description": "Caps of one live run (both required): engine-enforced per run (BudgetPlugin) and per eval\nrun (pre-check before every run); never above the installation's ``EVALS_LIVE_MAX_*``.",
+      "properties": {
+        "max_cost_microusd": {
+          "maximum": 100000000,
+          "minimum": 1,
+          "title": "Max Cost Microusd",
+          "type": "integer"
+        },
+        "max_tokens": {
+          "maximum": 50000000,
+          "minimum": 1,
+          "title": "Max Tokens",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_tokens",
+        "max_cost_microusd"
+      ],
+      "title": "EvalBudget",
+      "type": "object"
+    },
+    "modes": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "mode": {
+            "enum": [
+              "replay",
+              "record_or_replay",
+              "record"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "runner_not_configured",
+                  "runner_offline",
+                  "demo_mode_off",
+                  "live_disabled",
+                  "replay_only"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "mode",
+          "available",
+          "reason",
+          "message"
+        ],
+        "title": "EvalModeAvailability",
+        "type": "object"
+      },
+      "maxItems": 3,
+      "minItems": 3,
+      "title": "Modes",
+      "type": "array"
+    },
+    "process_replay_mode": {
+      "enum": [
+        "off",
+        "record",
+        "replay",
+        "record_or_replay",
+        "invalid"
+      ],
+      "title": "Process Replay Mode",
+      "type": "string"
+    },
+    "recordings": {
+      "additionalProperties": false,
+      "description": "``llm_replay`` coverage of the eval tenant (what a replay run can answer from).",
+      "properties": {
+        "agents": {
+          "additionalProperties": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "title": "Agents",
+          "type": "object"
+        },
+        "bytes": {
+          "minimum": 0,
+          "title": "Bytes",
+          "type": "integer"
+        },
+        "newest_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Newest At"
+        },
+        "rows": {
+          "minimum": 0,
+          "title": "Rows",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "rows",
+        "bytes",
+        "newest_at",
+        "agents"
+      ],
+      "title": "EvalRecordings",
+      "type": "object"
+    },
+    "runner": {
+      "additionalProperties": false,
+      "properties": {
+        "configured": {
+          "title": "Configured",
+          "type": "boolean"
+        },
+        "last_seen_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Seen At"
+        },
+        "online": {
+          "title": "Online",
+          "type": "boolean"
+        },
+        "runner_id": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Runner Id"
+        },
+        "suite_hash": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Suite Hash"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Version"
+        }
+      },
+      "required": [
+        "configured",
+        "online",
+        "runner_id",
+        "version",
+        "last_seen_at",
+        "suite_hash"
+      ],
+      "title": "EvalRunnerInfo",
+      "type": "object"
+    },
+    "suite": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "description": "The runner's case catalogue (heartbeat).",
+          "properties": {
+            "cases": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$",
+                    "title": "Id",
+                    "type": "string"
+                  },
+                  "injects": {
+                    "title": "Injects",
+                    "type": "boolean"
+                  },
+                  "needs_live_embeddings": {
+                    "title": "Needs Live Embeddings",
+                    "type": "boolean"
+                  },
+                  "tags": {
+                    "items": {
+                      "maxLength": 40,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "maxItems": 20,
+                    "title": "Tags",
+                    "type": "array"
+                  },
+                  "title": {
+                    "maxLength": 200,
+                    "minLength": 1,
+                    "title": "Title",
+                    "type": "string"
+                  },
+                  "turn_kinds": {
+                    "items": {
+                      "enum": [
+                        "message",
+                        "action",
+                        "signal"
+                      ],
+                      "type": "string"
+                    },
+                    "maxItems": 20,
+                    "minItems": 1,
+                    "title": "Turn Kinds",
+                    "type": "array"
+                  },
+                  "turns": {
+                    "maximum": 20,
+                    "minimum": 1,
+                    "title": "Turns",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "id",
+                  "title",
+                  "tags",
+                  "turns",
+                  "turn_kinds",
+                  "needs_live_embeddings",
+                  "injects"
+                ],
+                "title": "EvalSuiteCase",
+                "type": "object"
+              },
+              "maxItems": 200,
+              "minItems": 1,
+              "title": "Cases",
+              "type": "array"
+            },
+            "suite_hash": {
+              "pattern": "^[0-9a-f]{64}$",
+              "title": "Suite Hash",
+              "type": "string"
+            }
+          },
+          "required": [
+            "suite_hash",
+            "cases"
+          ],
+          "title": "EvalSuiteInfo",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "tenant": {
+      "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+      "title": "Tenant",
+      "type": "string"
+    }
+  },
+  "required": [
+    "tenant",
+    "runner",
+    "suite",
+    "modes",
+    "process_replay_mode",
+    "live_caps",
+    "active_run",
+    "recordings"
+  ],
+  "title": "EvalsStatus",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.evals.EvalsStatus"
+}

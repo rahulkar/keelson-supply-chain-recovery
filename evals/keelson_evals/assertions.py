@@ -50,7 +50,9 @@ __all__ = [
     "option_ids",
     "recommended_lost_units",
     "tool_calls",
+    "trajectory_match",
     "unverified_note_present",
+    "usage_total",
     "write_tool_names",
 ]
 
@@ -418,6 +420,93 @@ def tool_calls(events: Iterable[Mapping[str, Any]]) -> list[tuple[str, str]]:
 
 def agents_started(events: Iterable[Mapping[str, Any]]) -> set[str]:
     return {str(ev.get("name") or _sc(ev).get("agent") or "") for ev in events if ev.get("type") == "SUBAGENT_STARTED"}
+
+
+def _pattern_re(pattern: str) -> re.Pattern[str]:
+    """``agent:tool`` with ``*`` = any run of characters (the only wildcard), matched whole."""
+    return re.compile("^" + ".*".join(re.escape(part) for part in pattern.split("*")) + "$")
+
+
+MAX_TRAJECTORY_CALLS = 100
+
+
+def trajectory_match(
+    calls: Sequence[tuple[str, str]], required: Sequence[str], forbidden: Sequence[str] = ()
+) -> dict[str, Any]:
+    """Tool trajectory in any order (M8): which ``required`` ``agent:tool`` patterns some call
+    matched, which are missing, the calls that matched a ``forbidden`` pattern, the calls counted
+    per ``(agent, tool)`` (most frequent first, capped) and the recall (``None`` = nothing
+    required)."""
+    names = [f"{agent}:{tool}" for agent, tool in calls]
+    req = list(dict.fromkeys(required))
+    matched = [p for p in req if any(_pattern_re(p).match(n) for n in names)]
+    missing = [p for p in req if p not in matched]
+    forbid = [_pattern_re(p) for p in dict.fromkeys(forbidden)]
+    hits = sorted({n for n in names if any(f.match(n) for f in forbid)})
+    counts: dict[tuple[str, str], int] = {}
+    for call in calls:
+        counts[call] = counts.get(call, 0) + 1
+    ordered = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[:MAX_TRAJECTORY_CALLS]
+    return {
+        "matched": matched,
+        "missing": missing,
+        "forbidden_hits": hits,
+        "calls": [{"agent": a, "tool": t, "n": n} for (a, t), n in ordered],
+        "total_calls": len(calls),
+        "recall": None if not req else len(matched) / len(req),
+    }
+
+
+_USAGE_INT_KEYS = ("calls", "replayed", "prompt_tokens", "completion_tokens", "reasoning_tokens", "total_tokens",
+                   "latency_ms")
+
+
+def _cost_microusd(value: Any) -> int | None:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        d = Decimal(str(value))
+    except (InvalidOperation, ValueError):
+        return None
+    if not d.is_finite() or d < 0:
+        return None
+    return int((d * 1_000_000).quantize(Decimal(1), rounding=ROUND_HALF_UP))
+
+
+def _usage_row(acc: dict[str, Any], row: Mapping[str, Any]) -> None:
+    for key in _USAGE_INT_KEYS:
+        value = row.get(key)
+        if isinstance(value, int) and not isinstance(value, bool) and value > 0:
+            acc[key] += value
+    cost = _cost_microusd(row.get("cost_usd"))
+    if cost is not None:
+        acc["cost_microusd"] = (acc["cost_microusd"] or 0) + cost
+
+
+def usage_total(usages: Iterable[Mapping[str, Any] | None]) -> dict[str, Any] | None:
+    """Sum of runs' ``metadata.usage`` (``{trace_id, total, agents}`` from ``RUN_FINISHED`` /
+    ``RUN_ERROR``) → ``{runs, total, agents}`` with integer counters and ``cost_microusd``
+    (``None`` while no run reported a cost). ``None`` when no run reported usage. The engine meters
+    every model call of a run, so this is the exact usage of a turn / case, unlike the gateway's
+    token delta (which counts the tenant's other traffic too)."""
+
+    def blank() -> dict[str, Any]:
+        return {**{k: 0 for k in _USAGE_INT_KEYS}, "cost_microusd": None}
+
+    total = blank()
+    agents: dict[str, dict[str, Any]] = {}
+    runs = 0
+    for usage in usages:
+        if not isinstance(usage, Mapping) or not isinstance(usage.get("total"), Mapping):
+            continue
+        runs += 1
+        _usage_row(total, usage["total"])
+        for name, row in (usage.get("agents") or {}).items():
+            if isinstance(row, Mapping):
+                _usage_row(agents.setdefault(str(name)[:80], blank()), row)
+    if runs == 0:
+        return None
+    return {"runs": runs, "total": total, "agents": dict(sorted(agents.items())[:64])}
 
 
 _WRITE_NAME_RE = re.compile(

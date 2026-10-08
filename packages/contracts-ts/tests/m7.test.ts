@@ -84,9 +84,9 @@ describe("M7 vocabularies", () => {
     expect(COMMIT_LEDGER_STATES).toEqual(["attempted", "succeeded", "in_doubt", "failed", "verified"]);
     expect(SNAPSHOT_CONSISTENCIES).toEqual(["consistent", "crawled"]);
     expect(COMMIT_MODES).toEqual(["change_set", "per_op", "guide"]);
-    expect(Object.keys(MAPPING_EXPRESSION_FUNCTIONS).sort()).toEqual(
-      ["coalesce", "date", "if_present", "int", "lookup", "str"],
-    );
+    expect(Object.keys(MAPPING_EXPRESSION_FUNCTIONS).sort()).toEqual([
+      "cents", "coalesce", "date", "field", "if_present", "int", "iso_week", "lookup", "lower", "str", "trim", "upper",
+    ]); // M8 (121) added field, cents, iso_week, trim, upper, lower
     expect(CRAWLED_ADVISORY_TEXT).toBe("Data gathered by paging, not a consistent snapshot");
   });
 });

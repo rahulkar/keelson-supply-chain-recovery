@@ -518,12 +518,12 @@ def mapping_proposal_llm_violations(
         if op.op not in OP_PAYLOAD_MODELS:
             problems.append((where, f"unknown op {op.op[:64]!r}"))
             continue
-        for problem in (_tool_problem(op.tool, tools, read=False), _tool_problem(op.readback_tool, tools, read=True)):
-            if problem:
-                problems.append((where, problem))
+        tool_problems = [p for p in (_tool_problem(op.tool, tools, read=False),
+                                     _tool_problem(op.readback_tool, tools, read=True)) if p]
+        problems += [(where, p) for p in tool_problems]
         try:
-            llm_args(op.args)
-            llm_args(op.readback_args)
+            args = llm_args(op.args)
+            readback_args = llm_args(op.readback_args)
             for m in op.readback_match:
                 parse_path(m.path)
                 template_refs(m.template, roots=ACTION_TEMPLATE_ROOTS)
@@ -531,6 +531,21 @@ def mapping_proposal_llm_violations(
                 parse_path(op.readback_items_path)
         except (ValueError, TemplateError, ExpressionError) as exc:
             problems.append((where, str(exc)[:200]))
+            continue
+        if tool_problems:
+            continue
+        # the op as the engine would store it (idempotency = the confirmed classification)
+        idem = tools[op.tool].idempotency.value
+        if idem == "enforced" and op.request_id_arg is None:
+            idem = "best_effort"
+        readback = None if op.readback_tool is None else {
+            "tool": op.readback_tool, "args": readback_args, "items_path": op.readback_items_path,
+            "match": {m.path: m.template for m in op.readback_match}}
+        try:
+            ActionOpMapping.model_validate({"op": op.op, "tool": op.tool, "args": args, "idempotency": idem,
+                                            "request_id_arg": op.request_id_arg, "readback": readback})
+        except ValidationError as exc:
+            problems.append((where, str(exc.errors()[0].get("msg", ""))[:200]))
     return problems
 
 

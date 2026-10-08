@@ -375,6 +375,25 @@
               "additionalProperties": false,
               "description": "One item path of a sampled source, reduced to shape statistics.",
               "properties": {
+                "date_format": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "DD/MM/YYYY",
+                        "MM/DD/YYYY",
+                        "DD.MM.YYYY",
+                        "DD-MM-YYYY",
+                        "YYYY/MM/DD"
+                      ],
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Date Format"
+                },
                 "distinct_count": {
                   "minimum": 0,
                   "title": "Distinct Count",

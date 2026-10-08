@@ -51,7 +51,7 @@ describe("generated Zod", () => {
 
   it("exports one schema per index entry", () => {
     const names = Object.keys(generated).filter((k) => k.endsWith("Schema"));
-    expect(names).toHaveLength(75); // M6: +alert_origin props, +llm.news-extraction, +10 signals.*; M7: +16 back-office schemas
+    expect(names).toHaveLength(81); // M6: +alert_origin props, +llm.news-extraction, +10 signals.*; M7: +16 back-office schemas; M8: +6 mapping.* (121)
   });
 });
 

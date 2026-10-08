@@ -30,6 +30,7 @@ import { useAdminApi, useResource } from "@/lib/admin/useAdmin";
 import { useSession } from "@/lib/client/session";
 import { hasAnyRole } from "@/lib/roles";
 import { AdminPageHeader, AdminSection, InlineError, ResourceView } from "./common";
+import { ScoringSection } from "./ScoringSection";
 import { SecondAdminBanner, announceChangeRequest } from "./SecondAdmin";
 
 const OUTCOME_META: Record<Outcome, { label: string; tone: BadgeTone }> = {
@@ -480,7 +481,8 @@ function CelReference() {
  * quorum), guarded changes for tenant admins (the engine's own guard rules: e.g. adding an
  * automatic rule, raising its caps, removing or weakening a refuse / approval rule — M7: saved as a
  * change request a second admin approves), and a test bench (`POST /api/admin/policies/test`) for
- * the saved or the draft rules.
+ * the saved or the draft rules. M8 (`126` §6): the **Option scoring** section (weight profiles, the
+ * default profile, sampled futures; {@link ScoringSection}).
  */
 export function PoliciesPage() {
   const admin = useAdminApi();
@@ -691,6 +693,7 @@ export function PoliciesPage() {
 
       {data ? <TestBench draft={rules} dirty={dirty} available={data.evaluator_available !== false} onMatched={setMatched} /> : null}
       <CelReference />
+      <ScoringSection />
     </>
   );
 }

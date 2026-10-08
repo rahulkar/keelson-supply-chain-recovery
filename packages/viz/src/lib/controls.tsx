@@ -35,7 +35,14 @@ export function ViewToggle({
   );
 }
 
-export type ChoiceChip = { id: string; label: string; count?: number | undefined; title?: string | undefined };
+export type ChoiceChip = {
+  id: string;
+  label: string;
+  count?: number | undefined;
+  title?: string | undefined;
+  /** Not selectable (say why in `title`). */
+  disabled?: boolean | undefined;
+};
 
 /** Single-choice chip group (pressed state on the chosen chip). */
 export function ChoiceChips({
@@ -52,7 +59,7 @@ export function ChoiceChips({
   return (
     <div role="group" aria-label={label} className="flex flex-wrap gap-1.5">
       {choices.map((c) => (
-        <Chip key={c.id} selected={value === c.id} onClick={() => onChange(c.id)} title={c.title}>
+        <Chip key={c.id} selected={value === c.id} onClick={() => onChange(c.id)} title={c.title} disabled={c.disabled}>
           {c.label}
           {c.count !== undefined ? ` (${formatValue(c.count, "count")})` : ""}
         </Chip>

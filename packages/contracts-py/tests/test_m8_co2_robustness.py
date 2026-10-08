@@ -199,7 +199,7 @@ def _compare(**over: Any) -> dict[str, Any]:
         o["scores"] = [{"profile_id": p.id, "score_cents": 100 - i, "rank": i + 1} for p in DEFAULT_PROFILES]
         o["win_rate_bp"] = [2_500, 7_500][i]
     props["uncertainty"] = {"method": "mc/1", "samples": 64, "sampled": ["disruption_duration", "lead_time"]}
-    props["emissions"] = {"source_label": "GLEC Framework v3 default intensities (indicative)", "basis": "WTW",
+    props["emissions"] = {"source_label": "GLEC Framework v3 default intensities", "basis": "WTW",
                           "indicative": True, "coverage_bp": 10_000}
     props.update(over)
     return props

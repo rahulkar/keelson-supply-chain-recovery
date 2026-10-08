@@ -40,6 +40,14 @@ describe("formatValue", () => {
     expect(formatValue(18400, "units", { compact: true })).toMatch(/^18\.4[kK] units$/);
   });
 
+  it("formats kilograms of CO₂e like the engine (M8)", () => {
+    expect(formatValue(26811, "kg_co2e")).toBe("26,811 kg CO₂e");
+    expect(formatValue(-2235, "kg_co2e")).toBe("−2,235 kg CO₂e");
+    expect(formatValue(1, "kg_co2e")).toBe("1 kg CO₂e");
+    expect(formatValue(26811, "kg_co2e", { compact: true })).toMatch(/^26\.8[kK] kg CO₂e$/);
+    expect(formatDelta(900, "kg_co2e")).toBe("+900 kg CO₂e");
+  });
+
   it("handles unknown units and non-finite values defensively", () => {
     expect(formatValue(5, "pallets")).toBe("5 pallets");
     expect(formatValue(Number.NaN, "units")).toBe("—");

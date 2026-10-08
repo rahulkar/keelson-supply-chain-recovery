@@ -1,0 +1,80 @@
+{
+  "id": "blk_kpi_robust",
+  "kind": "kpi_strip",
+  "v": 1,
+  "title": "Exposure and recommended plan",
+  "placement": "inline",
+  "provenance": {
+    "kind": "simulated",
+    "engine": "keelson-opt@0.3",
+    "inputs_hash": "9d2e1c4b7a5f3e60",
+    "as_of": "2026-10-05"
+  },
+  "data_ref": null,
+  "props": {
+    "items": [
+      {
+        "key": "units_at_risk",
+        "label": "Units at risk",
+        "value": 18020,
+        "unit": "units",
+        "delta": 18020,
+        "prov": "simulated",
+        "preliminary": false,
+        "band": { "p10": 11974, "p90": 32358, "samples": 64 }
+      },
+      {
+        "key": "margin_at_risk_cents",
+        "label": "Margin at risk",
+        "value": 29585280,
+        "unit": "eur_cents",
+        "delta": 29585280,
+        "prov": "simulated",
+        "preliminary": false,
+        "band": { "p10": 19698060, "p90": 62099150, "samples": 64 }
+      },
+      {
+        "key": "units_recovered",
+        "label": "Units recovered by the plan",
+        "value": 18020,
+        "unit": "units",
+        "prov": "simulated",
+        "preliminary": false
+      },
+      {
+        "key": "incremental_cost_cents",
+        "label": "Plan cost",
+        "value": 2228482,
+        "unit": "eur_cents",
+        "prov": "simulated",
+        "preliminary": false
+      },
+      {
+        "key": "net_benefit_cents",
+        "label": "Net benefit",
+        "value": 27356798,
+        "unit": "eur_cents",
+        "prov": "simulated",
+        "preliminary": false,
+        "band": { "p10": 14775428, "p90": 26320328, "samples": 64 }
+      },
+      {
+        "key": "fill_rate_bp",
+        "label": "Fill rate with the plan",
+        "value": 10000,
+        "unit": "pct_bp",
+        "prov": "simulated",
+        "preliminary": false,
+        "band": { "p10": 9371, "p90": 9912, "samples": 64 }
+      },
+      {
+        "key": "incremental_co2e_kg",
+        "label": "Extra CO₂e of the plan",
+        "value": 22932,
+        "unit": "kg_co2e",
+        "prov": "simulated",
+        "preliminary": false
+      }
+    ]
+  }
+}

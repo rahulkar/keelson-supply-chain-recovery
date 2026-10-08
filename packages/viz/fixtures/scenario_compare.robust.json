@@ -1,0 +1,421 @@
+{
+  "id": "blk_scenario_compare_robust",
+  "kind": "scenario_compare",
+  "v": 1,
+  "title": "Options compared",
+  "placement": "canvas",
+  "provenance": {
+    "kind": "simulated",
+    "engine": "keelson-opt@0.3",
+    "inputs_hash": "5f1c9a7e2b0d4c18",
+    "as_of": "2026-10-05"
+  },
+  "data_ref": null,
+  "props": {
+    "options": [
+      {
+        "id": "opt-A",
+        "title": "Rebalance between DCs",
+        "levers": [
+          "reallocate_inventory"
+        ],
+        "scorecard": {
+          "fill_rate_bp": 9634,
+          "incremental_cost_cents": 428430,
+          "lost_margin_cents": 11947130,
+          "lost_units": 10179,
+          "net_benefit_cents": 17209720,
+          "shortage_days": 210,
+          "cost_breakdown": {
+            "transfer": 428430,
+            "expedite_premium": 0,
+            "nearshore_premium": 0
+          },
+          "first_breach_shift_days": 0,
+          "tts_gain_days": 0,
+          "changes": 3,
+          "incremental_co2e_kg": 926,
+          "co2e_breakdown": {
+            "expedite_kg": 0,
+            "nearshore_kg": 0,
+            "rebook_kg": 0,
+            "transfer_kg": 926
+          },
+          "bands": {
+            "fill_rate_bp": {
+              "p10": 9126,
+              "p50": 9467,
+              "p90": 9716
+            },
+            "lost_margin_cents": {
+              "p10": 9749960,
+              "p50": 18553550,
+              "p90": 44231750
+            },
+            "lost_units": {
+              "p10": 7881,
+              "p50": 14560,
+              "p90": 24271
+            },
+            "net_benefit_cents": {
+              "p10": 8190170,
+              "p50": 14076620,
+              "p90": 17459070
+            },
+            "samples": 64,
+            "shortage_days": {
+              "p10": 357,
+              "p50": 427,
+              "p90": 490
+            },
+            "stockout_chance_bp": 10000
+          }
+        },
+        "recommended": false,
+        "guided_only": false,
+        "guided_reason": null,
+        "pareto": true,
+        "win_rate_bp": 1406,
+        "scores": [
+          {
+            "profile_id": "net-benefit",
+            "score_cents": 17209720,
+            "rank": 3
+          },
+          {
+            "profile_id": "cost-first",
+            "score_cents": 16995505,
+            "rank": 2
+          },
+          {
+            "profile_id": "service-first",
+            "score_cents": 19371240,
+            "rank": 3
+          },
+          {
+            "profile_id": "low-carbon",
+            "score_cents": 14936313,
+            "rank": 3
+          }
+        ]
+      },
+      {
+        "id": "opt-B",
+        "title": "Rebalance + targeted sea-air",
+        "levers": [
+          "reallocate_inventory",
+          "expedite_mode_shift"
+        ],
+        "scorecard": {
+          "fill_rate_bp": 10000,
+          "incremental_cost_cents": 2228482,
+          "lost_margin_cents": 0,
+          "lost_units": 0,
+          "net_benefit_cents": 27356798,
+          "shortage_days": 0,
+          "cost_breakdown": {
+            "transfer": 428430,
+            "expedite_premium": 1800052,
+            "nearshore_premium": 0
+          },
+          "first_breach_shift_days": 35,
+          "tts_gain_days": 4,
+          "changes": 63,
+          "incremental_co2e_kg": 22932,
+          "co2e_breakdown": {
+            "expedite_kg": 22006,
+            "nearshore_kg": 0,
+            "rebook_kg": 0,
+            "transfer_kg": 926
+          },
+          "bands": {
+            "fill_rate_bp": {
+              "p10": 9371,
+              "p50": 9779,
+              "p90": 9912
+            },
+            "lost_margin_cents": {
+              "p10": 3374500,
+              "p50": 8095400,
+              "p90": 34126550
+            },
+            "lost_units": {
+              "p10": 2439,
+              "p50": 6064,
+              "p90": 17497
+            },
+            "net_benefit_cents": {
+              "p10": 14775428,
+              "p50": 20845178,
+              "p90": 26320328
+            },
+            "samples": 64,
+            "shortage_days": {
+              "p10": 259,
+              "p50": 343,
+              "p90": 462
+            },
+            "stockout_chance_bp": 10000
+          }
+        },
+        "recommended": true,
+        "guided_only": false,
+        "guided_reason": null,
+        "pareto": true,
+        "win_rate_bp": 6875,
+        "scores": [
+          {
+            "profile_id": "net-benefit",
+            "score_cents": 27356798,
+            "rank": 1
+          },
+          {
+            "profile_id": "cost-first",
+            "score_cents": 26242557,
+            "rank": 1
+          },
+          {
+            "profile_id": "service-first",
+            "score_cents": 33270531,
+            "rank": 1
+          },
+          {
+            "profile_id": "low-carbon",
+            "score_cents": 23752816,
+            "rank": 1
+          }
+        ]
+      },
+      {
+        "id": "opt-C",
+        "title": "Near-shore + resequence",
+        "levers": [
+          "resource_alt_supplier",
+          "resequence_production"
+        ],
+        "scorecard": {
+          "fill_rate_bp": 9909,
+          "incremental_cost_cents": 6874047,
+          "lost_margin_cents": 3144140,
+          "lost_units": 2516,
+          "net_benefit_cents": 19567093,
+          "shortage_days": 168,
+          "cost_breakdown": {
+            "transfer": 0,
+            "expedite_premium": 0,
+            "nearshore_premium": 6874047
+          },
+          "first_breach_shift_days": 14,
+          "tts_gain_days": 2,
+          "changes": 18,
+          "incremental_co2e_kg": -2235,
+          "co2e_breakdown": {
+            "expedite_kg": 0,
+            "nearshore_kg": -2235,
+            "rebook_kg": 0,
+            "transfer_kg": 0
+          },
+          "bands": {
+            "fill_rate_bp": {
+              "p10": 9317,
+              "p50": 9702,
+              "p90": 9838
+            },
+            "lost_margin_cents": {
+              "p10": 5841540,
+              "p50": 10458450,
+              "p90": 34190810
+            },
+            "lost_units": {
+              "p10": 4501,
+              "p50": 8265,
+              "p90": 18991
+            },
+            "net_benefit_cents": {
+              "p10": 6709653,
+              "p50": 13176723,
+              "p90": 20152853
+            },
+            "samples": 64,
+            "shortage_days": {
+              "p10": 455,
+              "p50": 518,
+              "p90": 581
+            },
+            "stockout_chance_bp": 10000
+          }
+        },
+        "recommended": false,
+        "guided_only": false,
+        "guided_reason": null,
+        "pareto": false,
+        "win_rate_bp": 1719,
+        "scores": [
+          {
+            "profile_id": "net-benefit",
+            "score_cents": 19567093,
+            "rank": 2
+          },
+          {
+            "profile_id": "cost-first",
+            "score_cents": 16130069,
+            "rank": 3
+          },
+          {
+            "profile_id": "service-first",
+            "score_cents": 24863095,
+            "rank": 2
+          },
+          {
+            "profile_id": "low-carbon",
+            "score_cents": 16397433,
+            "rank": 2
+          }
+        ]
+      },
+      {
+        "id": "do-nothing",
+        "title": "Do nothing",
+        "levers": [],
+        "scorecard": {
+          "fill_rate_bp": 9353,
+          "incremental_cost_cents": 0,
+          "lost_margin_cents": 29585280,
+          "lost_units": 18020,
+          "net_benefit_cents": 0,
+          "shortage_days": 224,
+          "cost_breakdown": {
+            "transfer": 0,
+            "expedite_premium": 0,
+            "nearshore_premium": 0
+          },
+          "first_breach_shift_days": 0,
+          "tts_gain_days": 0,
+          "changes": 0,
+          "incremental_co2e_kg": 0,
+          "co2e_breakdown": {
+            "expedite_kg": 0,
+            "nearshore_kg": 0,
+            "rebook_kg": 0,
+            "transfer_kg": 0
+          },
+          "bands": {
+            "fill_rate_bp": {
+              "p10": 8839,
+              "p50": 9277,
+              "p90": 9569
+            },
+            "lost_margin_cents": {
+              "p10": 19698060,
+              "p50": 30471800,
+              "p90": 62099150
+            },
+            "lost_units": {
+              "p10": 11974,
+              "p50": 19739,
+              "p90": 32358
+            },
+            "net_benefit_cents": {
+              "p10": 0,
+              "p50": 0,
+              "p90": 0
+            },
+            "samples": 64,
+            "shortage_days": {
+              "p10": 420,
+              "p50": 490,
+              "p90": 553
+            },
+            "stockout_chance_bp": 10000
+          }
+        },
+        "recommended": false,
+        "guided_only": false,
+        "guided_reason": null,
+        "pareto": true,
+        "win_rate_bp": 0,
+        "scores": [
+          {
+            "profile_id": "net-benefit",
+            "score_cents": 0,
+            "rank": 4
+          },
+          {
+            "profile_id": "cost-first",
+            "score_cents": 0,
+            "rank": 4
+          },
+          {
+            "profile_id": "service-first",
+            "score_cents": 0,
+            "rank": 4
+          },
+          {
+            "profile_id": "low-carbon",
+            "score_cents": 0,
+            "rank": 4
+          }
+        ]
+      }
+    ],
+    "axes": {
+      "x": "incremental_cost_cents",
+      "y": "lost_units"
+    },
+    "advisory": null,
+    "profiles": [
+      {
+        "id": "net-benefit",
+        "label": "Net benefit",
+        "default": true,
+        "lost_margin_bp": 10000,
+        "cost_bp": 10000,
+        "carbon_price_cents_per_t": 0,
+        "risk_aversion_bp": 0
+      },
+      {
+        "id": "cost-first",
+        "label": "Cost first",
+        "default": false,
+        "lost_margin_bp": 10000,
+        "cost_bp": 15000,
+        "carbon_price_cents_per_t": 0,
+        "risk_aversion_bp": 0
+      },
+      {
+        "id": "service-first",
+        "label": "Service first",
+        "default": false,
+        "lost_margin_bp": 15000,
+        "cost_bp": 7500,
+        "carbon_price_cents_per_t": 0,
+        "risk_aversion_bp": 5000
+      },
+      {
+        "id": "low-carbon",
+        "label": "Low carbon",
+        "default": false,
+        "lost_margin_bp": 10000,
+        "cost_bp": 10000,
+        "carbon_price_cents_per_t": 20000,
+        "risk_aversion_bp": 2500
+      }
+    ],
+    "uncertainty": {
+      "method": "mc/1",
+      "samples": 64,
+      "sampled": [
+        "disruption_duration",
+        "disruption_severity",
+        "lead_time",
+        "demand"
+      ]
+    },
+    "emissions": {
+      "source_label": "GLEC Framework v3 default intensities",
+      "basis": "WTW",
+      "indicative": true,
+      "coverage_bp": 10000
+    }
+  }
+}

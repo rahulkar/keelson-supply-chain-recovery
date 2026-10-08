@@ -23,7 +23,7 @@
 version: 1
 sets:
   - id: glec-v3-indicative
-    label: GLEC Framework v3 default intensities (indicative)
+    label: GLEC Framework v3 default intensities
     basis: WTW
     unit: g CO2e/tkm
     verified: false

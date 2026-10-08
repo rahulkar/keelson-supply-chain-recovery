@@ -582,7 +582,10 @@ describe("ScenarioCompare", () => {
   it("plots every option, the Pareto frontier ordered by x, the recommended one as a diamond", () => {
     const p = props();
     expect(axesOf(p)).toEqual({ x: "incremental_cost_cents", y: "lost_units" });
-    expect(axesOf({ options: p.options, advisory: null })).toEqual({ x: "incremental_cost_cents", y: "lost_units" });
+    expect(axesOf({ options: p.options, advisory: null, profiles: [], uncertainty: null, emissions: null })).toEqual({
+      x: "incremental_cost_cents",
+      y: "lost_units",
+    });
     expect(paretoFrontier(p.options, "incremental_cost_cents", "lost_units").map((o) => o.id)).toEqual([
       "opt_none",
       "opt_rebalance",

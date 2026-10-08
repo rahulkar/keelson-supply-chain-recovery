@@ -41,7 +41,8 @@ function number(value: number, opts: FormatOptions, fractionDigits = 0): string 
  * Format an integer value in its unit:
  * `eur_cents` → "€12,400" (whole euros, half away from zero, as in the engine's narratives;
  * `exactCents` keeps non-zero cents) · `units` → "3,200 units" ·
- * `days` → "3 days" · `pct_bp` (basis points) → "12.5%" · `count` → "12".
+ * `days` → "3 days" · `pct_bp` (basis points) → "12.5%" · `count` → "12" ·
+ * `kg_co2e` → "26,811 kg CO₂e".
  */
 export function formatValue(value: number, unit: Unit | (string & {}), opts: FormatOptions = {}): string {
   if (!Number.isFinite(value)) return "—";
@@ -69,6 +70,9 @@ export function formatValue(value: number, unit: Unit | (string & {}), opts: For
       return withSign(`${number(value / 100, { ...opts, compact: false }, 2)}%`, value, opts.signed);
     case "count":
       return withSign(number(value, opts), value, opts.signed);
+    case "kg_co2e":
+      // M8: kilograms of CO₂-equivalent, as the engine writes them ("26,811 kg CO₂e")
+      return withSign(`${number(value, opts)} kg CO₂e`, value, opts.signed);
     default:
       return withSign(`${number(value, opts)} ${unit}`.trim(), value, opts.signed);
   }

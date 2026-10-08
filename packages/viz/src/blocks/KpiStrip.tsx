@@ -16,7 +16,8 @@ export type KpiTilesProps = {
 
 /**
  * KPI tiles as a description list. Provenance chips appear only on values that are not plain
- * facts (plan §12); preliminary values carry a "Preliminary" marker.
+ * facts (plan §12); preliminary values carry a "Preliminary" marker. M8: a value with a robustness
+ * band shows "Likely A–B" (10th–90th percentile of the sampled futures) under it.
  */
 export function KpiTiles({ items, size = "md", className }: KpiTilesProps) {
   // Columns follow the space the tiles actually get (container queries), not the viewport: the
@@ -52,6 +53,15 @@ export function KpiTiles({ items, size = "md", className }: KpiTilesProps) {
                 </span>
               ) : null}
             </dd>
+            {item.band ? (
+              <dd className="text-caption text-fg-subtle tabular-nums" data-kpi-band="">
+                Likely {formatValue(item.band.p10, item.unit)}–{formatValue(item.band.p90, item.unit)}
+                <span className="sr-only">
+                  {" "}
+                  (10th–90th percentile of {formatValue(item.band.samples, "count")} sampled futures)
+                </span>
+              </dd>
+            ) : null}
             {item.delta !== null && item.delta !== undefined ? (
               <dd className="flex items-center gap-1 text-caption text-fg-muted tabular-nums">
                 {item.delta > 0 ? (

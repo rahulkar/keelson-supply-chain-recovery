@@ -398,7 +398,9 @@ async def poll_meteoalarm(runner: FeedRunner, spec: SourceSpec, now: dt.datetime
         cursor = dict(cur.get("cursor") or {})
         known: dict[str, list[int | None]] = dict(cursor.get("details") or {})
         floor = max(2, min(4, s.meteoalarm_min_level))
-        wanted = [w for w in warnings if w.message_type != "Cancel" and (w.level or 0) >= floor]
+        # CAP documents only for warnings that can become signals (not fog / avalanche / cancelled)
+        wanted = [w for w in warnings if w.message_type != "Cancel" and (w.level or 0) >= floor
+                  and not (w.type_no is not None and meteoalarm.TYPES.get(w.type_no) is None)]
         stored = await stored_geometries(runner, cid, [w.native for w in wanted])
         details: dict[str, meteoalarm.CapDetail] = {
             ident: meteoalarm.CapDetail(level=v[0], type_no=v[1]) for ident, v in known.items()

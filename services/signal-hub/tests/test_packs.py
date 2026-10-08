@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import REPO, SCENARIOS, T0
+from conftest import FIXTURES, REPO, SCENARIOS, T0
 from keelson_contracts.llm import NewsExtraction, news_extraction_violations
 from keelson_contracts.signals import signal_id
 from signal_hub.adapters.connector import ConnectorEvent, parse_connector_event
@@ -20,12 +20,15 @@ from signal_hub.adapters.usgs import parse_usgs
 from signal_hub.gazetteer import Gazetteer
 from signal_hub.models import SourceContext
 from signal_hub.replay import fixture_path, list_packs, load_pack
+from signal_hub.replay_feeds import ADAPTERS as FEED_STEP_ADAPTERS
+from signal_hub.replay_feeds import fixture_names, parse_step
 
 PRODUCT = Path(os.environ.get("SCENARIOS_DIR") or REPO / "data" / "scenarios")
+SCENARIOS_M8 = FIXTURES / "scenarios-m8"  # the M8 feeds test pack (124 §5)
 
 
 def _pack_dirs() -> list[tuple[Path, str]]:
-    out = [(SCENARIOS, "typhoon-test")]
+    out = [(SCENARIOS, "typhoon-test"), (SCENARIOS_M8, "feeds-test")]
     if PRODUCT.is_dir():
         out += [(PRODUCT, p.name) for p in sorted(PRODUCT.iterdir()) if (p / "pack.yaml").is_file()]
     return out
@@ -63,6 +66,15 @@ def test_pack_is_replayable(root: Path, pack_id: str, gaz: Gazetteer) -> None:
             produced += len(drafts) + len(texts)
         elif step.adapter == "chat_hint":
             assert isinstance(payload.get("text"), str)
+        elif step.adapter in FEED_STEP_ADAPTERS:  # M8 feeds: the replay's own step parser
+            blobs = {n: fixture_path(root, pack.id, n).read_bytes() for n in fixture_names(step.adapter, payload)}
+            drafts = parse_step(step.adapter, payload, blobs, ctx, gaz)
+            assert drafts, f"{pack.id}: {step.adapter} step produced no signal"
+            for d in drafts:
+                sig = d.to_signal(signal_id=signal_id(d.connector_id, d.native_key, 1), version=1, supersedes=None,
+                                  confidence_bp=9000, event_id=None)
+                assert sig.simulated and sig.origin == "demo" and sig.tenant == "demo-retail"
+            produced += len(drafts)
         prebaked = [payload["extraction"]] if isinstance(payload.get("extraction"), dict) else []
         prebaked += list((payload.get("extractions") or {}).values())
         for raw_extraction in prebaked:
@@ -74,4 +86,5 @@ def test_pack_is_replayable(root: Path, pack_id: str, gaz: Gazetteer) -> None:
 def test_list_packs() -> None:
     packs = list_packs(SCENARIOS)
     assert [p["id"] for p in packs] == ["typhoon-test"] and packs[0]["steps"] == 5
+    assert [(p["id"], p["steps"]) for p in list_packs(SCENARIOS_M8)] == [("feeds-test", 4)]
     assert list_packs(Path("/nonexistent")) == []

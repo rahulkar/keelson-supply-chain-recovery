@@ -1,0 +1,183 @@
+# Cloud Run service: engine-api (compose: engine-api). Rendered and applied by
+# scripts/cloudrun/deploy.sh (`gcloud run services replace`); ${...} are deploy-time placeholders.
+# Public only through the global external ALB (keelson.<domain>/api, /api/*), never on run.app
+# from the internet. SSE streams need the 60 min request timeout.
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: engine-api
+  labels:
+    cloud.googleapis.com/location: ${REGION}
+    app.kubernetes.io/part-of: keelson
+  annotations:
+    run.googleapis.com/ingress: internal-and-cloud-load-balancing
+    # Authentication is the BFF session (cookie) / service JWTs, not Cloud Run IAM; ingress
+    # restricts who can reach the service.
+    run.googleapis.com/invoker-iam-disabled: "true"
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: keelson
+      annotations:
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "4"
+        run.googleapis.com/execution-environment: gen2
+        run.googleapis.com/startup-cpu-boost: "true"
+        # Direct VPC egress, all traffic: Cloud SQL (private IP), Memorystore (PSC) and the
+        # internal-ingress services (litellm, optimizer, keycloak) are only reachable through the
+        # VPC; internet egress (public auth/merxa hosts) leaves through Cloud NAT.
+        run.googleapis.com/network-interfaces: '[{"network":"${NETWORK}","subnetwork":"${SUBNET}"}]'
+        run.googleapis.com/vpc-access-egress: all-traffic
+    spec:
+      serviceAccountName: keelson-engine@${PROJECT}.iam.gserviceaccount.com
+      containerConcurrency: 80
+      timeoutSeconds: 3600
+      containers:
+        - name: engine-api
+          image: ${IMAGE_ENGINE}
+          # Image CMD: uvicorn on $PORT with --proxy-headers --forwarded-allow-ips '*'.
+          ports:
+            - name: http1
+              containerPort: 8080
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          startupProbe:
+            httpGet:
+              path: /api/healthz
+              port: 8080
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /api/healthz
+              port: 8080
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 3
+          env:
+            # BEGIN engine-env (identical in engine-worker.yaml and keelson-bootstrap.yaml)
+            - name: OIDC_ISSUER
+              value: https://auth.${DOMAIN}/realms/keelson
+            - name: MERXA_ISSUER
+              value: https://auth.${DOMAIN}/realms/merxa
+            - name: MERXA_MCP_URL
+              value: https://merxa.${DOMAIN}/mcp
+            - name: PUBLIC_URL
+              value: https://keelson.${DOMAIN}
+            - name: PUBLIC_BASE_DOMAIN
+              value: ${DOMAIN}
+            - name: KEYCLOAK_INTERNAL_URL
+              value: ${URL_KEYCLOAK}
+            - name: LITELLM_BASE_URL
+              value: ${URL_LITELLM}
+            - name: OPTIMIZER_URL
+              value: ${URL_OPTIMIZER}
+            # M6 Signal Hub (internal ingress; a short-lived service JWT per call, contracts/100 §1)
+            - name: SIGNAL_HUB_URL
+              value: ${URL_SIGNAL_HUB}
+            # No Squid on Cloud Run: empty = direct (Cloud NAT); the engine's own public-IP-only
+            # connector URL check stays active. See docs/cloud-run.md "Egress".
+            - name: CONNECTOR_PROXY_URL
+              value: ""
+            - name: CONNECTOR_DEV_HOSTS
+              value: ""
+            - name: DEMO_MODE
+              value: "${DEMO_MODE}"
+            - name: BRAND_ENGINE_NAME
+              value: ${BRAND_ENGINE_NAME}
+            - name: BRAND_VENDOR_NAME
+              value: ${BRAND_VENDOR_NAME}
+            - name: PACKS_DIR
+              value: /app/packs
+            - name: MODELS_LOCK
+              value: /app/models.lock
+            # engine LLM record/replay: off in production (compose's dev/demo default records)
+            - name: LLM_REPLAY_MODE
+              value: "off"
+            - name: KEELSON_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: keelson-database-url
+                  key: latest
+            - name: ADK_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: keelson-adk-database-url
+                  key: latest
+            - name: VALKEY_URL
+              valueFrom:
+                secretKeyRef:
+                  name: keelson-valkey-url
+                  key: latest
+            - name: LITELLM_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: keelson-litellm-master-key
+                  key: latest
+            - name: KC_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keelson-kc-admin-password
+                  key: latest
+            - name: OPTIMIZER_SHARED_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keelson-optimizer-shared-secret
+                  key: latest
+            - name: SIGNAL_HUB_SHARED_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keelson-signal-hub-shared-secret
+                  key: latest
+            - name: KEELSON_BFF_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keelson-bff-client-secret
+                  key: latest
+            - name: KEELSON_DEMO_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keelson-demo-client-secret
+                  key: latest
+            - name: DEMO_USER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keelson-demo-user-password
+                  key: latest
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keelson-session-secret
+                  key: latest
+            - name: DEMO_ACCESS_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keelson-demo-access-secret
+                  key: latest
+            - name: MERXA_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keelson-merxa-webhook-secret
+                  key: latest
+            # compose `secrets:` files; read_secret() falls back to env NAME when
+            # /run/secrets/<name> does not exist.
+            - name: KEELSON_CLIENT_ASSERTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: keelson-client-assertion-key
+                  key: latest
+            - name: KEELSON_RECEIPT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: keelson-receipt-key
+                  key: latest
+            - name: KEELSON_DATA_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: keelson-data-key
+                  key: latest
+            # END engine-env

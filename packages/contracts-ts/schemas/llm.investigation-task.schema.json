@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One specialist task. ``tools`` must be a subset of that specialist's allowlist.",
+  "properties": {
+    "depends_on": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Depends On",
+      "type": "array"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "objective": {
+      "title": "Objective",
+      "type": "string"
+    },
+    "specialist": {
+      "title": "Specialist",
+      "type": "string"
+    },
+    "tools": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Tools",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "specialist",
+    "objective",
+    "tools",
+    "depends_on"
+  ],
+  "title": "InvestigationTask",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.llm.InvestigationTask"
+}

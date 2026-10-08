@@ -1,0 +1,292 @@
+# Realm "keelson" - our product's identity domain.
+# Contract: docs/contracts/10-auth.md. Applied (upsert, every boot) by the kc-config
+# service (adorsys/keycloak-config-cli 6.x) with IMPORT_VARSUBSTITUTION_ENABLED=true.
+# Secrets are injected by variable substitution (dollar-paren env:NAME syntax, see
+# docs/infra.md) - never hard-code them here. NOTE: substitution also runs inside
+# comments, so never write the literal substitution syntax in a comment.
+#
+# Demo clients/users take their `enabled` flag from env DEMO_ENABLED (true|false). They live in
+# this file (not infra/keycloak/config/demo/) so a single import keeps the realm
+# consistent; flip DEMO_ENABLED=false to disable them without deleting anything.
+#
+# Token shape (access + id token):
+#   roles   : realm roles, restricted to the six product roles (fullScopeAllowed=false
+#             + scope mappings on client scope keelson-roles)
+#   tenants : user attribute `tenant` (multi-valued) via client scope keelson-tenant
+#   demo    : true, hardcoded, only on tokens issued to keelson-demo
+realm: keelson
+displayName: Keelson
+enabled: true
+sslRequired: none
+registrationAllowed: false
+resetPasswordAllowed: false
+rememberMe: false
+editUsernameAllowed: false
+loginWithEmailAllowed: true
+duplicateEmailsAllowed: false
+bruteForceProtected: true
+failureFactor: 10
+permanentLockout: false
+organizationsEnabled: false
+accessTokenLifespan: 300
+ssoSessionIdleTimeout: 7200
+ssoSessionMaxLifespan: 36000
+revokeRefreshToken: false
+eventsEnabled: true
+eventsExpiration: 604800
+adminEventsEnabled: true
+adminEventsDetailsEnabled: false
+
+# keycloak-config-cli 6.x only applies `userProfile` when this realm attribute is
+# "true" (otherwise: "realm-attribute 'userProfileEnabled' not set: skipping profile
+# import"); Keycloak 26 itself always has the declarative user profile on.
+attributes:
+  userProfileEnabled: "true"
+
+# Declarative user profile: keep Keycloak's four default attributes and declare the
+# tenancy attributes as admin-only so users can never edit their own tenants.
+userProfile:
+  unmanagedAttributePolicy: ADMIN_VIEW
+  attributes:
+    - name: username
+      displayName: "${username}"
+      permissions: { view: [admin, user], edit: [admin, user] }
+      validations:
+        length: { min: 3, max: 255 }
+        username-prohibited-characters: {}
+        up-username-not-idn-homograph: {}
+    - name: email
+      displayName: "${email}"
+      required: { roles: [user] }
+      permissions: { view: [admin, user], edit: [admin, user] }
+      validations:
+        email: {}
+        length: { max: 255 }
+    - name: firstName
+      displayName: "${firstName}"
+      required: { roles: [user] }
+      permissions: { view: [admin, user], edit: [admin, user] }
+      validations:
+        length: { max: 255 }
+        person-name-prohibited-characters: {}
+    - name: lastName
+      displayName: "${lastName}"
+      required: { roles: [user] }
+      permissions: { view: [admin, user], edit: [admin, user] }
+      validations:
+        length: { max: 255 }
+        person-name-prohibited-characters: {}
+    - name: tenant
+      displayName: Tenant
+      multivalued: true
+      permissions: { view: [admin], edit: [admin] }
+      validations:
+        length: { min: 1, max: 63 }
+        pattern: { pattern: "^[a-z0-9][a-z0-9-]*$", error-message: "tenant slug: lowercase letters, digits, dashes" }
+    - name: merxa_username
+      displayName: Merxa username (linking hint)
+      permissions: { view: [admin], edit: [admin] }
+      validations:
+        length: { max: 255 }
+  groups:
+    - name: user-metadata
+      displayHeader: User metadata
+      displayDescription: Attributes, which refer to user metadata
+
+roles:
+  realm:
+    - name: planner
+      description: Merchandise / supply planner - opens cases, builds plans
+    - name: approver
+      description: Approves change sets before they are applied to systems of record
+    - name: compliance
+      description: Read-only access to audit trails and evidence
+    - name: tenant-admin
+      description: Administers a tenant (connectors, agents, users)
+    - name: platform-admin
+      description: Operates the Keelson platform (AI gateway, traces); cross-tenant, audited
+    - name: demo-presenter
+      description: May drive the demo persona switcher
+
+clientScopes:
+  - name: keelson-roles
+    description: Realm roles as top-level claim "roles"
+    protocol: openid-connect
+    attributes:
+      include.in.token.scope: "false"
+      display.on.consent.screen: "false"
+    protocolMappers:
+      - name: realm roles
+        protocol: openid-connect
+        protocolMapper: oidc-usermodel-realm-role-mapper
+        consentRequired: false
+        config:
+          claim.name: roles
+          multivalued: "true"
+          jsonType.label: String
+          access.token.claim: "true"
+          id.token.claim: "true"
+          userinfo.token.claim: "true"
+          introspection.token.claim: "true"
+  - name: keelson-tenant
+    description: Tenant memberships (user attribute tenant) as claim "tenants"
+    protocol: openid-connect
+    attributes:
+      include.in.token.scope: "false"
+      display.on.consent.screen: "false"
+    protocolMappers:
+      - name: tenants
+        protocol: openid-connect
+        protocolMapper: oidc-usermodel-attribute-mapper
+        consentRequired: false
+        config:
+          user.attribute: tenant
+          claim.name: tenants
+          multivalued: "true"
+          aggregate.attrs: "false"
+          jsonType.label: String
+          access.token.claim: "true"
+          id.token.claim: "true"
+          userinfo.token.claim: "true"
+          introspection.token.claim: "true"
+
+# Clients use fullScopeAllowed=false; these mappings define which realm roles may
+# appear in their tokens (default-roles-*, offline_access, uma_authorization do not).
+scopeMappings:
+  - clientScope: keelson-roles
+    roles: [planner, approver, compliance, tenant-admin, platform-admin, demo-presenter]
+
+clients:
+  - clientId: keelson-bff
+    name: Keelson web (BFF)
+    description: Server-side OIDC client of engine-api (Authlib). Code flow + PKCE S256.
+    enabled: true
+    protocol: openid-connect
+    publicClient: false
+    bearerOnly: false
+    consentRequired: false
+    clientAuthenticatorType: client-secret
+    secret: $(env:KEELSON_BFF_CLIENT_SECRET)
+    standardFlowEnabled: true
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: false
+    frontchannelLogout: false
+    fullScopeAllowed: false
+    rootUrl: http://keelson.localhost
+    baseUrl: http://keelson.localhost/
+    redirectUris: [http://keelson.localhost/api/auth/callback]
+    webOrigins: [http://keelson.localhost]
+    attributes:
+      pkce.code.challenge.method: S256
+      post.logout.redirect.uris: http://keelson.localhost/
+      use.refresh.tokens: "true"
+      backchannel.logout.session.required: "true"
+    defaultClientScopes: [basic, acr, web-origins, profile, email, roles, keelson-roles, keelson-tenant]
+    optionalClientScopes: []
+
+  # ── demo set ────────────────────────────────────────────────────────────────
+  - clientId: keelson-demo
+    name: Keelson persona switcher (demo only)
+    description: Direct access grants for the DEMO_MODE persona switcher. Tokens carry demo=true.
+    enabled: $(env:DEMO_ENABLED)
+    protocol: openid-connect
+    publicClient: false
+    bearerOnly: false
+    consentRequired: false
+    clientAuthenticatorType: client-secret
+    secret: $(env:KEELSON_DEMO_CLIENT_SECRET)
+    standardFlowEnabled: false
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: true
+    serviceAccountsEnabled: false
+    fullScopeAllowed: false
+    redirectUris: []
+    webOrigins: []
+    attributes:
+      use.refresh.tokens: "true"
+    defaultClientScopes: [basic, acr, profile, email, roles, keelson-roles, keelson-tenant]
+    optionalClientScopes: []
+    protocolMappers:
+      - name: demo flag
+        protocol: openid-connect
+        protocolMapper: oidc-hardcoded-claim-mapper
+        consentRequired: false
+        config:
+          claim.name: demo
+          claim.value: "true"
+          jsonType.label: boolean
+          access.token.claim: "true"
+          id.token.claim: "true"
+          userinfo.token.claim: "true"
+          introspection.token.claim: "true"
+
+users:
+  - username: priya
+    enabled: $(env:DEMO_ENABLED)
+    firstName: Priya
+    lastName: Shah
+    email: priya@demo-retail.test
+    emailVerified: true
+    attributes:
+      tenant: [demo-retail]
+      merxa_username: [priya.shah]
+    realmRoles: [planner]
+    credentials:
+      - { type: password, value: "$(env:DEMO_USER_PASSWORD)", temporary: false }
+  - username: marco
+    enabled: $(env:DEMO_ENABLED)
+    firstName: Marco
+    lastName: Rossi
+    email: marco@demo-retail.test
+    emailVerified: true
+    attributes:
+      tenant: [demo-retail]
+      merxa_username: [marco.rossi]
+    realmRoles: [planner, approver]
+    credentials:
+      - { type: password, value: "$(env:DEMO_USER_PASSWORD)", temporary: false }
+  - username: lena
+    enabled: $(env:DEMO_ENABLED)
+    firstName: Lena
+    lastName: Vogel
+    email: lena@demo-retail.test
+    emailVerified: true
+    attributes:
+      tenant: [demo-retail]
+    realmRoles: [compliance]
+    credentials:
+      - { type: password, value: "$(env:DEMO_USER_PASSWORD)", temporary: false }
+  - username: sam
+    enabled: $(env:DEMO_ENABLED)
+    firstName: Sam
+    lastName: Okafor
+    email: sam@demo-retail.test
+    emailVerified: true
+    attributes:
+      tenant: [demo-retail]
+    realmRoles: [tenant-admin, planner]
+    credentials:
+      - { type: password, value: "$(env:DEMO_USER_PASSWORD)", temporary: false }
+  - username: ava
+    enabled: $(env:DEMO_ENABLED)
+    firstName: Ava
+    lastName: Lindqvist
+    email: ava@keelson-platform.test
+    emailVerified: true
+    attributes:
+      tenant: [demo-retail]
+    realmRoles: [platform-admin]
+    credentials:
+      - { type: password, value: "$(env:DEMO_USER_PASSWORD)", temporary: false }
+  - username: nora
+    enabled: $(env:DEMO_ENABLED)
+    firstName: Nora
+    lastName: Test
+    email: nora@northwind-test.test
+    emailVerified: true
+    attributes:
+      tenant: [northwind-test]
+    realmRoles: [planner]
+    credentials:
+      - { type: password, value: "$(env:DEMO_USER_PASSWORD)", temporary: false }

@@ -1,0 +1,718 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A cluster of signals (``100`` §2, §4). ``anchor_signal_id`` is the authoritative feed signal\n(GDACS/USGS) when there is one and is always a member. ``summary`` is ``None`` when nothing\ndeterministic is known and no (optional) LLM summary was written.",
+  "properties": {
+    "anchor_signal_id": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Anchor Signal Id"
+    },
+    "confidence_bp": {
+      "maximum": 10000,
+      "minimum": 0,
+      "title": "Confidence Bp",
+      "type": "integer"
+    },
+    "geometry": {
+      "anyOf": [
+        {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "coordinates": {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "maximum": 180,
+                      "minimum": -180,
+                      "type": "number"
+                    },
+                    {
+                      "maximum": 90,
+                      "minimum": -90,
+                      "type": "number"
+                    }
+                  ],
+                  "title": "Coordinates",
+                  "type": "array"
+                },
+                "type": {
+                  "const": "Point",
+                  "title": "Type",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "coordinates"
+              ],
+              "title": "Point",
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "coordinates": {
+                  "items": {
+                    "maxItems": 2,
+                    "minItems": 2,
+                    "prefixItems": [
+                      {
+                        "maximum": 180,
+                        "minimum": -180,
+                        "type": "number"
+                      },
+                      {
+                        "maximum": 90,
+                        "minimum": -90,
+                        "type": "number"
+                      }
+                    ],
+                    "type": "array"
+                  },
+                  "minItems": 1,
+                  "title": "Coordinates",
+                  "type": "array"
+                },
+                "type": {
+                  "const": "MultiPoint",
+                  "title": "Type",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "coordinates"
+              ],
+              "title": "MultiPoint",
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "coordinates": {
+                  "items": {
+                    "maxItems": 2,
+                    "minItems": 2,
+                    "prefixItems": [
+                      {
+                        "maximum": 180,
+                        "minimum": -180,
+                        "type": "number"
+                      },
+                      {
+                        "maximum": 90,
+                        "minimum": -90,
+                        "type": "number"
+                      }
+                    ],
+                    "type": "array"
+                  },
+                  "minItems": 2,
+                  "title": "Coordinates",
+                  "type": "array"
+                },
+                "type": {
+                  "const": "LineString",
+                  "title": "Type",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "coordinates"
+              ],
+              "title": "LineString",
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "coordinates": {
+                  "items": {
+                    "items": {
+                      "maxItems": 2,
+                      "minItems": 2,
+                      "prefixItems": [
+                        {
+                          "maximum": 180,
+                          "minimum": -180,
+                          "type": "number"
+                        },
+                        {
+                          "maximum": 90,
+                          "minimum": -90,
+                          "type": "number"
+                        }
+                      ],
+                      "type": "array"
+                    },
+                    "minItems": 2,
+                    "type": "array"
+                  },
+                  "minItems": 1,
+                  "title": "Coordinates",
+                  "type": "array"
+                },
+                "type": {
+                  "const": "MultiLineString",
+                  "title": "Type",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "coordinates"
+              ],
+              "title": "MultiLineString",
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "coordinates": {
+                  "items": {
+                    "items": {
+                      "maxItems": 2,
+                      "minItems": 2,
+                      "prefixItems": [
+                        {
+                          "maximum": 180,
+                          "minimum": -180,
+                          "type": "number"
+                        },
+                        {
+                          "maximum": 90,
+                          "minimum": -90,
+                          "type": "number"
+                        }
+                      ],
+                      "type": "array"
+                    },
+                    "minItems": 4,
+                    "type": "array"
+                  },
+                  "minItems": 1,
+                  "title": "Coordinates",
+                  "type": "array"
+                },
+                "type": {
+                  "const": "Polygon",
+                  "title": "Type",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "coordinates"
+              ],
+              "title": "Polygon",
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "coordinates": {
+                  "items": {
+                    "items": {
+                      "items": {
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "prefixItems": [
+                          {
+                            "maximum": 180,
+                            "minimum": -180,
+                            "type": "number"
+                          },
+                          {
+                            "maximum": 90,
+                            "minimum": -90,
+                            "type": "number"
+                          }
+                        ],
+                        "type": "array"
+                      },
+                      "minItems": 4,
+                      "type": "array"
+                    },
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "minItems": 1,
+                  "title": "Coordinates",
+                  "type": "array"
+                },
+                "type": {
+                  "const": "MultiPolygon",
+                  "title": "Type",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "coordinates"
+              ],
+              "title": "MultiPolygon",
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "A merged event footprint (e.g. TC track + cones). Members are simple geometries\n(nested collections are not allowed, per RFC 7946 §3.1.8 guidance).",
+              "properties": {
+                "geometries": {
+                  "items": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "coordinates": {
+                            "maxItems": 2,
+                            "minItems": 2,
+                            "prefixItems": [
+                              {
+                                "maximum": 180,
+                                "minimum": -180,
+                                "type": "number"
+                              },
+                              {
+                                "maximum": 90,
+                                "minimum": -90,
+                                "type": "number"
+                              }
+                            ],
+                            "title": "Coordinates",
+                            "type": "array"
+                          },
+                          "type": {
+                            "const": "Point",
+                            "title": "Type",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "coordinates"
+                        ],
+                        "title": "Point",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "coordinates": {
+                            "items": {
+                              "maxItems": 2,
+                              "minItems": 2,
+                              "prefixItems": [
+                                {
+                                  "maximum": 180,
+                                  "minimum": -180,
+                                  "type": "number"
+                                },
+                                {
+                                  "maximum": 90,
+                                  "minimum": -90,
+                                  "type": "number"
+                                }
+                              ],
+                              "type": "array"
+                            },
+                            "minItems": 1,
+                            "title": "Coordinates",
+                            "type": "array"
+                          },
+                          "type": {
+                            "const": "MultiPoint",
+                            "title": "Type",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "coordinates"
+                        ],
+                        "title": "MultiPoint",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "coordinates": {
+                            "items": {
+                              "maxItems": 2,
+                              "minItems": 2,
+                              "prefixItems": [
+                                {
+                                  "maximum": 180,
+                                  "minimum": -180,
+                                  "type": "number"
+                                },
+                                {
+                                  "maximum": 90,
+                                  "minimum": -90,
+                                  "type": "number"
+                                }
+                              ],
+                              "type": "array"
+                            },
+                            "minItems": 2,
+                            "title": "Coordinates",
+                            "type": "array"
+                          },
+                          "type": {
+                            "const": "LineString",
+                            "title": "Type",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "coordinates"
+                        ],
+                        "title": "LineString",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "coordinates": {
+                            "items": {
+                              "items": {
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "prefixItems": [
+                                  {
+                                    "maximum": 180,
+                                    "minimum": -180,
+                                    "type": "number"
+                                  },
+                                  {
+                                    "maximum": 90,
+                                    "minimum": -90,
+                                    "type": "number"
+                                  }
+                                ],
+                                "type": "array"
+                              },
+                              "minItems": 2,
+                              "type": "array"
+                            },
+                            "minItems": 1,
+                            "title": "Coordinates",
+                            "type": "array"
+                          },
+                          "type": {
+                            "const": "MultiLineString",
+                            "title": "Type",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "coordinates"
+                        ],
+                        "title": "MultiLineString",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "coordinates": {
+                            "items": {
+                              "items": {
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "prefixItems": [
+                                  {
+                                    "maximum": 180,
+                                    "minimum": -180,
+                                    "type": "number"
+                                  },
+                                  {
+                                    "maximum": 90,
+                                    "minimum": -90,
+                                    "type": "number"
+                                  }
+                                ],
+                                "type": "array"
+                              },
+                              "minItems": 4,
+                              "type": "array"
+                            },
+                            "minItems": 1,
+                            "title": "Coordinates",
+                            "type": "array"
+                          },
+                          "type": {
+                            "const": "Polygon",
+                            "title": "Type",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "coordinates"
+                        ],
+                        "title": "Polygon",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "coordinates": {
+                            "items": {
+                              "items": {
+                                "items": {
+                                  "maxItems": 2,
+                                  "minItems": 2,
+                                  "prefixItems": [
+                                    {
+                                      "maximum": 180,
+                                      "minimum": -180,
+                                      "type": "number"
+                                    },
+                                    {
+                                      "maximum": 90,
+                                      "minimum": -90,
+                                      "type": "number"
+                                    }
+                                  ],
+                                  "type": "array"
+                                },
+                                "minItems": 4,
+                                "type": "array"
+                              },
+                              "minItems": 1,
+                              "type": "array"
+                            },
+                            "minItems": 1,
+                            "title": "Coordinates",
+                            "type": "array"
+                          },
+                          "type": {
+                            "const": "MultiPolygon",
+                            "title": "Type",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "coordinates"
+                        ],
+                        "title": "MultiPolygon",
+                        "type": "object"
+                      }
+                    ],
+                    "discriminator": {
+                      "mapping": {
+                        "LineString": "#/$defs/LineString",
+                        "MultiLineString": "#/$defs/MultiLineString",
+                        "MultiPoint": "#/$defs/MultiPoint",
+                        "MultiPolygon": "#/$defs/MultiPolygon",
+                        "Point": "#/$defs/Point",
+                        "Polygon": "#/$defs/Polygon"
+                      },
+                      "propertyName": "type"
+                    }
+                  },
+                  "minItems": 1,
+                  "title": "Geometries",
+                  "type": "array"
+                },
+                "type": {
+                  "const": "GeometryCollection",
+                  "title": "Type",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "geometries"
+              ],
+              "title": "GeometryCollection",
+              "type": "object"
+            }
+          ],
+          "discriminator": {
+            "mapping": {
+              "GeometryCollection": "#/$defs/GeometryCollection",
+              "LineString": "#/$defs/LineString",
+              "MultiLineString": "#/$defs/MultiLineString",
+              "MultiPoint": "#/$defs/MultiPoint",
+              "MultiPolygon": "#/$defs/MultiPolygon",
+              "Point": "#/$defs/Point",
+              "Polygon": "#/$defs/Polygon"
+            },
+            "propertyName": "type"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Geometry"
+    },
+    "id": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Id",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "natural_hazard",
+        "weather",
+        "geopolitical",
+        "labor",
+        "logistics",
+        "regulatory",
+        "cyber",
+        "supplier",
+        "demand",
+        "hypothetical"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "member_signal_ids": {
+      "items": {
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+        "type": "string"
+      },
+      "maxItems": 1000,
+      "minItems": 1,
+      "title": "Member Signal Ids",
+      "type": "array"
+    },
+    "severity_bp": {
+      "maximum": 10000,
+      "minimum": 0,
+      "title": "Severity Bp",
+      "type": "integer"
+    },
+    "status": {
+      "enum": [
+        "candidate",
+        "confirmed",
+        "monitoring",
+        "resolved"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "subtype": {
+      "pattern": "^[a-z][a-z0-9_]{0,63}$",
+      "title": "Subtype",
+      "type": "string"
+    },
+    "summary": {
+      "anyOf": [
+        {
+          "maxLength": 2000,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Summary"
+    },
+    "taxonomy_key": {
+      "enum": [
+        "SUP.delay",
+        "SUP.capacity_loss",
+        "LOG.chokepoint_closure",
+        "LOG.port_closure",
+        "LOG.strike",
+        "NAT.storm",
+        "NAT.flood",
+        "NAT.earthquake",
+        "DEM.spike",
+        "DEM.drop",
+        "OTHER"
+      ],
+      "title": "Taxonomy Key",
+      "type": "string"
+    },
+    "tenant": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Tenant"
+    },
+    "title": {
+      "maxLength": 300,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    },
+    "window": {
+      "additionalProperties": false,
+      "properties": {
+        "ends_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Ends At"
+        },
+        "starts_at": {
+          "format": "date-time",
+          "title": "Starts At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "starts_at",
+        "ends_at"
+      ],
+      "title": "EventWindow",
+      "type": "object"
+    }
+  },
+  "required": [
+    "id",
+    "tenant",
+    "kind",
+    "subtype",
+    "title",
+    "summary",
+    "anchor_signal_id",
+    "member_signal_ids",
+    "geometry",
+    "window",
+    "severity_bp",
+    "confidence_bp",
+    "status",
+    "taxonomy_key",
+    "updated_at"
+  ],
+  "title": "DisruptionEvent",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.signals.DisruptionEvent"
+}

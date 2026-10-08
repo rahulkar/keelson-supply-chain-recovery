@@ -1,0 +1,345 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "``approval_card@1``.\n\nM5 additions (omitted while unset/empty, ``95`` §1, §5, §7):\n\n* ``quorum`` — progress (:class:`~keelson_contracts.policy.QuorumView`); its roles are the\n  card's ``required_roles``;\n* ``rejection`` — who rejected and why (only with no remaining quorum progress to show);\n* ``bundle`` — the per-connector change sets one approval covers, in apply order. With a\n  bundle, ``change_set_hash`` is the bundle hash\n  (:func:`~keelson_contracts.changeset.bundle_hash`) and ``summary.lines`` their total.",
+  "properties": {
+    "bundle": {
+      "default": [],
+      "items": {
+        "additionalProperties": false,
+        "description": "One connector's change set inside a multi-system bundle (M5, ``95`` §5).",
+        "properties": {
+          "change_set_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Change Set Hash",
+            "type": "string"
+          },
+          "change_set_id": {
+            "minLength": 1,
+            "title": "Change Set Id",
+            "type": "string"
+          },
+          "connector": {
+            "minLength": 1,
+            "title": "Connector",
+            "type": "string"
+          },
+          "lines": {
+            "minimum": 1,
+            "title": "Lines",
+            "type": "integer"
+          },
+          "system": {
+            "minLength": 1,
+            "title": "System",
+            "type": "string"
+          }
+        },
+        "required": [
+          "connector",
+          "system",
+          "change_set_id",
+          "change_set_hash",
+          "lines"
+        ],
+        "title": "ApprovalBundleMember",
+        "type": "object"
+      },
+      "title": "Bundle",
+      "type": "array"
+    },
+    "buttons": {
+      "items": {
+        "enum": [
+          "approve",
+          "reject",
+          "revise"
+        ],
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Buttons",
+      "type": "array"
+    },
+    "change_set_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Change Set Hash",
+      "type": "string"
+    },
+    "change_set_id": {
+      "minLength": 1,
+      "title": "Change Set Id",
+      "type": "string"
+    },
+    "connect": {
+      "additionalProperties": false,
+      "description": "The approver's delegated link to the target system.",
+      "properties": {
+        "connect_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Connect Url"
+        },
+        "status": {
+          "enum": [
+            "active",
+            "missing",
+            "expired"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "ConnectState",
+      "type": "object"
+    },
+    "interrupt_id": {
+      "minLength": 1,
+      "title": "Interrupt Id",
+      "type": "string"
+    },
+    "plan_version": {
+      "minimum": 1,
+      "title": "Plan Version",
+      "type": "integer"
+    },
+    "quorum": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "description": "Quorum progress of an approval interrupt (API + ``approval_card@1.quorum``).\n\n``remaining`` and ``missing_roles`` are derived from ``required`` and ``approvals`` and\nmust agree with them (build with :meth:`build`). The card renders e.g.\n\"1 of 2 approvals: Marco ✓ · waiting for Compliance\".",
+          "properties": {
+            "approvals": {
+              "items": {
+                "additionalProperties": false,
+                "description": "One approval counted towards a quorum (``role`` = the role it counts under).",
+                "properties": {
+                  "at": {
+                    "format": "date-time",
+                    "title": "At",
+                    "type": "string"
+                  },
+                  "name": {
+                    "title": "Name",
+                    "type": "string"
+                  },
+                  "role": {
+                    "maxLength": 64,
+                    "minLength": 1,
+                    "pattern": "^[a-z][a-z0-9_-]*$",
+                    "title": "Role",
+                    "type": "string"
+                  },
+                  "sub": {
+                    "minLength": 1,
+                    "title": "Sub",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "sub",
+                  "name",
+                  "role",
+                  "at"
+                ],
+                "title": "QuorumApproval",
+                "type": "object"
+              },
+              "title": "Approvals",
+              "type": "array"
+            },
+            "missing_roles": {
+              "items": {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_-]*$",
+                "type": "string"
+              },
+              "title": "Missing Roles",
+              "type": "array"
+            },
+            "remaining": {
+              "minimum": 0,
+              "title": "Remaining",
+              "type": "integer"
+            },
+            "required": {
+              "additionalProperties": false,
+              "description": "Who must approve: ``count`` distinct people holding ``roles`` (see module docstring).\n\n``exclude_initiator`` = the person who initiated the change set may not approve it\n(enforced server-side by the decision API). Also the ``interrupt.quorum_spec`` shape.",
+              "properties": {
+                "count": {
+                  "maximum": 10,
+                  "minimum": 1,
+                  "title": "Count",
+                  "type": "integer"
+                },
+                "exclude_initiator": {
+                  "title": "Exclude Initiator",
+                  "type": "boolean"
+                },
+                "roles": {
+                  "items": {
+                    "maxLength": 64,
+                    "minLength": 1,
+                    "pattern": "^[a-z][a-z0-9_-]*$",
+                    "type": "string"
+                  },
+                  "maxItems": 10,
+                  "minItems": 1,
+                  "title": "Roles",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "roles",
+                "count",
+                "exclude_initiator"
+              ],
+              "title": "Requirement",
+              "type": "object"
+            }
+          },
+          "required": [
+            "required",
+            "approvals",
+            "remaining",
+            "missing_roles"
+          ],
+          "title": "QuorumView",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "reason": {
+      "title": "Reason",
+      "type": "string"
+    },
+    "rejection": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "description": "Who rejected the change set and why (M5; ``reason`` is the person's own note).",
+          "properties": {
+            "at": {
+              "format": "date-time",
+              "title": "At",
+              "type": "string"
+            },
+            "name": {
+              "title": "Name",
+              "type": "string"
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "maxLength": 500,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reason"
+            },
+            "role": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[a-z][a-z0-9_-]*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Role"
+            },
+            "sub": {
+              "minLength": 1,
+              "title": "Sub",
+              "type": "string"
+            }
+          },
+          "required": [
+            "sub",
+            "name",
+            "at"
+          ],
+          "title": "ApprovalRejection",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "required_roles": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Required Roles",
+      "type": "array"
+    },
+    "summary": {
+      "additionalProperties": false,
+      "properties": {
+        "lines": {
+          "minimum": 0,
+          "title": "Lines",
+          "type": "integer"
+        },
+        "units": {
+          "minimum": 0,
+          "title": "Units",
+          "type": "integer"
+        },
+        "value_cents": {
+          "description": "Money in integer EUR minor units (cents).",
+          "title": "Value Cents",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "lines",
+        "units",
+        "value_cents"
+      ],
+      "title": "ChangeTotals",
+      "type": "object"
+    }
+  },
+  "required": [
+    "interrupt_id",
+    "change_set_id",
+    "change_set_hash",
+    "plan_version",
+    "summary",
+    "reason",
+    "required_roles",
+    "connect",
+    "buttons"
+  ],
+  "title": "ApprovalCardProps",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.blocks.ApprovalCardProps"
+}

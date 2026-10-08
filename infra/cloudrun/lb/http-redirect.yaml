@@ -1,0 +1,7 @@
+# Port 80 of the load balancer: every request is redirected to https (same host and path).
+# Imported by scripts/cloudrun/deploy.sh as url map keelson-http-redirect.
+name: keelson-http-redirect
+defaultUrlRedirect:
+  httpsRedirect: true
+  redirectResponseCode: MOVED_PERMANENTLY_DEFAULT
+  stripQuery: false

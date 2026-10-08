@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One structured fact read from untrusted text; always labelled ``inference``.",
+  "properties": {
+    "delay_days": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Delay Days"
+    },
+    "entity_mentions": {
+      "items": {
+        "additionalProperties": false,
+        "description": "An entity named in user/supplier text, before deterministic resolution.",
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "supplier",
+              "po",
+              "sku",
+              "style",
+              "dc",
+              "store",
+              "factory",
+              "component",
+              "port",
+              "lane",
+              "chokepoint",
+              "region",
+              "other"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "text"
+        ],
+        "title": "EntityMention",
+        "type": "object"
+      },
+      "title": "Entity Mentions",
+      "type": "array"
+    },
+    "kind": {
+      "enum": [
+        "delay_notice",
+        "capacity_notice",
+        "quality_issue",
+        "price_change",
+        "guidance",
+        "other"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "quote": {
+      "title": "Quote",
+      "type": "string"
+    },
+    "source_evidence_id": {
+      "title": "Source Evidence Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "source_evidence_id",
+    "kind",
+    "entity_mentions",
+    "delay_days",
+    "quote"
+  ],
+  "title": "UntrustedItem",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.llm.UntrustedItem"
+}

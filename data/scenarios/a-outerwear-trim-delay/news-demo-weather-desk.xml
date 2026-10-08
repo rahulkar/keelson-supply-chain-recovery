@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SIMULATED demo data (Keelson pack a-outerwear-trim-delay). "Demo Weather Desk" is a fictional outlet;
+     the forecast below is invented for the demo. The .example domain is reserved and never resolves.
+     Shaped like an RSS 2.0 trade-press feed (headline + <= 300 character snippet + link only). -->
+<rss version="2.0"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+	<title>Demo Weather Desk</title>
+	<atom:link href="https://demo-weather-desk.example/retail/feed/" rel="self" type="application/rss+xml" />
+	<link>https://demo-weather-desk.example/retail</link>
+	<description>Fictional retail weather advisories for Keelson demo packs. Simulated, not real forecasts.</description>
+	<lastBuildDate>Mon, 05 Oct 2026 08:30:00 +0000</lastBuildDate>
+	<language>en-GB</language>
+	<item>
+		<title>Retail weather advisory: early cold snap expected for the UK, Ireland and Benelux</title>
+		<link>https://demo-weather-desk.example/retail/2026/10/05/early-cold-snap-uk-ireland-benelux/</link>
+		<dc:creator><![CDATA[Demo Weather Desk]]></dc:creator>
+		<pubDate>Mon, 05 Oct 2026 08:30:00 +0000</pubDate>
+		<category><![CDATA[Demand outlook]]></category>
+		<guid isPermaLink="false">demo-weather-desk-2026-10-05-cold-snap</guid>
+		<description><![CDATA[<p>Temperatures 4 to 6 &deg;C below normal are expected across the UK, Ireland, the Netherlands and Belgium from mid-November (weeks 46&ndash;47). Retailers should expect demand for padded outerwear to rise ahead of Black Friday.</p>]]></description>
+	</item>
+</channel>
+</rss>

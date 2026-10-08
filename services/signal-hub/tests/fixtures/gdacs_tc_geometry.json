@@ -1,0 +1,21 @@
+{
+  "_fixture": "TEST FIXTURE (not real data): shape of /gdacsapi/api/polygons/getgeometry?eventtype=TC&eventid=1001102&episodeid=14 (forecast cone polygon, track line, track points).",
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[108.6, 9.6], [112.5, 9.6], [112.5, 12.6], [108.6, 12.6], [108.6, 9.6]]]},
+      "properties": {"eventtype": "TC", "eventid": 1001102, "episodeid": 14, "Class": "Poly_Cones", "polygonlabel": "Uncertainty Cones"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "LineString", "coordinates": [[115.2, 12.4, 0], [113.0, 11.6, 0], [110.5, 11.0, 0], [108.9, 10.9, 0]]},
+      "properties": {"eventtype": "TC", "eventid": 1001102, "episodeid": 14, "Class": "Line_Line_0", "polygonlabel": "Track"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Point", "coordinates": [113.0, 11.6]},
+      "properties": {"eventtype": "TC", "eventid": 1001102, "episodeid": 14, "Class": "Point_Polygon_Point_1", "polygonlabel": "Point_Polygon_Point_1"}
+    }
+  ]
+}

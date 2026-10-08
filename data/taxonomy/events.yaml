@@ -1,0 +1,225 @@
+# Keelson disruption taxonomy (docs/contracts/90-m4-investigation.md §1).
+#
+# Every event type compiles to the generic perturbation primitives of keelson_contracts.scenario
+# (no scenario-specific code). The engine loads this file at startup (runtime/nodes/taxonomy.py)
+# and fails fast when a key is unknown or the event-type keys differ from
+# keelson_contracts.common.EVENT_TYPE_KEYS.
+#
+# Per event type:
+#   family          taxonomy family (must equal the key's prefix; OTHER for OTHER)
+#   label           short user-facing name
+#   description     what the event means
+#   mention_kinds   entity-mention types the event cares about (listed in the intake prompt).
+#                   A region mention (a country or a multi-country region of data/geo/regions.json)
+#                   expands to the suppliers / factories / ports / DCs located there in the snapshot,
+#                   limited to the kinds the template targets (receipts templates: supplier, factory)
+#   perturbations   templates; each one is
+#       op            capacity_scale | lead_time_shift | demand_scale
+#       target_kinds  selector kinds the perturbation applies to (resolved mentions of these kinds)
+#       resolve       direct   - target = the resolved mentions of target_kinds
+#                     receipts - BOM / PO walk from supplier, component, factory and PO mentions to
+#                                open PO lines (receipt ids); falls back to direct targets
+#       default_scope none (no target matched → no perturbation, an inference note instead)
+#                     all_clusters (demand events without a cluster/style/SKU/DC mention)
+#       value         the perturbation's primary value:
+#                       param   delay_days (days) | factor_bp (capacity, basis points) |
+#                               demand_change_pct (percent change of demand)
+#                       prior   {p10, p50, p90} tenant prior (provenance "assumption")  - or -
+#                       fixed   a value that defines the event (e.g. a closure is 0 bp); it is part
+#                               of the event itself, so it is not an assumption
+#       windowed      true: the perturbation is active from the start date for duration_days
+#   duration_days   {p10, p50, p90} prior for how long the event lasts, or null (no window)
+#   ttr_days        {p10, p50, p90} time-to-recover prior after the event ends (days)
+#   resolution      optional note on how the optimizer resolves the perturbation
+#
+# User-stated values (delay, duration, demand change, start date) always win and become
+# "decision"; priors become "assumption"; resolved entities are "fact".
+#
+# Version 2 (M6, docs/contracts/100-m6-signals.md §6) adds NAT.earthquake: Signal Hub events of
+# subtype earthquake (USGS / GDACS EQ) map to it deterministically (keelson_contracts.signals.
+# taxonomy_key_for); the ports and factories within the shaken footprint lose capacity.
+version: 2
+event_types:
+  SUP.delay:
+    family: SUP
+    label: Supplier delay
+    description: A supplier, component, factory or purchase order ships later than planned.
+    mention_kinds: [supplier, component, factory, po, sku, style, dc, region]
+    perturbations:
+      - op: lead_time_shift
+        target_kinds: [receipt, supplier, component, factory, po, sku, style, dc]
+        resolve: receipts
+        default_scope: none
+        value:
+          param: delay_days
+          prior: {p10: 5, p50: 7, p90: 14}
+        windowed: false
+    duration_days: null
+    ttr_days: {p10: 7, p50: 14, p90: 28}
+
+  SUP.capacity_loss:
+    family: SUP
+    label: Supplier capacity loss
+    description: A factory or supplier can only produce part of its normal output for a while.
+    mention_kinds: [factory, supplier, region]
+    perturbations:
+      - op: capacity_scale
+        target_kinds: [factory, supplier]
+        resolve: direct
+        default_scope: none
+        value:
+          param: factor_bp
+          prior: {p10: 2500, p50: 5000, p90: 7500}
+        windowed: true
+    duration_days: {p10: 7, p50: 14, p90: 28}
+    ttr_days: {p10: 7, p50: 14, p90: 35}
+
+  LOG.chokepoint_closure:
+    family: LOG
+    label: Chokepoint closure
+    description: A maritime chokepoint (canal or strait) is closed to shipping.
+    mention_kinds: [chokepoint, region]
+    perturbations:
+      - op: capacity_scale
+        target_kinds: [chokepoint]
+        resolve: direct
+        default_scope: none
+        value:
+          param: factor_bp
+          fixed: 0
+        windowed: true
+    duration_days: {p10: 7, p50: 14, p90: 42}
+    ttr_days: {p10: 7, p50: 14, p90: 30}
+    resolution: >-
+      Inbound lanes whose via contains the chokepoint switch to their catalogued alt_lane_code
+      (extra transit = alt - base transit days, from the lane catalogue) for sailings in the
+      closure window, or wait for the closure to end, whichever is earlier.
+
+  LOG.port_closure:
+    family: LOG
+    label: Port closure
+    description: A port stops handling cargo.
+    mention_kinds: [port, region]
+    perturbations:
+      - op: capacity_scale
+        target_kinds: [port]
+        resolve: direct
+        default_scope: none
+        value:
+          param: factor_bp
+          fixed: 0
+        windowed: true
+    duration_days: {p10: 3, p50: 7, p90: 14}
+    ttr_days: {p10: 3, p50: 7, p90: 14}
+    resolution: Lanes starting, ending or calling at the port switch to their alt lane or wait.
+
+  LOG.strike:
+    family: LOG
+    label: Port or transport strike
+    description: Industrial action reduces the throughput of a port.
+    mention_kinds: [port, region]
+    perturbations:
+      - op: capacity_scale
+        target_kinds: [port]
+        resolve: direct
+        default_scope: none
+        value:
+          param: factor_bp
+          prior: {p10: 1000, p50: 3000, p90: 6000}
+        windowed: true
+    duration_days: {p10: 2, p50: 7, p90: 14}
+    ttr_days: {p10: 2, p50: 5, p90: 10}
+
+  NAT.storm:
+    family: NAT
+    label: Storm
+    description: A storm (typhoon, cyclone, hurricane) stops ports or factories in its path.
+    mention_kinds: [port, factory, region]
+    perturbations:
+      - op: capacity_scale
+        target_kinds: [port, factory]
+        resolve: direct
+        default_scope: none
+        value:
+          param: factor_bp
+          prior: {p10: 0, p50: 0, p90: 5000}
+        windowed: true
+    duration_days: {p10: 3, p50: 7, p90: 14}
+    ttr_days: {p10: 3, p50: 7, p90: 21}
+
+  NAT.flood:
+    family: NAT
+    label: Flood
+    description: Flooding stops ports or factories in the affected area.
+    mention_kinds: [port, factory, region]
+    perturbations:
+      - op: capacity_scale
+        target_kinds: [port, factory]
+        resolve: direct
+        default_scope: none
+        value:
+          param: factor_bp
+          prior: {p10: 0, p50: 0, p90: 5000}
+        windowed: true
+    duration_days: {p10: 3, p50: 7, p90: 21}
+    ttr_days: {p10: 7, p50: 14, p90: 28}
+
+  NAT.earthquake:
+    family: NAT
+    label: Earthquake
+    description: An earthquake damages or stops ports or factories in the shaken area.
+    mention_kinds: [port, factory, region]
+    perturbations:
+      - op: capacity_scale
+        target_kinds: [port, factory]
+        resolve: direct
+        default_scope: none
+        value:
+          param: factor_bp
+          prior: {p10: 0, p50: 2500, p90: 7500}
+        windowed: true
+    duration_days: {p10: 3, p50: 10, p90: 30}
+    ttr_days: {p10: 7, p50: 21, p90: 60}
+
+  DEM.spike:
+    family: DEM
+    label: Demand spike
+    description: Demand rises above the forecast (weather, promotion, trend).
+    mention_kinds: [style, sku, dc, region]
+    perturbations:
+      - op: demand_scale
+        target_kinds: [cluster, style, sku, dc]
+        resolve: direct
+        default_scope: all_clusters
+        value:
+          param: demand_change_pct
+          prior: {p10: 10, p50: 18, p90: 30}
+        windowed: true
+    duration_days: null
+    ttr_days: {p10: 7, p50: 14, p90: 28}
+
+  DEM.drop:
+    family: DEM
+    label: Demand drop
+    description: Demand falls below the forecast.
+    mention_kinds: [style, sku, dc, region]
+    perturbations:
+      - op: demand_scale
+        target_kinds: [cluster, style, sku, dc]
+        resolve: direct
+        default_scope: all_clusters
+        value:
+          param: demand_change_pct
+          prior: {p10: -30, p50: -18, p90: -10}
+        windowed: true
+    duration_days: null
+    ttr_days: {p10: 7, p50: 14, p90: 28}
+
+  OTHER:
+    family: OTHER
+    label: Other event
+    description: Anything the taxonomy does not cover; the case becomes an investigation-only question.
+    mention_kinds: []
+    perturbations: []
+    duration_days: null
+    ttr_days: {p10: 0, p50: 0, p90: 0}

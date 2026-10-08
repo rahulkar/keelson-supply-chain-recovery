@@ -1,0 +1,362 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "``network_map@1`` data (``data_ref``).",
+  "properties": {
+    "footprint": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "description": "Disruption footprint: a GeoJSON-shaped ``FeatureCollection`` of (multi)polygons whose\npositions are ``[lon_e6, lat_e6]`` integers (divide by 1e6 for GeoJSON degrees).",
+          "properties": {
+            "features": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "geometry": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "coordinates": {
+                            "items": {
+                              "items": {
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "prefixItems": [
+                                  {
+                                    "maximum": 180000000,
+                                    "minimum": -180000000,
+                                    "type": "integer"
+                                  },
+                                  {
+                                    "maximum": 90000000,
+                                    "minimum": -90000000,
+                                    "type": "integer"
+                                  }
+                                ],
+                                "type": "array"
+                              },
+                              "type": "array"
+                            },
+                            "minItems": 1,
+                            "title": "Coordinates",
+                            "type": "array"
+                          },
+                          "type": {
+                            "const": "Polygon",
+                            "title": "Type",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "coordinates"
+                        ],
+                        "title": "FootprintPolygon",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "coordinates": {
+                            "items": {
+                              "items": {
+                                "items": {
+                                  "maxItems": 2,
+                                  "minItems": 2,
+                                  "prefixItems": [
+                                    {
+                                      "maximum": 180000000,
+                                      "minimum": -180000000,
+                                      "type": "integer"
+                                    },
+                                    {
+                                      "maximum": 90000000,
+                                      "minimum": -90000000,
+                                      "type": "integer"
+                                    }
+                                  ],
+                                  "type": "array"
+                                },
+                                "type": "array"
+                              },
+                              "minItems": 1,
+                              "type": "array"
+                            },
+                            "minItems": 1,
+                            "title": "Coordinates",
+                            "type": "array"
+                          },
+                          "type": {
+                            "const": "MultiPolygon",
+                            "title": "Type",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "coordinates"
+                        ],
+                        "title": "FootprintMultiPolygon",
+                        "type": "object"
+                      }
+                    ],
+                    "discriminator": {
+                      "mapping": {
+                        "MultiPolygon": "#/$defs/FootprintMultiPolygon",
+                        "Polygon": "#/$defs/FootprintPolygon"
+                      },
+                      "propertyName": "type"
+                    },
+                    "title": "Geometry"
+                  },
+                  "properties": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "label": {
+                        "title": "Label",
+                        "type": "string"
+                      },
+                      "status": {
+                        "enum": [
+                          "disrupted",
+                          "impacted",
+                          "at_risk",
+                          "ok"
+                        ],
+                        "title": "Status",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "label",
+                      "status"
+                    ],
+                    "title": "FootprintProperties",
+                    "type": "object"
+                  },
+                  "type": {
+                    "const": "Feature",
+                    "title": "Type",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "geometry",
+                  "properties"
+                ],
+                "title": "FootprintFeature",
+                "type": "object"
+              },
+              "title": "Features",
+              "type": "array"
+            },
+            "type": {
+              "const": "FeatureCollection",
+              "title": "Type",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "features"
+          ],
+          "title": "Footprint",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "links": {
+      "items": {
+        "additionalProperties": false,
+        "description": "A lane on the map. ``from``/``to`` are node ids; ``path`` runs from ``from`` to\n``to`` (sea lanes follow catalogued waypoints, road lanes are straight).\n``option_id`` marks links proposed by a plan option (``null`` = current network).",
+        "properties": {
+          "from": {
+            "minLength": 1,
+            "title": "From",
+            "type": "string"
+          },
+          "id": {
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "inbound",
+              "transfer",
+              "sea_air",
+              "nearshore"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "option_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Option Id"
+          },
+          "path": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "maximum": 180000000,
+                  "minimum": -180000000,
+                  "type": "integer"
+                },
+                {
+                  "maximum": 90000000,
+                  "minimum": -90000000,
+                  "type": "integer"
+                }
+              ],
+              "type": "array"
+            },
+            "minItems": 2,
+            "title": "Path",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "disrupted",
+              "impacted",
+              "at_risk",
+              "ok"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "to": {
+            "minLength": 1,
+            "title": "To",
+            "type": "string"
+          },
+          "units": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Units"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "from",
+          "to",
+          "path",
+          "status"
+        ],
+        "title": "MapLink",
+        "type": "object"
+      },
+      "title": "Links",
+      "type": "array"
+    },
+    "nodes": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "dc",
+              "cluster",
+              "store",
+              "factory",
+              "supplier",
+              "port",
+              "airport",
+              "chokepoint"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "lat_e6": {
+            "maximum": 90000000,
+            "minimum": -90000000,
+            "title": "Lat E6",
+            "type": "integer"
+          },
+          "lon_e6": {
+            "maximum": 180000000,
+            "minimum": -180000000,
+            "title": "Lon E6",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "disrupted",
+              "impacted",
+              "at_risk",
+              "ok"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "units_at_risk": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Units At Risk"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "label",
+          "lat_e6",
+          "lon_e6",
+          "status"
+        ],
+        "title": "MapNode",
+        "type": "object"
+      },
+      "title": "Nodes",
+      "type": "array"
+    }
+  },
+  "required": [
+    "nodes",
+    "links"
+  ],
+  "title": "NetworkMapData",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.blocks.NetworkMapData"
+}

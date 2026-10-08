@@ -1,0 +1,41 @@
+{
+  "id": "blk_commit_conflicts",
+  "kind": "commit_tracker",
+  "v": 1,
+  "title": "Changes in Merxa",
+  "placement": "inline",
+  "provenance": {
+    "kind": "committed",
+    "engine": "keelson-engine@0.1",
+    "inputs_hash": "cc962289af2873dd",
+    "as_of": "2026-10-05"
+  },
+  "data_ref": null,
+  "props": {
+    "change_set_id": "cs_019a0c50",
+    "system": "Merxa",
+    "status": "verified",
+    "ext_code": "CB-2026-0042",
+    "ext_url": "http://merxa.localhost/change-batches/CB-2026-0042",
+    "applied": 9,
+    "verified": 9,
+    "actions": [
+      {
+        "type": "undo",
+        "label": "Undo changes",
+        "enabled": false,
+        "disabled_reason": "Merxa reports later changes on 2 of these records."
+      }
+    ],
+    "conflicts": [
+      {
+        "entity_ref": "TO-2026-0418",
+        "detail": "Quantity changed by Priya Shah after the change was applied"
+      },
+      {
+        "entity_ref": "AL-UK1-PUF-W-BLK-M",
+        "detail": "Allocation edited in Merxa on 7 Oct"
+      }
+    ]
+  }
+}

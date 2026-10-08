@@ -1,0 +1,3 @@
+# eval outputs (metrics JSON + Markdown summaries) stay local
+results/*
+!results/.gitkeep

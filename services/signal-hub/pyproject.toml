@@ -1,0 +1,71 @@
+[project]
+name = "keelson-signal-hub"
+version = "0.1.0"
+description = "Keelson Signal Hub: GDACS/USGS/RSS/connector-event signals, clustering, PostGIS exposure, alerts, demo pack replay (REST + MCP)."
+readme = "README.md"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    "keelson-contracts",
+    "fastapi==0.142.2",
+    "pydantic==2.13.5",
+    "uvicorn==0.54.0",
+    "asyncpg==0.31.0",
+    "httpx==0.28.1",
+    "fastmcp==4.0.11",
+    "mcp==2.3.0",
+    "pyjwt==2.15.1",
+    "pyyaml>=6.0.2",
+    "defusedxml>=0.7.1",
+    "cryptography>=46",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4",
+    "pytest-asyncio>=1.2",
+]
+
+[project.scripts]
+signal-hub-api = "signal_hub.app:run"
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/signal_hub"]
+
+[tool.uv]
+# Linux containers only (python:3.14-slim-trixie).
+environments = ["sys_platform == 'linux'"]
+
+[tool.uv.sources]
+keelson-contracts = { path = "../../packages/contracts-py", editable = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+markers = [
+    "postgis: needs a PostGIS database (SIGNAL_HUB_TEST_ADMIN_DSN); skipped otherwise",
+    "live: fetches the real public feeds (opt-in)",
+]
+filterwarnings = [
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+    # test_auth signs one token with HS512 on purpose (it must be rejected)
+    "ignore:The HMAC key is .* below the minimum recommended length",
+]
+
+[tool.ruff]
+line-length = 160
+target-version = "py314"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC", "RUF"]
+ignore = ["RUF001", "RUF002", "RUF003", "B008"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["signal_hub", "keelson_contracts"]

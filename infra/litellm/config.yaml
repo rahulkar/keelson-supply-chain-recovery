@@ -1,0 +1,31 @@
+# LiteLLM proxy (AI gateway) - ghcr.io/berriai/litellm-non_root:1.104.0
+#
+# No model_list: model aliases (models.lock) are upserted through the management API
+# by the engine bootstrap job and persisted in pg-litellm (store_model_in_db).
+# Never enable semantic caching or LiteLLM JWT auth (see product plan section 14).
+# Secrets are read from the environment (os.environ/...), never written here.
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL
+  store_model_in_db: true
+  background_health_checks: false
+  disable_spend_logs: false
+  # Fail closed when pg-litellm is unavailable (keys/budgets cannot be verified).
+  allow_requests_on_db_unavailable: false
+  # The admin UI is only exposed through Caddy (gateway.localhost, compose networks are
+  # docker bridge ranges): lets the UI login throttle key on the real client address.
+  trusted_proxy_ranges: ["172.16.0.0/12", "192.168.0.0/16", "10.0.0.0/8"]
+
+litellm_settings:
+  drop_params: true
+  modify_params: true
+  num_retries: 2
+  request_timeout: 600
+  set_verbose: false
+  json_logs: true
+
+router_settings:
+  routing_strategy: simple-shuffle
+  allowed_fails: 3
+  cooldown_time: 30

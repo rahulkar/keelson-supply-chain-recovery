@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "User-stated changes to the simulation; null/empty = unchanged.\n\n``max_cost_cents`` is integer euro cents (``\"cap extra cost at €5k\"`` → ``500000``).",
+  "properties": {
+    "delay_days": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Delay Days"
+    },
+    "duration_days": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Duration Days"
+    },
+    "exclude_levers": {
+      "items": {
+        "enum": [
+          "reallocate_inventory",
+          "expedite_mode_shift",
+          "resource_alt_supplier",
+          "prioritize_allocation",
+          "resequence_production"
+        ],
+        "type": "string"
+      },
+      "title": "Exclude Levers",
+      "type": "array"
+    },
+    "max_cost_cents": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Max Cost Cents"
+    },
+    "sku_filter": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Sku Filter",
+      "type": "array"
+    }
+  },
+  "required": [
+    "delay_days",
+    "duration_days",
+    "exclude_levers",
+    "sku_filter",
+    "max_cost_cents"
+  ],
+  "title": "ConstraintDelta",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.llm.ConstraintDelta"
+}

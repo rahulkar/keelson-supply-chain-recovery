@@ -1,0 +1,26 @@
+{
+  "id": "blk_kpi_invalid",
+  "kind": "kpi_strip",
+  "v": 1,
+  "title": "Broken KPI strip",
+  "placement": "inline",
+  "provenance": {
+    "kind": "simulated",
+    "engine": "keelson-opt@0.1",
+    "inputs_hash": "daeb30e06dcf8056",
+    "as_of": "2026-10-05"
+  },
+  "data_ref": null,
+  "props": {
+    "items": [
+      {
+        "key": "units_at_risk",
+        "label": "Units at risk",
+        "value": 184.5,
+        "unit": "kg",
+        "prov": "simulated",
+        "preliminary": true
+      }
+    ]
+  }
+}

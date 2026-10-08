@@ -1,0 +1,49 @@
+# Cloud Run job template: signal-hub-poll-${SH_ADAPTER} (compose: signal-hub-poller). One job per
+# adapter (gdacs, usgs, rss, extraction, sweep), each triggered by a Cloud Scheduler job
+# (${SH_SCHEDULE}); `--once` runs one poll and exits (1 = a fetch failed). Concurrent runs of one
+# adapter are skipped by an advisory lock. No Squid on Cloud Run: public feeds leave through
+# Cloud NAT (vpc-access-egress all-traffic also reaches Cloud SQL and the internal LiteLLM).
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: signal-hub-poll-${SH_ADAPTER}
+  labels:
+    cloud.googleapis.com/location: ${REGION}
+    app.kubernetes.io/part-of: keelson
+  annotations:
+    run.googleapis.com/launch-stage: GA
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/network-interfaces: '[{"network":"${NETWORK}","subnetwork":"${SUBNET}"}]'
+        run.googleapis.com/vpc-access-egress: all-traffic
+    spec:
+      parallelism: 1
+      taskCount: 1
+      template:
+        spec:
+          serviceAccountName: keelson-signal-hub@${PROJECT}.iam.gserviceaccount.com
+          maxRetries: 0
+          timeoutSeconds: 300
+          containers:
+            - name: poll
+              image: ${IMAGE_SIGNAL_HUB}
+              command: ["python", "-m", "signal_hub.poller", "--once", "--adapter", "${SH_ADAPTER}"]
+              resources:
+                limits:
+                  cpu: "1"
+                  memory: 512Mi
+              env:
+                - name: LITELLM_BASE_URL
+                  value: ${URL_LITELLM}
+                - name: SIGNALS_DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: keelson-signals-database-url
+                      key: latest
+                - name: LITELLM_SIGNALS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: keelson-litellm-signals-key
+                      key: latest

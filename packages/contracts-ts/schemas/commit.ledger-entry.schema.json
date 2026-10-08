@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One line of a per-op commit (one tool call per ``(change_set_id, line_seq)``).",
+  "properties": {
+    "attempts": {
+      "maximum": 3,
+      "minimum": 1,
+      "title": "Attempts",
+      "type": "integer"
+    },
+    "change_set_id": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Change Set Id",
+      "type": "string"
+    },
+    "connector": {
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,62}$",
+      "title": "Connector",
+      "type": "string"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Error"
+    },
+    "ext_ref": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ext Ref"
+    },
+    "idempotency": {
+      "enum": [
+        "enforced",
+        "best_effort",
+        "none"
+      ],
+      "title": "Idempotency",
+      "type": "string"
+    },
+    "line_seq": {
+      "minimum": 1,
+      "title": "Line Seq",
+      "type": "integer"
+    },
+    "op": {
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "title": "Op",
+      "type": "string"
+    },
+    "readback": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "description": "The last read-back of a line: ``found`` = the effect is visible in the target system.",
+          "properties": {
+            "at": {
+              "format": "date-time",
+              "title": "At",
+              "type": "string"
+            },
+            "detail": {
+              "anyOf": [
+                {
+                  "maxLength": 500,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Detail"
+            },
+            "found": {
+              "title": "Found",
+              "type": "boolean"
+            },
+            "ok": {
+              "title": "Ok",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "at",
+            "ok",
+            "found"
+          ],
+          "title": "LedgerReadback",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "request_id": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Request Id"
+    },
+    "state": {
+      "enum": [
+        "attempted",
+        "succeeded",
+        "in_doubt",
+        "failed",
+        "verified"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "tool": {
+      "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+      "title": "Tool",
+      "type": "string"
+    },
+    "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "change_set_id",
+    "line_seq",
+    "op",
+    "connector",
+    "tool",
+    "idempotency",
+    "state",
+    "attempts",
+    "request_id",
+    "updated_at"
+  ],
+  "title": "CommitLedgerEntry",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.commit.CommitLedgerEntry"
+}

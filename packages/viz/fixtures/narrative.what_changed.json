@@ -1,0 +1,18 @@
+{
+  "id": "blk_narrative_followup",
+  "kind": "narrative",
+  "v": 1,
+  "title": "Summary",
+  "placement": "inline",
+  "provenance": {
+    "kind": "inference",
+    "engine": "keelson-engine@0.4",
+    "inputs_hash": "a51f0c7e33d9b812",
+    "as_of": "2026-10-07"
+  },
+  "data_ref": null,
+  "props": {
+    "markdown": "- **With a 42-day closure the gap grows to 9,800 units** across DE1 and PL1.\n- **Rebalance + targeted sea-air is still the best trade-off**, now flying 3,100 units via Jebel Ali.\n",
+    "what_changed": "Plan v2: closure 21 → 42 days; units protected 4,300 → 6,900; extra cost €18,600 → €27,400"
+  }
+}

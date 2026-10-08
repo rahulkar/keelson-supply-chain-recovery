@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "``stockout_timeline@1`` data (``data_ref``): top rows by shortage.",
+  "properties": {
+    "rows": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "by_option": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "pattern": "^\\d{4}-W(0[1-9]|[1-4][0-9]|5[0-3])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "By Option",
+            "type": "object"
+          },
+          "cells": {
+            "items": {
+              "additionalProperties": false,
+              "description": "One row x week cell; ``shortage_units > 0`` exactly when ``status`` is ``short``.",
+              "properties": {
+                "shortage_units": {
+                  "minimum": 0,
+                  "title": "Shortage Units",
+                  "type": "integer"
+                },
+                "status": {
+                  "enum": [
+                    "ok",
+                    "tight",
+                    "short"
+                  ],
+                  "title": "Status",
+                  "type": "string"
+                },
+                "week": {
+                  "pattern": "^\\d{4}-W(0[1-9]|[1-4][0-9]|5[0-3])$",
+                  "title": "Week",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "week",
+                "status",
+                "shortage_units"
+              ],
+              "title": "TimelineCell",
+              "type": "object"
+            },
+            "title": "Cells",
+            "type": "array"
+          },
+          "cluster_code": {
+            "minLength": 1,
+            "title": "Cluster Code",
+            "type": "string"
+          },
+          "dc_code": {
+            "minLength": 1,
+            "title": "Dc Code",
+            "type": "string"
+          },
+          "first_breach_week": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-W(0[1-9]|[1-4][0-9]|5[0-3])$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "First Breach Week"
+          },
+          "id": {
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "style_code": {
+            "minLength": 1,
+            "title": "Style Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "dc_code",
+          "cluster_code",
+          "style_code",
+          "label",
+          "cells"
+        ],
+        "title": "StockoutRow",
+        "type": "object"
+      },
+      "maxItems": 40,
+      "title": "Rows",
+      "type": "array"
+    }
+  },
+  "required": [
+    "rows"
+  ],
+  "title": "StockoutTimelineData",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.blocks.StockoutTimelineData"
+}

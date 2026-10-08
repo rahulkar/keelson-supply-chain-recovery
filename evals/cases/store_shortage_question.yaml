@@ -1,0 +1,25 @@
+# Question golden case (docs/contracts/90 §9): an investigation-only question is answered with
+# evidence and never turns into a plan.
+id: store_shortage_question
+title: Which stores run short of puffer jackets before Black Friday?
+description: >
+  A plain question about the current data. Expect an answer (narrative) backed by an evidence
+  pack, numbers from placeholders, no approach card and no plan blocks.
+tags: [golden, question]
+setup:
+  reset_merxa: true
+turns:
+  - id: ask
+    message: Which stores run short of puffer jackets before Black Friday?
+    approach: none
+    expect:
+      run: success
+      answer: {min_evidence_items: 1, no_plan: true}
+      blocks_present: [narrative, evidence_pack]
+      blocks_absent: [recommended_option, plan_diff, scenario_compare, approach_card, approval_card]
+      numeric_grounding: {min: 1.0}
+      latency_s: {first_stage: 2}
+expect:
+  no_write_tool_calls: true
+  no_untrusted_tool_calls: true
+  no_commit_without_human: true

@@ -1,0 +1,21 @@
+{
+  "id": "blk_impact_graph",
+  "kind": "impact_graph",
+  "v": 1,
+  "title": "How the delay spreads",
+  "placement": "canvas",
+  "provenance": {
+    "kind": "simulated",
+    "engine": "keelson-opt@0.2",
+    "inputs_hash": "5f1c9a7e2b0d4c18",
+    "as_of": "2026-10-05"
+  },
+  "data_ref": "/api/blocks/blk_impact_graph/data",
+  "props": {
+    "summary": {
+      "nodes": 18,
+      "disrupted": 2,
+      "impacted": 7
+    }
+  }
+}

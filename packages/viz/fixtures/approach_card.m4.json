@@ -1,0 +1,58 @@
+{
+  "id": "blk_approach_m4",
+  "kind": "approach_card",
+  "v": 1,
+  "title": "Here’s what I understood and what I’ll check",
+  "placement": "inline",
+  "provenance": {
+    "kind": "inference",
+    "engine": "keelson-engine@0.4",
+    "inputs_hash": "4b1c09e2a7d35f60",
+    "as_of": "2026-10-07"
+  },
+  "data_ref": null,
+  "props": {
+    "interrupt_id": "approach-case_m4-1",
+    "event": {
+      "family": "LOG",
+      "type": "LOG.chokepoint_closure",
+      "description": "What if the Suez Canal closes for 3 weeks? Lanes SGN-HAM-SEA and SGN-GDN-SEA would switch to the Cape route.",
+      "source": "Chat"
+    },
+    "mode": "what_if",
+    "matched": {
+      "count": 14,
+      "sample": [
+        { "type": "chokepoint", "code": "SUEZ", "label": "Suez Canal" },
+        { "type": "lane", "code": "SGN-HAM-SEA", "label": "Ho Chi Minh City to Hamburg (sea)" },
+        { "type": "lane", "code": "SGN-GDN-SEA", "label": "Ho Chi Minh City to Gdańsk (sea)" },
+        { "type": "po_line", "code": "PO-VN-0004#1", "label": "Knit jumpers to DE1, ETA W45" }
+      ]
+    },
+    "assumptions": [
+      { "key": "duration_days", "label": "Closure", "value_text": "21 days", "prov": "decision", "source_evidence_ids": [], "unconfirmed": false },
+      { "key": "delay_days", "label": "Extra transit via the Cape", "value_text": "12 days (likely 10–16)", "prov": "assumption", "source_evidence_ids": [], "unconfirmed": false },
+      { "key": "affected_receipts", "label": "Receipts affected", "value_text": "3 receipts into DE1 and PL1", "prov": "inference", "source_evidence_ids": ["ev_lanes_01"], "unconfirmed": true }
+    ],
+    "checks": [
+      { "task_id": "t1", "sentence": "Which open purchase orders sail on lanes through Suez in the next 3 weeks" },
+      { "task_id": "t2", "sentence": "How much later those receipts reach DE1 and PL1 via the Cape" },
+      { "task_id": "t3", "sentence": "How much stock DE1 and PL1 hold for the affected knitwear styles" },
+      { "task_id": "t4", "sentence": "Whether sea–air via Jebel Ali or near-shore suppliers can cover the gap" },
+      { "task_id": "t5", "sentence": "What our freight & expedite policy allows for premium freight" }
+    ],
+    "buttons": ["confirm", "edit", "cancel"],
+    "agents": [
+      { "slug": "logistics", "display_name": "Logistics analyst" },
+      { "slug": "sourcing", "display_name": "Sourcing analyst" },
+      { "slug": "inventory_demand", "display_name": "Inventory & demand analyst" },
+      { "slug": "playbook", "display_name": "Playbook analyst" },
+      { "slug": "critic", "display_name": "Critic" }
+    ],
+    "editable": [
+      { "key": "duration_days", "label": "Closure (days)", "kind": "days", "value_int": 21, "value_ids": null },
+      { "key": "delay_days", "label": "Extra transit (days)", "kind": "days", "value_int": 12, "value_ids": null },
+      { "key": "affected_receipts", "label": "Receipts affected", "kind": "ids", "value_int": null, "value_ids": ["PO-VN-0004#1", "PO-VN-0006#1", "PO-VN-0007#2"] }
+    ]
+  }
+}

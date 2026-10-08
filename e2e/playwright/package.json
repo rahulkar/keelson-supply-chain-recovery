@@ -1,0 +1,17 @@
+{
+  "name": "keelson-e2e-playwright",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Browser-level end-to-end tests of the Keelson M1 thin slice (real stack, Playwright).",
+  "scripts": {
+    "test": "playwright test",
+    "test:golden": "playwright test act3-thin-slice",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.63.0",
+    "@types/node": "24.19.1",
+    "typescript": "5.9.3"
+  }
+}

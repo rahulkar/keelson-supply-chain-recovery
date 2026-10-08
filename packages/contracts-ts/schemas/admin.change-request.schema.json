@@ -1,0 +1,293 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "``admin_change_request`` row / API shape (``202`` body of a guarded PUT/PATCH,\n``GET /api/admin/change-requests``).",
+  "properties": {
+    "approver": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "description": "Who decided; ``role`` = the admin role the decision was made under (``platform-admin`` =\nco-sign from outside the tenant).",
+          "properties": {
+            "name": {
+              "maxLength": 200,
+              "title": "Name",
+              "type": "string"
+            },
+            "role": {
+              "enum": [
+                "tenant-admin",
+                "platform-admin"
+              ],
+              "title": "Role",
+              "type": "string"
+            },
+            "sub": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Sub",
+              "type": "string"
+            },
+            "username": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Username",
+              "type": "string"
+            }
+          },
+          "required": [
+            "sub",
+            "username",
+            "name",
+            "role"
+          ],
+          "title": "ChangeApprover",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "base_version": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Base Version"
+    },
+    "decided_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Decided At"
+    },
+    "decision_reason": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Decision Reason"
+    },
+    "diff": {
+      "items": {
+        "additionalProperties": false,
+        "description": "One RFC 6902-style difference between the current and the requested state (for the\n\"Pending changes\" diff view). ``add`` has no ``before``, ``remove`` no ``after``.",
+        "properties": {
+          "after": {
+            "default": null,
+            "title": "After"
+          },
+          "before": {
+            "default": null,
+            "title": "Before"
+          },
+          "op": {
+            "enum": [
+              "add",
+              "remove",
+              "replace"
+            ],
+            "title": "Op",
+            "type": "string"
+          },
+          "path": {
+            "maxLength": 500,
+            "pattern": "^(/([^~/]|~[01])*)*$",
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "op",
+          "path"
+        ],
+        "title": "ChangeDiffEntry",
+        "type": "object"
+      },
+      "maxItems": 200,
+      "minItems": 1,
+      "title": "Diff",
+      "type": "array"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+    },
+    "id": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Id",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "agent_spec",
+        "policy_set",
+        "connector_tool",
+        "tool_binding",
+        "connector_activate",
+        "connector_trust",
+        "embedding_profile",
+        "connector_delete",
+        "kb_delete",
+        "user_roles"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "payload": {
+      "additionalProperties": true,
+      "title": "Payload",
+      "type": "object"
+    },
+    "reasons": {
+      "items": {
+        "additionalProperties": false,
+        "description": "Why a change is guarded (one entry per guarded field / rule).",
+        "properties": {
+          "code": {
+            "enum": [
+              "auto_cap_raised",
+              "approval_threshold_raised",
+              "approver_changed",
+              "quorum_lowered",
+              "planning_connector_changed",
+              "auto_rule_added",
+              "policy_rule_removed",
+              "policy_rule_weakened",
+              "tool_reclassified_read",
+              "tool_reclassified_trusted",
+              "auto_binding_on_write",
+              "external_egress_enabled",
+              "first_party_trust_added",
+              "embedding_profile_changed",
+              "connector_deleted",
+              "kb_deleted",
+              "admin_role_granted"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "field": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Field",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "field",
+          "reason"
+        ],
+        "title": "GuardReason",
+        "type": "object"
+      },
+      "maxItems": 50,
+      "minItems": 1,
+      "title": "Reasons",
+      "type": "array"
+    },
+    "requested_at": {
+      "format": "date-time",
+      "title": "Requested At",
+      "type": "string"
+    },
+    "requested_by": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "maxLength": 200,
+          "title": "Name",
+          "type": "string"
+        },
+        "sub": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Sub",
+          "type": "string"
+        },
+        "username": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Username",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sub",
+        "username",
+        "name"
+      ],
+      "title": "AdminActor",
+      "type": "object"
+    },
+    "status": {
+      "enum": [
+        "pending",
+        "approved",
+        "rejected",
+        "applied",
+        "expired"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "target": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Target",
+      "type": "string"
+    },
+    "tenant": {
+      "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+      "title": "Tenant",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "tenant",
+    "kind",
+    "target",
+    "payload",
+    "base_version",
+    "diff",
+    "reasons",
+    "requested_by",
+    "requested_at",
+    "status",
+    "approver",
+    "decided_at",
+    "decision_reason",
+    "expires_at"
+  ],
+  "title": "AdminChangeRequest",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.admin.AdminChangeRequest"
+}

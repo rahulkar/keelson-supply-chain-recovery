@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "as_of": {
+      "format": "date",
+      "title": "As Of",
+      "type": "string"
+    },
+    "engine": {
+      "minLength": 1,
+      "title": "Engine",
+      "type": "string"
+    },
+    "inputs_hash": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Inputs Hash"
+    },
+    "kind": {
+      "description": "Where a number or statement comes from (plan §3.3).",
+      "enum": [
+        "fact",
+        "inference",
+        "assumption",
+        "simulated",
+        "decision",
+        "committed"
+      ],
+      "title": "Provenance",
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "engine",
+    "as_of"
+  ],
+  "title": "BlockProvenance",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.blocks.BlockProvenance"
+}

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SIMULATED demo data (Keelson pack suez-closure). "Simulated Shipping Wire" is a fictional outlet and
+     the closure described here is invented for the demo; the .example domain is reserved and never resolves.
+     Shaped like an Atom 1.0 news feed (the Signal Hub's RSS adapter reads RSS 2.0 and Atom; it keeps the
+     title, a <= 300 character snippet of <summary> and the alternate link only). -->
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+	<title>Simulated Shipping Wire</title>
+	<subtitle>Fictional news wire for Keelson demo packs. Simulated news, not real events.</subtitle>
+	<id>tag:simulated-shipping-wire.example,2026:feed</id>
+	<link rel="self" href="https://simulated-shipping-wire.example/atom.xml" />
+	<link rel="alternate" href="https://simulated-shipping-wire.example/" />
+	<updated>2026-10-05T12:00:00Z</updated>
+	<author><name>Simulated Shipping Wire</name></author>
+	<entry>
+		<title>Asia-Europe carriers pause Suez routings; transit times to stretch 10 to 14 days</title>
+		<link rel="alternate" type="text/html" href="https://simulated-shipping-wire.example/2026/10/05/carriers-pause-suez-routings" />
+		<id>tag:simulated-shipping-wire.example,2026-10-05:suez-routings-paused</id>
+		<published>2026-10-05T12:00:00Z</published>
+		<updated>2026-10-05T12:00:00Z</updated>
+		<summary type="html">&lt;p&gt;Major Asia&amp;ndash;North Europe services will skip the Suez Canal until further notice. Shippers are told to expect transit times to stretch by 10 to 14 days and higher bunker surcharges.&lt;/p&gt;</summary>
+	</entry>
+</feed>

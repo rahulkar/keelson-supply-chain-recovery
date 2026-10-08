@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One tenant node or lane an event touches (``100`` §5).",
+  "properties": {
+    "distance_km": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Distance Km"
+    },
+    "event_id": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Event Id",
+      "type": "string"
+    },
+    "method": {
+      "enum": [
+        "intersects",
+        "dwithin_km",
+        "lane_crosses",
+        "entity_match"
+      ],
+      "title": "Method",
+      "type": "string"
+    },
+    "node_code": {
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Node Code",
+      "type": "string"
+    },
+    "node_type": {
+      "enum": [
+        "supplier",
+        "factory",
+        "port",
+        "dc",
+        "store",
+        "lane"
+      ],
+      "title": "Node Type",
+      "type": "string"
+    },
+    "tenant": {
+      "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+      "title": "Tenant",
+      "type": "string"
+    },
+    "weight_bp": {
+      "maximum": 10000,
+      "minimum": 0,
+      "title": "Weight Bp",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "event_id",
+    "tenant",
+    "node_type",
+    "node_code",
+    "method",
+    "distance_km",
+    "weight_bp"
+  ],
+  "title": "Exposure",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.signals.Exposure"
+}

@@ -1,0 +1,504 @@
+# Keelson + Merxa — local stack (M1). See docs/contracts/00-overview.md.
+# Prereq: run scripts/init.ps1 (or scripts/init.sh) once to generate .env + secrets/.
+# GEMINI_API_KEY is read from the host environment (never written to files).
+name: keelson
+
+x-py-service: &py-service
+  restart: unless-stopped
+  init: true
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "3" }
+
+secrets:
+  keelson_client_assertion_key: { file: ./secrets/keelson_client_assertion_key.pem }
+  keelson_receipt_key: { file: ./secrets/keelson_receipt_key.pem }
+  keelson_data_key: { file: ./secrets/keelson_data_key }
+
+networks:
+  edge: {}
+  app: {}
+  ai: {}
+  vendor: {}
+
+volumes:
+  pg_core: {}
+  pg_litellm: {}
+  pg_merxa: {}
+  valkey_data: {}
+  squid_cache: {}
+  merxa_snapshots: {}
+
+services:
+  # ───────────────────────────── edge ─────────────────────────────
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80"]
+    environment:
+      DEV_ALLOW_KC_ADMIN: ${DEV_ALLOW_KC_ADMIN:-0}
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+    networks:
+      edge:
+        aliases: [keelson.localhost, merxa.localhost, auth.localhost, gateway.localhost, traces.localhost]
+      app:
+        aliases: [keelson.localhost, auth.localhost]
+      ai: {}
+    mem_limit: 96m
+    cpus: 0.5
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:2019/config/"]
+      interval: 10s
+      retries: 10
+
+  egress:
+    image: ubuntu/squid:latest
+    restart: unless-stopped
+    volumes:
+      - ./infra/squid/squid.conf:/etc/squid/squid.conf:ro
+      - squid_cache:/var/spool/squid
+    networks: [edge, app]
+    mem_limit: 128m
+    cpus: 0.5
+
+  # ─────────────────────────── identity ───────────────────────────
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.0
+    restart: unless-stopped
+    command: ["start-dev", "--db=postgres"]
+    environment:
+      KC_DB_URL: jdbc:postgresql://pg-core:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KC_HOSTNAME: http://auth.localhost
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HEALTH_ENABLED: "true"
+      KC_CACHE: local
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
+      JAVA_OPTS_KC_HEAP: "-XX:MaxRAMPercentage=60 -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20"
+    depends_on:
+      pg-core: { condition: service_healthy }
+    networks: [edge, app]
+    mem_limit: 900m
+    cpus: 1.5
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000; printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3; grep -q '\"UP\"' <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+
+  kc-config:
+    image: adorsys/keycloak-config-cli:6.5.1-26   # = latest-26 as of 2026-10 (sha256:1b22dfaa...), pinned
+    restart: "no"
+    environment:
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_USER: admin
+      KEYCLOAK_PASSWORD: ${KC_ADMIN_PASSWORD}
+      KEYCLOAK_AVAILABILITYCHECK_ENABLED: "true"
+      KEYCLOAK_AVAILABILITYCHECK_TIMEOUT: 180s
+      IMPORT_FILES_LOCATIONS: /config/*.yaml
+      IMPORT_VARSUBSTITUTION_ENABLED: "true"
+      # Pin the safety-relevant defaults (survive image upgrades): only delete what kc-config
+      # itself created, never delete client scopes, keep users' default realm role.
+      IMPORT_REMOTESTATE_ENABLED: "true"
+      IMPORT_MANAGED_CLIENTSCOPE: no-delete
+      IMPORT_BEHAVIORS_REMOVEDEFAULTROLEFROMUSER: "false"
+      DEMO_ENABLED: ${DEMO_ENABLED:-true}
+      KEELSON_BFF_CLIENT_SECRET: ${KEELSON_BFF_CLIENT_SECRET}
+      KEELSON_DEMO_CLIENT_SECRET: ${KEELSON_DEMO_CLIENT_SECRET}
+      MERXA_WEB_CLIENT_SECRET: ${MERXA_WEB_CLIENT_SECRET}
+      MERXA_DEMO_CLIENT_SECRET: ${MERXA_DEMO_CLIENT_SECRET}
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD}
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=60"
+    volumes:
+      - ./infra/keycloak/config:/config:ro
+    depends_on:
+      keycloak: { condition: service_healthy }
+    networks: [app]
+    mem_limit: 512m
+
+  # ─────────────────────────── data stores ───────────────────────────
+  pg-core:
+    build: ./infra/postgres/core
+    restart: unless-stopped
+    command: ["postgres", "-c", "shared_buffers=64MB", "-c", "max_connections=120", "-c", "work_mem=8MB"]
+    environment:
+      POSTGRES_PASSWORD: ${PG_CORE_SUPERPASSWORD}
+      KEELSON_DB_PASSWORD: ${KEELSON_DB_PASSWORD}
+      ADK_DB_PASSWORD: ${ADK_DB_PASSWORD}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+    volumes:
+      - pg_core:/var/lib/postgresql
+    networks: [app]
+    mem_limit: 384m
+    healthcheck:
+      # TCP probe: during first-boot init the temporary server listens on the unix socket only.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d keelson"]
+      interval: 5s
+      retries: 30
+
+  pg-litellm:
+    image: postgres:18-trixie
+    restart: unless-stopped
+    command: ["postgres", "-c", "shared_buffers=32MB", "-c", "max_connections=60"]
+    environment:
+      POSTGRES_DB: litellm
+      POSTGRES_USER: litellm
+      POSTGRES_PASSWORD: ${LITELLM_DB_PASSWORD}
+    volumes:
+      - pg_litellm:/var/lib/postgresql
+    networks: [ai]
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U litellm -d litellm"]   # TCP: see pg-core
+      interval: 5s
+      retries: 30
+
+  pg-merxa:
+    image: postgres:18-trixie
+    restart: unless-stopped
+    command: ["postgres", "-c", "shared_buffers=48MB", "-c", "max_connections=60"]
+    environment:
+      POSTGRES_DB: merxa
+      POSTGRES_USER: merxa
+      POSTGRES_PASSWORD: ${MERXA_DB_PASSWORD}
+    volumes:
+      - pg_merxa:/var/lib/postgresql
+    networks: [vendor]
+    mem_limit: 320m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U merxa -d merxa"]   # TCP: see pg-core
+      interval: 5s
+      retries: 30
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    command: ["valkey-server", "--appendonly", "yes", "--requirepass", "${VALKEY_PASSWORD}", "--maxmemory", "64mb", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - valkey_data:/data
+    networks: [app]
+    mem_limit: 128m
+    healthcheck:
+      test: ["CMD-SHELL", "valkey-cli -a \"$${VALKEY_PASSWORD}\" --no-auth-warning ping | grep -q PONG"]
+      interval: 5s
+      retries: 20
+    environment:
+      VALKEY_PASSWORD: ${VALKEY_PASSWORD}
+
+  # ─────────────────────────── AI gateway ───────────────────────────
+  litellm:
+    image: ghcr.io/berriai/litellm-non_root:1.104.0
+    restart: unless-stopped
+    command: ["--config", "/app/config.yaml", "--port", "4000", "--num_workers", "1"]
+    environment:
+      DATABASE_URL: postgresql://litellm:${LITELLM_DB_PASSWORD}@pg-litellm:5432/litellm
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
+      STORE_MODEL_IN_DB: "True"
+      GEMINI_API_KEY: ${GEMINI_API_KEY:?GEMINI_API_KEY must be set in the host environment}
+      UI_USERNAME: admin
+      UI_PASSWORD: ${LITELLM_UI_PASSWORD}
+      PROXY_BASE_URL: http://gateway.localhost
+      LITELLM_LOG: INFO
+    volumes:
+      - ./infra/litellm/config.yaml:/app/config.yaml:ro
+    depends_on:
+      pg-litellm: { condition: service_healthy }
+    networks: [ai]
+    mem_limit: 1200m
+    cpus: 1.5
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:4000/health/readiness',timeout=5)"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+
+  # ─────────────────────────── Merxa (third party) ───────────────────────────
+  merxa-api:
+    <<: *py-service
+    build: ./services/merxa-api
+    environment:
+      PORT: "8100"
+      MERXA_DATABASE_URL: postgresql+asyncpg://merxa:${MERXA_DB_PASSWORD}@pg-merxa:5432/merxa
+      OIDC_ISSUER: http://auth.localhost/realms/merxa
+      MCP_RESOURCE: http://merxa.localhost/mcp
+      PUBLIC_URL: http://merxa.localhost
+      TRUSTED_RECEIPT_ISSUERS: http://keelson.localhost
+      KEELSON_JWKS_URL: http://keelson.localhost/api/.well-known/jwks.json
+      MERXA_WEB_CLIENT_SECRET: ${MERXA_WEB_CLIENT_SECRET}
+      MERXA_DEMO_CLIENT_SECRET: ${MERXA_DEMO_CLIENT_SECRET}
+      SESSION_SECRET: ${SESSION_SECRET}
+      DEMO_MODE: ${DEMO_MODE:-1}
+      SEED_PROFILE: ${SEED_PROFILE:-full}
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD}
+      MERXA_WEBHOOK_SECRET: ${MERXA_WEBHOOK_SECRET}
+      KEELSON_WEBHOOK_URL: http://keelson.localhost/api/webhooks/demo-retail/merxa
+      MERXA_SNAPSHOT_SECRET: ${MERXA_SNAPSHOT_SECRET}
+      SNAPSHOT_DIR: /data/snapshots
+      PUBLIC_BASE_DOMAIN: ${PUBLIC_BASE_DOMAIN:-localhost}
+    volumes:
+      - merxa_snapshots:/data/snapshots
+    depends_on:
+      pg-merxa: { condition: service_healthy }
+    networks: [vendor, edge]
+    mem_limit: 384m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8100/healthz',timeout=3)"]
+      interval: 10s
+      retries: 30
+      start_period: 20s
+
+  merxa-web:
+    build:
+      context: .
+      dockerfile: apps/merxa-web/Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: "3001"
+      HOSTNAME: 0.0.0.0
+      MERXA_API_INTERNAL_URL: http://merxa-api:8100
+    depends_on:
+      merxa-api: { condition: service_healthy }
+    networks: [edge]
+    mem_limit: 256m
+
+  # ─────────────────────────── Keelson (engine) ───────────────────────────
+  optimizer:
+    <<: *py-service
+    build:
+      context: .
+      dockerfile: services/optimizer/Dockerfile
+    environment:
+      PORT: "8200"
+      OPTIMIZER_SHARED_SECRET: ${OPTIMIZER_SHARED_SECRET}
+      CPSAT_NUM_WORKERS: "1"
+    networks: [app]
+    mem_limit: 512m
+    cpus: 1.5
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8200/healthz',timeout=3)"]
+      interval: 10s
+      retries: 20
+
+  bootstrap:
+    build:
+      context: .
+      dockerfile: services/engine/Dockerfile
+    restart: "no"
+    command: ["python", "-m", "keelson_engine.bootstrap"]
+    env_file: [.env]
+    environment: &engine-env
+      KEELSON_DATABASE_URL: postgresql+asyncpg://keelson:${KEELSON_DB_PASSWORD}@pg-core:5432/keelson
+      ADK_DATABASE_URL: postgresql+asyncpg://adk:${ADK_DB_PASSWORD}@pg-core:5432/adk
+      VALKEY_URL: redis://:${VALKEY_PASSWORD}@valkey:6379/0
+      LITELLM_BASE_URL: http://litellm:4000
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      # engine-level LLM record/replay (runtime/replay.py): off | record | replay | record_or_replay.
+      # This dev/demo stack records every live call and replays identical requests (fail-closed
+      # demos/evals: LLM_REPLAY_MODE=replay); production leaves it unset (= off).
+      LLM_REPLAY_MODE: ${LLM_REPLAY_MODE:-record_or_replay}
+      KEYCLOAK_INTERNAL_URL: http://keycloak:8080
+      KC_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
+      OIDC_ISSUER: http://auth.localhost/realms/keelson
+      MERXA_ISSUER: http://auth.localhost/realms/merxa
+      MERXA_MCP_URL: http://merxa.localhost/mcp
+      PUBLIC_URL: http://keelson.localhost
+      CONNECTOR_PROXY_URL: http://egress:3128
+      OPTIMIZER_URL: http://optimizer:8200
+      OPTIMIZER_SHARED_SECRET: ${OPTIMIZER_SHARED_SECRET}
+      # M6 Signal Hub (internal; service JWT HS256). Empty URL = the integration is off.
+      SIGNAL_HUB_URL: ${SIGNAL_HUB_URL-http://signal-hub-api:8300}
+      SIGNAL_HUB_SHARED_SECRET: ${SIGNAL_HUB_SHARED_SECRET}
+      KEELSON_BFF_CLIENT_SECRET: ${KEELSON_BFF_CLIENT_SECRET}
+      KEELSON_DEMO_CLIENT_SECRET: ${KEELSON_DEMO_CLIENT_SECRET}
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD}
+      SESSION_SECRET: ${SESSION_SECRET}
+      DEMO_ACCESS_SECRET: ${DEMO_ACCESS_SECRET}
+      DEMO_MODE: ${DEMO_MODE:-1}
+      PUBLIC_BASE_DOMAIN: ${PUBLIC_BASE_DOMAIN:-localhost}
+      MERXA_WEBHOOK_SECRET: ${MERXA_WEBHOOK_SECRET}
+      CONNECTOR_DEV_HOSTS: merxa.localhost
+      PACKS_DIR: /app/packs
+      BRAND_ENGINE_NAME: ${BRAND_ENGINE_NAME:-Keelson}
+      BRAND_VENDOR_NAME: ${BRAND_VENDOR_NAME:-Merxa}
+      MODELS_LOCK: /app/models.lock
+    volumes:
+      - ./models.lock:/app/models.lock:ro
+      - ./data/packs:/app/packs:ro
+      - ./infra/tenants.yaml:/app/tenants.yaml:ro
+    secrets: [keelson_client_assertion_key, keelson_receipt_key, keelson_data_key]
+    depends_on:
+      pg-core: { condition: service_healthy }
+      litellm: { condition: service_healthy }
+      kc-config: { condition: service_completed_successfully }
+      merxa-api: { condition: service_healthy }
+    networks: [app, ai]
+    mem_limit: 512m
+
+  engine-api:
+    <<: *py-service
+    build:
+      context: .
+      dockerfile: services/engine/Dockerfile
+    # --timeout-graceful-shutdown: open SSE streams end on SIGTERM (keelson_engine.api.shutdown);
+    # this only bounds a stuck response so `docker compose stop` (10 s) never needs SIGKILL.
+    command: ["uvicorn", "keelson_engine.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*", "--timeout-graceful-shutdown", "5"]
+    environment:
+      <<: *engine-env
+      # M7 (110 §6): GET /api/admin/evals lists the latest CLI eval runs (evals/run_live.py)
+      EVALS_RESULTS_DIR: /app/evals/results
+    volumes:
+      - ./models.lock:/app/models.lock:ro
+      - ./data/packs:/app/packs:ro
+      - ./evals/results:/app/evals/results:ro
+    secrets: [keelson_client_assertion_key, keelson_receipt_key, keelson_data_key]
+    depends_on:
+      bootstrap: { condition: service_completed_successfully }
+      valkey: { condition: service_healthy }
+    networks: [edge, app, ai]
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/api/healthz',timeout=3)"]
+      interval: 10s
+      retries: 30
+
+  engine-worker:
+    <<: *py-service
+    build:
+      context: .
+      dockerfile: services/engine/Dockerfile
+    command: ["python", "-m", "keelson_engine.worker"]
+    environment:
+      <<: *engine-env
+      # fewer glibc malloc arenas for the worker's threads (sync validation, ADK, LiteLLM): less
+      # retained heap; the case path + a scn sync are memory-heavy (see mem_limit below)
+      MALLOC_ARENA_MAX: "2"
+    volumes:
+      - ./models.lock:/app/models.lock:ro
+      - ./data/packs:/app/packs:ro
+    secrets: [keelson_client_assertion_key, keelson_receipt_key, keelson_data_key]
+    depends_on:
+      bootstrap: { condition: service_completed_successfully }
+      valkey: { condition: service_healthy }
+      optimizer: { condition: service_healthy }
+    networks: [app, ai]
+    # M3: imports alone are ~370 MB (litellm ~170 MB); a warm worker settles at ~660-710 MB after
+    # its first full-profile case and a scn sync adds ~100-200 MB on top (peak 748 MB of the old
+    # 768m limit). Cloud Run gives the worker pool 2Gi.
+    mem_limit: 1024m
+    cpus: 1.5
+
+  keelson-web:
+    build:
+      context: .
+      dockerfile: apps/keelson-web/Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+      ENGINE_API_INTERNAL_URL: http://engine-api:8000
+    depends_on:
+      engine-api: { condition: service_healthy }
+    networks: [edge]
+    mem_limit: 384m
+
+  # ─────────────────────────── Signal Hub (M6, docs/contracts/100) ───────────────────────────
+  # One image, three roles. Internal only (no Caddy route); callers use an engine service JWT.
+  signal-hub-bootstrap:
+    build:
+      context: .
+      dockerfile: services/signal-hub/Dockerfile
+    restart: "no"
+    command: ["python", "-m", "signal_hub.bootstrap"]
+    environment:
+      # pg-core superuser: only for CREATE ROLE/DATABASE/EXTENSION; migrations run as role signals.
+      SIGNALS_ADMIN_DSN: postgresql://postgres:${PG_CORE_SUPERPASSWORD}@pg-core:5432/postgres
+      SIGNALS_DB_PASSWORD: ${SIGNALS_DB_PASSWORD:?run scripts/init to generate SIGNALS_DB_PASSWORD}
+      SIGNALS_DATABASE_URL: postgresql://signals:${SIGNALS_DB_PASSWORD}@pg-core:5432/signals
+      # M7: upsert the dedicated news-extraction virtual key (models extract-fast + guard-default,
+      # small max_budget) and store it encrypted in the signals DB. The master key is given to this
+      # one-shot container ONLY; api/poller never see it. Unset / LiteLLM down → skipped (news pending).
+      LITELLM_BASE_URL: http://litellm:4000
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-}
+      SIGNAL_HUB_SHARED_SECRET: ${SIGNAL_HUB_SHARED_SECRET:?run scripts/init to generate SIGNAL_HUB_SHARED_SECRET}
+      SIGNALS_DATA_KEY: ${SIGNALS_DATA_KEY:-}
+      SIGNALS_LLM_MAX_BUDGET: ${SIGNALS_LLM_MAX_BUDGET:-5}
+      SIGNALS_LITELLM_WAIT_S: ${SIGNALS_LITELLM_WAIT_S:-180}
+    depends_on:
+      pg-core: { condition: service_healthy }
+    networks: [app, ai]
+    mem_limit: 192m
+
+  signal-hub-api:
+    <<: *py-service
+    build:
+      context: .
+      dockerfile: services/signal-hub/Dockerfile
+    environment: &signal-hub-env
+      PORT: "8300"
+      SIGNALS_DATABASE_URL: postgresql://signals:${SIGNALS_DB_PASSWORD}@pg-core:5432/signals
+      SIGNAL_HUB_SHARED_SECRET: ${SIGNAL_HUB_SHARED_SECRET:?run scripts/init to generate SIGNAL_HUB_SHARED_SECRET}
+      # News extraction: LiteLLM with a dedicated virtual key (never the master key). The key the
+      # bootstrap provisioned is read from the signals DB (decrypted with SIGNALS_DATA_KEY, else a key
+      # derived from SIGNAL_HUB_SHARED_SECRET); a non-empty LITELLM_SIGNALS_KEY overrides it. No key /
+      # 402 → items stay pending_extraction and are retried later.
+      LITELLM_BASE_URL: http://litellm:4000
+      LITELLM_SIGNALS_KEY: ${LITELLM_SIGNALS_KEY:-}
+      SIGNALS_DATA_KEY: ${SIGNALS_DATA_KEY:-}
+      DEMO_MODE: ${DEMO_MODE:-1}
+      DEMO_TENANTS: ${SIGNALS_DEMO_TENANTS:-}
+      DEMO_FEEDS_BASE_URL: http://signal-hub-api:8300/demo-feeds
+      GDACS_URL: ${GDACS_URL:-https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?eventlist=TC;EQ;FL&alertlevel=orange;red}
+      USGS_URL: ${USGS_URL:-https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson}
+      RSS_FEEDS: "${RSS_FEEDS:-rss.theloadstar=The Loadstar|https://theloadstar.com/feed/}"
+      LOG_LEVEL: ${SIGNALS_LOG_LEVEL:-INFO}
+    volumes:
+      - ./data/scenarios:/app/scenarios:ro
+    depends_on:
+      signal-hub-bootstrap: { condition: service_completed_successfully }
+    networks: [app, ai]
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8300/healthz',timeout=3)"]
+      interval: 10s
+      retries: 30
+
+  signal-hub-poller:
+    <<: *py-service
+    build:
+      context: .
+      dockerfile: services/signal-hub/Dockerfile
+    command: ["python", "-m", "signal_hub.poller"]
+    environment:
+      <<: *signal-hub-env
+      # public feeds only through the egress proxy (Squid denies internal destinations)
+      HTTPS_PROXY: http://egress:3128
+      HTTP_PROXY: http://egress:3128
+      # least privilege: the poller parses internet data and needs neither the LLM key (the API
+      # extracts news) nor the service-JWT secret (it serves no requests)
+      LITELLM_SIGNALS_KEY: ""
+      SIGNAL_HUB_SHARED_SECRET: ""
+      SIGNALS_DATA_KEY: ""
+    depends_on:
+      signal-hub-bootstrap: { condition: service_completed_successfully }
+      egress: { condition: service_started }
+    networks: [app]
+    mem_limit: 256m
+
+  # ─────────────────────────── observability (profile obs) ───────────────────────────
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    profiles: [obs]
+    restart: unless-stopped
+    environment:
+      PHOENIX_ENABLE_AUTH: "true"
+      PHOENIX_SECRET: ${PHOENIX_SECRET:-change-me-phoenix-secret-32chars-min}
+    networks: [edge, app, ai]
+    mem_limit: 768m

@@ -1,0 +1,90 @@
+{
+  "id": "blk_network_map",
+  "kind": "network_map",
+  "v": 1,
+  "title": "Supply network",
+  "placement": "canvas",
+  "provenance": {
+    "kind": "simulated",
+    "engine": "keelson-opt@0.2",
+    "inputs_hash": "5f1c9a7e2b0d4c18",
+    "as_of": "2026-10-05"
+  },
+  "data_ref": "/api/blocks/blk_network_map/data",
+  "props": {
+    "title": "Supply network",
+    "summary": {
+      "nodes": 16,
+      "at_risk_nodes": 10,
+      "lanes": 17
+    },
+    "bbox": [
+      -10000000,
+      5000000,
+      92600000,
+      54000000
+    ],
+    "legend": [
+      {
+        "key": "disrupted",
+        "label": "Disrupted",
+        "kind": "node"
+      },
+      {
+        "key": "impacted",
+        "label": "Impacted",
+        "kind": "node"
+      },
+      {
+        "key": "at_risk",
+        "label": "At risk",
+        "kind": "node"
+      },
+      {
+        "key": "ok",
+        "label": "OK",
+        "kind": "node"
+      },
+      {
+        "key": "inbound",
+        "label": "Inbound lane",
+        "kind": "link"
+      },
+      {
+        "key": "transfer",
+        "label": "Transfer",
+        "kind": "link"
+      },
+      {
+        "key": "sea_air",
+        "label": "Sea–air (proposed)",
+        "kind": "link"
+      },
+      {
+        "key": "nearshore",
+        "label": "Near-shore (proposed)",
+        "kind": "link"
+      },
+      {
+        "key": "opt_rebalance",
+        "label": "Rebalance between DCs",
+        "kind": "link"
+      },
+      {
+        "key": "opt_sea_air",
+        "label": "Rebalance + targeted sea–air",
+        "kind": "link"
+      },
+      {
+        "key": "opt_nearshore",
+        "label": "Near-shore top-up + resequence",
+        "kind": "link"
+      },
+      {
+        "key": "disrupted",
+        "label": "Disruption area",
+        "kind": "footprint"
+      }
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+@import "tailwindcss";
+@import "@keelson/tokens/theme.css";
+@import "@keelson/ui/styles.css";
+@import "@keelson/viz/styles.css";
+
+@layer base {
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    background-color: var(--k-bg);
+    color: var(--k-fg);
+  }
+
+  /* Skip link: visible only when focused. */
+  .k-skip-link {
+    position: absolute;
+    left: 1rem;
+    top: -4rem;
+    z-index: 100;
+  }
+  .k-skip-link:focus {
+    top: 0.75rem;
+  }
+}

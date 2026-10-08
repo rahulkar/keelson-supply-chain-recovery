@@ -1,0 +1,487 @@
+{
+  "rows": [
+    {
+      "id": "UK1|UK-N|PUF-W",
+      "dc_code": "UK1",
+      "cluster_code": "UK-N",
+      "style_code": "PUF-W",
+      "label": "Women's puffer · UK1 / UK North",
+      "cells": [
+        {
+          "week": "2026-W42",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W43",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W44",
+          "status": "tight",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W45",
+          "status": "short",
+          "shortage_units": 300
+        },
+        {
+          "week": "2026-W46",
+          "status": "short",
+          "shortage_units": 600
+        },
+        {
+          "week": "2026-W47",
+          "status": "short",
+          "shortage_units": 900
+        },
+        {
+          "week": "2026-W48",
+          "status": "short",
+          "shortage_units": 800
+        },
+        {
+          "week": "2026-W49",
+          "status": "tight",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W50",
+          "status": "ok",
+          "shortage_units": 0
+        }
+      ],
+      "first_breach_week": "2026-W45",
+      "by_option": {
+        "opt_rebalance": "2026-W46",
+        "opt_sea_air": "2026-W47",
+        "opt_nearshore": "2026-W45",
+        "opt_hybrid": null
+      }
+    },
+    {
+      "id": "NL1|NL-R|PUF-W",
+      "dc_code": "NL1",
+      "cluster_code": "NL-R",
+      "style_code": "PUF-W",
+      "label": "Women's puffer · NL1 / Randstad",
+      "cells": [
+        {
+          "week": "2026-W42",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W43",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W44",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W45",
+          "status": "tight",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W46",
+          "status": "short",
+          "shortage_units": 200
+        },
+        {
+          "week": "2026-W47",
+          "status": "short",
+          "shortage_units": 500
+        },
+        {
+          "week": "2026-W48",
+          "status": "short",
+          "shortage_units": 700
+        },
+        {
+          "week": "2026-W49",
+          "status": "short",
+          "shortage_units": 500
+        },
+        {
+          "week": "2026-W50",
+          "status": "ok",
+          "shortage_units": 0
+        }
+      ],
+      "first_breach_week": "2026-W46",
+      "by_option": {
+        "opt_rebalance": "2026-W47",
+        "opt_sea_air": null,
+        "opt_nearshore": "2026-W46",
+        "opt_hybrid": null
+      }
+    },
+    {
+      "id": "UK1|UK-S|PUF-W",
+      "dc_code": "UK1",
+      "cluster_code": "UK-S",
+      "style_code": "PUF-W",
+      "label": "Women's puffer · UK1 / UK South",
+      "cells": [
+        {
+          "week": "2026-W42",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W43",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W44",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W45",
+          "status": "tight",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W46",
+          "status": "short",
+          "shortage_units": 200
+        },
+        {
+          "week": "2026-W47",
+          "status": "short",
+          "shortage_units": 400
+        },
+        {
+          "week": "2026-W48",
+          "status": "short",
+          "shortage_units": 600
+        },
+        {
+          "week": "2026-W49",
+          "status": "short",
+          "shortage_units": 400
+        },
+        {
+          "week": "2026-W50",
+          "status": "tight",
+          "shortage_units": 0
+        }
+      ],
+      "first_breach_week": "2026-W46",
+      "by_option": {
+        "opt_rebalance": "2026-W46",
+        "opt_sea_air": "2026-W46",
+        "opt_nearshore": null,
+        "opt_hybrid": null
+      }
+    },
+    {
+      "id": "NL1|NL-R|PUF-M",
+      "dc_code": "NL1",
+      "cluster_code": "NL-R",
+      "style_code": "PUF-M",
+      "label": "Men's puffer · NL1 / Randstad",
+      "cells": [
+        {
+          "week": "2026-W42",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W43",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W44",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W45",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W46",
+          "status": "tight",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W47",
+          "status": "short",
+          "shortage_units": 300
+        },
+        {
+          "week": "2026-W48",
+          "status": "short",
+          "shortage_units": 500
+        },
+        {
+          "week": "2026-W49",
+          "status": "short",
+          "shortage_units": 300
+        },
+        {
+          "week": "2026-W50",
+          "status": "ok",
+          "shortage_units": 0
+        }
+      ],
+      "first_breach_week": "2026-W47",
+      "by_option": {
+        "opt_rebalance": null,
+        "opt_sea_air": null,
+        "opt_nearshore": "2026-W47",
+        "opt_hybrid": null
+      }
+    },
+    {
+      "id": "UK1|UK-N|PUF-M",
+      "dc_code": "UK1",
+      "cluster_code": "UK-N",
+      "style_code": "PUF-M",
+      "label": "Men's puffer · UK1 / UK North",
+      "cells": [
+        {
+          "week": "2026-W42",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W43",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W44",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W45",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W46",
+          "status": "tight",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W47",
+          "status": "short",
+          "shortage_units": 200
+        },
+        {
+          "week": "2026-W48",
+          "status": "short",
+          "shortage_units": 400
+        },
+        {
+          "week": "2026-W49",
+          "status": "short",
+          "shortage_units": 200
+        },
+        {
+          "week": "2026-W50",
+          "status": "tight",
+          "shortage_units": 0
+        }
+      ],
+      "first_breach_week": "2026-W47",
+      "by_option": {
+        "opt_rebalance": "2026-W47",
+        "opt_sea_air": null,
+        "opt_nearshore": "2026-W46",
+        "opt_hybrid": null
+      }
+    },
+    {
+      "id": "UK1|UK-S|PUF-M",
+      "dc_code": "UK1",
+      "cluster_code": "UK-S",
+      "style_code": "PUF-M",
+      "label": "Men's puffer · UK1 / UK South",
+      "cells": [
+        {
+          "week": "2026-W42",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W43",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W44",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W45",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W46",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W47",
+          "status": "tight",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W48",
+          "status": "short",
+          "shortage_units": 200
+        },
+        {
+          "week": "2026-W49",
+          "status": "short",
+          "shortage_units": 100
+        },
+        {
+          "week": "2026-W50",
+          "status": "ok",
+          "shortage_units": 0
+        }
+      ],
+      "first_breach_week": "2026-W48",
+      "by_option": {
+        "opt_rebalance": null,
+        "opt_sea_air": null,
+        "opt_nearshore": null,
+        "opt_hybrid": null
+      }
+    },
+    {
+      "id": "DE1|DE-N|PUF-W",
+      "dc_code": "DE1",
+      "cluster_code": "DE-N",
+      "style_code": "PUF-W",
+      "label": "Women's puffer · DE1 / DE North",
+      "cells": [
+        {
+          "week": "2026-W42",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W43",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W44",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W45",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W46",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W47",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W48",
+          "status": "tight",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W49",
+          "status": "tight",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W50",
+          "status": "ok",
+          "shortage_units": 0
+        }
+      ],
+      "first_breach_week": null,
+      "by_option": {
+        "opt_rebalance": "2026-W49",
+        "opt_sea_air": null,
+        "opt_nearshore": null,
+        "opt_hybrid": null
+      }
+    },
+    {
+      "id": "DE1|DE-N|PUF-M",
+      "dc_code": "DE1",
+      "cluster_code": "DE-N",
+      "style_code": "PUF-M",
+      "label": "Men's puffer · DE1 / DE North",
+      "cells": [
+        {
+          "week": "2026-W42",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W43",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W44",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W45",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W46",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W47",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W48",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W49",
+          "status": "ok",
+          "shortage_units": 0
+        },
+        {
+          "week": "2026-W50",
+          "status": "ok",
+          "shortage_units": 0
+        }
+      ],
+      "first_breach_week": null,
+      "by_option": {}
+    }
+  ]
+}

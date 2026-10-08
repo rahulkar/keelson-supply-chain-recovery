@@ -1,0 +1,70 @@
+# Material / component synonyms for deterministic mention resolution (docs/contracts/90 §1).
+#
+# The intake copies mentions as written ("wadding and zips"); frame_case resolves them against the
+# component items of the current snapshot (scn item kind=component: code, plus a name / family when
+# the connector exports one) and the BOM, then walks the BOM to the affected open PO lines. This
+# file is platform data shared by every tenant (tenant packs may extend it later); nothing here is
+# specific to one scenario.
+#
+# Per material (the key is the canonical, singular term):
+#   aliases      other words for the same material, singular or plural, case-insensitive. Simple
+#                plurals ("zips", "buttons", "batteries") are normalised automatically, so list
+#                only real synonyms and irregular forms.
+#   code_tokens  segments of item codes that conventionally stand for the material
+#                ("CMP-ZIP-01" -> segment ZIP). A component matches when one of its code segments
+#                equals a token, or when its name / family contains the term or an alias.
+#
+# A mention that names no material here still matches a component whose name or family contains it,
+# or a code segment equal to it. Ambiguous matches are narrowed to the components supplied by a
+# supplier (or made for a factory / in a region) named in the same message; otherwise every match
+# is kept. Anything that matches nothing is reported as "Not found" (inference), never guessed.
+version: 1
+materials:
+  wadding:
+    aliases: [padding, batting, insulation, insulation fill, fill, filling, fibrefill, fiberfill, polyfill]
+    code_tokens: [WAD, WADD]
+  zip:
+    aliases: [zipper, zip fastener, zip puller, slide fastener]
+    code_tokens: [ZIP, ZPR]
+  button:
+    aliases: [snap, press stud, popper, toggle]
+    code_tokens: [BTN, BUT]
+  thread:
+    aliases: [sewing thread]
+    code_tokens: [THR, THD]
+  yarn:
+    aliases: [knitting yarn]
+    code_tokens: [YRN, YARN]
+  shell fabric:
+    aliases: [shell, outer fabric, outer shell, face fabric]
+    code_tokens: [SHL, SHELL]
+  lining:
+    aliases: [lining fabric, liner]
+    code_tokens: [LIN, LNG]
+  fleece:
+    aliases: [fleece fabric, teddy fleece, sherpa]
+    code_tokens: [FLC]
+  fabric:
+    aliases: [cloth, textile]
+    code_tokens: [FAB]
+  label:
+    aliases: [care label, woven label, swing tag, hang tag, tag]
+    code_tokens: [LBL]
+  elastic:
+    aliases: [elastic band, elastane tape]
+    code_tokens: [ELA, ELS]
+  drawcord:
+    aliases: [drawstring, cord]
+    code_tokens: [DRW, CRD]
+  interlining:
+    aliases: [interfacing, fusible]
+    code_tokens: [INT, FUS]
+  hook and loop:
+    aliases: [velcro]
+    code_tokens: [HKL, VEL]
+  packaging:
+    aliases: [polybag, carton, hanger]
+    code_tokens: [PKG, PCK]
+  trim:
+    aliases: [trimming, accessories, haberdashery]
+    code_tokens: []

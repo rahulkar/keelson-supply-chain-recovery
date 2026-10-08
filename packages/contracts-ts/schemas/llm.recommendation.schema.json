@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Output of the ``recommender`` (Strategist). Numbers only via placeholders.",
+  "properties": {
+    "bullets": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Bullets",
+      "type": "array"
+    },
+    "follow_ups": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Follow Ups",
+      "type": "array"
+    },
+    "headline": {
+      "title": "Headline",
+      "type": "string"
+    },
+    "recommended_option_id": {
+      "title": "Recommended Option Id",
+      "type": "string"
+    },
+    "risks": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Risks",
+      "type": "array"
+    },
+    "why_not_others": {
+      "items": {
+        "additionalProperties": false,
+        "description": "Why an option was not recommended.",
+        "properties": {
+          "option_id": {
+            "title": "Option Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "option_id",
+          "reason"
+        ],
+        "title": "OptionReason",
+        "type": "object"
+      },
+      "title": "Why Not Others",
+      "type": "array"
+    }
+  },
+  "required": [
+    "headline",
+    "bullets",
+    "recommended_option_id",
+    "why_not_others",
+    "risks",
+    "follow_ups"
+  ],
+  "title": "Recommendation",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.llm.Recommendation"
+}

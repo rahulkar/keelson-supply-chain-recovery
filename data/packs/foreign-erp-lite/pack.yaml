@@ -1,0 +1,27 @@
+# Template pack: a tenant whose ERP is a plain, un-curated MCP server (the "foreign ERP" Tier-A
+# proof, docs/contracts/110-m7-backoffice-generic.md §4) — reference profile: Merxa /mcp-lite.
+# Applied like `blank` (answer path only); the connector itself is registered in the back-office
+# wizard with the vendor's API key (static header), because packs never carry secrets. The mapping
+# files below are then installed on that connector:
+#   POST /api/admin/connectors/<slug>/mappings/from-pack {"pack": "foreign-erp-lite"}
+# (or pasted into the Connectors › Mappings editors). See README.md in this directory.
+name: foreign-erp-lite
+description: >-
+  Foreign ERP over a plain MCP server (Merxa /mcp-lite profile): register the connector with its
+  API key, approve list_items / get_item as read tools and update_item / create_transfer_order as
+  write tools, then install this pack's read + action mappings. Plans run on crawled (advisory)
+  snapshots; transfer orders and allocation quantities apply per op, everything else is guided.
+connectors: []
+mappings:
+  connector: merxa-lite          # the slug the wizard registers (any slug works with from-pack)
+  read: mappings/read.yaml
+  action: mappings/action.yaml
+spec_overrides:
+  answer_tools: []
+  specialists:
+    - slug: inventory_demand
+      tools: []
+budgets:
+  budget_eur: 1
+  rpm_limit: 10
+  tpm_limit: 20000

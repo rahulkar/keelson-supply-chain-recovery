@@ -1,0 +1,14 @@
+{
+  "_fixture": "SIMULATED demo data (Keelson pack a-outerwear-trim-delay): a Merxa Standard Webhooks delivery body (docs/contracts/22-merxa-m2.md §5) for supplier_message.received, as the engine forwards it to POST /v1/ingest/connector-event. Subject and body are the Merxa trim_delay inject text (merxa_api.seed.generator.TRIM_DELAY_MESSAGE); Merxa is a mock ERP and Meghna Trims Ltd is a fictional seed supplier. Untrusted free text: it only ever reaches the quarantine.",
+  "type": "supplier_message.received",
+  "id": "01a10b13-a800-7a51-9c3e-0d2a8f6e7a01",
+  "timestamp": "2026-10-05T08:00:00+00:00",
+  "tenant_hint": null,
+  "data": {
+    "id": "01a10b13-a800-7f0b-8b1d-4c9e2a7d5b01",
+    "supplier_code": "TRIM-BD-01",
+    "received_at": "2026-10-05T08:00:00+00:00",
+    "subject": "URGENT: wadding and zip deliveries delayed 7 days",
+    "body": "Dear Merxa buying team, due to a dyeing-line breakdown at our Tongi plant, deliveries of CMP-WAD-01 (polyester wadding) and CMP-ZIP-01 (two-way zips) to Gazipur Outerwear Unit 1 (F-BD-01) and Narayanganj Outerwear Unit 2 (F-BD-02) will arrive 7 days later than planned. Garment ex-factory dates for all open puffer jacket orders will move by about one week. We apologise for the inconvenience. Meghna Trims Ltd, customer service."
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Concurrency/size budget of a plan (``max_parallel <= 4``, ``max_tasks <= 6``).",
+  "properties": {
+    "max_parallel": {
+      "title": "Max Parallel",
+      "type": "integer"
+    },
+    "max_tasks": {
+      "title": "Max Tasks",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "max_parallel",
+    "max_tasks"
+  ],
+  "title": "PlanBudget",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.llm.PlanBudget"
+}

@@ -1,0 +1,105 @@
+{
+  "id": "blk_plan_diff_v2",
+  "kind": "plan_diff",
+  "v": 1,
+  "title": "Changes in Merxa",
+  "placement": "canvas",
+  "provenance": {
+    "kind": "decision",
+    "engine": "keelson-engine@0.1",
+    "inputs_hash": "86ae35d58a6aa3b5",
+    "as_of": "2026-10-05"
+  },
+  "data_ref": null,
+  "props": {
+    "plan_version": 2,
+    "rows": [
+      {
+        "seq": 1,
+        "op": "transfer_order.create",
+        "target_label": "PUF-W-BLK-M · DE1 → UK1",
+        "before_text": "No transfer",
+        "after_text": "Ship 600 on 12 Oct",
+        "qty": 600,
+        "system": "Merxa"
+      },
+      {
+        "seq": 2,
+        "op": "transfer_order.create",
+        "target_label": "PUF-W-BLK-L · DE1 → UK1",
+        "before_text": "No transfer",
+        "after_text": "Ship 540 on 12 Oct",
+        "qty": 540,
+        "system": "Merxa"
+      },
+      {
+        "seq": 3,
+        "op": "transfer_order.create",
+        "target_label": "PUF-M-NAV-M · DE1 → NL1",
+        "before_text": "No transfer",
+        "after_text": "Ship 720 on 12 Oct",
+        "qty": 720,
+        "system": "Merxa"
+      },
+      {
+        "seq": 4,
+        "op": "transfer_order.create",
+        "target_label": "PUF-M-NAV-L · DE1 → NL1",
+        "before_text": "No transfer",
+        "after_text": "Ship 660 on 12 Oct",
+        "qty": 660,
+        "system": "Merxa"
+      },
+      {
+        "seq": 5,
+        "op": "transfer_order.create",
+        "target_label": "PUF-W-OLV-S · DE1 → UK1",
+        "before_text": "No transfer",
+        "after_text": "Ship 480 on 12 Oct",
+        "qty": 480,
+        "system": "Merxa"
+      },
+      {
+        "seq": 6,
+        "op": "transfer_order.create",
+        "target_label": "PUF-W-BLK-S · DE1 → NL1",
+        "before_text": "No transfer",
+        "after_text": "Ship 420 on 12 Oct",
+        "qty": 420,
+        "system": "Merxa"
+      },
+      {
+        "seq": 7,
+        "op": "transfer_order.create",
+        "target_label": "PUF-M-BLK-XL · DE1 → UK1",
+        "before_text": "No transfer",
+        "after_text": "Ship 700 on 12 Oct",
+        "qty": 700,
+        "system": "Merxa"
+      },
+      {
+        "seq": 8,
+        "op": "transfer_order.create",
+        "target_label": "PUF-M-OLV-M · DE1 → NL1",
+        "before_text": "No transfer",
+        "after_text": "Ship 680 on 12 Oct",
+        "qty": 680,
+        "system": "Merxa"
+      },
+      {
+        "seq": 9,
+        "op": "allocation.set_qty",
+        "target_label": "ALLOC-UK1-COLD-A-PUF-W",
+        "before_text": "1,200 units",
+        "after_text": "1,560 units",
+        "qty": 360,
+        "system": "Merxa"
+      }
+    ],
+    "totals": {
+      "lines": 9,
+      "units": 5160,
+      "value_cents": 6966000
+    }
+  }
+}

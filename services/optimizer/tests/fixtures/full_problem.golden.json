@@ -1,0 +1,126 @@
+{
+ "A": {
+  "decisions": 240,
+  "inputs_hash": "0885d6c46c0e258d9c121f95e8bcf435c289aa4a2852bb54f64f5ecd4f2269cb",
+  "ops": {
+   "transfer_order.create": 3
+  },
+  "response_sha256": "dd86a08c7e073b8a0a66a5465f35fa8dc996a0ba99076f39aa6d2cc078ce8252",
+  "scorecard": {
+   "changes": 3,
+   "cost_breakdown": {
+    "expedite_premium": 0,
+    "nearshore_premium": 0,
+    "transfer": 428430
+   },
+   "fill_rate_bp": 9962,
+   "first_breach_shift_days": 0,
+   "incremental_cost_cents": 428430,
+   "lost_margin_cents": 2334550,
+   "lost_units": 1037,
+   "net_benefit_cents": 17209720,
+   "shortage_days": 126,
+   "tts_gain_days": 0
+  },
+  "solver": "GLOP",
+  "status": "OPTIMAL",
+  "units": [
+   8878,
+   1037
+  ]
+ },
+ "B": {
+  "decisions": 300,
+  "inputs_hash": "26a64232b91aff76bc9d9c9f5bb2c6fd6c2337907a28c3da4f0a3f35f21a5489",
+  "ops": {
+   "po_line.split": 60,
+   "transfer_order.create": 3
+  },
+  "response_sha256": "6b765140b0ad0a60566b6d85872800853ade342ab9c70ad98af3f74e7942c5eb",
+  "scorecard": {
+   "changes": 63,
+   "cost_breakdown": {
+    "expedite_premium": 164704,
+    "nearshore_premium": 0,
+    "transfer": 428430
+   },
+   "fill_rate_bp": 10000,
+   "first_breach_shift_days": 35,
+   "incremental_cost_cents": 593134,
+   "lost_margin_cents": 0,
+   "lost_units": 0,
+   "net_benefit_cents": 19379566,
+   "shortage_days": 0,
+   "tts_gain_days": 4
+  },
+  "solver": "GLOP",
+  "status": "OPTIMAL",
+  "units": [
+   8878,
+   0
+  ]
+ },
+ "C": {
+  "decisions": 300,
+  "inputs_hash": "dc2035c876284a08ed1bc76890458464199fb43011ce3e73662a9df893d76d9a",
+  "ops": {
+   "po.create": 8,
+   "po_line.cancel": 12,
+   "po_line.change_qty": 168
+  },
+  "response_sha256": "c043ea9cdcda4a6c161fda1edaaa03f22103d5b64f983b5818de970fce13a942",
+  "scorecard": {
+   "changes": 188,
+   "cost_breakdown": {
+    "expedite_premium": 0,
+    "nearshore_premium": 6009515,
+    "transfer": 0
+   },
+   "fill_rate_bp": 9997,
+   "first_breach_shift_days": 0,
+   "incremental_cost_cents": 6009515,
+   "lost_margin_cents": 109100,
+   "lost_units": 67,
+   "net_benefit_cents": 13854085,
+   "shortage_days": 133,
+   "tts_gain_days": 3
+  },
+  "solver": "GLOP",
+  "status": "OPTIMAL",
+  "units": [
+   8878,
+   67
+  ]
+ },
+ "D": {
+  "decisions": 300,
+  "inputs_hash": "40472fe6ca80a3a27fc6512735382cf3b8125d22200a18fa02b55a0061e8dd03",
+  "ops": {
+   "po_line.split": 60,
+   "transfer_order.create": 3
+  },
+  "response_sha256": "a017de734425e70a3e6571642bd7f112bd9f1df5ada2f2ce363626968bdf2e66",
+  "scorecard": {
+   "changes": 63,
+   "cost_breakdown": {
+    "expedite_premium": 164704,
+    "nearshore_premium": 0,
+    "transfer": 428430
+   },
+   "fill_rate_bp": 10000,
+   "first_breach_shift_days": 35,
+   "incremental_cost_cents": 593134,
+   "lost_margin_cents": 0,
+   "lost_units": 0,
+   "net_benefit_cents": 19379566,
+   "shortage_days": 0,
+   "tts_gain_days": 4
+  },
+  "solver": "GLOP+priority-split",
+  "status": "OPTIMAL",
+  "units": [
+   8878,
+   0
+  ]
+ }
+}

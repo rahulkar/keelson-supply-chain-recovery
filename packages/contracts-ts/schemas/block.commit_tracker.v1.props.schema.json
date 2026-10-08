@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "``commit_tracker@1``.\n\nM5 additions (omitted while empty): ``actions`` (``undo``; enabled only while the change\nset is ``applied``/``verified``), ``conflicts`` that blocked a rollback, and the status\n``rolled_back``.",
+  "properties": {
+    "actions": {
+      "default": [],
+      "items": {
+        "additionalProperties": false,
+        "description": "A button on the commit tracker (M5: ``undo`` → case action ``rollback``); disabled\nactions must say why.",
+        "properties": {
+          "disabled_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Disabled Reason"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "label": {
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "type": {
+            "const": "undo",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "label",
+          "enabled"
+        ],
+        "title": "TrackerAction",
+        "type": "object"
+      },
+      "title": "Actions",
+      "type": "array"
+    },
+    "applied": {
+      "minimum": 0,
+      "title": "Applied",
+      "type": "integer"
+    },
+    "change_set_id": {
+      "minLength": 1,
+      "title": "Change Set Id",
+      "type": "string"
+    },
+    "conflicts": {
+      "default": [],
+      "items": {
+        "additionalProperties": false,
+        "description": "A later change on an entity the rollback would touch (the target system refused).",
+        "properties": {
+          "detail": {
+            "minLength": 1,
+            "title": "Detail",
+            "type": "string"
+          },
+          "entity_ref": {
+            "minLength": 1,
+            "title": "Entity Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entity_ref",
+          "detail"
+        ],
+        "title": "RollbackConflict",
+        "type": "object"
+      },
+      "title": "Conflicts",
+      "type": "array"
+    },
+    "ext_code": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ext Code"
+    },
+    "ext_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ext Url"
+    },
+    "status": {
+      "enum": [
+        "applying",
+        "applied",
+        "conflict",
+        "verified",
+        "rolled_back"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "system": {
+      "minLength": 1,
+      "title": "System",
+      "type": "string"
+    },
+    "verified": {
+      "minimum": 0,
+      "title": "Verified",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "change_set_id",
+    "system",
+    "status",
+    "applied",
+    "verified"
+  ],
+  "title": "CommitTrackerProps",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.blocks.CommitTrackerProps"
+}

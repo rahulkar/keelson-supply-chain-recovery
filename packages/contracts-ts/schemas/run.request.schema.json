@@ -1,0 +1,449 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Typed run envelope stored on the ``run`` row and consumed by the worker.",
+  "properties": {
+    "actor": {
+      "additionalProperties": false,
+      "description": "The authenticated user on whose behalf a run executes.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "roles": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Roles",
+          "type": "array"
+        },
+        "sub": {
+          "minLength": 1,
+          "title": "Sub",
+          "type": "string"
+        },
+        "username": {
+          "minLength": 1,
+          "title": "Username",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sub",
+        "username",
+        "name",
+        "roles"
+      ],
+      "title": "Actor",
+      "type": "object"
+    },
+    "case_id": {
+      "minLength": 1,
+      "title": "Case Id",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "chat",
+        "action",
+        "signal",
+        "resume"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "payload": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "text": {
+              "maxLength": 20000,
+              "minLength": 1,
+              "title": "Text",
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "title": "ChatPayload",
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A case action (``POST /api/cases/{id}/actions``).\n\n* option actions (:data:`OPTION_ACTION_TYPES`: ``apply``, ``guide``, ``promote``,\n  ``confirm_assumptions``) carry ``option_id`` + ``plan_version``;\n  ``confirm_assumptions`` (M4, ``90`` §5) also carries the ``assumption_keys`` the user\n  confirms (re-runs impact + simulate only); the other types must not carry keys;\n* ``rollback`` (M5, ``95`` §3) carries only ``change_set_id`` (the applied change set to undo);\n* ``checklist_step`` (M5, ``95`` §2) carries ``checklist_id``, the step ``seq`` and the\n  manual ``status`` (``done`` | ``skipped``).\n\nFields a type does not use must be absent. Every optional field is omitted from dumps\nwhile unset, so pre-M5 payloads serialize unchanged.",
+          "properties": {
+            "assumption_keys": {
+              "default": [],
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 50,
+              "title": "Assumption Keys",
+              "type": "array"
+            },
+            "change_set_id": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Change Set Id"
+            },
+            "checklist_id": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Checklist Id"
+            },
+            "option_id": {
+              "anyOf": [
+                {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Option Id"
+            },
+            "plan_version": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Plan Version"
+            },
+            "seq": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Seq"
+            },
+            "status": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "done",
+                    "skipped"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Status"
+            },
+            "type": {
+              "enum": [
+                "apply",
+                "guide",
+                "promote",
+                "confirm_assumptions",
+                "rollback",
+                "checklist_step"
+              ],
+              "title": "Type",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "title": "ActionPayload",
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A ``signal`` run's payload, one of two shapes:\n\n* M5 re-plan: ``{signal_id}`` — a ``case_signal`` row written by the webhook re-plan router;\n* M6 external signal (``100`` §6): ``{event_id, alert_id}`` — a Signal Hub event (``alert_id``\n  is the alert the case was opened from, ``null`` when opened without one).\n\nExactly one of ``signal_id`` / ``event_id`` is set; ``alert_id`` only with ``event_id``;\n``event_id`` / ``alert_id`` are canonical lowercase UUIDs (Signal Hub ids). Dumps\nkeep each shape exact: ``{signal_id}`` or ``{event_id, alert_id}`` (``alert_id`` may be null).",
+          "properties": {
+            "alert_id": {
+              "anyOf": [
+                {
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Alert Id"
+            },
+            "event_id": {
+              "anyOf": [
+                {
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Event Id"
+            },
+            "signal_id": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Signal Id"
+            }
+          },
+          "title": "SignalPayload",
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Server-built resume after an interrupt decision (never taken verbatim from a client).\n\n``core.interrupts.record_decision`` inserts it as\n``{interrupt_id, decision, decided_by: [...]}`` (``55-engine-internals.md``) plus the\ndecision-specific fields. Interrupt ids built per ``50-engine-workflow.md``\n(``approach-…`` / ``approval-…``) only accept decisions of their own kind.\n\n``edit`` carries either free text (M1) or, from M4, typed edits\n(``[{key, value_int | value_ids}]``, see :class:`ApproachEdit`) and/or\n``removed_checks`` (plan task ids the user removed). Typed edits and removed checks\nare only allowed with ``edit``; ``removed_checks`` is omitted from dumps while empty.",
+          "properties": {
+            "change_set_hash": {
+              "anyOf": [
+                {
+                  "pattern": "^[0-9a-f]{64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Change Set Hash"
+            },
+            "decided_by": {
+              "items": {
+                "additionalProperties": false,
+                "description": "One person whose decision resolved an interrupt (``decided_by`` entry).\n\nCarries what the engine needs to mint the approval receipt (``keelson_sub``,\n``approver_name``) and to fetch the approver's delegated Merxa token.",
+                "properties": {
+                  "name": {
+                    "title": "Name",
+                    "type": "string"
+                  },
+                  "role": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Role"
+                  },
+                  "sub": {
+                    "minLength": 1,
+                    "title": "Sub",
+                    "type": "string"
+                  },
+                  "username": {
+                    "minLength": 1,
+                    "title": "Username",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "sub",
+                  "username",
+                  "name"
+                ],
+                "title": "Decider",
+                "type": "object"
+              },
+              "title": "Decided By",
+              "type": "array"
+            },
+            "decision": {
+              "enum": [
+                "confirm",
+                "edit",
+                "what_if",
+                "cancel",
+                "approve",
+                "reject",
+                "revise"
+              ],
+              "title": "Decision",
+              "type": "string"
+            },
+            "edits": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "additionalProperties": false,
+                    "description": "A typed **Edit** of an approach-card value (``key`` = an ``editable`` key).\n\nExactly one of ``value_int`` (days / percent) or ``value_ids`` (scope ids) is set.",
+                    "properties": {
+                      "key": {
+                        "maxLength": 64,
+                        "pattern": "^[a-z][a-z0-9_]*$",
+                        "title": "Key",
+                        "type": "string"
+                      },
+                      "value_ids": {
+                        "anyOf": [
+                          {
+                            "items": {
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "maxItems": 500,
+                            "minItems": 1,
+                            "type": "array"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "title": "Value Ids"
+                      },
+                      "value_int": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "title": "Value Int"
+                      }
+                    },
+                    "required": [
+                      "key"
+                    ],
+                    "title": "ApproachEdit",
+                    "type": "object"
+                  },
+                  "maxItems": 50,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Edits"
+            },
+            "interrupt_id": {
+              "minLength": 1,
+              "title": "Interrupt Id",
+              "type": "string"
+            },
+            "plan_version": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Plan Version"
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "maxLength": 500,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reason"
+            },
+            "removed_checks": {
+              "default": [],
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 50,
+              "title": "Removed Checks",
+              "type": "array"
+            }
+          },
+          "required": [
+            "interrupt_id",
+            "decision"
+          ],
+          "title": "ResumePayload",
+          "type": "object"
+        }
+      ],
+      "title": "Payload"
+    },
+    "run_id": {
+      "minLength": 1,
+      "title": "Run Id",
+      "type": "string"
+    },
+    "tenant": {
+      "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+      "title": "Tenant",
+      "type": "string"
+    }
+  },
+  "required": [
+    "run_id",
+    "tenant",
+    "case_id",
+    "kind",
+    "actor",
+    "payload"
+  ],
+  "title": "RunRequest",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.runs.RunRequest"
+}

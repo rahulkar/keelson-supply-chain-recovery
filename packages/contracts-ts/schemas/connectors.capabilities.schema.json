@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "What the engine does with a connector (``110`` §4). ``advisory`` is true exactly when the\ndata comes from a crawl (plans built on it are labelled advisory).",
+  "properties": {
+    "action_mapping_version": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Action Mapping Version"
+    },
+    "advisory": {
+      "title": "Advisory",
+      "type": "boolean"
+    },
+    "commit": {
+      "enum": [
+        "change_set",
+        "per_op",
+        "guide"
+      ],
+      "title": "Commit",
+      "type": "string"
+    },
+    "connector": {
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,62}$",
+      "title": "Connector",
+      "type": "string"
+    },
+    "consistency": {
+      "anyOf": [
+        {
+          "enum": [
+            "consistent",
+            "crawled"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Consistency"
+    },
+    "mapped_ops": {
+      "items": {
+        "maxLength": 64,
+        "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+        "type": "string"
+      },
+      "title": "Mapped Ops",
+      "type": "array"
+    },
+    "read_mapping_version": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Read Mapping Version"
+    },
+    "sync": {
+      "enum": [
+        "snapshot",
+        "crawl",
+        "none"
+      ],
+      "title": "Sync",
+      "type": "string"
+    },
+    "tiers": {
+      "items": {
+        "enum": [
+          "A",
+          "B",
+          "C",
+          "W"
+        ],
+        "title": "ConnectorTier",
+        "type": "string"
+      },
+      "title": "Tiers",
+      "type": "array"
+    }
+  },
+  "required": [
+    "connector",
+    "tiers",
+    "sync",
+    "consistency",
+    "commit",
+    "read_mapping_version",
+    "action_mapping_version",
+    "mapped_ops",
+    "advisory"
+  ],
+  "title": "ConnectorCapabilities",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.connectors.ConnectorCapabilities"
+}

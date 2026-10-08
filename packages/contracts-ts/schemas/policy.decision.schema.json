@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The evaluated outcome (``approval_gate`` and ``POST /api/admin/policies/test``).\n\n``rule_id`` names the matched rule (``None`` only when no rule matched and the engine\napplied its built-in fallback); ``requirement`` is set exactly for ``human``.",
+  "properties": {
+    "outcome": {
+      "enum": [
+        "auto",
+        "human",
+        "refuse"
+      ],
+      "title": "Outcome",
+      "type": "string"
+    },
+    "policy_version": {
+      "minLength": 1,
+      "title": "Policy Version",
+      "type": "string"
+    },
+    "reason": {
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    },
+    "requirement": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "description": "Who must approve: ``count`` distinct people holding ``roles`` (see module docstring).\n\n``exclude_initiator`` = the person who initiated the change set may not approve it\n(enforced server-side by the decision API). Also the ``interrupt.quorum_spec`` shape.",
+          "properties": {
+            "count": {
+              "maximum": 10,
+              "minimum": 1,
+              "title": "Count",
+              "type": "integer"
+            },
+            "exclude_initiator": {
+              "title": "Exclude Initiator",
+              "type": "boolean"
+            },
+            "roles": {
+              "items": {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_-]*$",
+                "type": "string"
+              },
+              "maxItems": 10,
+              "minItems": 1,
+              "title": "Roles",
+              "type": "array"
+            }
+          },
+          "required": [
+            "roles",
+            "count",
+            "exclude_initiator"
+          ],
+          "title": "Requirement",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "rule_id": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Rule Id"
+    }
+  },
+  "required": [
+    "outcome",
+    "rule_id",
+    "policy_version",
+    "requirement",
+    "reason"
+  ],
+  "title": "PolicyDecision",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.policy.PolicyDecision"
+}

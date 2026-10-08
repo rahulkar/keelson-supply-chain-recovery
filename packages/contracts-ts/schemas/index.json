@@ -1,0 +1,456 @@
+{
+  "package": "keelson-contracts",
+  "schemas": [
+    {
+      "file": "admin.change-request.schema.json",
+      "name": "admin.change-request",
+      "source": "keelson_contracts.admin.AdminChangeRequest",
+      "title": "AdminChangeRequest"
+    },
+    {
+      "file": "admin.change-request-decision.schema.json",
+      "name": "admin.change-request-decision",
+      "source": "keelson_contracts.admin.ChangeRequestDecision",
+      "title": "ChangeRequestDecision"
+    },
+    {
+      "file": "admin.user.schema.json",
+      "name": "admin.user",
+      "source": "keelson_contracts.admin.AdminUser",
+      "title": "AdminUser"
+    },
+    {
+      "file": "admin.user-create.schema.json",
+      "name": "admin.user-create",
+      "source": "keelson_contracts.admin.AdminUserCreate",
+      "title": "AdminUserCreate"
+    },
+    {
+      "file": "admin.user-created.schema.json",
+      "name": "admin.user-created",
+      "source": "keelson_contracts.admin.AdminUserCreated",
+      "title": "AdminUserCreated"
+    },
+    {
+      "file": "admin.user-patch.schema.json",
+      "name": "admin.user-patch",
+      "source": "keelson_contracts.admin.AdminUserPatch",
+      "title": "AdminUserPatch"
+    },
+    {
+      "file": "agents.custom-specialist.schema.json",
+      "name": "agents.custom-specialist",
+      "source": "keelson_contracts.agents.CustomSpecialistSpec",
+      "title": "CustomSpecialistSpec"
+    },
+    {
+      "file": "agents.playground-request.schema.json",
+      "name": "agents.playground-request",
+      "source": "keelson_contracts.agents.PlaygroundRequest",
+      "title": "PlaygroundRequest"
+    },
+    {
+      "file": "agents.playground-result.schema.json",
+      "name": "agents.playground-result",
+      "source": "keelson_contracts.agents.PlaygroundResult",
+      "title": "PlaygroundResult"
+    },
+    {
+      "file": "agui.interrupt.schema.json",
+      "name": "agui.interrupt",
+      "source": "keelson_contracts.agui.InterruptSpec",
+      "title": "InterruptSpec"
+    },
+    {
+      "file": "agui.sc-metadata.schema.json",
+      "name": "agui.sc-metadata",
+      "source": "keelson_contracts.agui.ScMetadata",
+      "title": "ScMetadata"
+    },
+    {
+      "file": "block.alert_origin.v1.props.schema.json",
+      "name": "block.alert_origin.v1.props",
+      "source": "keelson_contracts.blocks.AlertOriginProps",
+      "title": "AlertOriginProps"
+    },
+    {
+      "file": "block.approach_card.v1.props.schema.json",
+      "name": "block.approach_card.v1.props",
+      "source": "keelson_contracts.blocks.ApproachCardProps",
+      "title": "ApproachCardProps"
+    },
+    {
+      "file": "block.approval_card.v1.props.schema.json",
+      "name": "block.approval_card.v1.props",
+      "source": "keelson_contracts.blocks.ApprovalCardProps",
+      "title": "ApprovalCardProps"
+    },
+    {
+      "file": "block.commit_tracker.v1.props.schema.json",
+      "name": "block.commit_tracker.v1.props",
+      "source": "keelson_contracts.blocks.CommitTrackerProps",
+      "title": "CommitTrackerProps"
+    },
+    {
+      "file": "block.envelope.schema.json",
+      "name": "block.envelope",
+      "source": "keelson_contracts.blocks.BlockEnvelope",
+      "title": "BlockEnvelope"
+    },
+    {
+      "file": "block.evidence_pack.v1.props.schema.json",
+      "name": "block.evidence_pack.v1.props",
+      "source": "keelson_contracts.blocks.EvidencePackProps",
+      "title": "EvidencePackProps"
+    },
+    {
+      "file": "block.impact_graph.v1.data.schema.json",
+      "name": "block.impact_graph.v1.data",
+      "source": "keelson_contracts.optimizer.ImpactGraph",
+      "title": "ImpactGraph"
+    },
+    {
+      "file": "block.impact_graph.v1.props.schema.json",
+      "name": "block.impact_graph.v1.props",
+      "source": "keelson_contracts.blocks.ImpactGraphProps",
+      "title": "ImpactGraphProps"
+    },
+    {
+      "file": "block.kpi_strip.v1.props.schema.json",
+      "name": "block.kpi_strip.v1.props",
+      "source": "keelson_contracts.blocks.KpiStripProps",
+      "title": "KpiStripProps"
+    },
+    {
+      "file": "block.narrative.v1.props.schema.json",
+      "name": "block.narrative.v1.props",
+      "source": "keelson_contracts.blocks.NarrativeProps",
+      "title": "NarrativeProps"
+    },
+    {
+      "file": "block.network_map.v1.data.schema.json",
+      "name": "block.network_map.v1.data",
+      "source": "keelson_contracts.blocks.NetworkMapData",
+      "title": "NetworkMapData"
+    },
+    {
+      "file": "block.network_map.v1.props.schema.json",
+      "name": "block.network_map.v1.props",
+      "source": "keelson_contracts.blocks.NetworkMapProps",
+      "title": "NetworkMapProps"
+    },
+    {
+      "file": "block.plan_diff.v1.props.schema.json",
+      "name": "block.plan_diff.v1.props",
+      "source": "keelson_contracts.blocks.PlanDiffProps",
+      "title": "PlanDiffProps"
+    },
+    {
+      "file": "block.provenance.schema.json",
+      "name": "block.provenance",
+      "source": "keelson_contracts.blocks.BlockProvenance",
+      "title": "BlockProvenance"
+    },
+    {
+      "file": "block.recommended_option.v1.props.schema.json",
+      "name": "block.recommended_option.v1.props",
+      "source": "keelson_contracts.blocks.RecommendedOptionProps",
+      "title": "RecommendedOptionProps"
+    },
+    {
+      "file": "block.remediation_checklist.v1.props.schema.json",
+      "name": "block.remediation_checklist.v1.props",
+      "source": "keelson_contracts.blocks.RemediationChecklistProps",
+      "title": "RemediationChecklistProps"
+    },
+    {
+      "file": "block.scenario_compare.v1.props.schema.json",
+      "name": "block.scenario_compare.v1.props",
+      "source": "keelson_contracts.blocks.ScenarioCompareProps",
+      "title": "ScenarioCompareProps"
+    },
+    {
+      "file": "block.stockout_timeline.v1.data.schema.json",
+      "name": "block.stockout_timeline.v1.data",
+      "source": "keelson_contracts.blocks.StockoutTimelineData",
+      "title": "StockoutTimelineData"
+    },
+    {
+      "file": "block.stockout_timeline.v1.props.schema.json",
+      "name": "block.stockout_timeline.v1.props",
+      "source": "keelson_contracts.blocks.StockoutTimelineProps",
+      "title": "StockoutTimelineProps"
+    },
+    {
+      "file": "commit.ledger-entry.schema.json",
+      "name": "commit.ledger-entry",
+      "source": "keelson_contracts.commit.CommitLedgerEntry",
+      "title": "CommitLedgerEntry"
+    },
+    {
+      "file": "connectors.capabilities.schema.json",
+      "name": "connectors.capabilities",
+      "source": "keelson_contracts.connectors.ConnectorCapabilities",
+      "title": "ConnectorCapabilities"
+    },
+    {
+      "file": "demo.reset-request.schema.json",
+      "name": "demo.reset-request",
+      "source": "keelson_contracts.demo.DemoResetRequest",
+      "title": "DemoResetRequest"
+    },
+    {
+      "file": "demo.reset-result.schema.json",
+      "name": "demo.reset-result",
+      "source": "keelson_contracts.demo.DemoResetResult",
+      "title": "DemoResetResult"
+    },
+    {
+      "file": "llm.claim.schema.json",
+      "name": "llm.claim",
+      "source": "keelson_contracts.llm.Claim",
+      "title": "Claim"
+    },
+    {
+      "file": "llm.constraint-delta.schema.json",
+      "name": "llm.constraint-delta",
+      "source": "keelson_contracts.llm.ConstraintDelta",
+      "title": "ConstraintDelta"
+    },
+    {
+      "file": "llm.critique.schema.json",
+      "name": "llm.critique",
+      "source": "keelson_contracts.llm.Critique",
+      "title": "Critique"
+    },
+    {
+      "file": "llm.critique-issue.schema.json",
+      "name": "llm.critique-issue",
+      "source": "keelson_contracts.llm.CritiqueIssue",
+      "title": "CritiqueIssue"
+    },
+    {
+      "file": "llm.disruption-extract.schema.json",
+      "name": "llm.disruption-extract",
+      "source": "keelson_contracts.llm.DisruptionExtract",
+      "title": "DisruptionExtract"
+    },
+    {
+      "file": "llm.entity-mention.schema.json",
+      "name": "llm.entity-mention",
+      "source": "keelson_contracts.llm.EntityMention",
+      "title": "EntityMention"
+    },
+    {
+      "file": "llm.entity-ref.schema.json",
+      "name": "llm.entity-ref",
+      "source": "keelson_contracts.llm.EntityRef",
+      "title": "EntityRef"
+    },
+    {
+      "file": "llm.findings.schema.json",
+      "name": "llm.findings",
+      "source": "keelson_contracts.llm.Findings",
+      "title": "Findings"
+    },
+    {
+      "file": "llm.followup-classification.schema.json",
+      "name": "llm.followup-classification",
+      "source": "keelson_contracts.llm.FollowupClassification",
+      "title": "FollowupClassification"
+    },
+    {
+      "file": "llm.guard-verdict.schema.json",
+      "name": "llm.guard-verdict",
+      "source": "keelson_contracts.llm.GuardVerdict",
+      "title": "GuardVerdict"
+    },
+    {
+      "file": "llm.intake-result.schema.json",
+      "name": "llm.intake-result",
+      "source": "keelson_contracts.llm.IntakeResult",
+      "title": "IntakeResult"
+    },
+    {
+      "file": "llm.investigation-plan.schema.json",
+      "name": "llm.investigation-plan",
+      "source": "keelson_contracts.llm.InvestigationPlan",
+      "title": "InvestigationPlan"
+    },
+    {
+      "file": "llm.investigation-task.schema.json",
+      "name": "llm.investigation-task",
+      "source": "keelson_contracts.llm.InvestigationTask",
+      "title": "InvestigationTask"
+    },
+    {
+      "file": "llm.news-extraction.schema.json",
+      "name": "llm.news-extraction",
+      "source": "keelson_contracts.llm.NewsExtraction",
+      "title": "NewsExtraction"
+    },
+    {
+      "file": "llm.option-reason.schema.json",
+      "name": "llm.option-reason",
+      "source": "keelson_contracts.llm.OptionReason",
+      "title": "OptionReason"
+    },
+    {
+      "file": "llm.plan-budget.schema.json",
+      "name": "llm.plan-budget",
+      "source": "keelson_contracts.llm.PlanBudget",
+      "title": "PlanBudget"
+    },
+    {
+      "file": "llm.recommendation.schema.json",
+      "name": "llm.recommendation",
+      "source": "keelson_contracts.llm.Recommendation",
+      "title": "Recommendation"
+    },
+    {
+      "file": "llm.scenario-update.schema.json",
+      "name": "llm.scenario-update",
+      "source": "keelson_contracts.llm.ScenarioUpdate",
+      "title": "ScenarioUpdate"
+    },
+    {
+      "file": "llm.untrusted-extraction.schema.json",
+      "name": "llm.untrusted-extraction",
+      "source": "keelson_contracts.llm.UntrustedExtraction",
+      "title": "UntrustedExtraction"
+    },
+    {
+      "file": "llm.untrusted-item.schema.json",
+      "name": "llm.untrusted-item",
+      "source": "keelson_contracts.llm.UntrustedItem",
+      "title": "UntrustedItem"
+    },
+    {
+      "file": "mapping.action.schema.json",
+      "name": "mapping.action",
+      "source": "keelson_contracts.mapping.ActionMapping",
+      "title": "ActionMapping"
+    },
+    {
+      "file": "mapping.dry-run-request.schema.json",
+      "name": "mapping.dry-run-request",
+      "source": "keelson_contracts.mapping.ActionDryRunRequest",
+      "title": "ActionDryRunRequest"
+    },
+    {
+      "file": "mapping.dry-run-result.schema.json",
+      "name": "mapping.dry-run-result",
+      "source": "keelson_contracts.mapping.ActionDryRunResult",
+      "title": "ActionDryRunResult"
+    },
+    {
+      "file": "mapping.read.schema.json",
+      "name": "mapping.read",
+      "source": "keelson_contracts.mapping.ReadMapping",
+      "title": "ReadMapping"
+    },
+    {
+      "file": "policy.context.schema.json",
+      "name": "policy.context",
+      "source": "keelson_contracts.policy.PolicyContext",
+      "title": "PolicyContext"
+    },
+    {
+      "file": "policy.decision.schema.json",
+      "name": "policy.decision",
+      "source": "keelson_contracts.policy.PolicyDecision",
+      "title": "PolicyDecision"
+    },
+    {
+      "file": "policy.quorum.schema.json",
+      "name": "policy.quorum",
+      "source": "keelson_contracts.policy.QuorumView",
+      "title": "QuorumView"
+    },
+    {
+      "file": "policy.rule.schema.json",
+      "name": "policy.rule",
+      "source": "keelson_contracts.policy.PolicyRule",
+      "title": "PolicyRule"
+    },
+    {
+      "file": "policy.set.schema.json",
+      "name": "policy.set",
+      "source": "keelson_contracts.policy.PolicySet",
+      "title": "PolicySet"
+    },
+    {
+      "file": "run.request.schema.json",
+      "name": "run.request",
+      "source": "keelson_contracts.runs.RunRequest",
+      "title": "RunRequest"
+    },
+    {
+      "file": "scn.snapshot-label.schema.json",
+      "name": "scn.snapshot-label",
+      "source": "keelson_contracts.scn.SnapshotLabel",
+      "title": "SnapshotLabel"
+    },
+    {
+      "file": "signals.alert.schema.json",
+      "name": "signals.alert",
+      "source": "keelson_contracts.signals.Alert",
+      "title": "Alert"
+    },
+    {
+      "file": "signals.alert-detail.schema.json",
+      "name": "signals.alert-detail",
+      "source": "keelson_contracts.signals.AlertDetail",
+      "title": "AlertDetail"
+    },
+    {
+      "file": "signals.alert-rule.schema.json",
+      "name": "signals.alert-rule",
+      "source": "keelson_contracts.signals.AlertRule",
+      "title": "AlertRule"
+    },
+    {
+      "file": "signals.alert-status-update.schema.json",
+      "name": "signals.alert-status-update",
+      "source": "keelson_contracts.signals.AlertStatusUpdate",
+      "title": "AlertStatusUpdate"
+    },
+    {
+      "file": "signals.event.schema.json",
+      "name": "signals.event",
+      "source": "keelson_contracts.signals.DisruptionEvent",
+      "title": "DisruptionEvent"
+    },
+    {
+      "file": "signals.exposure.schema.json",
+      "name": "signals.exposure",
+      "source": "keelson_contracts.signals.Exposure",
+      "title": "Exposure"
+    },
+    {
+      "file": "signals.exposure-summary.schema.json",
+      "name": "signals.exposure-summary",
+      "source": "keelson_contracts.signals.ExposureSummary",
+      "title": "ExposureSummary"
+    },
+    {
+      "file": "signals.scenario-pack.schema.json",
+      "name": "signals.scenario-pack",
+      "source": "keelson_contracts.signals.ScenarioPack",
+      "title": "ScenarioPack"
+    },
+    {
+      "file": "signals.signal.schema.json",
+      "name": "signals.signal",
+      "source": "keelson_contracts.signals.DisruptionSignal",
+      "title": "DisruptionSignal"
+    },
+    {
+      "file": "signals.tenant-network.schema.json",
+      "name": "signals.tenant-network",
+      "source": "keelson_contracts.signals.TenantNetwork",
+      "title": "TenantNetwork"
+    }
+  ],
+  "version": "0.1.0"
+}

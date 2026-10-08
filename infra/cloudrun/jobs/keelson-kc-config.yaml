@@ -1,0 +1,89 @@
+# Cloud Run job: keelson-kc-config (compose: kc-config, one-shot). keycloak-config-cli upserts the
+# realms keelson + merxa from infra/keycloak/config (baked into the image by
+# infra/cloudrun/images/kc-config.Dockerfile with the dev origins rewritten to <domain>).
+# Talks to Keycloak's admin API on the run.app URL through the VPC (the public auth.<domain>
+# blocks /admin and /realms/master).
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: keelson-kc-config
+  labels:
+    cloud.googleapis.com/location: ${REGION}
+    app.kubernetes.io/part-of: keelson
+  annotations:
+    run.googleapis.com/launch-stage: GA
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/network-interfaces: '[{"network":"${NETWORK}","subnetwork":"${SUBNET}"}]'
+        run.googleapis.com/vpc-access-egress: all-traffic
+    spec:
+      parallelism: 1
+      taskCount: 1
+      template:
+        spec:
+          serviceAccountName: keelson-jobs@${PROJECT}.iam.gserviceaccount.com
+          maxRetries: 2
+          timeoutSeconds: 600
+          containers:
+            - name: kc-config
+              image: ${IMAGE_KC_CONFIG}
+              resources:
+                limits:
+                  cpu: "1"
+                  memory: 1Gi
+              env:
+                - name: KEYCLOAK_URL
+                  value: ${URL_KEYCLOAK}
+                - name: KEYCLOAK_USER
+                  value: admin
+                - name: KEYCLOAK_AVAILABILITYCHECK_ENABLED
+                  value: "true"
+                - name: KEYCLOAK_AVAILABILITYCHECK_TIMEOUT
+                  value: 180s
+                - name: IMPORT_FILES_LOCATIONS
+                  value: /config/*.yaml
+                - name: IMPORT_VARSUBSTITUTION_ENABLED
+                  value: "true"
+                # Same safety pins as compose.yaml.
+                - name: IMPORT_REMOTESTATE_ENABLED
+                  value: "true"
+                - name: IMPORT_MANAGED_CLIENTSCOPE
+                  value: no-delete
+                - name: IMPORT_BEHAVIORS_REMOVEDEFAULTROLEFROMUSER
+                  value: "false"
+                - name: DEMO_ENABLED
+                  value: "${DEMO_ENABLED}"
+                - name: JAVA_TOOL_OPTIONS
+                  value: -XX:MaxRAMPercentage=60
+                - name: KEYCLOAK_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: keelson-kc-admin-password
+                      key: latest
+                - name: KEELSON_BFF_CLIENT_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: keelson-bff-client-secret
+                      key: latest
+                - name: KEELSON_DEMO_CLIENT_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: keelson-demo-client-secret
+                      key: latest
+                - name: MERXA_WEB_CLIENT_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: keelson-merxa-web-client-secret
+                      key: latest
+                - name: MERXA_DEMO_CLIENT_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: keelson-merxa-demo-client-secret
+                      key: latest
+                - name: DEMO_USER_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: keelson-demo-user-password
+                      key: latest

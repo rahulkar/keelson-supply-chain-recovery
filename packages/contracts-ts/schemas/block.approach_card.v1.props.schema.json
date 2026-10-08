@@ -1,0 +1,331 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "``approach_card@1`` — the scenario framing the user confirms before investigation.\n\nM4 additions (``90`` §2, omitted while empty): ``agents`` to be consulted, ``checks`` as\n``{task_id, sentence}`` per plan task (plain strings from M1 cards stay valid), and\n``editable`` values for **Edit**. ``mode`` drives the what-if badge.",
+  "properties": {
+    "agents": {
+      "default": [],
+      "items": {
+        "additionalProperties": false,
+        "description": "An agent the plan will consult (``slug`` from the AgentSpec, friendly display name).",
+        "properties": {
+          "display_name": {
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "slug": {
+            "minLength": 1,
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "display_name"
+        ],
+        "title": "ApproachAgent",
+        "type": "object"
+      },
+      "title": "Agents",
+      "type": "array"
+    },
+    "assumptions": {
+      "items": {
+        "additionalProperties": false,
+        "description": "A scenario assumption shown on the approach card (``{key,label,value_text,prov}``).\n\nM4 (``90`` §5): ``refine_scenario`` turns an inference-backed scenario update into an\nassumption with ``unconfirmed=True`` and the evidence it came from\n(``source_evidence_ids``). Apply stays disabled until the user confirms it (case\naction ``confirm_assumptions`` → :meth:`DisruptionScenario.confirm_assumptions`).\nBoth fields are omitted from dumps at their defaults, so pre-M4 assumptions (and the\nscenario fingerprint) serialize exactly as before.",
+        "properties": {
+          "key": {
+            "minLength": 1,
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "prov": {
+            "description": "Where a number or statement comes from (plan §3.3).",
+            "enum": [
+              "fact",
+              "inference",
+              "assumption",
+              "simulated",
+              "decision",
+              "committed"
+            ],
+            "title": "Provenance",
+            "type": "string"
+          },
+          "source_evidence_ids": {
+            "default": [],
+            "items": {
+              "pattern": "^ev_[0-9A-Za-z_-]{1,64}$",
+              "type": "string"
+            },
+            "title": "Source Evidence Ids",
+            "type": "array"
+          },
+          "unconfirmed": {
+            "default": false,
+            "title": "Unconfirmed",
+            "type": "boolean"
+          },
+          "value_text": {
+            "title": "Value Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "value_text",
+          "prov"
+        ],
+        "title": "Assumption",
+        "type": "object"
+      },
+      "title": "Assumptions",
+      "type": "array"
+    },
+    "buttons": {
+      "items": {
+        "enum": [
+          "confirm",
+          "edit",
+          "what_if",
+          "cancel"
+        ],
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Buttons",
+      "type": "array"
+    },
+    "checks": {
+      "items": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "additionalProperties": false,
+            "description": "One plan task as the user reads it (``sentence`` from the task objective).",
+            "properties": {
+              "sentence": {
+                "minLength": 1,
+                "title": "Sentence",
+                "type": "string"
+              },
+              "task_id": {
+                "minLength": 1,
+                "title": "Task Id",
+                "type": "string"
+              }
+            },
+            "required": [
+              "task_id",
+              "sentence"
+            ],
+            "title": "ApproachCheck",
+            "type": "object"
+          }
+        ]
+      },
+      "title": "Checks",
+      "type": "array"
+    },
+    "editable": {
+      "default": [],
+      "items": {
+        "additionalProperties": false,
+        "description": "A scenario value the user may change with **Edit** (``key`` is the assumption key).\n\n``days``/``pct`` carry ``value_int`` (current value; ``null`` = not set); ``ids`` carries\n``value_ids``. The edited value comes back as a typed resume edit\n(:class:`~keelson_contracts.runs.ApproachEdit`).",
+        "properties": {
+          "key": {
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "days",
+              "pct",
+              "ids"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "value_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Value Ids"
+          },
+          "value_int": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Value Int"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "kind"
+        ],
+        "title": "EditableValue",
+        "type": "object"
+      },
+      "title": "Editable",
+      "type": "array"
+    },
+    "event": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "family": {
+          "enum": [
+            "SUP",
+            "LOG",
+            "NAT",
+            "CYB",
+            "REG",
+            "DEM",
+            "OTHER"
+          ],
+          "title": "Family",
+          "type": "string"
+        },
+        "source": {
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "type": {
+          "minLength": 1,
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "family",
+        "type",
+        "description",
+        "source"
+      ],
+      "title": "DisruptionEventSummary",
+      "type": "object"
+    },
+    "interrupt_id": {
+      "minLength": 1,
+      "title": "Interrupt Id",
+      "type": "string"
+    },
+    "matched": {
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "minimum": 0,
+          "title": "Count",
+          "type": "integer"
+        },
+        "sample": {
+          "items": {
+            "additionalProperties": false,
+            "description": "A resolved business entity (``{type, code, label}``).\n\nStrict-compatible (all fields required, no defaults) so it can be used inside\nLLM output schemas as well as render blocks.",
+            "properties": {
+              "code": {
+                "title": "Code",
+                "type": "string"
+              },
+              "label": {
+                "title": "Label",
+                "type": "string"
+              },
+              "type": {
+                "enum": [
+                  "supplier",
+                  "po",
+                  "po_line",
+                  "sku",
+                  "style",
+                  "dc",
+                  "cluster",
+                  "store",
+                  "factory",
+                  "component",
+                  "port",
+                  "lane",
+                  "chokepoint",
+                  "region",
+                  "other"
+                ],
+                "title": "Type",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "code",
+              "label"
+            ],
+            "title": "EntityRef",
+            "type": "object"
+          },
+          "title": "Sample",
+          "type": "array"
+        }
+      },
+      "required": [
+        "count",
+        "sample"
+      ],
+      "title": "MatchedEntities",
+      "type": "object"
+    },
+    "mode": {
+      "enum": [
+        "actual",
+        "what_if"
+      ],
+      "title": "Mode",
+      "type": "string"
+    }
+  },
+  "required": [
+    "interrupt_id",
+    "event",
+    "mode",
+    "matched",
+    "assumptions",
+    "checks",
+    "buttons"
+  ],
+  "title": "ApproachCardProps",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.blocks.ApproachCardProps"
+}

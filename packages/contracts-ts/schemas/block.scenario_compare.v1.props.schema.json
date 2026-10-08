@@ -1,0 +1,259 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "``scenario_compare@1`` (canvas): every candidate option with its scorecard.\n\nM7 (omitted while unset): ``advisory`` — the options were computed on crawled data.",
+  "properties": {
+    "advisory": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "description": "M7: the plan was built on data that is not a consistent snapshot (a tier-A crawl), so the\noptions are advisory. ``text`` is what the UI shows; ``as_of_range`` is when the data was\nread.",
+          "properties": {
+            "as_of_range": {
+              "additionalProperties": false,
+              "description": "When a crawled snapshot's data was read: the first and the last page (wire keys ``from`` /\n``to``; Python attributes ``from_`` / ``to``). ``to`` is never before ``from``.",
+              "properties": {
+                "from": {
+                  "format": "date-time",
+                  "title": "From",
+                  "type": "string"
+                },
+                "to": {
+                  "format": "date-time",
+                  "title": "To",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "from",
+                "to"
+              ],
+              "title": "AsOfRange",
+              "type": "object"
+            },
+            "reason": {
+              "const": "crawled_snapshot",
+              "title": "Reason",
+              "type": "string"
+            },
+            "text": {
+              "minLength": 1,
+              "title": "Text",
+              "type": "string"
+            }
+          },
+          "required": [
+            "reason",
+            "text",
+            "as_of_range"
+          ],
+          "title": "Advisory",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "axes": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "default": "incremental_cost_cents",
+          "enum": [
+            "fill_rate_bp",
+            "lost_units",
+            "lost_margin_cents",
+            "incremental_cost_cents",
+            "net_benefit_cents",
+            "shortage_days",
+            "first_breach_shift_days",
+            "tts_gain_days",
+            "changes"
+          ],
+          "title": "X",
+          "type": "string"
+        },
+        "y": {
+          "default": "lost_units",
+          "enum": [
+            "fill_rate_bp",
+            "lost_units",
+            "lost_margin_cents",
+            "incremental_cost_cents",
+            "net_benefit_cents",
+            "shortage_days",
+            "first_breach_shift_days",
+            "tts_gain_days",
+            "changes"
+          ],
+          "title": "Y",
+          "type": "string"
+        }
+      },
+      "title": "CompareAxes",
+      "type": "object"
+    },
+    "options": {
+      "items": {
+        "additionalProperties": false,
+        "description": "A plan option on the Pareto view; guided-only options must say why.",
+        "properties": {
+          "guided_only": {
+            "title": "Guided Only",
+            "type": "boolean"
+          },
+          "guided_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Guided Reason"
+          },
+          "id": {
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "levers": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Levers",
+            "type": "array"
+          },
+          "pareto": {
+            "title": "Pareto",
+            "type": "boolean"
+          },
+          "recommended": {
+            "title": "Recommended",
+            "type": "boolean"
+          },
+          "scorecard": {
+            "additionalProperties": false,
+            "description": "Plan KPIs recomputed from the rounded plan (never from the objective).",
+            "properties": {
+              "changes": {
+                "minimum": 0,
+                "title": "Changes",
+                "type": "integer"
+              },
+              "cost_breakdown": {
+                "additionalProperties": false,
+                "description": "Incremental cost by component, in cents.",
+                "properties": {
+                  "expedite_premium": {
+                    "minimum": 0,
+                    "title": "Expedite Premium",
+                    "type": "integer"
+                  },
+                  "nearshore_premium": {
+                    "minimum": 0,
+                    "title": "Nearshore Premium",
+                    "type": "integer"
+                  },
+                  "transfer": {
+                    "minimum": 0,
+                    "title": "Transfer",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "transfer",
+                  "expedite_premium",
+                  "nearshore_premium"
+                ],
+                "title": "CostBreakdown",
+                "type": "object"
+              },
+              "fill_rate_bp": {
+                "maximum": 10000,
+                "minimum": 0,
+                "title": "Fill Rate Bp",
+                "type": "integer"
+              },
+              "first_breach_shift_days": {
+                "title": "First Breach Shift Days",
+                "type": "integer"
+              },
+              "incremental_cost_cents": {
+                "minimum": 0,
+                "title": "Incremental Cost Cents",
+                "type": "integer"
+              },
+              "lost_margin_cents": {
+                "title": "Lost Margin Cents",
+                "type": "integer"
+              },
+              "lost_units": {
+                "minimum": 0,
+                "title": "Lost Units",
+                "type": "integer"
+              },
+              "net_benefit_cents": {
+                "title": "Net Benefit Cents",
+                "type": "integer"
+              },
+              "shortage_days": {
+                "minimum": 0,
+                "title": "Shortage Days",
+                "type": "integer"
+              },
+              "tts_gain_days": {
+                "title": "Tts Gain Days",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "fill_rate_bp",
+              "lost_units",
+              "lost_margin_cents",
+              "incremental_cost_cents",
+              "cost_breakdown",
+              "net_benefit_cents",
+              "shortage_days",
+              "first_breach_shift_days",
+              "tts_gain_days",
+              "changes"
+            ],
+            "title": "Scorecard",
+            "type": "object"
+          },
+          "title": {
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "levers",
+          "scorecard",
+          "recommended",
+          "guided_only",
+          "pareto"
+        ],
+        "title": "CompareOption",
+        "type": "object"
+      },
+      "minItems": 1,
+      "title": "Options",
+      "type": "array"
+    }
+  },
+  "required": [
+    "options"
+  ],
+  "title": "ScenarioCompareProps",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.blocks.ScenarioCompareProps"
+}

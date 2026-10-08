@@ -1,0 +1,81 @@
+# Demo pack (docs/contracts/100-m6-signals.md §7). SIMULATED: a fictional Red Sea / Suez Canal closure
+# reported by two fictional outlets ("Demo Freight Daily" RSS 2.0, "Simulated Shipping Wire" Atom).
+# Replayed through the real RSS adapter (fixtures served at /demo-feeds/suez-closure/<file>); every item
+# ships a pre-baked extraction (no LLM needed). Everything it produces is origin demo / provenance
+# simulated; alerts carry simulated: true (DEMO badge).
+# Check with: python data/scenarios/validate.py suez-closure   (expected exposures: expected.yaml)
+id: suez-closure
+title: Suez Canal closed after a Red Sea incident (simulated)
+description: >-
+  SIMULATED. Three trade-press items over 24 hours from two fictional outlets: Suez Canal transits are
+  suspended after a security incident in the southern Red Sea, Asia-Europe carriers pause Suez routings
+  (+10 to 14 days), and insurers warn the closure could last up to three weeks. The items cluster into
+  one news-only event on CHOKEPOINT:SUEZ (and the Bab-el-Mandeb / Red Sea polygon). Expected exposure:
+  the Suez lanes SGN-HAM-SEA and SGN-GDN-SEA (lane_crosses); the Cape lanes and the sea-air lanes via
+  Jebel Ali are not exposed (they are the alternatives).
+start_at: "2026-10-05T06:00:00Z"
+steps:
+  - t_offset_s: 0
+    adapter: rss
+    payload:
+      fixture: news-demo-freight-daily-1.xml
+      connector_id: rss.demo-freight-daily
+      source_name: Demo Freight Daily
+      extractions:
+        "https://demo-freight-daily.example/?p=26090":
+          kind: geopolitical
+          subtype: chokepoint_closure
+          places: []
+          companies: []
+          ports: []
+          chokepoints: ["Suez Canal", "Red Sea"]
+          dates_text: ["early on Monday"]
+          injection_suspected: false
+    note: "Demo Freight Daily (fictional): Suez Canal transits suspended after a Red Sea security incident"
+  - t_offset_s: 21600
+    adapter: rss
+    payload:
+      fixture: news-simulated-shipping-wire.xml
+      connector_id: rss.simulated-shipping-wire
+      source_name: Simulated Shipping Wire
+      extractions:
+        "tag:simulated-shipping-wire.example,2026-10-05:suez-routings-paused":
+          kind: logistics
+          subtype: chokepoint_closure
+          places: []
+          companies: []
+          ports: []
+          chokepoints: ["Suez Canal"]
+          dates_text: ["until further notice", "10 to 14 days"]
+          injection_suspected: false
+    note: "Simulated Shipping Wire (fictional, Atom): carriers pause Suez routings; corroborates the event"
+  - t_offset_s: 86400
+    adapter: rss
+    payload:
+      fixture: news-demo-freight-daily-2.xml
+      connector_id: rss.demo-freight-daily
+      source_name: Demo Freight Daily
+      extractions:
+        "https://demo-freight-daily.example/?p=26104":
+          kind: geopolitical
+          subtype: chokepoint_closure
+          places: []
+          companies: []
+          ports: []
+          chokepoints: ["Suez Canal", "Red Sea"]
+          dates_text: ["up to three weeks"]
+          injection_suspected: false
+        "https://demo-freight-daily.example/?p=26090":
+          kind: geopolitical
+          subtype: chokepoint_closure
+          places: []
+          companies: []
+          ports: []
+          chokepoints: ["Suez Canal", "Red Sea"]
+          dates_text: ["early on Monday"]
+          injection_suspected: false
+    note: "Demo Freight Daily (fictional), one day later: closure could last up to three weeks (the earlier item is a duplicate)"
+  - t_offset_s: 86400
+    adapter: chat_hint
+    payload: {text: "Open the Suez alert, then ask: what if Suez stays closed for 3 weeks?"}
+    note: "Presenter hint"

@@ -1,0 +1,170 @@
+/*
+ * Keelson × Tailwind 4 theme.
+ *
+ * Usage in the app's global stylesheet (after Tailwind):
+ *   @import "tailwindcss";
+ *   @import "@keelson/tokens/theme.css";
+ *   @import "@keelson/ui/styles.css";
+ *   @import "@keelson/viz/styles.css";
+ * and import "@fontsource-variable/inter" from the app (the package does not ship fonts).
+ *
+ * Colours resolve to the runtime CSS variables in tokens.css (`@theme inline`), so switching
+ * `data-theme="dark"` on <html> re-themes every utility without rebuilding.
+ */
+@import "./tokens.css";
+
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+@custom-variant reduced-motion (@media (prefers-reduced-motion: reduce));
+
+@theme inline {
+  --color-bg: var(--k-bg);
+  --color-surface: var(--k-surface);
+  --color-surface-2: var(--k-surface-2);
+  --color-surface-3: var(--k-surface-3);
+  --color-border: var(--k-border);
+  --color-border-strong: var(--k-border-strong);
+  --color-scrim: var(--k-scrim);
+  --color-fg: var(--k-fg);
+  --color-fg-muted: var(--k-fg-muted);
+  --color-fg-subtle: var(--k-fg-subtle);
+  --color-fg-inverse: var(--k-fg-inverse);
+  --color-accent: var(--k-accent);
+  --color-accent-hover: var(--k-accent-hover);
+  --color-accent-fg: var(--k-accent-fg);
+  --color-accent-soft: var(--k-accent-soft);
+  --color-accent-soft-fg: var(--k-accent-soft-fg);
+  --color-focus: var(--k-focus);
+  --color-danger: var(--k-danger);
+  --color-danger-soft: var(--k-danger-soft);
+  --color-warning: var(--k-warning);
+  --color-warning-soft: var(--k-warning-soft);
+  --color-success: var(--k-success);
+  --color-success-soft: var(--k-success-soft);
+  --color-info: var(--k-info);
+  --color-info-soft: var(--k-info-soft);
+  --color-sweep-1: var(--k-sweep-1);
+  --color-sweep-2: var(--k-sweep-2);
+  --color-sweep-3: var(--k-sweep-3);
+  --color-prov-fact: var(--k-prov-fact);
+  --color-prov-fact-soft: var(--k-prov-fact-soft);
+  --color-prov-inference: var(--k-prov-inference);
+  --color-prov-inference-soft: var(--k-prov-inference-soft);
+  --color-prov-assumption: var(--k-prov-assumption);
+  --color-prov-assumption-soft: var(--k-prov-assumption-soft);
+  --color-prov-simulated: var(--k-prov-simulated);
+  --color-prov-simulated-soft: var(--k-prov-simulated-soft);
+  --color-prov-decision: var(--k-prov-decision);
+  --color-prov-decision-soft: var(--k-prov-decision-soft);
+  --color-prov-committed: var(--k-prov-committed);
+  --color-prov-committed-soft: var(--k-prov-committed-soft);
+  --color-prov-verified: var(--k-prov-verified);
+  --color-prov-verified-soft: var(--k-prov-verified-soft);
+  --color-sev-info: var(--k-sev-info);
+  --color-sev-low: var(--k-sev-low);
+  --color-sev-medium: var(--k-sev-medium);
+  --color-sev-high: var(--k-sev-high);
+  --color-sev-critical: var(--k-sev-critical);
+  --color-chart-1: var(--k-chart-1);
+  --color-chart-2: var(--k-chart-2);
+  --color-chart-3: var(--k-chart-3);
+  --color-chart-4: var(--k-chart-4);
+  --color-chart-5: var(--k-chart-5);
+  --color-chart-6: var(--k-chart-6);
+
+  --shadow-sm: var(--k-shadow-sm);
+  --shadow-md: var(--k-shadow-md);
+  --shadow-lg: var(--k-shadow-lg);
+  --shadow-composer: var(--k-shadow-composer);
+}
+
+@theme {
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", "Cascadia Code", Menlo, Consolas, monospace;
+
+  /* Radii 4/8/12/16/28/32 + pill */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 28px;
+  --radius-2xl: 32px;
+  --radius-pill: 9999px;
+
+  /* Type scale 40/28/20/16/14/12 */
+  --text-display: 2.5rem;
+  --text-display--line-height: 3rem;
+  --text-display--letter-spacing: -0.02em;
+  --text-display--font-weight: 500;
+  --text-title: 1.75rem;
+  --text-title--line-height: 2.25rem;
+  --text-title--letter-spacing: -0.01em;
+  --text-title--font-weight: 500;
+  --text-heading: 1.25rem;
+  --text-heading--line-height: 1.75rem;
+  --text-heading--font-weight: 600;
+  --text-body: 1rem;
+  --text-body--line-height: 1.625rem;
+  --text-ui: 0.875rem;
+  --text-ui--line-height: 1.25rem;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1rem;
+
+  /* 4-pt grid (Tailwind default spacing unit, stated explicitly) */
+  --spacing: 0.25rem;
+
+  /* Layout */
+  --container-chat: 760px;
+
+  /* Motion */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.3, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.3, 0, 1, 1);
+  --animate-shimmer: k-shimmer 1.8s linear infinite;
+  --animate-pulse-soft: k-pulse-soft 1.6s ease-in-out infinite;
+
+  @keyframes k-shimmer {
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -200% 0;
+    }
+  }
+
+  @keyframes k-pulse-soft {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.45;
+    }
+  }
+}
+
+@layer base {
+  html {
+    background-color: var(--k-bg);
+    color: var(--k-fg);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--k-focus);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

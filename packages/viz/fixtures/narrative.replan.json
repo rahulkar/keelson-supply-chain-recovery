@@ -1,0 +1,38 @@
+{
+  "id": "blk_narrative_replan",
+  "kind": "narrative",
+  "v": 1,
+  "title": "Summary",
+  "placement": "inline",
+  "provenance": {
+    "kind": "fact",
+    "engine": "keelson-engine@0.5",
+    "inputs_hash": "77aa00e1a0000002",
+    "as_of": "2026-10-07"
+  },
+  "data_ref": null,
+  "props": {
+    "markdown": "- **Sea-air capacity on CGP-UK1-SA dropped to 30%** for the next 3 weeks.\n- **Plan v2 keeps the DC transfers** and replaces 4 sea-air bookings with 2 smaller ones plus a DE1 → UK1 transfer.\n",
+    "what_changed": "Plan v2: 4 sea-air bookings → 2; +1 DC transfer DE1 → UK1 (900 units); extra cost €27,400 → €24,100",
+    "banner": {
+      "text": "New information: sea-air capacity on CGP-UK1-SA cut to 30% — plan updated (v2)",
+      "plan_version": 2,
+      "previous_plan_version": 1,
+      "signal_id": "sig_01a1lane"
+    },
+    "plan_versions": [
+      {
+        "version": 1,
+        "label": "Plan v1",
+        "status": "committed",
+        "current": false
+      },
+      {
+        "version": 2,
+        "label": "Plan v2",
+        "status": "proposed",
+        "current": true
+      }
+    ]
+  }
+}

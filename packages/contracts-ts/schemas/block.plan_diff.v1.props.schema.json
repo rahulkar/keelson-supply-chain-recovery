@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "``plan_diff@1`` — the change-set as the user reads it.",
+  "properties": {
+    "plan_version": {
+      "minimum": 1,
+      "title": "Plan Version",
+      "type": "integer"
+    },
+    "rows": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "after_text": {
+            "title": "After Text",
+            "type": "string"
+          },
+          "before_text": {
+            "title": "Before Text",
+            "type": "string"
+          },
+          "op": {
+            "minLength": 1,
+            "title": "Op",
+            "type": "string"
+          },
+          "qty": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Qty"
+          },
+          "seq": {
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "system": {
+            "minLength": 1,
+            "title": "System",
+            "type": "string"
+          },
+          "target_label": {
+            "minLength": 1,
+            "title": "Target Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq",
+          "op",
+          "target_label",
+          "before_text",
+          "after_text",
+          "system"
+        ],
+        "title": "PlanDiffRow",
+        "type": "object"
+      },
+      "title": "Rows",
+      "type": "array"
+    },
+    "totals": {
+      "additionalProperties": false,
+      "properties": {
+        "lines": {
+          "minimum": 0,
+          "title": "Lines",
+          "type": "integer"
+        },
+        "units": {
+          "minimum": 0,
+          "title": "Units",
+          "type": "integer"
+        },
+        "value_cents": {
+          "description": "Money in integer EUR minor units (cents).",
+          "title": "Value Cents",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "lines",
+        "units",
+        "value_cents"
+      ],
+      "title": "ChangeTotals",
+      "type": "object"
+    }
+  },
+  "required": [
+    "plan_version",
+    "rows",
+    "totals"
+  ],
+  "title": "PlanDiffProps",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.blocks.PlanDiffProps"
+}

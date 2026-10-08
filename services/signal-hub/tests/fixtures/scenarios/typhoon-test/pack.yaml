@@ -1,0 +1,57 @@
+# TEST FIXTURE pack (signal-hub tests only; the product packs live in data/scenarios/).
+id: typhoon-test
+title: Test typhoon approaching Ho Chi Minh City
+description: Two GDACS-shaped advisories (orange then red), one trade-press item with a pre-baked extraction, a Merxa supplier-message inject and a presenter hint.
+start_at: "2026-10-07T00:00:00Z"
+steps:
+  - t_offset_s: 0
+    adapter: gdacs
+    payload: {fixture: adv1.geojson}
+    note: "Advisory 1: orange, cone 200 km off the coast"
+  - t_offset_s: 21600
+    adapter: rss
+    payload:
+      fixture: news.xml
+      connector_id: rss.demo-freight-daily
+      source_name: Demo Freight Daily
+      extraction:
+        kind: logistics
+        subtype: port_closure
+        places: ["Ho Chi Minh City"]
+        companies: ["Saigon Newport"]
+        ports: ["Cat Lai terminal"]
+        chokepoints: []
+        dates_text: ["ahead of the typhoon"]
+        injection_suspected: false
+    note: "Demo Freight Daily: Cat Lai suspends operations"
+  - t_offset_s: 21600
+    adapter: gdacs
+    payload: {fixture: adv2.geojson}
+    note: "Advisory 2: red, cone over Ho Chi Minh City"
+  - t_offset_s: 43200
+    adapter: merxa_inject
+    payload:
+      event:
+        type: supplier_message.received
+        id: "evt-sm-0001"
+        timestamp: "2026-10-07T12:00:00Z"
+        data:
+          id: "9b8e0c55-1111-4c3a-9d0e-000000000001"
+          supplier_code: SUP-VN-01
+          received_at: "2026-10-07T12:00:00Z"
+          subject: "Typhoon: trims delayed"
+          body: "Our Ho Chi Minh City plant is closed until the typhoon passes; trims will ship about 5 days late."
+      extraction:
+        kind: supplier
+        subtype: supplier_delay
+        places: ["Ho Chi Minh City"]
+        companies: []
+        ports: []
+        chokepoints: []
+        dates_text: ["about 5 days late"]
+        injection_suspected: false
+    note: "Supplier SUP-VN-01 reports a trim delay"
+  - t_offset_s: 43200
+    adapter: chat_hint
+    payload: {text: "Ask: what if Cat Lai stays closed for 5 days?"}
+    note: "Presenter hint"

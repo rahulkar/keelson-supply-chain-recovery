@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Structured output of a specialist (investigator → structurer).\n\n``scenario_updates`` (M4) is required in the schema (strict mode); payloads stored\nbefore M4 that lack the key still validate (it is read as ``[]``).",
+  "properties": {
+    "affected": {
+      "items": {
+        "additionalProperties": false,
+        "description": "A resolved business entity (``{type, code, label}``).\n\nStrict-compatible (all fields required, no defaults) so it can be used inside\nLLM output schemas as well as render blocks.",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "supplier",
+              "po",
+              "po_line",
+              "sku",
+              "style",
+              "dc",
+              "cluster",
+              "store",
+              "factory",
+              "component",
+              "port",
+              "lane",
+              "chokepoint",
+              "region",
+              "other"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "code",
+          "label"
+        ],
+        "title": "EntityRef",
+        "type": "object"
+      },
+      "title": "Affected",
+      "type": "array"
+    },
+    "claims": {
+      "items": {
+        "additionalProperties": false,
+        "description": "A statement with pointers to evidence or a deterministic calc.",
+        "properties": {
+          "calc_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calc Id"
+          },
+          "confidence": {
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ],
+            "title": "Confidence",
+            "type": "string"
+          },
+          "evidence_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Id"
+          },
+          "json_pointer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Json Pointer"
+          },
+          "kind": {
+            "enum": [
+              "fact",
+              "inference"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "kind",
+          "evidence_id",
+          "json_pointer",
+          "calc_id",
+          "confidence"
+        ],
+        "title": "Claim",
+        "type": "object"
+      },
+      "title": "Claims",
+      "type": "array"
+    },
+    "gaps": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Gaps",
+      "type": "array"
+    },
+    "scenario_updates": {
+      "items": {
+        "additionalProperties": false,
+        "description": "A proposed scenario change backed by evidence (``Findings.scenario_updates``).\n\n``refine_scenario`` applies fact-backed updates and turns inference-backed ones into\n``Assumption(unconfirmed=True)`` entries. The value shape is checked deterministically\nwith :meth:`shape_error` (a malformed update is dropped, not the whole ``Findings``).",
+        "properties": {
+          "evidence_id": {
+            "title": "Evidence Id",
+            "type": "string"
+          },
+          "json_pointer": {
+            "title": "Json Pointer",
+            "type": "string"
+          },
+          "key": {
+            "enum": [
+              "delay_days",
+              "duration_days",
+              "demand_change_pct",
+              "add_receipts",
+              "remove_receipts"
+            ],
+            "title": "Key",
+            "type": "string"
+          },
+          "value_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Ids"
+          },
+          "value_int": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Int"
+          }
+        },
+        "required": [
+          "key",
+          "value_int",
+          "value_ids",
+          "evidence_id",
+          "json_pointer"
+        ],
+        "title": "ScenarioUpdate",
+        "type": "object"
+      },
+      "title": "Scenario Updates",
+      "type": "array"
+    },
+    "status": {
+      "enum": [
+        "ok",
+        "failed"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "task_id": {
+      "title": "Task Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "task_id",
+    "status",
+    "claims",
+    "affected",
+    "gaps",
+    "scenario_updates"
+  ],
+  "title": "Findings",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.llm.Findings"
+}

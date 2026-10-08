@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Counts for the inbox row (\"3 sites · 4 lanes · 2 open POs\"). All numbers come from the tenant\nnetwork snapshot / ERP reads, never from an LLM; ``None`` = not computed.",
+  "properties": {
+    "nodes_by_type": {
+      "additionalProperties": false,
+      "description": "Exposed nodes per type (every type present, 0 when none).",
+      "properties": {
+        "dc": {
+          "minimum": 0,
+          "title": "Dc",
+          "type": "integer"
+        },
+        "factory": {
+          "minimum": 0,
+          "title": "Factory",
+          "type": "integer"
+        },
+        "lane": {
+          "minimum": 0,
+          "title": "Lane",
+          "type": "integer"
+        },
+        "port": {
+          "minimum": 0,
+          "title": "Port",
+          "type": "integer"
+        },
+        "store": {
+          "minimum": 0,
+          "title": "Store",
+          "type": "integer"
+        },
+        "supplier": {
+          "minimum": 0,
+          "title": "Supplier",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "supplier",
+        "factory",
+        "port",
+        "dc",
+        "store",
+        "lane"
+      ],
+      "title": "NodeCounts",
+      "type": "object"
+    },
+    "open_po_lines": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Open Po Lines"
+    },
+    "units_inbound": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Units Inbound"
+    }
+  },
+  "required": [
+    "nodes_by_type",
+    "open_po_lines",
+    "units_inbound"
+  ],
+  "title": "ExposureSummary",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.signals.ExposureSummary"
+}

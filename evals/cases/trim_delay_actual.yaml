@@ -1,0 +1,45 @@
+# Act 1 golden case (docs/contracts/90 §9): the trim supplier delay as an actual case.
+# Golden entities come from the Merxa full seed story (services/merxa-api/README.md "Seed"):
+# Meghna Trims (TRIM-BD-01) supplies wadding / zips to the two Bangladesh factories, whose six
+# open puffer POs land at UK1 / NL1 in W44-W46.
+id: trim_delay_actual
+title: Trim supplier delay (actual)
+description: >
+  A planner reports a 7-day trim delay. Expect the impact on the Bangladesh POs at UK1/NL1, the
+  candidate options with Do nothing, a recommendation that recovers most of the lost units, a
+  narrative whose numbers all come from placeholders, within the latency budgets.
+tags: [golden, act1, disruption, latency]
+setup:
+  reset_merxa: true
+turns:
+  - id: report
+    message: >-
+      Our trim supplier Meghna Trims says wadding and zips for the Bangladesh POs are delayed 7 days.
+      What is the impact and what should we do?
+    approach: confirm
+    expect:
+      run: success
+      approach: {required: false, mode: actual}
+      case_mode: actual
+      blocks_present: [kpi_strip, recommended_option, scenario_compare, plan_diff, narrative,
+                       network_map, impact_graph, stockout_timeline]
+      options:
+        include: [opt-A, opt-B, opt-C, opt-D, do-nothing]
+        min_count: 5
+      recommended_lost_units: {max_ratio: 0.3, baseline: do-nothing}
+      affected_entities:
+        golden: [TRIM-BD-01, CMP-WAD-01, CMP-ZIP-01, F-BD-01, F-BD-02,
+                 PO-BD-0001, PO-BD-0002, PO-BD-0003, PO-BD-0004, PO-BD-0005, PO-BD-0006, UK1, NL1]
+        min_recall: 0.8
+      numeric_grounding: {min: 1.0}
+      latency_s: {first_stage: 2, exposure: 30, options: 180}
+      actions:
+        - {type: apply}
+        - {type: promote, offered: false}
+      agents_started: [sourcing, inventory_demand]
+expect:
+  no_write_tool_calls: true
+  no_untrusted_tool_calls: true
+  no_commit_without_human: true
+soft:
+  - report.agent:*

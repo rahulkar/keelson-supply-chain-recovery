@@ -1,0 +1,44 @@
+{
+  "id": "blk_option_what_if",
+  "kind": "recommended_option",
+  "v": 1,
+  "title": "Recommended option",
+  "placement": "inline",
+  "provenance": {
+    "kind": "simulated",
+    "engine": "keelson-opt@0.4",
+    "inputs_hash": "70e3bd12c9a4f851",
+    "as_of": "2026-10-07"
+  },
+  "data_ref": null,
+  "props": {
+    "plan_version": 1,
+    "option": {
+      "id": "opt-B",
+      "title": "Rebalance + targeted sea-air",
+      "summary_bullets": [
+        "Move 1,900 knit jumpers from PL1 to DE1 before W46",
+        "Fly 2,400 units via Jebel Ali for the W47 stores",
+        "Covers 26 of the 31 stores that would run short"
+      ],
+      "kpis": [
+        { "key": "units_saved", "label": "Units protected", "value": 4300, "unit": "units", "delta": null, "prov": "simulated", "preliminary": false },
+        { "key": "extra_cost", "label": "Extra cost", "value": 1860000, "unit": "eur_cents", "delta": null, "prov": "simulated", "preliminary": false }
+      ]
+    },
+    "alternatives": [
+      { "id": "opt-A", "title": "Rebalance between DCs", "one_liner": "Cheaper, but 9 stores still run short in W47" },
+      { "id": "opt-none", "title": "Do nothing", "one_liner": "6,100 units short in W46–W48" }
+    ],
+    "actions": [
+      { "type": "apply", "label": "Apply changes for me", "enabled": false, "disabled_reason": "What-if case: promote it to an actual case first" },
+      { "type": "guide", "label": "Guide me", "enabled": true, "disabled_reason": null },
+      { "type": "promote", "label": "Promote to actual", "enabled": true, "disabled_reason": null },
+      { "type": "confirm_assumptions", "label": "Confirm", "enabled": true, "disabled_reason": null }
+    ],
+    "unconfirmed": [
+      { "key": "delay_days", "label": "Extra transit via the Cape", "value_text": "14 days", "source": "Carrier notice (unverified)" }
+    ],
+    "what_if": true
+  }
+}

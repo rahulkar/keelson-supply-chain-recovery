@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Body of ``PUT /v1/tenants/{tenant}/network`` (pushed by the engine after every scn sync).",
+  "properties": {
+    "lanes": {
+      "items": {
+        "additionalProperties": false,
+        "description": "A lane with its path ``[[lon, lat], …]`` (from ``data/geo/sea_routes.json``).",
+        "properties": {
+          "code": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "mode": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Mode",
+            "type": "string"
+          },
+          "path": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "maximum": 180,
+                  "minimum": -180,
+                  "type": "number"
+                },
+                {
+                  "maximum": 90,
+                  "minimum": -90,
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "maxItems": 5000,
+            "minItems": 2,
+            "title": "Path",
+            "type": "array"
+          }
+        },
+        "required": [
+          "code",
+          "mode",
+          "path"
+        ],
+        "title": "NetworkLane",
+        "type": "object"
+      },
+      "maxItems": 5000,
+      "title": "Lanes",
+      "type": "array"
+    },
+    "nodes": {
+      "items": {
+        "additionalProperties": false,
+        "description": "A tenant node (stores aggregated to clusters), float WGS84 position.",
+        "properties": {
+          "code": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "lat": {
+            "maximum": 90,
+            "minimum": -90,
+            "title": "Lat",
+            "type": "number"
+          },
+          "lon": {
+            "maximum": 180,
+            "minimum": -180,
+            "title": "Lon",
+            "type": "number"
+          },
+          "name": {
+            "maxLength": 200,
+            "title": "Name",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "supplier",
+              "factory",
+              "port",
+              "dc",
+              "store"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "code",
+          "name",
+          "lat",
+          "lon"
+        ],
+        "title": "NetworkNode",
+        "type": "object"
+      },
+      "maxItems": 20000,
+      "title": "Nodes",
+      "type": "array"
+    }
+  },
+  "required": [
+    "nodes",
+    "lanes"
+  ],
+  "title": "TenantNetwork",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.signals.TenantNetwork"
+}

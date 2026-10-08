@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "``narrative@1`` — already composed markdown (placeholders resolved).\n\n``what_changed`` (M4, omitted when unset) is the one-line \"What changed\" diff a\nfollow-up shows against the previous plan version (plain text, numbers resolved).\n\nM5 (omitted while unset/empty): ``banner`` for a signal-triggered re-plan and\n``plan_versions`` (ascending, exactly one ``current``; the banner's versions are listed).\n\nM7 (omitted while unset): ``advisory`` — the plan was built on crawled data.",
+  "properties": {
+    "advisory": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "description": "M7: the plan was built on data that is not a consistent snapshot (a tier-A crawl), so the\noptions are advisory. ``text`` is what the UI shows; ``as_of_range`` is when the data was\nread.",
+          "properties": {
+            "as_of_range": {
+              "additionalProperties": false,
+              "description": "When a crawled snapshot's data was read: the first and the last page (wire keys ``from`` /\n``to``; Python attributes ``from_`` / ``to``). ``to`` is never before ``from``.",
+              "properties": {
+                "from": {
+                  "format": "date-time",
+                  "title": "From",
+                  "type": "string"
+                },
+                "to": {
+                  "format": "date-time",
+                  "title": "To",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "from",
+                "to"
+              ],
+              "title": "AsOfRange",
+              "type": "object"
+            },
+            "reason": {
+              "const": "crawled_snapshot",
+              "title": "Reason",
+              "type": "string"
+            },
+            "text": {
+              "minLength": 1,
+              "title": "Text",
+              "type": "string"
+            }
+          },
+          "required": [
+            "reason",
+            "text",
+            "as_of_range"
+          ],
+          "title": "Advisory",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "banner": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "description": "\"New information: … — plan updated (v2)\" (M5, ``95`` §4): a re-plan triggered by a signal.\n\n``text`` is composed by a deterministic node (numbers resolved); ``signal_id`` names the\nsignal/webhook event that caused it, when there is one.",
+          "properties": {
+            "plan_version": {
+              "minimum": 1,
+              "title": "Plan Version",
+              "type": "integer"
+            },
+            "previous_plan_version": {
+              "minimum": 1,
+              "title": "Previous Plan Version",
+              "type": "integer"
+            },
+            "signal_id": {
+              "anyOf": [
+                {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Signal Id"
+            },
+            "text": {
+              "minLength": 1,
+              "title": "Text",
+              "type": "string"
+            }
+          },
+          "required": [
+            "text",
+            "plan_version",
+            "previous_plan_version"
+          ],
+          "title": "ReplanBanner",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "markdown": {
+      "minLength": 1,
+      "title": "Markdown",
+      "type": "string"
+    },
+    "plan_versions": {
+      "default": [],
+      "items": {
+        "additionalProperties": false,
+        "description": "One entry of the plan version switcher (v1 ↔ v2).",
+        "properties": {
+          "current": {
+            "title": "Current",
+            "type": "boolean"
+          },
+          "label": {
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "proposed",
+              "committed",
+              "superseded",
+              "rolled_back"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "label",
+          "status",
+          "current"
+        ],
+        "title": "PlanVersionLink",
+        "type": "object"
+      },
+      "title": "Plan Versions",
+      "type": "array"
+    },
+    "what_changed": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "What Changed"
+    }
+  },
+  "required": [
+    "markdown"
+  ],
+  "title": "NarrativeProps",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.blocks.NarrativeProps"
+}

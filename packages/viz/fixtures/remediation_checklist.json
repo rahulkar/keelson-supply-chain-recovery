@@ -1,0 +1,105 @@
+{
+  "id": "blk_checklist_merxa",
+  "kind": "remediation_checklist",
+  "v": 1,
+  "title": "Guide: 5 changes to make in Merxa",
+  "placement": "inline",
+  "provenance": {
+    "kind": "inference",
+    "engine": "keelson-engine@0.5",
+    "inputs_hash": "9d1c0ffee0a1de00",
+    "as_of": "2026-10-07"
+  },
+  "data_ref": null,
+  "props": {
+    "checklist_id": "chk_01a1merxa",
+    "connector": "merxa",
+    "steps": [
+      {
+        "seq": 1,
+        "title": "Create the transfer order DE1 → NL1",
+        "instructions_md": "Create a transfer order from **DE1** to **NL1** shipping on **12 Oct** with 3 lines (PUF-W-BLK-M 600, PUF-W-BLK-L 540, PUF-W-NAV-M 420).",
+        "deep_link": "http://merxa.localhost/transfer-orders/new?from=DE1&to=NL1&ship_date=2026-10-12&lines=PUF-W-BLK-M:600,PUF-W-BLK-L:540,PUF-W-NAV-M:420",
+        "expected": {
+          "entity_type": "transfer_order",
+          "entity_ref": null,
+          "match": {
+            "from": "DE1",
+            "to": "NL1",
+            "ship_date": "2026-10-12"
+          }
+        },
+        "status": "verified",
+        "verified_at": "2026-10-07T10:02:00Z",
+        "evidence_id": "ev_01a1to_readback"
+      },
+      {
+        "seq": 2,
+        "title": "Raise the NL1 allocation for PUF-W-BLK-M",
+        "instructions_md": "Set the allocation of **PUF-W-BLK-M** at **NL1** to **1,240** units.",
+        "deep_link": "http://merxa.localhost/allocations/AL-NL1-PUF-W-BLK-M/edit?qty=1240",
+        "expected": {
+          "entity_type": "allocation",
+          "entity_ref": "AL-NL1-PUF-W-BLK-M",
+          "match": {
+            "qty": 1240
+          }
+        },
+        "status": "done",
+        "verified_at": null,
+        "evidence_id": null
+      },
+      {
+        "seq": 3,
+        "title": "Move PO-BD-0006 line 2 to 18 Oct",
+        "instructions_md": "Reschedule line 2 of **PO-BD-0006** to arrive on **18 Oct** (was 2 Nov).",
+        "deep_link": "http://merxa.localhost/purchase-orders/PO-BD-0006/lines/2/edit?arrival=2026-10-18",
+        "expected": {
+          "entity_type": "po_line",
+          "entity_ref": "PO-BD-0006#2",
+          "match": {
+            "arrival_date": "2026-10-18"
+          }
+        },
+        "status": "pending",
+        "verified_at": null,
+        "evidence_id": null
+      },
+      {
+        "seq": 4,
+        "title": "Book 2 sea-air slots on CGP-NL1-SA",
+        "instructions_md": "Book **2** capacity slots on lane **CGP-NL1-SA** for week **W43**.",
+        "deep_link": "http://merxa.localhost/capacity-bookings/new?lane=CGP-NL1-SA&week=2026-W43&slots=2",
+        "expected": {
+          "entity_type": "capacity_booking",
+          "entity_ref": null,
+          "match": {
+            "lane_code": "CGP-NL1-SA",
+            "week": "2026-W43"
+          }
+        },
+        "status": "pending",
+        "verified_at": null,
+        "evidence_id": null
+      },
+      {
+        "seq": 5,
+        "title": "Tell the UK1 stores about the delay",
+        "instructions_md": "Send the store notice from your usual channel; there is nothing to change in Merxa.",
+        "deep_link": null,
+        "expected": {
+          "entity_type": "note",
+          "entity_ref": null,
+          "match": {}
+        },
+        "status": "pending",
+        "verified_at": null,
+        "evidence_id": null
+      }
+    ],
+    "progress": {
+      "done": 2,
+      "total": 5
+    }
+  }
+}

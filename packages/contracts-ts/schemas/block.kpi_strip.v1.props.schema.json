@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "``kpi_strip@1``.",
+  "properties": {
+    "items": {
+      "items": {
+        "additionalProperties": false,
+        "description": "One KPI tile. ``value``/``delta`` are integers in ``unit``.",
+        "properties": {
+          "delta": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Delta"
+          },
+          "key": {
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "preliminary": {
+            "title": "Preliminary",
+            "type": "boolean"
+          },
+          "prov": {
+            "description": "Where a number or statement comes from (plan §3.3).",
+            "enum": [
+              "fact",
+              "inference",
+              "assumption",
+              "simulated",
+              "decision",
+              "committed"
+            ],
+            "title": "Provenance",
+            "type": "string"
+          },
+          "unit": {
+            "enum": [
+              "units",
+              "eur_cents",
+              "days",
+              "pct_bp",
+              "count"
+            ],
+            "title": "Unit",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "value",
+          "unit",
+          "prov",
+          "preliminary"
+        ],
+        "title": "KpiItem",
+        "type": "object"
+      },
+      "minItems": 1,
+      "title": "Items",
+      "type": "array"
+    }
+  },
+  "required": [
+    "items"
+  ],
+  "title": "KpiStripProps",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.blocks.KpiStripProps"
+}

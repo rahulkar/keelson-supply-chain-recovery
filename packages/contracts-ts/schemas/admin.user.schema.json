@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A user holding the tenant attribute (``GET /api/admin/users``).",
+  "properties": {
+    "created_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Created At"
+    },
+    "email": {
+      "anyOf": [
+        {
+          "maxLength": 254,
+          "pattern": "^[^@\\s]{1,64}@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Email"
+    },
+    "enabled": {
+      "title": "Enabled",
+      "type": "boolean"
+    },
+    "id": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 120,
+      "title": "Name",
+      "type": "string"
+    },
+    "roles": {
+      "items": {
+        "enum": [
+          "planner",
+          "approver",
+          "compliance",
+          "tenant-admin",
+          "platform-admin",
+          "demo-presenter"
+        ],
+        "type": "string"
+      },
+      "title": "Roles",
+      "type": "array"
+    },
+    "tenants": {
+      "items": {
+        "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+        "type": "string"
+      },
+      "title": "Tenants",
+      "type": "array"
+    },
+    "username": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{1,62}$",
+      "title": "Username",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "username",
+    "email",
+    "name",
+    "enabled",
+    "roles",
+    "tenants",
+    "created_at"
+  ],
+  "title": "AdminUser",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.admin.AdminUser"
+}

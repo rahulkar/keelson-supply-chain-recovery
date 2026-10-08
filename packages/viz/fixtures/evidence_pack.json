@@ -1,0 +1,60 @@
+{
+  "id": "blk_evidence_1",
+  "kind": "evidence_pack",
+  "v": 1,
+  "title": "Evidence",
+  "placement": "canvas",
+  "provenance": {
+    "kind": "fact",
+    "engine": "keelson-engine@0.1",
+    "inputs_hash": "1e7dc6d6c1656540",
+    "as_of": "2026-10-05"
+  },
+  "data_ref": null,
+  "props": {
+    "items": [
+      {
+        "id": "ev_7f3a01",
+        "source": "Merxa",
+        "label": "12 open purchase orders for Meghna Trims styles",
+        "prov": "fact",
+        "retrieved_at": "2026-10-05T09:12:04Z"
+      },
+      {
+        "id": "ev_7f3a02",
+        "source": "Merxa",
+        "label": "Stock and in-transit for puffer jackets at UK1, NL1, DE1",
+        "prov": "fact",
+        "retrieved_at": "2026-10-05T09:12:09Z"
+      },
+      {
+        "id": "ev_7f3a03",
+        "source": "Merxa",
+        "label": "Demand forecast W41–W49 for 12 clusters",
+        "prov": "fact",
+        "retrieved_at": "2026-10-05T09:12:15Z"
+      },
+      {
+        "id": "ev_7f3a04",
+        "source": "Supplier email",
+        "label": "Meghna Trims: trims delayed about three weeks",
+        "prov": "decision",
+        "retrieved_at": "2026-10-05T08:55:00Z"
+      },
+      {
+        "id": "ev_7f3a05",
+        "source": "Keelson optimizer",
+        "label": "Exposure if nothing changes",
+        "prov": "simulated",
+        "retrieved_at": "2026-10-05T09:13:40Z"
+      },
+      {
+        "id": "ev_7f3a06",
+        "source": "Keelson",
+        "label": "Sea transit Chittagong to Felixstowe assumed 32 days",
+        "prov": "assumption",
+        "retrieved_at": "2026-10-05T09:12:30Z"
+      }
+    ]
+  }
+}

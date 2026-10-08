@@ -1,0 +1,53 @@
+# Demo pack (docs/contracts/100-m6-signals.md §7; story of Act 3 / scenario A). SIMULATED: a Merxa
+# supplier-portal message (the trim_delay inject text of the Merxa mock ERP) replayed as a forwarded
+# supplier_message.received webhook, plus a cold-weather demand advisory from the fictional outlet
+# "Demo Weather Desk". Both free texts carry a pre-baked extraction (no LLM needed). Everything it
+# produces is origin demo / provenance simulated; alerts carry simulated: true (DEMO badge).
+# Check with: python data/scenarios/validate.py a-outerwear-trim-delay   (expected exposures: expected.yaml)
+id: a-outerwear-trim-delay
+title: Outerwear trims delayed 7 days at Meghna Trims (simulated)
+description: >-
+  SIMULATED. Merxa supplier message from TRIM-BD-01 (Meghna Trims Ltd, fictional): wadding and zip
+  deliveries to the Bangladesh outerwear factories F-BD-01 / F-BD-02 slip 7 days, moving puffer-jacket
+  ex-factory dates by about a week. Thirty minutes later a fictional retail weather advisory (Demo
+  Weather Desk) expects an early cold snap in the UK, Ireland and Benelux in weeks 46-47, lifting
+  padded-outerwear demand. Expected: the supplier message raises a medium alert exposing supplier
+  TRIM-BD-01 (entity match on the trusted supplier code); the demand advisory is context only (no
+  geo footprint, below the alert threshold).
+start_at: "2026-10-05T08:00:00Z"
+steps:
+  - t_offset_s: 0
+    adapter: merxa_inject
+    payload:
+      fixture: merxa-supplier-message.json
+      extraction:
+        kind: supplier
+        subtype: supplier_delay
+        places: ["Tongi", "Gazipur", "Narayanganj"]
+        companies: ["Meghna Trims Ltd"]
+        ports: []
+        chokepoints: []
+        dates_text: ["7 days later than planned", "about one week"]
+        injection_suspected: false
+    note: "Merxa supplier portal: Meghna Trims (TRIM-BD-01) delays wadding and zips by 7 days (supplier_message.received)"
+  - t_offset_s: 1800
+    adapter: rss
+    payload:
+      fixture: news-demo-weather-desk.xml
+      connector_id: rss.demo-weather-desk
+      source_name: Demo Weather Desk
+      extractions:
+        demo-weather-desk-2026-10-05-cold-snap:
+          kind: demand
+          subtype: demand_spike
+          places: ["UK", "Ireland", "the Netherlands", "Belgium", "Benelux"]
+          companies: []
+          ports: []
+          chokepoints: []
+          dates_text: ["from mid-November", "weeks 46–47", "ahead of Black Friday"]
+          injection_suspected: false
+    note: "Demo Weather Desk (fictional): early cold snap for the UK, Ireland and Benelux lifts outerwear demand (context signal)"
+  - t_offset_s: 1800
+    adapter: chat_hint
+    payload: {text: "Open the trim-delay alert, then ask: which DCs run short of puffer jackets in W45-W46?"}
+    note: "Presenter hint"

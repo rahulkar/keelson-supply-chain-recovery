@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "``impact_graph@1`` (canvas; data = :class:`~keelson_contracts.optimizer.ImpactGraph`,\nat most 300 nodes).",
+  "properties": {
+    "summary": {
+      "additionalProperties": false,
+      "properties": {
+        "disrupted": {
+          "minimum": 0,
+          "title": "Disrupted",
+          "type": "integer"
+        },
+        "impacted": {
+          "minimum": 0,
+          "title": "Impacted",
+          "type": "integer"
+        },
+        "nodes": {
+          "minimum": 0,
+          "title": "Nodes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "nodes",
+        "disrupted",
+        "impacted"
+      ],
+      "title": "ImpactGraphSummary",
+      "type": "object"
+    }
+  },
+  "required": [
+    "summary"
+  ],
+  "title": "ImpactGraphProps",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.blocks.ImpactGraphProps"
+}

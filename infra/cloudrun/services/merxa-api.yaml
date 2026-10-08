@@ -1,0 +1,126 @@
+# Cloud Run service: merxa-api (compose: merxa-api), the mock vendor's REST + MCP + snapshot
+# export + webhook sender. Public only through the ALB (merxa.<domain>/v1/*, /mcp, /mcp/*,
+# /mcp-lite, /mcp-lite/*, /.well-known/*). Exactly one instance: it migrates and seeds on startup,
+# runs the webhook worker in-process and serves the Parquet snapshots it wrote to its own
+# in-memory volume (docs/cloud-run.md describes the Cloud Storage alternative for scale-out).
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: merxa-api
+  labels:
+    cloud.googleapis.com/location: ${REGION}
+    app.kubernetes.io/part-of: merxa
+  annotations:
+    run.googleapis.com/ingress: internal-and-cloud-load-balancing
+    run.googleapis.com/invoker-iam-disabled: "true"
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: merxa
+      annotations:
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "1"
+        # The webhook worker runs between requests.
+        run.googleapis.com/cpu-throttling: "false"
+        run.googleapis.com/execution-environment: gen2
+        run.googleapis.com/startup-cpu-boost: "true"
+        # Only private ranges (Cloud SQL private IP) go through the VPC; webhooks to
+        # keelson.<domain> and OIDC discovery on auth.<domain> leave directly.
+        run.googleapis.com/network-interfaces: '[{"network":"${NETWORK}","subnetwork":"${SUBNET}"}]'
+        run.googleapis.com/vpc-access-egress: private-ranges-only
+    spec:
+      serviceAccountName: merxa-api@${PROJECT}.iam.gserviceaccount.com
+      containerConcurrency: 80
+      timeoutSeconds: 3600
+      volumes:
+        - name: snapshots
+          emptyDir:
+            medium: Memory
+            sizeLimit: 512Mi
+      containers:
+        - name: merxa-api
+          image: ${IMAGE_MERXA_API}
+          ports:
+            - name: http1
+              containerPort: 8080
+          resources:
+            limits:
+              cpu: "1"
+              memory: 2Gi
+          volumeMounts:
+            - name: snapshots
+              mountPath: /data/snapshots
+          startupProbe:
+            # The first boot migrates and seeds (SEED_PROFILE=full takes a minute or two).
+            httpGet:
+              path: /healthz
+              port: 8080
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 3
+          env:
+            - name: OIDC_ISSUER
+              value: https://auth.${DOMAIN}/realms/merxa
+            - name: MCP_RESOURCE
+              value: https://merxa.${DOMAIN}/mcp
+            - name: PUBLIC_URL
+              value: https://merxa.${DOMAIN}
+            - name: PUBLIC_BASE_DOMAIN
+              value: ${DOMAIN}
+            - name: TRUSTED_RECEIPT_ISSUERS
+              value: https://keelson.${DOMAIN}
+            - name: KEELSON_JWKS_URL
+              value: https://keelson.${DOMAIN}/api/.well-known/jwks.json
+            - name: KEELSON_WEBHOOK_URL
+              value: https://keelson.${DOMAIN}/api/webhooks/demo-retail/merxa
+            - name: DEMO_MODE
+              value: "${DEMO_MODE}"
+            - name: SEED_PROFILE
+              value: ${SEED_PROFILE}
+            - name: SNAPSHOT_DIR
+              value: /data/snapshots
+            - name: BRAND_VENDOR_NAME
+              value: ${BRAND_VENDOR_NAME}
+            - name: MERXA_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: keelson-merxa-database-url
+                  key: latest
+            - name: MERXA_WEB_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keelson-merxa-web-client-secret
+                  key: latest
+            - name: MERXA_DEMO_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keelson-merxa-demo-client-secret
+                  key: latest
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keelson-session-secret
+                  key: latest
+            - name: DEMO_USER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keelson-demo-user-password
+                  key: latest
+            - name: MERXA_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keelson-merxa-webhook-secret
+                  key: latest
+            - name: MERXA_SNAPSHOT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keelson-merxa-snapshot-secret
+                  key: latest

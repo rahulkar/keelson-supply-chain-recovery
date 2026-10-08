@@ -1,0 +1,23 @@
+{
+  "id": "blk_alert_origin_feed",
+  "kind": "alert_origin",
+  "v": 1,
+  "title": "Opened from alert",
+  "placement": "inline",
+  "provenance": {
+    "kind": "fact",
+    "engine": "signal-hub@0.1",
+    "inputs_hash": "0c6e1d2a3b4f5a69",
+    "as_of": "2026-10-08"
+  },
+  "data_ref": null,
+  "props": {
+    "alert_id": "9b0c1d2e-3f4a-5b6c-8d7e-0f1a2b3c4d5e",
+    "kind": "natural_hazard",
+    "severity": "high",
+    "title": "M 6.8 earthquake near the coast of central Chile",
+    "opened_at": "2026-10-08T03:12:00Z",
+    "simulated": false,
+    "source_names": ["USGS"]
+  }
+}

@@ -1,0 +1,6 @@
+# Shell/config files are executed or parsed inside Linux containers: keep LF.
+*.sh   text eol=lf
+*.conf text eol=lf
+*.yaml text eol=lf
+Caddyfile text eol=lf
+Dockerfile text eol=lf

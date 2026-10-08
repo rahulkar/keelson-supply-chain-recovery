@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TEST FIXTURE (not real data): Atom 1.0 shape. -->
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Fixture Atom News</title>
+  <id>urn:uuid:60a76c80-d399-11d9-b93C-0003939e0af6</id>
+  <updated>2026-10-06T09:00:00Z</updated>
+  <entry>
+    <title>Dockworkers at Hamburg announce 48-hour strike</title>
+    <link rel="alternate" href="https://atom.example.org/news/hamburg-strike"/>
+    <id>urn:uuid:1225c695-cfb8-4ebb-aaaa-80da344efa6a</id>
+    <published>2026-10-06T08:30:00Z</published>
+    <updated>2026-10-06T08:45:00Z</updated>
+    <summary type="html">&lt;p&gt;Unions at the &lt;b&gt;port of Hamburg&lt;/b&gt; call a strike from Thursday.&lt;/p&gt;</summary>
+  </entry>
+</feed>

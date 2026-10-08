@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A deterministic demo pack (``data/scenarios/<id>/pack.yaml``). Everything it produces is\n``origin demo`` / ``provenance simulated`` and alerts are ``simulated: true``.",
+  "properties": {
+    "description": {
+      "maxLength": 2000,
+      "title": "Description",
+      "type": "string"
+    },
+    "id": {
+      "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+      "title": "Id",
+      "type": "string"
+    },
+    "start_at": {
+      "format": "date-time",
+      "title": "Start At",
+      "type": "string"
+    },
+    "steps": {
+      "items": {
+        "additionalProperties": false,
+        "description": "One timeline step: at ``t_offset_s`` after the pack start, feed ``payload`` to ``adapter``\n(fixture served at ``/demo-feeds/<pack>/…`` so the real adapter parses it).",
+        "properties": {
+          "adapter": {
+            "enum": [
+              "gdacs",
+              "usgs",
+              "rss",
+              "merxa_inject",
+              "chat_hint"
+            ],
+            "title": "Adapter",
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 500,
+            "title": "Note",
+            "type": "string"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          },
+          "t_offset_s": {
+            "minimum": 0,
+            "title": "T Offset S",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "t_offset_s",
+          "adapter",
+          "payload",
+          "note"
+        ],
+        "title": "ScenarioPackStep",
+        "type": "object"
+      },
+      "maxItems": 500,
+      "minItems": 1,
+      "title": "Steps",
+      "type": "array"
+    },
+    "title": {
+      "maxLength": 300,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "description",
+    "start_at",
+    "steps"
+  ],
+  "title": "ScenarioPack",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.signals.ScenarioPack"
+}

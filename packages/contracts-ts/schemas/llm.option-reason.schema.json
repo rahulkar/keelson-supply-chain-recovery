@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Why an option was not recommended.",
+  "properties": {
+    "option_id": {
+      "title": "Option Id",
+      "type": "string"
+    },
+    "reason": {
+      "title": "Reason",
+      "type": "string"
+    }
+  },
+  "required": [
+    "option_id",
+    "reason"
+  ],
+  "title": "OptionReason",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.llm.OptionReason"
+}

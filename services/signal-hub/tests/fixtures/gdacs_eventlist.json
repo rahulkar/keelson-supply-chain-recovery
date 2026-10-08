@@ -1,0 +1,117 @@
+{
+  "_fixture": "TEST FIXTURE (not real data): hand-written in the shape of the GDACS API v2 response of /gdacsapi/api/events/geteventlist/SEARCH?eventlist=TC;EQ;FL&alertlevel=orange;red (FeatureCollection, centroid points, naive UTC dates, capitalised alert levels).",
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "bbox": [104.0, 8.5, 116.0, 15.0],
+      "geometry": {"type": "Point", "coordinates": [110.5, 11.0]},
+      "properties": {
+        "eventtype": "TC",
+        "eventid": 1001102,
+        "episodeid": 14,
+        "eventname": "KAIMANA-26",
+        "glide": "",
+        "name": "Tropical Cyclone KAIMANA-26",
+        "description": "Tropical Cyclone KAIMANA-26",
+        "htmldescription": "Orange Tropical Cyclone alert for KAIMANA-26 in Viet Nam, Cambodia",
+        "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/TC.png",
+        "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/TC.png",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=TC&eventid=1001102&episodeid=14",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1001102&episodeid=14&eventtype=TC",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=TC&eventid=1001102"
+        },
+        "alertlevel": "Orange",
+        "alertscore": 2,
+        "episodealertlevel": "Orange",
+        "episodealertscore": 2,
+        "istemporary": "false",
+        "iscurrent": "true",
+        "country": "Viet Nam",
+        "fromdate": "2026-10-03T00:00:00",
+        "todate": "2026-10-06T06:00:00",
+        "datemodified": "2026-10-06T06:30:00",
+        "iso3": "VNM",
+        "source": "JTWC",
+        "sourceid": "",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [
+          {"iso2": "VN", "iso3": "VNM", "countryname": "Viet Nam"},
+          {"iso2": "KH", "iso3": "KHM", "countryname": "Cambodia"}
+        ],
+        "severitydata": {"severity": 150.0, "severitytext": "Typhoon  (maximum wind speed of 150 km/h)", "severityunit": "km/h"}
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [125.5, 6.3, 127.5, 8.3],
+      "geometry": {"type": "Point", "coordinates": [126.52, 7.31]},
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1500321,
+        "episodeid": 1600330,
+        "eventname": "",
+        "glide": "",
+        "name": "Earthquake in Philippines",
+        "description": "Earthquake in Philippines",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1500321&episodeid=1600330",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1500321&episodeid=1600330&eventtype=EQ",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1500321"
+        },
+        "alertlevel": "Red",
+        "alertscore": 2.5,
+        "episodealertlevel": "Red",
+        "episodealertscore": 2.5,
+        "istemporary": "false",
+        "iscurrent": "true",
+        "country": "Philippines",
+        "fromdate": "2026-10-05T14:22:10",
+        "todate": "2026-10-05T14:22:10",
+        "datemodified": "2026-10-05T15:01:00",
+        "iso3": "PHL",
+        "source": "NEIC",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [{"iso2": "", "iso3": "PHL", "countryname": "Philippines"}],
+        "severitydata": {"severity": 7.1, "severitytext": "Magnitude 7.1M, Depth:10km", "severityunit": "M"}
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [89.0, 22.5, 91.5, 25.0],
+      "geometry": {"type": "Point", "coordinates": [90.41, 23.81]},
+      "properties": {
+        "eventtype": "FL",
+        "eventid": 1102800,
+        "episodeid": 3,
+        "eventname": "",
+        "name": "Flood in Bangladesh",
+        "description": "Flood in Bangladesh",
+        "url": {
+          "report": "https://www.gdacs.org/report.aspx?eventid=1102800&episodeid=3&eventtype=FL"
+        },
+        "alertlevel": "Orange",
+        "alertscore": 2,
+        "episodealertlevel": "Orange",
+        "iscurrent": "true",
+        "country": "Bangladesh",
+        "fromdate": "2026-10-01T00:00:00",
+        "todate": "2026-10-05T00:00:00",
+        "datemodified": "2026-10-05T08:00:00",
+        "iso3": "BGD",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [{"iso2": "BD", "iso3": "BGD", "countryname": "Bangladesh"}],
+        "severitydata": {"severity": 0, "severitytext": "Magnitude 0", "severityunit": ""}
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Point", "coordinates": [10.0, 50.0]},
+      "properties": {"eventtype": "XX", "eventid": 5, "alertlevel": "Red", "Class": "Point_Centroid"}
+    }
+  ]
+}

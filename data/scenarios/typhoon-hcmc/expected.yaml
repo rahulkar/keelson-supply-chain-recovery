@@ -1,0 +1,60 @@
+# Expected replay outcome of typhoon-hcmc for a value-fashion-eu tenant on the Merxa `full` seed
+# (reference network: ../network-value-fashion-eu.yaml). Checked exactly by data/scenarios/validate.py
+# (real adapters + gazetteer + quarantine screen, hub exposure rules and DEFAULT_ALERT_RULES).
+# Members are signal keys (native ids without the tenant/pack prefix); the first one is the event lead.
+# Exposure methods: intersects | dwithin_km (TC radius 300 km) | lane_crosses | entity_match.
+pack: typhoon-hcmc
+network: network-value-fashion-eu.yaml
+checkpoints:
+  - after_step: 0   # advisory 1, Orange
+    signals: 1
+    events:
+      - label: typhoon
+        members: ["TC:9260041"]
+        kind: natural_hazard
+        subtype: tropical_cyclone
+        severity_bp: 6055
+        radius_km: 300
+        alert: {action: alert, severity: medium}
+        exposures: &exp_tc
+          port: {VNSGN: intersects, KHPNH: dwithin_km}
+          factory: {F-VN-01: intersects, F-KH-01: dwithin_km}
+          supplier: {SUP-VN-01: intersects, CMT-KH-01: dwithin_km, TRIM-KH-01: dwithin_km}
+          lane: {SGN-HAM-SEA: lane_crosses, SGN-GDN-SEA: lane_crosses, SGN-HAM-CAPE: lane_crosses,
+                 SGN-GDN-CAPE: lane_crosses, SGN-DE1-SA: lane_crosses, SGN-PL1-SA: lane_crosses,
+                 PNH-SGN-RIV: lane_crosses}
+  - after_step: 1   # advisory 2, Orange
+    signals: 1
+    events:
+      - label: typhoon
+        members: ["TC:9260041"]
+        severity_bp: 6155
+        alert: {action: alert, severity: medium}
+        exposures: *exp_tc
+  - after_step: 2   # advisory 3, Red: +2625 bp (re-notifies), supplier/factory/port exposed → draft case
+    signals: 1
+    events:
+      - label: typhoon
+        members: ["TC:9260041"]
+        severity_bp: 8780
+        alert: {action: alert_and_draft_case, severity: critical}
+        exposures: *exp_tc
+  - after_step: 3   # Demo Freight Daily: Cat Lai suspends operations (attaches to the typhoon event)
+    signals: 2
+    events:
+      - label: typhoon
+        members: ["TC:9260041", "https://demo-freight-daily.example/?p=26101"]
+        kind: natural_hazard
+        subtype: tropical_cyclone
+        severity_bp: 8780
+        radius_km: 300
+        alert: {action: alert_and_draft_case, severity: critical}
+        exposures: *exp_tc
+  - after_step: 4   # advisory 4, Red: +50 bp (edits the alert, no re-notification)
+    signals: 2
+    events:
+      - label: typhoon
+        members: ["TC:9260041", "https://demo-freight-daily.example/?p=26101"]
+        severity_bp: 8830
+        alert: {action: alert_and_draft_case, severity: critical}
+        exposures: *exp_tc

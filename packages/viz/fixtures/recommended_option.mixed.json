@@ -1,0 +1,85 @@
+{
+  "id": "blk_option_mixed",
+  "kind": "recommended_option",
+  "v": 1,
+  "title": "Recommended option",
+  "placement": "inline",
+  "provenance": {
+    "kind": "simulated",
+    "engine": "keelson-opt@0.1",
+    "inputs_hash": "daeb30e06dcf8056",
+    "as_of": "2026-10-05"
+  },
+  "data_ref": null,
+  "props": {
+    "plan_version": 2,
+    "option": {
+      "id": "opt_rebalance",
+      "title": "Rebalance stock from DE1 to UK1 and NL1",
+      "summary_bullets": [
+        "Move 4,800 puffer jackets from DE1 to UK1 and NL1 before W45",
+        "Covers 31 of the 41 stores that would run short",
+        "Keeps DE1 above its own peak cover"
+      ],
+      "kpis": [
+        {
+          "key": "units_saved",
+          "label": "Units protected",
+          "value": 4800,
+          "unit": "units",
+          "delta": null,
+          "prov": "simulated",
+          "preliminary": false
+        },
+        {
+          "key": "revenue_saved",
+          "label": "Revenue protected",
+          "value": 6480000,
+          "unit": "eur_cents",
+          "delta": null,
+          "prov": "simulated",
+          "preliminary": false
+        },
+        {
+          "key": "fill_rate",
+          "label": "Peak fill rate",
+          "value": 9420,
+          "unit": "pct_bp",
+          "delta": 610,
+          "prov": "simulated",
+          "preliminary": false
+        }
+      ]
+    },
+    "alternatives": [
+      {
+        "id": "opt_airfreight",
+        "title": "Air-freight trims to Dhaka",
+        "one_liner": "Recovers 12 days but costs about €38,000 more"
+      },
+      {
+        "id": "opt_do_nothing",
+        "title": "Do nothing",
+        "one_liner": "18,400 units short through peak"
+      }
+    ],
+    "actions": [
+      {
+        "type": "apply",
+        "label": "Apply changes",
+        "enabled": true,
+        "disabled_reason": null
+      },
+      {
+        "type": "guide",
+        "label": "Guide me through all",
+        "enabled": true,
+        "disabled_reason": null
+      }
+    ],
+    "remediation_mix": {
+      "apply_lines": 3,
+      "guide_lines": 2
+    }
+  }
+}

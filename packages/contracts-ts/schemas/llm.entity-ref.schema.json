@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A resolved business entity (``{type, code, label}``).\n\nStrict-compatible (all fields required, no defaults) so it can be used inside\nLLM output schemas as well as render blocks.",
+  "properties": {
+    "code": {
+      "title": "Code",
+      "type": "string"
+    },
+    "label": {
+      "title": "Label",
+      "type": "string"
+    },
+    "type": {
+      "enum": [
+        "supplier",
+        "po",
+        "po_line",
+        "sku",
+        "style",
+        "dc",
+        "cluster",
+        "store",
+        "factory",
+        "component",
+        "port",
+        "lane",
+        "chokepoint",
+        "region",
+        "other"
+      ],
+      "title": "Type",
+      "type": "string"
+    }
+  },
+  "required": [
+    "type",
+    "code",
+    "label"
+  ],
+  "title": "EntityRef",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.llm.EntityRef"
+}

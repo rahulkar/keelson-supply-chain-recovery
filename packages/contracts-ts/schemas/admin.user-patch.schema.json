@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "``PATCH /api/admin/users/{id}``: the full new product-role set and/or enabled flag.",
+  "properties": {
+    "enabled": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Enabled"
+    },
+    "roles": {
+      "anyOf": [
+        {
+          "items": {
+            "enum": [
+              "planner",
+              "approver",
+              "compliance",
+              "tenant-admin",
+              "platform-admin",
+              "demo-presenter"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Roles"
+    }
+  },
+  "title": "AdminUserPatch",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.admin.AdminUserPatch"
+}

@@ -1,0 +1,156 @@
+# Read mapping (connector_mapping kind=read) for Merxa /mcp-lite: the crawl sync pages
+# list_items(type, page, page_size<=200) → {type, page, page_size, total, items: [{key, ...}]} and
+# maps the items to scn/1.0 (source ids as in Merxa's own tier-B export, so plans read the same).
+#
+# Not mapped (no data on /mcp-lite): bom_line, lane, lane_rate, sailing, production_order,
+# size_curve, online_order_line, promotion — and transfer_order_line: the lite `transfer_order`
+# type is a header only (code, from_dc, to_dc, ship_date, eta_date, status, created_via, version),
+# without sku/qty lines, so a line cannot be derived without inventing data. Add a mapping here
+# once the vendor exposes transfer-order lines (e.g. a `transfer_order_line` list type).
+kind: read
+lookups:
+  style_family:
+    kind: source
+    source: &styles {tool: list_items, args: {type: style}, page_param: page, page_size_param: page_size,
+                     page_size: 200, items_path: $.items, cursor_path: null, max_pages: 200}
+    key: $.code
+    value: $.family
+  style_colour: {kind: source, source: *styles, key: $.code, value: $.colour}
+  style_price: {kind: source, source: *styles, key: $.code, value: $.retail_price_cents}
+  style_cost: {kind: source, source: *styles, key: $.code, value: $.unit_cost_cents}
+  po_supplier:
+    kind: source
+    source: &pos {tool: list_items, args: {type: purchase_order}, page_param: page, page_size_param: page_size,
+                  page_size: 200, items_path: $.items, cursor_path: null, max_pages: 200}
+    key: $.code
+    value: $.supplier_code
+  po_factory: {kind: source, source: *pos, key: $.code, value: $.factory_code}
+  po_dest_dc: {kind: source, source: *pos, key: $.code, value: $.dest_dc_code}
+  po_ex_factory: {kind: source, source: *pos, key: $.code, value: $.ex_factory_date}
+entities:
+  # ── locations: DCs, stores, and store clusters derived from the stores ──
+  - entity: location
+    source: {tool: list_items, args: {type: dc}, page_param: page, page_size_param: page_size, page_size: 200,
+             items_path: $.items, cursor_path: null, max_pages: 50}
+    fields:
+      source_id: "'dc:' + $.code"
+      kind: "'dc'"
+      code: $.code
+      name: $.name
+      country: $.country
+      city: $.city
+      src_version: $.version
+  - entity: location
+    source: &stores {tool: list_items, args: {type: store}, page_param: page, page_size_param: page_size,
+                     page_size: 200, items_path: $.items, cursor_path: null, max_pages: 200}
+    fields:
+      source_id: "'store:' + $.code"
+      kind: "'store'"
+      code: $.code
+      name: $.name
+      country: $.market_code
+      city: $.city
+      parent_code: $.cluster_code
+      grade: $.grade
+      src_version: $.version
+  # /mcp-lite has no cluster type: one cluster row per distinct store cluster_code (dedupe keeps the
+  # first store's home DC as the cluster's parent).
+  - entity: location
+    source: *stores
+    dedupe: true
+    fields:
+      source_id: "'cluster:' + $.cluster_code"
+      kind: "'cluster'"
+      code: $.cluster_code
+      name: "$.cluster_code + ' (' + $.home_dc_code + ')'"
+      parent_code: $.home_dc_code
+      src_version: "1"
+  # ── items: styles and SKUs (SKUs inherit family, colour and prices from their style) ──
+  - entity: item
+    source: {tool: list_items, args: {type: style}, page_param: page, page_size_param: page_size, page_size: 200,
+             items_path: $.items, cursor_path: null, max_pages: 200}
+    fields:
+      source_id: "'style:' + $.code"
+      kind: "'style'"
+      code: $.code
+      style_code: $.code
+      family: $.family
+      colour: $.colour
+      retail_price_cents: int($.retail_price_cents)
+      unit_cost_cents: int($.unit_cost_cents)
+      currency: "'EUR'"
+      src_version: $.version
+  - entity: item
+    source: {tool: list_items, args: {type: sku}, page_param: page, page_size_param: page_size, page_size: 200,
+             items_path: $.items, cursor_path: null, max_pages: 500}
+    fields:
+      source_id: "'sku:' + $.code"
+      kind: "'sku'"
+      code: $.code
+      style_code: $.style_code
+      family: "lookup('style_family', $.style_code)"
+      colour: "lookup('style_colour', $.style_code)"
+      size: $.size
+      size_seq: int($.size_seq)
+      retail_price_cents: "lookup('style_price', $.style_code)"
+      unit_cost_cents: "lookup('style_cost', $.style_code)"
+      currency: "'EUR'"
+      src_version: $.version
+  # ── purchase order lines (supplier, factory, destination DC, ex-factory date from the PO header) ──
+  - entity: po_line
+    source: {tool: list_items, args: {type: po_line}, page_param: page, page_size_param: page_size, page_size: 200,
+             items_path: $.items, cursor_path: null, max_pages: 1000}
+    fields:
+      source_id: "$.po_code + '#' + $.line_no"
+      po_code: $.po_code
+      line_no: int($.line_no)
+      supplier_code: "lookup('po_supplier', $.po_code)"
+      factory_code: "lookup('po_factory', $.po_code)"
+      dest_dc_code: "lookup('po_dest_dc', $.po_code)"
+      sku_code: $.sku_code
+      qty_ordered: int($.qty_ordered)
+      qty_received: int($.qty_received)
+      ex_factory_date: "date(lookup('po_ex_factory', $.po_code))"
+      eta_dc: date($.eta_dc)
+      status: $.status
+      src_version: $.version
+  # ── inventory positions (DC and store) ──
+  - entity: inventory_position
+    source: {tool: list_items, args: {type: inventory}, page_param: page, page_size_param: page_size, page_size: 200,
+             items_path: $.items, cursor_path: null, max_pages: 2000}
+    fields:
+      source_id: "$.location_type + '/' + $.location_code + '/' + $.sku_code"
+      location_kind: $.location_type
+      location_code: $.location_code
+      sku_code: $.sku_code
+      on_hand: int($.on_hand)
+      allocated: int($.allocated)
+      reserved: int($.reserved)
+      in_transit: int($.in_transit)
+      src_version: $.version
+  # ── demand forecast (store-level rows carry a store, cluster-level rows only the cluster) ──
+  - entity: demand_forecast
+    source: {tool: list_items, args: {type: forecast}, page_param: page, page_size_param: page_size, page_size: 200,
+             items_path: $.items, cursor_path: null, max_pages: 2000}
+    fields:
+      source_id: "$.style_code + '|' + coalesce($.store_code, $.cluster_code) + '|' + $.iso_week"
+      style_code: $.style_code
+      location_kind: "if_present($.store_code, 'store', 'cluster')"
+      location_code: coalesce($.store_code, $.cluster_code)
+      iso_week: $.iso_week
+      units: int($.units)
+      forecast_version: $.version
+  # ── allocations ──
+  - entity: allocation
+    source: {tool: list_items, args: {type: allocation}, page_param: page, page_size_param: page_size, page_size: 200,
+             items_path: $.items, cursor_path: null, max_pages: 1000}
+    fields:
+      source_id: $.code
+      code: $.code
+      sku_code: $.sku_code
+      dc_code: $.dc_code
+      store_code: $.store_code
+      ship_week: $.ship_week
+      qty: int($.qty)
+      status: $.status
+      src_version: $.version

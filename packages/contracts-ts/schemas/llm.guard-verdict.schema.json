@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Output of the prompt-injection screen (``guard-default``) for one untrusted text.",
+  "properties": {
+    "injection_suspected": {
+      "title": "Injection Suspected",
+      "type": "boolean"
+    },
+    "reason": {
+      "title": "Reason",
+      "type": "string"
+    }
+  },
+  "required": [
+    "injection_suspected",
+    "reason"
+  ],
+  "title": "GuardVerdict",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.llm.GuardVerdict"
+}

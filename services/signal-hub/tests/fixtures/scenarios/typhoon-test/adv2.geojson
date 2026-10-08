@@ -1,0 +1,16 @@
+{
+  "_fixture": "TEST FIXTURE: GDACS-shaped TC advisory 2 (red; the cone now covers Ho Chi Minh City).",
+  "type": "FeatureCollection",
+  "features": [
+    {"type": "Feature", "geometry": {"type": "Point", "coordinates": [107.6, 10.9]},
+     "properties": {"eventtype": "TC", "eventid": 9900001, "episodeid": 2, "name": "Tropical Cyclone TESTA-26",
+       "alertlevel": "Red", "alertscore": 3, "episodealertlevel": "Red", "iscurrent": "true",
+       "fromdate": "2026-10-06T18:00:00", "todate": "2026-10-07T06:00:00", "datemodified": "2026-10-07T06:00:00",
+       "iso3": "VNM", "Class": "Point_Centroid",
+       "affectedcountries": [{"iso2": "VN", "iso3": "VNM", "countryname": "Viet Nam"}, {"iso2": "KH", "iso3": "KHM", "countryname": "Cambodia"}],
+       "severitydata": {"severity": 185.0, "severitytext": "Typhoon (maximum wind speed of 185 km/h)", "severityunit": "km/h"},
+       "url": {"report": "https://www.gdacs.org/report.aspx?eventid=9900001&episodeid=2&eventtype=TC"}}},
+    {"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [[[105.5, 9.0], [109.5, 9.0], [109.5, 12.5], [105.5, 12.5], [105.5, 9.0]]]},
+     "properties": {"eventtype": "TC", "eventid": 9900001, "episodeid": 2, "Class": "Poly_Cones"}}
+  ]
+}

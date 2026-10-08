@@ -1,0 +1,33 @@
+# Tenants bootstrapped in M1 (back-office creates more later).
+tenants:
+  - slug: demo-retail
+    name: "Demo Retail (value fashion, EU)"
+    pack: value-fashion-eu
+    budget_eur: 50
+    rpm_limit: 120
+    tpm_limit: 400000
+    connectors:
+      - slug: merxa
+        name: "Merxa Retail Suite"
+        mcp_url: http://merxa.localhost/mcp
+        issuer: http://auth.localhost/realms/merxa
+        trust_level: first_party
+        webhook_secret_env: MERXA_WEBHOOK_SECRET
+        auth:
+          reader_client: keelson-reader
+          preparer_client: keelson-preparer
+          autocommit_client: keelson-autocommit
+          connect_client: keelson-connect
+        lanes:   # tenant network config not owned by the ERP in M1 (DC-to-DC transfer lanes)
+          - { from_dc: DE1, to_dc: NL1, transit_days: 2, cost_per_unit_cents: 35, max_units_wk: 20000 }
+          - { from_dc: DE1, to_dc: UK1, transit_days: 4, cost_per_unit_cents: 60, max_units_wk: 12000 }
+          - { from_dc: PL1, to_dc: NL1, transit_days: 3, cost_per_unit_cents: 45, max_units_wk: 15000 }
+          - { from_dc: PL1, to_dc: DE1, transit_days: 2, cost_per_unit_cents: 30, max_units_wk: 15000 }
+          - { from_dc: NL1, to_dc: UK1, transit_days: 2, cost_per_unit_cents: 50, max_units_wk: 15000 }
+  - slug: northwind-test
+    name: "Isolation test tenant"
+    budget_eur: 1
+    rpm_limit: 10
+    tpm_limit: 20000
+    pack: blank
+    connectors: []

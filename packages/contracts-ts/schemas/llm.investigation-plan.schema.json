@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Output of the ``planner`` (tool-free). Validate with :func:`plan_violations`.",
+  "properties": {
+    "budget": {
+      "additionalProperties": false,
+      "description": "Concurrency/size budget of a plan (``max_parallel <= 4``, ``max_tasks <= 6``).",
+      "properties": {
+        "max_parallel": {
+          "title": "Max Parallel",
+          "type": "integer"
+        },
+        "max_tasks": {
+          "title": "Max Tasks",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_parallel",
+        "max_tasks"
+      ],
+      "title": "PlanBudget",
+      "type": "object"
+    },
+    "rationale": {
+      "title": "Rationale",
+      "type": "string"
+    },
+    "tasks": {
+      "items": {
+        "additionalProperties": false,
+        "description": "One specialist task. ``tools`` must be a subset of that specialist's allowlist.",
+        "properties": {
+          "depends_on": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Depends On",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "objective": {
+            "title": "Objective",
+            "type": "string"
+          },
+          "specialist": {
+            "title": "Specialist",
+            "type": "string"
+          },
+          "tools": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tools",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "specialist",
+          "objective",
+          "tools",
+          "depends_on"
+        ],
+        "title": "InvestigationTask",
+        "type": "object"
+      },
+      "title": "Tasks",
+      "type": "array"
+    }
+  },
+  "required": [
+    "rationale",
+    "tasks",
+    "budget"
+  ],
+  "title": "InvestigationPlan",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.llm.InvestigationPlan"
+}

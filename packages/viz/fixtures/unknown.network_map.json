@@ -1,0 +1,25 @@
+{
+  "id": "blk_network_1",
+  "kind": "network_map",
+  "v": 99,
+  "title": "Network map (newer version)",
+  "placement": "canvas",
+  "provenance": {
+    "kind": "fact",
+    "engine": "keelson-engine@0.1",
+    "inputs_hash": "1e7dc6d6c1656540",
+    "as_of": "2026-10-05"
+  },
+  "data_ref": null,
+  "props": {
+    "nodes": [
+      {
+        "id": "UK1"
+      },
+      {
+        "id": "DE1"
+      }
+    ],
+    "edges": []
+  }
+}

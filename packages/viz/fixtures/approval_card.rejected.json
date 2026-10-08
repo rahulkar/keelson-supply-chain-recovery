@@ -1,0 +1,46 @@
+{
+  "id": "blk_approval_rejected",
+  "kind": "approval_card",
+  "v": 1,
+  "title": "Approval needed",
+  "placement": "inline",
+  "provenance": {
+    "kind": "decision",
+    "engine": "keelson-engine@0.5",
+    "inputs_hash": "5c0ffee15ba5e000",
+    "as_of": "2026-10-07"
+  },
+  "data_ref": null,
+  "props": {
+    "interrupt_id": "approval-cs_01a1f4eyes",
+    "change_set_id": "cs_01a1f4eyes",
+    "change_set_hash": "a3c1d2e4f5061728394a5b6c7d8e9f00112233445566778899aabbccddeeff01",
+    "plan_version": 2,
+    "summary": {
+      "lines": 5,
+      "units": 2400,
+      "value_cents": 3120000
+    },
+    "reason": "New purchase orders need two different people to sign off: an approver and compliance (rule four-eyes@p-2).",
+    "required_roles": [
+      "approver",
+      "compliance"
+    ],
+    "connect": {
+      "status": "active",
+      "connect_url": null
+    },
+    "buttons": [
+      "approve",
+      "reject",
+      "revise"
+    ],
+    "rejection": {
+      "sub": "user:lena",
+      "name": "Lena Vogel",
+      "role": "compliance",
+      "at": "2026-10-07T09:31:00Z",
+      "reason": "The new supplier PO-BD-0031 is not on the approved vendor list yet. Use the existing Dhaka vendor."
+    }
+  }
+}

@@ -1,0 +1,17 @@
+# Template pack: empty tenant (docs/contracts/70-backoffice-m2.md §4). No connectors; only the
+# answer path is meaningful until an admin registers a connector, approves its read tools and binds
+# them (PUT /api/admin/agents/spec {answer_connector, answer_tools}). Never put secrets here.
+name: blank
+description: >-
+  Empty tenant: no connectors, answer path only. Register an MCP connector in the back-office,
+  approve its read tools and bind them to the answer path.
+connectors: []
+spec_overrides:
+  answer_tools: []
+  specialists:
+    - slug: inventory_demand
+      tools: []
+budgets:
+  budget_eur: 1
+  rpm_limit: 10
+  tpm_limit: 20000

@@ -1,0 +1,39 @@
+{
+  "name": "@keelson/tokens",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Keelson design tokens: OKLCH CSS variables (light + dark), Tailwind 4 @theme mapping, hex fallbacks for canvas libraries, stage labels and motion springs.",
+  "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens.css": {
+      "style": "./src/tokens.css",
+      "default": "./src/tokens.css"
+    },
+    "./theme.css": {
+      "style": "./src/theme.css",
+      "default": "./src/theme.css"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "generate": "node scripts/gen-tokens.mjs",
+    "prebuild": "node scripts/gen-tokens.mjs",
+    "build": "node scripts/gen-tokens.mjs --check",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/culori": "4.0.1",
+    "@types/node": "24.19.1",
+    "culori": "4.0.2",
+    "typescript": "5.9.3",
+    "vite": "8.3.2",
+    "vitest": "5.0.3"
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "_fixture": "TEST FIXTURE (not real data): shape of the USGS summary feed /earthquakes/feed/v1.0/summary/4.5_day.geojson (epoch-ms times, [lon, lat, depth] points, PAGER alert, tsunami flag).",
+  "type": "FeatureCollection",
+  "metadata": {
+    "generated": 1791370800000,
+    "url": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson",
+    "title": "USGS Magnitude 4.5+ Earthquakes, Past Day",
+    "status": 200,
+    "api": "1.14.1",
+    "count": 4
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "mag": 6.8, "place": "112 km SW of Bengkulu, Indonesia", "time": 1791345600000, "updated": 1791349200000,
+        "tz": null, "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000zz01",
+        "detail": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/detail/us7000zz01.geojson",
+        "felt": 31, "cdi": 5.2, "mmi": 6.1, "alert": "yellow", "status": "reviewed", "tsunami": 1, "sig": 743,
+        "net": "us", "code": "7000zz01", "ids": ",us7000zz01,", "sources": ",us,", "types": ",origin,phase-data,",
+        "nst": null, "dmin": 2.1, "rms": 0.92, "gap": 28, "magType": "mww", "type": "earthquake",
+        "title": "M 6.8 - 112 km SW of Bengkulu, Indonesia"
+      },
+      "geometry": {"type": "Point", "coordinates": [101.512, -4.531, 35.2]},
+      "id": "us7000zz01"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mag": 4.7, "place": "10 km NE of Ridgecrest, CA", "time": 1791352800000, "updated": 1791353400000,
+        "url": "https://earthquake.usgs.gov/earthquakes/eventpage/ci40990001", "alert": null, "status": "automatic",
+        "tsunami": 0, "sig": 340, "magType": "ml", "type": "earthquake", "title": "M 4.7 - 10 km NE of Ridgecrest, CA"
+      },
+      "geometry": {"type": "Point", "coordinates": [-117.61, 35.68, 8.1]},
+      "id": "ci40990001"
+    },
+    {
+      "type": "Feature",
+      "properties": {"mag": null, "place": "unknown", "time": 1791352800000, "type": "earthquake"},
+      "geometry": {"type": "Point", "coordinates": [0.0, 0.0, 10.0]},
+      "id": "us_nomag"
+    },
+    {
+      "type": "Feature",
+      "properties": {"mag": 4.6, "place": "5 km S of Somewhere", "time": 1791352800000, "type": "quarry blast",
+                     "title": "M 4.6 Quarry Blast"},
+      "geometry": {"type": "Point", "coordinates": [10.0, 45.0, 0.0]},
+      "id": "us_blast"
+    }
+  ],
+  "bbox": [-117.61, -4.531, 0.0, 101.512, 35.68, 35.2]
+}

@@ -1,0 +1,419 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The playground turn's outcome. ``committed`` is always false: the scratch case never\nplans or writes.",
+  "properties": {
+    "committed": {
+      "const": false,
+      "default": false,
+      "title": "Committed",
+      "type": "boolean"
+    },
+    "display_name": {
+      "maxLength": 60,
+      "minLength": 1,
+      "title": "Display Name",
+      "type": "string"
+    },
+    "duration_ms": {
+      "minimum": 0,
+      "title": "Duration Ms",
+      "type": "integer"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "pattern": "^[a-z][a-z0-9_]{0,63}$",
+              "title": "Code",
+              "type": "string"
+            },
+            "message": {
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "Message",
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message"
+          ],
+          "title": "PlaygroundError",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "findings": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "description": "Structured output of a specialist (investigator → structurer).\n\n``scenario_updates`` (M4) is required in the schema (strict mode); payloads stored\nbefore M4 that lack the key still validate (it is read as ``[]``).",
+          "properties": {
+            "affected": {
+              "items": {
+                "additionalProperties": false,
+                "description": "A resolved business entity (``{type, code, label}``).\n\nStrict-compatible (all fields required, no defaults) so it can be used inside\nLLM output schemas as well as render blocks.",
+                "properties": {
+                  "code": {
+                    "title": "Code",
+                    "type": "string"
+                  },
+                  "label": {
+                    "title": "Label",
+                    "type": "string"
+                  },
+                  "type": {
+                    "enum": [
+                      "supplier",
+                      "po",
+                      "po_line",
+                      "sku",
+                      "style",
+                      "dc",
+                      "cluster",
+                      "store",
+                      "factory",
+                      "component",
+                      "port",
+                      "lane",
+                      "chokepoint",
+                      "region",
+                      "other"
+                    ],
+                    "title": "Type",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "code",
+                  "label"
+                ],
+                "title": "EntityRef",
+                "type": "object"
+              },
+              "title": "Affected",
+              "type": "array"
+            },
+            "claims": {
+              "items": {
+                "additionalProperties": false,
+                "description": "A statement with pointers to evidence or a deterministic calc.",
+                "properties": {
+                  "calc_id": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Calc Id"
+                  },
+                  "confidence": {
+                    "enum": [
+                      "high",
+                      "medium",
+                      "low"
+                    ],
+                    "title": "Confidence",
+                    "type": "string"
+                  },
+                  "evidence_id": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Evidence Id"
+                  },
+                  "json_pointer": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Json Pointer"
+                  },
+                  "kind": {
+                    "enum": [
+                      "fact",
+                      "inference"
+                    ],
+                    "title": "Kind",
+                    "type": "string"
+                  },
+                  "text": {
+                    "title": "Text",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "text",
+                  "kind",
+                  "evidence_id",
+                  "json_pointer",
+                  "calc_id",
+                  "confidence"
+                ],
+                "title": "Claim",
+                "type": "object"
+              },
+              "title": "Claims",
+              "type": "array"
+            },
+            "gaps": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Gaps",
+              "type": "array"
+            },
+            "scenario_updates": {
+              "items": {
+                "additionalProperties": false,
+                "description": "A proposed scenario change backed by evidence (``Findings.scenario_updates``).\n\n``refine_scenario`` applies fact-backed updates and turns inference-backed ones into\n``Assumption(unconfirmed=True)`` entries. The value shape is checked deterministically\nwith :meth:`shape_error` (a malformed update is dropped, not the whole ``Findings``).",
+                "properties": {
+                  "evidence_id": {
+                    "title": "Evidence Id",
+                    "type": "string"
+                  },
+                  "json_pointer": {
+                    "title": "Json Pointer",
+                    "type": "string"
+                  },
+                  "key": {
+                    "enum": [
+                      "delay_days",
+                      "duration_days",
+                      "demand_change_pct",
+                      "add_receipts",
+                      "remove_receipts"
+                    ],
+                    "title": "Key",
+                    "type": "string"
+                  },
+                  "value_ids": {
+                    "anyOf": [
+                      {
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Value Ids"
+                  },
+                  "value_int": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Value Int"
+                  }
+                },
+                "required": [
+                  "key",
+                  "value_int",
+                  "value_ids",
+                  "evidence_id",
+                  "json_pointer"
+                ],
+                "title": "ScenarioUpdate",
+                "type": "object"
+              },
+              "title": "Scenario Updates",
+              "type": "array"
+            },
+            "status": {
+              "enum": [
+                "ok",
+                "failed"
+              ],
+              "title": "Status",
+              "type": "string"
+            },
+            "task_id": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "task_id",
+            "status",
+            "claims",
+            "affected",
+            "gaps",
+            "scenario_updates"
+          ],
+          "title": "Findings",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "playground_id": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Playground Id",
+      "type": "string"
+    },
+    "specialist": {
+      "pattern": "^[a-z][a-z0-9_]{2,39}$",
+      "title": "Specialist",
+      "type": "string"
+    },
+    "started_at": {
+      "format": "date-time",
+      "title": "Started At",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "failed",
+        "budget_exceeded"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "tool_calls": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "connector": {
+            "pattern": "^[a-z0-9][a-z0-9_-]{0,62}$",
+            "title": "Connector",
+            "type": "string"
+          },
+          "duration_ms": {
+            "minimum": 0,
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "evidence_id": {
+            "anyOf": [
+              {
+                "pattern": "^ev_[0-9A-Za-z_-]{1,64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Id"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "quarantined": {
+            "title": "Quarantined",
+            "type": "boolean"
+          },
+          "tool": {
+            "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "connector",
+          "tool",
+          "ok",
+          "duration_ms",
+          "quarantined",
+          "evidence_id",
+          "error"
+        ],
+        "title": "PlaygroundToolCall",
+        "type": "object"
+      },
+      "maxItems": 15,
+      "title": "Tool Calls",
+      "type": "array"
+    },
+    "usage": {
+      "additionalProperties": false,
+      "properties": {
+        "llm_calls": {
+          "minimum": 0,
+          "title": "Llm Calls",
+          "type": "integer"
+        },
+        "tokens_in": {
+          "minimum": 0,
+          "title": "Tokens In",
+          "type": "integer"
+        },
+        "tokens_out": {
+          "minimum": 0,
+          "title": "Tokens Out",
+          "type": "integer"
+        },
+        "tool_calls": {
+          "minimum": 0,
+          "title": "Tool Calls",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "llm_calls",
+        "tool_calls",
+        "tokens_in",
+        "tokens_out"
+      ],
+      "title": "PlaygroundUsage",
+      "type": "object"
+    }
+  },
+  "required": [
+    "playground_id",
+    "specialist",
+    "display_name",
+    "status",
+    "findings",
+    "tool_calls",
+    "usage",
+    "error",
+    "started_at",
+    "duration_ms"
+  ],
+  "title": "PlaygroundResult",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.agents.PlaygroundResult"
+}

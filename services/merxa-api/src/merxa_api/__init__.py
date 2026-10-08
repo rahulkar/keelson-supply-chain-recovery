@@ -1,0 +1,1 @@
+"""Merxa Retail Suite backend."""

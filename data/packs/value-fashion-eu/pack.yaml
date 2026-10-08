@@ -1,0 +1,65 @@
+# Template pack: value-fashion retailer in the EU on Merxa Retail Suite (docs/contracts/70-backoffice-m2.md §4).
+# Applied by bootstrap (infra/tenants.yaml `pack:`) and by POST /api/admin/tenants. Never put secrets here.
+name: value-fashion-eu
+description: >-
+  Value-fashion retailer (EU) on Merxa Retail Suite: the Merxa platform connector with
+  Keelson's own OAuth clients (reader / preparer / autocommit / connect), DC-to-DC transfer
+  lanes and the default specialists (inventory & demand).
+connectors:
+  - slug: merxa
+    name: "Merxa Retail Suite"
+    platform: true                      # Keelson-provisioned: starts active (oauth_platform_merxa)
+    mcp_url: http://merxa.localhost/mcp
+    issuer: http://auth.localhost/realms/merxa
+    trust_level: first_party
+    webhook_secret_env: MERXA_WEBHOOK_SECRET
+    auth:
+      reader_client: keelson-reader
+      preparer_client: keelson-preparer
+      autocommit_client: keelson-autocommit
+      connect_client: keelson-connect
+    lanes:   # tenant network config not owned by the ERP (DC-to-DC transfer lanes)
+      - { from_dc: DE1, to_dc: NL1, transit_days: 2, cost_per_unit_cents: 35, max_units_wk: 20000 }
+      - { from_dc: DE1, to_dc: UK1, transit_days: 4, cost_per_unit_cents: 60, max_units_wk: 12000 }
+      - { from_dc: PL1, to_dc: NL1, transit_days: 3, cost_per_unit_cents: 45, max_units_wk: 15000 }
+      - { from_dc: PL1, to_dc: DE1, transit_days: 2, cost_per_unit_cents: 30, max_units_wk: 15000 }
+      - { from_dc: NL1, to_dc: UK1, transit_days: 2, cost_per_unit_cents: 50, max_units_wk: 15000 }
+spec_overrides:          # merge patch on the built-in AgentSpec default
+  connector: merxa
+  vendor_name: Merxa
+  # Approval policy (docs/contracts/95-m5-remediation.md §1): CEL over {cs, case, initiator};
+  # ascending priority, first match wins. Hard floors in the engine: what-if / unconfirmed is
+  # always refused and signal/webhook/tainted runs are never auto-approved, whatever the rules say.
+  # Edited in the back-office (Policies) as new versions; guarded changes need a platform admin.
+  policy:
+    version: p-2
+    rules:
+      - id: refuse-unconfirmed
+        description: What-if cases and plans that rely on unconfirmed values are never committed
+        when: 'case.mode == "what_if" || case.unconfirmed > 0'
+        require: refuse
+        priority: 10
+      - id: four-eyes
+        description: Large or structural changes need two different people (an approver and compliance)
+        when: 'cs.incremental_cost_cents > 1000000 || cs.ops.exists(o, o in ["po.create", "po_line.cancel", "production_order.resequence"])'
+        require: { roles: [approver, compliance], count: 2, exclude_initiator: true }
+        priority: 20
+      - id: human-untrusted
+        description: Changes from a signal or webhook, or from untrusted input, always need an approver
+        when: 'case.origin != "chat" || case.tainted'
+        require: { roles: [approver], count: 1, exclude_initiator: false }
+        priority: 30
+      - id: auto-small-transfer
+        description: Small transfer and allocation changes started by a planner are applied automatically
+        when: 'cs.ops.all(o, o in ["allocation.set_qty", "transfer_order.create"]) && cs.lines <= 10 && cs.units <= 500 && initiator.roles.exists(r, r == "planner")'
+        require: auto
+        priority: 40
+      - id: default
+        description: Changes need approval by someone with the approver role
+        when: 'true'
+        require: { roles: [approver], count: 1, exclude_initiator: false }
+        priority: 50
+budgets:
+  budget_eur: 50
+  rpm_limit: 120
+  tpm_limit: 400000

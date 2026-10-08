@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "``network_map@1`` (canvas; data in :class:`NetworkMapData` via ``data_ref``).\n\n``bbox`` is ``[west, south, east, north]`` in degrees x 1e6.",
+  "properties": {
+    "bbox": {
+      "maxItems": 4,
+      "minItems": 4,
+      "prefixItems": [
+        {
+          "maximum": 180000000,
+          "minimum": -180000000,
+          "type": "integer"
+        },
+        {
+          "maximum": 90000000,
+          "minimum": -90000000,
+          "type": "integer"
+        },
+        {
+          "maximum": 180000000,
+          "minimum": -180000000,
+          "type": "integer"
+        },
+        {
+          "maximum": 90000000,
+          "minimum": -90000000,
+          "type": "integer"
+        }
+      ],
+      "title": "Bbox",
+      "type": "array"
+    },
+    "legend": {
+      "items": {
+        "additionalProperties": false,
+        "description": "A legend entry; ``key`` is the node status / link kind / footprint label it explains.",
+        "properties": {
+          "key": {
+            "minLength": 1,
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "node",
+              "link",
+              "footprint"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "kind"
+        ],
+        "title": "MapLegendItem",
+        "type": "object"
+      },
+      "title": "Legend",
+      "type": "array"
+    },
+    "summary": {
+      "additionalProperties": false,
+      "properties": {
+        "at_risk_nodes": {
+          "minimum": 0,
+          "title": "At Risk Nodes",
+          "type": "integer"
+        },
+        "lanes": {
+          "minimum": 0,
+          "title": "Lanes",
+          "type": "integer"
+        },
+        "nodes": {
+          "minimum": 0,
+          "title": "Nodes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "nodes",
+        "at_risk_nodes",
+        "lanes"
+      ],
+      "title": "MapSummary",
+      "type": "object"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    }
+  },
+  "required": [
+    "title",
+    "summary",
+    "bbox",
+    "legend"
+  ],
+  "title": "NetworkMapProps",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.blocks.NetworkMapProps"
+}

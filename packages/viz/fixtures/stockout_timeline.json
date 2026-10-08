@@ -1,0 +1,45 @@
+{
+  "id": "blk_stockout_timeline",
+  "kind": "stockout_timeline",
+  "v": 1,
+  "title": "When stores run short",
+  "placement": "canvas",
+  "provenance": {
+    "kind": "simulated",
+    "engine": "keelson-opt@0.2",
+    "inputs_hash": "5f1c9a7e2b0d4c18",
+    "as_of": "2026-10-05"
+  },
+  "data_ref": "/api/blocks/blk_stockout_timeline/data",
+  "props": {
+    "weeks": [
+      "2026-W42",
+      "2026-W43",
+      "2026-W44",
+      "2026-W45",
+      "2026-W46",
+      "2026-W47",
+      "2026-W48",
+      "2026-W49",
+      "2026-W50"
+    ],
+    "options": [
+      {
+        "id": "opt_rebalance",
+        "title": "Rebalance between DCs"
+      },
+      {
+        "id": "opt_sea_air",
+        "title": "Rebalance + targeted sea–air"
+      },
+      {
+        "id": "opt_nearshore",
+        "title": "Near-shore top-up + resequence"
+      },
+      {
+        "id": "opt_hybrid",
+        "title": "Hybrid"
+      }
+    ]
+  }
+}

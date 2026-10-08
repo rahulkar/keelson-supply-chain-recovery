@@ -1,0 +1,58 @@
+# Cloud Run job template: keelson-db-init-${SQL_INSTANCE} (compose: pg-core's first-boot
+# init/10-keelson-init.sh). Rendered once per Cloud SQL instance by scripts/cloudrun/deploy.sh;
+# ${DB_ROLES} lists the roles/databases that live on that instance and ${DB_ROLE_ENV} expands to
+# one <ROLE>_DB_PASSWORD secret reference per role. Image: infra/cloudrun/images/db-init.
+# Re-run after rotating a DB password secret.
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: keelson-db-init-${SQL_INSTANCE}
+  labels:
+    cloud.googleapis.com/location: ${REGION}
+    app.kubernetes.io/part-of: keelson
+  annotations:
+    run.googleapis.com/launch-stage: GA
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/network-interfaces: '[{"network":"${NETWORK}","subnetwork":"${SUBNET}"}]'
+        run.googleapis.com/vpc-access-egress: private-ranges-only
+    spec:
+      parallelism: 1
+      taskCount: 1
+      template:
+        spec:
+          serviceAccountName: keelson-jobs@${PROJECT}.iam.gserviceaccount.com
+          maxRetries: 1
+          timeoutSeconds: 600
+          containers:
+            - name: db-init
+              image: ${IMAGE_DB_INIT}
+              resources:
+                limits:
+                  cpu: "1"
+                  memory: 512Mi
+              env:
+                - name: PGHOST
+                  value: ${SQL_IP}
+                - name: PGUSER
+                  value: postgres
+                - name: PGSSLMODE
+                  value: require
+                - name: DB_ROLES
+                  value: ${DB_ROLES}
+                - name: PIN_POSTGIS
+                  value: "${PIN_POSTGIS}"
+                - name: PIN_VECTOR
+                  value: "${PIN_VECTOR}"
+                - name: PIN_BTREE_GIST
+                  value: "${PIN_BTREE_GIST}"
+                - name: PIN_PGCRYPTO
+                  value: "${PIN_PGCRYPTO}"
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: keelson-pg-core-superpassword
+                      key: latest
+${DB_ROLE_ENV}

@@ -1,0 +1,38 @@
+{
+  "id": "blk_approval_1",
+  "kind": "approval_card",
+  "v": 1,
+  "title": "Approval needed",
+  "placement": "inline",
+  "provenance": {
+    "kind": "decision",
+    "engine": "keelson-engine@0.1",
+    "inputs_hash": "86ae35d58a6aa3b5",
+    "as_of": "2026-10-05"
+  },
+  "data_ref": null,
+  "props": {
+    "interrupt_id": "int_019a0c4e_approval",
+    "change_set_id": "cs_019a0c50",
+    "change_set_hash": "62511d5d43f62ceacf87367d049a9daa5192f0e4dd123003c7ef9a9643934ae1",
+    "plan_version": 2,
+    "summary": {
+      "lines": 9,
+      "units": 5160,
+      "value_cents": 6966000
+    },
+    "reason": "More than 5,000 units move between DCs, so an approver must sign off.",
+    "required_roles": [
+      "approver"
+    ],
+    "connect": {
+      "status": "missing",
+      "connect_url": "http://keelson.localhost/api/connectors/merxa/connect?return_to=%2Fcases%2F019a0c4e"
+    },
+    "buttons": [
+      "approve",
+      "reject",
+      "revise"
+    ]
+  }
+}

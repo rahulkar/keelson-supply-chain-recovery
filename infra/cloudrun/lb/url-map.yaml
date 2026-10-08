@@ -1,0 +1,58 @@
+# Global external Application Load Balancer URL map: the Cloud Run replacement for the host
+# routing in infra/caddy/Caddyfile. Imported by scripts/cloudrun/deploy.sh with
+#   gcloud compute url-maps import keelson-urlmap --global --source=<rendered file>
+# ${BS} = projects/<project>/global/backendServices (each backend service has one serverless NEG).
+#
+#   keelson.<domain>   /api, /api/*  -> engine-api (streamed SSE; Cloud Run request timeout 60 min)
+#                      everything else -> keelson-web
+#   merxa.<domain>     /v1/*, /mcp, /mcp/*, /mcp-lite, /mcp-lite/*, /.well-known/* -> merxa-api
+#                      everything else -> merxa-web
+#   auth.<domain>      keycloak (Cloud Armor policy keelson-auth-edge: /admin*, /realms/master* -> 403)
+#   gateway.<domain>   litellm behind IAP; /__keelson/* (console handoff) -> engine-api
+#   traces.<domain>    phoenix behind IAP (only with ENABLE_PHOENIX=1)
+#   any other host     redirect to keelson.<domain> (Caddy answered 404)
+name: keelson-urlmap
+defaultUrlRedirect:
+  hostRedirect: keelson.${DOMAIN}
+  httpsRedirect: true
+  redirectResponseCode: FOUND
+  stripQuery: true
+hostRules:
+  - hosts: [keelson.${DOMAIN}]
+    pathMatcher: keelson
+  - hosts: [merxa.${DOMAIN}]
+    pathMatcher: merxa
+  - hosts: [auth.${DOMAIN}]
+    pathMatcher: auth
+  - hosts: [gateway.${DOMAIN}]
+    pathMatcher: gateway
+  # BEGIN phoenix
+  - hosts: [traces.${DOMAIN}]
+    pathMatcher: traces
+  # END phoenix
+pathMatchers:
+  - name: keelson
+    defaultService: ${BS}/keelson-web-bs
+    pathRules:
+      # The /api bypass: the API goes straight to engine-api, never through Next.js.
+      - paths: [/api, /api/*]
+        service: ${BS}/engine-api-bs
+  - name: merxa
+    defaultService: ${BS}/merxa-web-bs
+    pathRules:
+      - paths: [/v1/*, /mcp, /mcp/*, /mcp-lite, /mcp-lite/*, /.well-known/*]
+        service: ${BS}/merxa-api-bs
+  - name: auth
+    defaultService: ${BS}/keycloak-bs
+  - name: gateway
+    defaultService: ${BS}/litellm-bs
+    pathRules:
+      - paths: [/__keelson/*]
+        service: ${BS}/engine-api-bs
+  # BEGIN phoenix
+  - name: traces
+    defaultService: ${BS}/phoenix-bs
+    pathRules:
+      - paths: [/__keelson/*]
+        service: ${BS}/engine-api-bs
+  # END phoenix

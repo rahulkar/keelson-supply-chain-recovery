@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Output of the ``intake`` agent; routing is deterministic on ``kind``.",
+  "properties": {
+    "disruption": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "description": "Structured reading of a disruption; user-stated numbers become ``decision`` values.\n\n``event_type`` is a taxonomy key (:data:`~keelson_contracts.common.EVENT_TYPE_KEYS`,\n``data/taxonomy/events.yaml``); ``OTHER`` makes the case investigation-only.",
+          "properties": {
+            "delay_days": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Delay Days"
+            },
+            "demand_change_pct": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Demand Change Pct"
+            },
+            "description": {
+              "title": "Description",
+              "type": "string"
+            },
+            "duration_days": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Duration Days"
+            },
+            "entity_mentions": {
+              "items": {
+                "additionalProperties": false,
+                "description": "An entity named in user/supplier text, before deterministic resolution.",
+                "properties": {
+                  "text": {
+                    "title": "Text",
+                    "type": "string"
+                  },
+                  "type": {
+                    "enum": [
+                      "supplier",
+                      "po",
+                      "sku",
+                      "style",
+                      "dc",
+                      "store",
+                      "factory",
+                      "component",
+                      "port",
+                      "lane",
+                      "chokepoint",
+                      "region",
+                      "other"
+                    ],
+                    "title": "Type",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "text"
+                ],
+                "title": "EntityMention",
+                "type": "object"
+              },
+              "title": "Entity Mentions",
+              "type": "array"
+            },
+            "event_family": {
+              "enum": [
+                "SUP",
+                "LOG",
+                "NAT",
+                "CYB",
+                "REG",
+                "DEM",
+                "OTHER"
+              ],
+              "title": "Event Family",
+              "type": "string"
+            },
+            "event_type": {
+              "enum": [
+                "SUP.delay",
+                "SUP.capacity_loss",
+                "LOG.chokepoint_closure",
+                "LOG.port_closure",
+                "LOG.strike",
+                "NAT.storm",
+                "NAT.flood",
+                "NAT.earthquake",
+                "DEM.spike",
+                "DEM.drop",
+                "OTHER"
+              ],
+              "title": "Event Type",
+              "type": "string"
+            },
+            "is_hypothetical": {
+              "title": "Is Hypothetical",
+              "type": "boolean"
+            },
+            "start_date": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start Date"
+            }
+          },
+          "required": [
+            "event_family",
+            "event_type",
+            "description",
+            "entity_mentions",
+            "delay_days",
+            "demand_change_pct",
+            "start_date",
+            "duration_days",
+            "is_hypothetical"
+          ],
+          "title": "DisruptionExtract",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "kind": {
+      "enum": [
+        "QUESTION",
+        "NEW_DISRUPTION",
+        "FOLLOWUP",
+        "SMALLTALK"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "summary": {
+      "title": "Summary",
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "summary",
+    "disruption"
+  ],
+  "title": "IntakeResult",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.llm.IntakeResult"
+}

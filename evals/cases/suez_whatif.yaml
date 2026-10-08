@@ -1,0 +1,54 @@
+# Act 2 golden case (docs/contracts/90 §8): the Suez what-if. The full seed routes the Vietnam
+# knit lanes SGN-HAM-SEA / SGN-GDN-SEA via SUEZ with Cape alternates (+12 days); a 21-day closure
+# leaves DE1 and PL1 short of knit in W46-W48 (services/merxa-api/README.md story table).
+id: suez_whatif
+title: Suez closure what-if, then promote
+description: >
+  "What if the Suez Canal closes for 3 weeks?" is framed as a what-if chokepoint closure; options
+  are compared but Apply stays disabled until the case is promoted to an actual case, after which
+  the re-simulated recommendation can be applied.
+tags: [golden, act2, what_if, latency]
+setup:
+  reset_merxa: true
+turns:
+  - id: whatif
+    message: What if the Suez Canal closes for 3 weeks?
+    approach: confirm
+    expect:
+      run: success
+      approach: {required: false, mode: what_if}
+      case_mode: what_if
+      blocks_present: [kpi_strip, recommended_option, scenario_compare, narrative, stockout_timeline]
+      options:
+        include: [do-nothing]
+        min_count: 2
+      affected_entities:
+        golden: [SUEZ, SGN-HAM-SEA, SGN-GDN-SEA, PO-VN-0001, PO-VN-0002, PO-VN-0003, PO-VN-0004, DE1, PL1]
+        min_recall: 0.7
+      exposure:
+        dc_codes: [DE1, PL1]
+        style_prefixes: [FLC-, KNT-, CRD-, HDY-]
+        weeks: [2026-W46, 2026-W47, 2026-W48]
+        each_dc: true
+        min_weeks_short: 2
+      numeric_grounding: {min: 1.0}
+      latency_s: {first_stage: 2, exposure: 30, options: 180}
+      actions:
+        - {type: apply, enabled: false, reason_contains: promote}
+        - {type: promote, enabled: true}
+  - id: promote
+    action: {type: promote, option: recommended}
+    expect:
+      run: success
+      case_mode: actual
+      blocks_present: [recommended_option]
+      plan_version_delta: 1
+      actions:
+        - {type: apply, enabled: true}
+        - {type: promote, offered: false}
+expect:
+  no_write_tool_calls: true
+  no_untrusted_tool_calls: true
+  no_commit_without_human: true
+soft:
+  - promote.plan_version_delta

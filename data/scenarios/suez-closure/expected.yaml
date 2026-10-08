@@ -1,0 +1,42 @@
+# Expected replay outcome of suez-closure for a value-fashion-eu tenant on the Merxa `full` seed
+# (reference network: ../network-value-fashion-eu.yaml). Checked exactly by data/scenarios/validate.py.
+# Members are signal keys (native ids without the tenant/pack prefix); the first one is the event lead.
+# A news-only event: severity = p75 of the members' subtype priors (chokepoint_closure 7500); exposure
+# radius 25 km (chokepoint_closure) — only lanes through the Suez / Bab-el-Mandeb polygons are exposed.
+pack: suez-closure
+network: network-value-fashion-eu.yaml
+checkpoints:
+  - after_step: 0
+    signals: 1
+    events:
+      - label: suez
+        members: ["https://demo-freight-daily.example/?p=26090"]
+        kind: geopolitical
+        subtype: chokepoint_closure
+        severity_bp: 7500
+        radius_km: 25
+        alert: {action: alert, severity: high}
+        exposures: &exp_suez
+          lane: {SGN-HAM-SEA: lane_crosses, SGN-GDN-SEA: lane_crosses}
+  - after_step: 1   # second outlet corroborates (shared CHOKEPOINT:SUEZ ref)
+    signals: 2
+    events:
+      - label: suez
+        members: ["https://demo-freight-daily.example/?p=26090",
+                  "tag:simulated-shipping-wire.example,2026-10-05:suez-routings-paused"]
+        severity_bp: 7500
+        alert: {action: alert, severity: high}
+        exposures: *exp_suez
+  - after_step: 2   # one day later: "up to three weeks" (the repeated item is a duplicate)
+    signals: 3
+    events:
+      - label: suez
+        members: ["https://demo-freight-daily.example/?p=26090",
+                  "tag:simulated-shipping-wire.example,2026-10-05:suez-routings-paused",
+                  "https://demo-freight-daily.example/?p=26104"]
+        kind: geopolitical
+        subtype: chokepoint_closure
+        severity_bp: 7500
+        radius_km: 25
+        alert: {action: alert, severity: high}
+        exposures: *exp_suez

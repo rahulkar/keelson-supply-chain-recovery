@@ -1,0 +1,51 @@
+# Cloud Run service: phoenix (compose: phoenix, profile obs). OPTIONAL: deployed only with
+# ENABLE_PHOENIX=1 (otherwise use Cloud Trace). Phoenix keeps its data in Cloud SQL (database
+# "phoenix"). Console only as traces.<domain> through the ALB behind IAP.
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: phoenix
+  labels:
+    cloud.googleapis.com/location: ${REGION}
+    app.kubernetes.io/part-of: keelson
+  annotations:
+    run.googleapis.com/ingress: internal-and-cloud-load-balancing
+    run.googleapis.com/invoker-iam-disabled: "true"
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: keelson
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "1"
+        run.googleapis.com/execution-environment: gen2
+        run.googleapis.com/network-interfaces: '[{"network":"${NETWORK}","subnetwork":"${SUBNET}"}]'
+        run.googleapis.com/vpc-access-egress: private-ranges-only
+    spec:
+      serviceAccountName: keelson-phoenix@${PROJECT}.iam.gserviceaccount.com
+      containerConcurrency: 80
+      timeoutSeconds: 300
+      containers:
+        - name: phoenix
+          image: ${IMAGE_PHOENIX}
+          ports:
+            - name: http1
+              containerPort: 6006
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          env:
+            - name: PHOENIX_ENABLE_AUTH
+              value: "true"
+            - name: PHOENIX_SQL_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: keelson-phoenix-database-url
+                  key: latest
+            - name: PHOENIX_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keelson-phoenix-secret
+                  key: latest

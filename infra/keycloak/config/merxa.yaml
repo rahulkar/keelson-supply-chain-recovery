@@ -1,0 +1,301 @@
+# Realm "merxa" - the (fictional) vendor's own identity domain.
+# Contract: docs/contracts/10-auth.md. Applied by kc-config (keycloak-config-cli),
+# secrets via env variable substitution. Demo client/users: enabled flag from env DEMO_ENABLED.
+#
+# Keelson-side clients authenticate with private_key_jwt (RFC 7523) against the Keelson
+# JWKS (kid ca-1, ES256). Every API scope adds audience http://merxa.localhost/mcp.
+# Tokens carry the realm roles both in realm_access.roles (built-in scope "roles") and
+# as top-level claim "roles" (client scope merxa-roles).
+realm: merxa
+displayName: Merxa Retail Suite
+enabled: true
+sslRequired: none
+registrationAllowed: false
+resetPasswordAllowed: false
+rememberMe: false
+editUsernameAllowed: false
+loginWithEmailAllowed: true
+duplicateEmailsAllowed: false
+bruteForceProtected: true
+failureFactor: 10
+permanentLockout: false
+organizationsEnabled: false
+accessTokenLifespan: 300
+ssoSessionIdleTimeout: 7200
+ssoSessionMaxLifespan: 36000
+offlineSessionIdleTimeout: 2592000
+revokeRefreshToken: false
+eventsEnabled: true
+eventsExpiration: 604800
+adminEventsEnabled: true
+adminEventsDetailsEnabled: false
+
+roles:
+  realm:
+    - name: merch-planner
+      description: Merchandise planner
+    - name: ops-director
+      description: Operations director - may apply change sets (delegated changes:apply)
+    - name: integration-writer
+      description: Machine integrations (Keelson service accounts)
+    - name: merxa-admin
+      description: Merxa administrator (demo director endpoints)
+
+clientScopes:
+  - name: merxa-roles
+    description: Realm roles as top-level claim "roles"
+    protocol: openid-connect
+    attributes:
+      include.in.token.scope: "false"
+      display.on.consent.screen: "false"
+    protocolMappers:
+      - name: realm roles
+        protocol: openid-connect
+        protocolMapper: oidc-usermodel-realm-role-mapper
+        consentRequired: false
+        config:
+          claim.name: roles
+          multivalued: "true"
+          jsonType.label: String
+          access.token.claim: "true"
+          id.token.claim: "true"
+          userinfo.token.claim: "true"
+          introspection.token.claim: "true"
+  - name: "catalog:read"
+    description: Read catalog, locations, BOM and audit trail
+    protocol: openid-connect
+    attributes: &api-scope-attrs
+      include.in.token.scope: "true"
+      display.on.consent.screen: "true"
+    protocolMappers: &mcp-audience
+      - name: audience merxa mcp
+        protocol: openid-connect
+        protocolMapper: oidc-audience-mapper
+        consentRequired: false
+        config:
+          included.custom.audience: http://merxa.localhost/mcp
+          access.token.claim: "true"
+          id.token.claim: "false"
+          introspection.token.claim: "true"
+          lightweight.claim: "false"
+  - name: "inventory:read"
+    description: Read inventory positions and demand forecasts
+    protocol: openid-connect
+    attributes: *api-scope-attrs
+    protocolMappers: *mcp-audience
+  - name: "po:read"
+    description: Read purchase orders and supplier messages
+    protocol: openid-connect
+    attributes: *api-scope-attrs
+    protocolMappers: *mcp-audience
+  - name: "orders:read"
+    description: Read allocations and transfer orders
+    protocol: openid-connect
+    attributes: *api-scope-attrs
+    protocolMappers: *mcp-audience
+  - name: "snapshot:read"
+    description: Read bulk snapshots
+    protocol: openid-connect
+    attributes: *api-scope-attrs
+    protocolMappers: *mcp-audience
+  - name: "changes:preview"
+    description: Create and validate change sets (no apply)
+    protocol: openid-connect
+    attributes: *api-scope-attrs
+    protocolMappers: *mcp-audience
+  - name: "changes:apply"
+    description: Apply change sets on behalf of a user (requires role ops-director)
+    protocol: openid-connect
+    attributes: *api-scope-attrs
+    protocolMappers: *mcp-audience
+  - name: "changes:apply:auto"
+    description: Apply change sets under auto-policy caps (keelson-autocommit only)
+    protocol: openid-connect
+    attributes: *api-scope-attrs
+    protocolMappers: *mcp-audience
+
+clients:
+  # ── Keelson integration clients (private_key_jwt, ES256, Keelson JWKS) ─────────
+  - clientId: keelson-reader
+    name: Keelson (read)
+    description: Keelson service principal - read scopes only. The only token agents ever receive.
+    enabled: true
+    protocol: openid-connect
+    publicClient: false
+    bearerOnly: false
+    consentRequired: false
+    clientAuthenticatorType: client-jwt
+    standardFlowEnabled: false
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: true
+    fullScopeAllowed: true
+    redirectUris: []
+    webOrigins: []
+    attributes: &keelson-jwt-auth
+      use.jwks.url: "true"
+      jwks.url: http://keelson.localhost/api/.well-known/jwks.json
+      token.endpoint.auth.signing.alg: ES256
+      use.refresh.tokens: "false"
+      client_credentials.use_refresh_token: "false"
+    defaultClientScopes: [basic, roles, merxa-roles, "catalog:read", "inventory:read", "po:read", "orders:read", "snapshot:read"]
+    optionalClientScopes: []
+
+  - clientId: keelson-preparer
+    name: Keelson (prepare changes)
+    description: Keelson commit service - creates/validates change sets; read scopes.
+    enabled: true
+    protocol: openid-connect
+    publicClient: false
+    bearerOnly: false
+    consentRequired: false
+    clientAuthenticatorType: client-jwt
+    standardFlowEnabled: false
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: true
+    fullScopeAllowed: true
+    redirectUris: []
+    webOrigins: []
+    attributes: *keelson-jwt-auth
+    defaultClientScopes: [basic, roles, merxa-roles, "changes:preview", "catalog:read", "inventory:read", "po:read", "orders:read", "snapshot:read"]
+    optionalClientScopes: []
+
+  - clientId: keelson-autocommit
+    name: Keelson (auto-policy apply)
+    description: Applies change sets under Merxa auto caps (changes:apply:auto).
+    enabled: true
+    protocol: openid-connect
+    publicClient: false
+    bearerOnly: false
+    consentRequired: false
+    clientAuthenticatorType: client-jwt
+    standardFlowEnabled: false
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: true
+    fullScopeAllowed: true
+    redirectUris: []
+    webOrigins: []
+    attributes: *keelson-jwt-auth
+    defaultClientScopes: [basic, roles, merxa-roles, "changes:apply:auto"]
+    optionalClientScopes: []
+
+  - clientId: keelson-connect
+    name: Keelson (Connect Merxa)
+    description: Delegated per-approver link - authorization code + PKCE S256 + offline_access.
+    enabled: true
+    protocol: openid-connect
+    publicClient: false
+    bearerOnly: false
+    consentRequired: false
+    clientAuthenticatorType: client-jwt
+    standardFlowEnabled: true
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: false
+    fullScopeAllowed: true
+    rootUrl: http://keelson.localhost
+    redirectUris: [http://keelson.localhost/api/connectors/merxa/callback]
+    webOrigins: []
+    attributes:
+      use.jwks.url: "true"
+      jwks.url: http://keelson.localhost/api/.well-known/jwks.json
+      token.endpoint.auth.signing.alg: ES256
+      pkce.code.challenge.method: S256
+      use.refresh.tokens: "true"
+    defaultClientScopes: [basic, acr, profile, email, roles, merxa-roles]
+    optionalClientScopes: ["changes:apply", offline_access]
+
+  # ── Merxa's own UI ───────────────────────────────────────────────────────────
+  - clientId: merxa-web
+    name: Merxa Retail Suite (web)
+    description: merxa-api BFF for the Merxa UI. Confidential, standard flow.
+    enabled: true
+    protocol: openid-connect
+    publicClient: false
+    bearerOnly: false
+    consentRequired: false
+    clientAuthenticatorType: client-secret
+    secret: $(env:MERXA_WEB_CLIENT_SECRET)
+    standardFlowEnabled: true
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: false
+    fullScopeAllowed: true
+    rootUrl: http://merxa.localhost
+    baseUrl: http://merxa.localhost/
+    redirectUris: [http://merxa.localhost/v1/auth/callback]
+    webOrigins: [http://merxa.localhost]
+    attributes:
+      post.logout.redirect.uris: http://merxa.localhost/
+      use.refresh.tokens: "true"
+    defaultClientScopes: [basic, acr, web-origins, profile, email, roles, merxa-roles]
+    optionalClientScopes: []
+
+  # ── demo set ────────────────────────────────────────────────────────────────
+  - clientId: merxa-demo
+    name: Merxa persona switcher (demo only)
+    description: Direct access grants for the Merxa DEMO_MODE persona switcher.
+    enabled: $(env:DEMO_ENABLED)
+    protocol: openid-connect
+    publicClient: false
+    bearerOnly: false
+    consentRequired: false
+    clientAuthenticatorType: client-secret
+    secret: $(env:MERXA_DEMO_CLIENT_SECRET)
+    standardFlowEnabled: false
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: true
+    serviceAccountsEnabled: false
+    fullScopeAllowed: true
+    redirectUris: []
+    webOrigins: []
+    attributes:
+      use.refresh.tokens: "true"
+    defaultClientScopes: [basic, acr, profile, email, roles, merxa-roles]
+    optionalClientScopes: []
+
+users:
+  # Service accounts (created by Keycloak with the client; roles assigned here).
+  - username: service-account-keelson-reader
+    enabled: true
+    serviceAccountClientId: keelson-reader
+    realmRoles: [integration-writer]
+  - username: service-account-keelson-preparer
+    enabled: true
+    serviceAccountClientId: keelson-preparer
+    realmRoles: [integration-writer]
+  - username: service-account-keelson-autocommit
+    enabled: true
+    serviceAccountClientId: keelson-autocommit
+    realmRoles: [integration-writer]
+
+  # ── demo personas ────────────────────────────────────────────────────────────
+  - username: priya.shah
+    enabled: $(env:DEMO_ENABLED)
+    firstName: Priya
+    lastName: Shah
+    email: priya.shah@merxa-demo.test
+    emailVerified: true
+    realmRoles: [merch-planner]
+    credentials:
+      - { type: password, value: "$(env:DEMO_USER_PASSWORD)", temporary: false }
+  - username: marco.rossi
+    enabled: $(env:DEMO_ENABLED)
+    firstName: Marco
+    lastName: Rossi
+    email: marco.rossi@merxa-demo.test
+    emailVerified: true
+    realmRoles: [ops-director]
+    credentials:
+      - { type: password, value: "$(env:DEMO_USER_PASSWORD)", temporary: false }
+  - username: merxa.admin
+    enabled: $(env:DEMO_ENABLED)
+    firstName: Merxa
+    lastName: Admin
+    email: admin@merxa-demo.test
+    emailVerified: true
+    realmRoles: [merxa-admin]
+    credentials:
+      - { type: password, value: "$(env:DEMO_USER_PASSWORD)", temporary: false }

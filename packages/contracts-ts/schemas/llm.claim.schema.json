@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A statement with pointers to evidence or a deterministic calc.",
+  "properties": {
+    "calc_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Calc Id"
+    },
+    "confidence": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ],
+      "title": "Confidence",
+      "type": "string"
+    },
+    "evidence_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Evidence Id"
+    },
+    "json_pointer": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Json Pointer"
+    },
+    "kind": {
+      "enum": [
+        "fact",
+        "inference"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "text": {
+      "title": "Text",
+      "type": "string"
+    }
+  },
+  "required": [
+    "text",
+    "kind",
+    "evidence_id",
+    "json_pointer",
+    "calc_id",
+    "confidence"
+  ],
+  "title": "Claim",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.llm.Claim"
+}

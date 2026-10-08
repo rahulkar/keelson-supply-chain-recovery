@@ -1,0 +1,78 @@
+# Reference tenant network for checking the demo packs' expected exposures offline
+# (data/scenarios/validate.py). NOT a scenario pack (no pack.yaml; the Signal Hub ignores this file).
+#
+# It is what the engine pushes for a value-fashion-eu tenant on the Merxa `full` seed
+# (PUT /v1/tenants/{tenant}/network, docs/contracts/100 §5; rules in services/engine core/network.py):
+# * ports: the Merxa seed coordinates (services/merxa-api seed/network.py PORTS = data/geo/ports.json);
+# * DCs: the Merxa seed coordinates (seed/reference_full.py);
+# * Merxa exports suppliers/factories without coordinates, so the engine places a factory at the
+#   tenant's port in the same country (the one most lanes start from), a supplier at its own factory,
+#   else at that country port, else at the country centroid (data/geo/country_centroids.json);
+#   `at:` names the place used, the validator resolves it;
+# * store clusters are omitted (all in Europe, far from every pack footprint);
+# * lanes: the Merxa seed lanes (origin, dest, mode, via); the validator draws their paths like the
+#   engine (data/geo/sea_routes.json polylines for sea legs, CAPE/SUEZ from `via`, straight otherwise).
+# Keep in sync with the Merxa seed when its network changes (the validator then reports drift).
+tenant_pack: value-fashion-eu
+nodes:
+  # ports (at = own coordinates from data/geo/ports.json)
+  - {type: port, code: BDCGP, at: port:BDCGP}
+  - {type: port, code: LKCMB, at: port:LKCMB}
+  - {type: port, code: VNSGN, at: port:VNSGN}
+  - {type: port, code: KHPNH, at: port:KHPNH}
+  - {type: port, code: NLRTM, at: port:NLRTM}
+  - {type: port, code: GBFXT, at: port:GBFXT}
+  - {type: port, code: DEHAM, at: port:DEHAM}
+  - {type: port, code: PLGDN, at: port:PLGDN}
+  - {type: port, code: AEJEA, at: port:AEJEA}
+  - {type: port, code: TRIST, at: port:TRIST}
+  - {type: port, code: MATNG, at: port:MATNG}
+  # DCs (own coordinates)
+  - {type: dc, code: UK1, lat: 51.4935, lon: 0.3529}
+  - {type: dc, code: NL1, lat: 51.3704, lon: 6.1724}
+  - {type: dc, code: DE1, lat: 50.9848, lon: 11.0299}
+  - {type: dc, code: PL1, lat: 52.4064, lon: 16.9252}
+  # factories (no coordinates in the export → the country's export port)
+  - {type: factory, code: F-BD-01, at: port:BDCGP}
+  - {type: factory, code: F-BD-02, at: port:BDCGP}
+  - {type: factory, code: F-KH-01, at: port:KHPNH}
+  - {type: factory, code: F-VN-01, at: port:VNSGN}
+  - {type: factory, code: F-TR-01, at: port:TRIST}
+  - {type: factory, code: F-MA-01, at: port:MATNG}
+  # suppliers (own factory, else the country's export port, else the country centroid)
+  - {type: supplier, code: CMT-BD-01, at: port:BDCGP}
+  - {type: supplier, code: TRIM-BD-01, at: port:BDCGP}
+  - {type: supplier, code: CMT-KH-01, at: port:KHPNH}
+  - {type: supplier, code: TRIM-KH-01, at: port:KHPNH}
+  - {type: supplier, code: SUP-VN-01, at: port:VNSGN}
+  - {type: supplier, code: CMT-TR-01, at: port:TRIST}
+  - {type: supplier, code: TRIM-TR-01, at: port:TRIST}
+  - {type: supplier, code: CMT-MA-01, at: port:MATNG}
+  - {type: supplier, code: FAB-CN-01, at: country:CN}
+lanes:
+  - {code: CGP-FXT-SEA, origin: BDCGP, dest: GBFXT, mode: sea, via: [LKCMB, CAPE]}
+  - {code: CGP-RTM-SEA, origin: BDCGP, dest: NLRTM, mode: sea, via: [LKCMB, CAPE]}
+  - {code: CGP-UK1-SA, origin: BDCGP, dest: UK1, mode: sea_air, via: [AEJEA]}
+  - {code: CGP-NL1-SA, origin: BDCGP, dest: NL1, mode: sea_air, via: [AEJEA]}
+  - {code: SGN-HAM-SEA, origin: VNSGN, dest: DEHAM, mode: sea, via: [SUEZ]}
+  - {code: SGN-GDN-SEA, origin: VNSGN, dest: PLGDN, mode: sea, via: [SUEZ]}
+  - {code: SGN-HAM-CAPE, origin: VNSGN, dest: DEHAM, mode: sea, via: [CAPE]}
+  - {code: SGN-GDN-CAPE, origin: VNSGN, dest: PLGDN, mode: sea, via: [CAPE]}
+  - {code: SGN-DE1-SA, origin: VNSGN, dest: DE1, mode: sea_air, via: [AEJEA]}
+  - {code: SGN-PL1-SA, origin: VNSGN, dest: PL1, mode: sea_air, via: [AEJEA]}
+  - {code: PNH-SGN-RIV, origin: KHPNH, dest: VNSGN, mode: road, via: []}
+  - {code: FXT-UK1-RD, origin: GBFXT, dest: UK1, mode: road, via: []}
+  - {code: RTM-NL1-RD, origin: NLRTM, dest: NL1, mode: road, via: []}
+  - {code: HAM-DE1-RD, origin: DEHAM, dest: DE1, mode: road, via: []}
+  - {code: HAM-PL1-RD, origin: DEHAM, dest: PL1, mode: road, via: []}
+  - {code: GDN-PL1-RD, origin: PLGDN, dest: PL1, mode: road, via: []}
+  - {code: GDN-DE1-RD, origin: PLGDN, dest: DE1, mode: road, via: []}
+  - {code: IST-DE1-RD, origin: TRIST, dest: DE1, mode: road, via: []}
+  - {code: IST-NL1-RD, origin: TRIST, dest: NL1, mode: road, via: []}
+  - {code: TNG-NL1-RD, origin: MATNG, dest: NL1, mode: road, via: []}
+  - {code: TNG-UK1-RD, origin: MATNG, dest: UK1, mode: road, via: []}
+  - {code: DE1-NL1-RD, origin: DE1, dest: NL1, mode: road, via: []}
+  - {code: DE1-UK1-RD, origin: DE1, dest: UK1, mode: road, via: []}
+  - {code: PL1-NL1-RD, origin: PL1, dest: NL1, mode: road, via: []}
+  - {code: PL1-DE1-RD, origin: PL1, dest: DE1, mode: road, via: []}
+  - {code: NL1-UK1-RD, origin: NL1, dest: UK1, mode: road, via: []}

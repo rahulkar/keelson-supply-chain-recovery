@@ -1,0 +1,36 @@
+# Follow-up golden case (docs/contracts/90 §6): RESIMULATE reuses the investigations and gives
+# plan v+1 with changed KPIs and a "What changed" line.
+id: followup_delay_doubles
+title: Follow-up — the delay doubles (RESIMULATE)
+description: >
+  After the trim-delay analysis the planner asks what happens if the delay doubles. Expect a
+  re-simulation only (no approach card, no specialist re-runs), plan version + 1, different KPIs
+  and a "What changed" line.
+tags: [golden, followup]
+setup:
+  reset_merxa: true
+turns:
+  - id: report
+    message: >-
+      Our trim supplier Meghna Trims says wadding and zips for the Bangladesh POs are delayed 7 days.
+      What is the impact and what should we do?
+    approach: confirm
+    expect:
+      run: success
+      blocks_present: [kpi_strip, recommended_option, scenario_compare, narrative]
+  - id: doubles
+    message: What if the delay doubles?
+    approach: none
+    expect:
+      run: success
+      blocks_present: [kpi_strip, recommended_option, narrative]
+      plan_version_delta: 1
+      kpis_changed: true
+      what_changed: true
+      numeric_grounding: {min: 1.0}
+      latency_s: {first_stage: 2, options: 180}
+      agents_not_started: [sourcing, logistics, inventory_demand, playbook]
+expect:
+  no_write_tool_calls: true
+  no_untrusted_tool_calls: true
+  no_commit_without_human: true

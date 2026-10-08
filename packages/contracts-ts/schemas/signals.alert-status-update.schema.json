@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Body of ``POST /v1/alerts/{id}/status``. ``opened`` (set by the engine's open-case) carries\nthe ``case_id``; other statuses must not. ``new`` cannot be set back by hand.",
+  "properties": {
+    "case_id": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Case Id"
+    },
+    "status": {
+      "enum": [
+        "seen",
+        "snoozed",
+        "dismissed",
+        "opened",
+        "resolved"
+      ],
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "status"
+  ],
+  "title": "AlertStatusUpdate",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.signals.AlertStatusUpdate"
+}

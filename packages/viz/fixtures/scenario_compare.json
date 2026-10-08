@@ -1,0 +1,160 @@
+{
+  "id": "blk_scenario_compare",
+  "kind": "scenario_compare",
+  "v": 1,
+  "title": "Compare options",
+  "placement": "canvas",
+  "provenance": {
+    "kind": "simulated",
+    "engine": "keelson-opt@0.2",
+    "inputs_hash": "5f1c9a7e2b0d4c18",
+    "as_of": "2026-10-05"
+  },
+  "data_ref": null,
+  "props": {
+    "options": [
+      {
+        "id": "opt_none",
+        "title": "Do nothing",
+        "levers": [],
+        "scorecard": {
+          "fill_rate_bp": 8310,
+          "lost_units": 18400,
+          "lost_margin_cents": 24780000,
+          "incremental_cost_cents": 0,
+          "cost_breakdown": {
+            "transfer": 0,
+            "expedite_premium": 0,
+            "nearshore_premium": 0
+          },
+          "net_benefit_cents": 0,
+          "shortage_days": 212,
+          "first_breach_shift_days": 0,
+          "tts_gain_days": 0,
+          "changes": 0
+        },
+        "recommended": false,
+        "guided_only": false,
+        "guided_reason": null,
+        "pareto": true
+      },
+      {
+        "id": "opt_rebalance",
+        "title": "Rebalance between DCs",
+        "levers": [
+          "reallocate_inventory"
+        ],
+        "scorecard": {
+          "fill_rate_bp": 9120,
+          "lost_units": 8900,
+          "lost_margin_cents": 11985000,
+          "incremental_cost_cents": 1240000,
+          "cost_breakdown": {
+            "transfer": 1240000,
+            "expedite_premium": 0,
+            "nearshore_premium": 0
+          },
+          "net_benefit_cents": 11555000,
+          "shortage_days": 96,
+          "first_breach_shift_days": 10,
+          "tts_gain_days": 7,
+          "changes": 9
+        },
+        "recommended": true,
+        "guided_only": false,
+        "guided_reason": null,
+        "pareto": true
+      },
+      {
+        "id": "opt_sea_air",
+        "title": "Rebalance + targeted sea–air",
+        "levers": [
+          "reallocate_inventory",
+          "expedite_mode_shift"
+        ],
+        "scorecard": {
+          "fill_rate_bp": 9480,
+          "lost_units": 4200,
+          "lost_margin_cents": 5656000,
+          "incremental_cost_cents": 4860000,
+          "cost_breakdown": {
+            "transfer": 1240000,
+            "expedite_premium": 3620000,
+            "nearshore_premium": 0
+          },
+          "net_benefit_cents": 14264000,
+          "shortage_days": 41,
+          "first_breach_shift_days": 17,
+          "tts_gain_days": 12,
+          "changes": 14
+        },
+        "recommended": false,
+        "guided_only": false,
+        "guided_reason": null,
+        "pareto": true
+      },
+      {
+        "id": "opt_nearshore",
+        "title": "Near-shore top-up + resequence",
+        "levers": [
+          "resource_alt_supplier",
+          "resequence_production"
+        ],
+        "scorecard": {
+          "fill_rate_bp": 9310,
+          "lost_units": 6100,
+          "lost_margin_cents": 8215000,
+          "incremental_cost_cents": 6950000,
+          "cost_breakdown": {
+            "transfer": 0,
+            "expedite_premium": 0,
+            "nearshore_premium": 6950000
+          },
+          "net_benefit_cents": 9615000,
+          "shortage_days": 63,
+          "first_breach_shift_days": 12,
+          "tts_gain_days": 9,
+          "changes": 11
+        },
+        "recommended": false,
+        "guided_only": true,
+        "guided_reason": "Merxa doesn't let Keelson create purchase orders with new suppliers yet; a guided checklist is offered instead.",
+        "pareto": false
+      },
+      {
+        "id": "opt_hybrid",
+        "title": "Hybrid",
+        "levers": [
+          "reallocate_inventory",
+          "expedite_mode_shift",
+          "resource_alt_supplier",
+          "resequence_production"
+        ],
+        "scorecard": {
+          "fill_rate_bp": 9710,
+          "lost_units": 1900,
+          "lost_margin_cents": 2559000,
+          "incremental_cost_cents": 9420000,
+          "cost_breakdown": {
+            "transfer": 1240000,
+            "expedite_premium": 2100000,
+            "nearshore_premium": 6080000
+          },
+          "net_benefit_cents": 12801000,
+          "shortage_days": 18,
+          "first_breach_shift_days": 24,
+          "tts_gain_days": 15,
+          "changes": 23
+        },
+        "recommended": false,
+        "guided_only": true,
+        "guided_reason": "Includes near-shore purchase orders, which Merxa doesn't let Keelson create yet.",
+        "pareto": true
+      }
+    ],
+    "axes": {
+      "x": "incremental_cost_cents",
+      "y": "lost_units"
+    }
+  }
+}

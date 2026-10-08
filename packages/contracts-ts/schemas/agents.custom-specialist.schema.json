@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One tenant-defined specialist (an AgentSpec ``custom_specialists`` entry).",
+  "properties": {
+    "description": {
+      "maxLength": 300,
+      "minLength": 1,
+      "title": "Description",
+      "type": "string"
+    },
+    "display_name": {
+      "maxLength": 60,
+      "minLength": 1,
+      "title": "Display Name",
+      "type": "string"
+    },
+    "enabled": {
+      "default": true,
+      "title": "Enabled",
+      "type": "boolean"
+    },
+    "kb_ids": {
+      "items": {
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+        "type": "string"
+      },
+      "maxItems": 10,
+      "title": "Kb Ids",
+      "type": "array"
+    },
+    "max_tool_calls": {
+      "default": 8,
+      "maximum": 15,
+      "minimum": 1,
+      "title": "Max Tool Calls",
+      "type": "integer"
+    },
+    "max_turns": {
+      "default": 6,
+      "maximum": 10,
+      "minimum": 1,
+      "title": "Max Turns",
+      "type": "integer"
+    },
+    "model_alias": {
+      "maxLength": 80,
+      "pattern": "^(anthropic/)?[a-z0-9][a-z0-9-]{0,62}$",
+      "title": "Model Alias",
+      "type": "string"
+    },
+    "role_prompt": {
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Role Prompt",
+      "type": "string"
+    },
+    "slug": {
+      "pattern": "^[a-z][a-z0-9_]{2,39}$",
+      "title": "Slug",
+      "type": "string"
+    },
+    "tools": {
+      "items": {
+        "additionalProperties": false,
+        "description": "One read tool on one connector (the admin-approved ``connector_tool`` row).",
+        "properties": {
+          "connector": {
+            "pattern": "^[a-z0-9][a-z0-9_-]{0,62}$",
+            "title": "Connector",
+            "type": "string"
+          },
+          "tool": {
+            "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "connector",
+          "tool"
+        ],
+        "title": "SpecialistToolRef",
+        "type": "object"
+      },
+      "maxItems": 15,
+      "title": "Tools",
+      "type": "array"
+    }
+  },
+  "required": [
+    "slug",
+    "display_name",
+    "description",
+    "role_prompt",
+    "model_alias"
+  ],
+  "title": "CustomSpecialistSpec",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.agents.CustomSpecialistSpec"
+}

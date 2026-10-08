@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "``alert_origin@1`` — the \"Opened from alert\" card at the top of a case thread.\n\nDeterministic fields copied from the Signal Hub alert/event (no LLM text): ``kind`` is the\nevent kind, ``source_names`` the attributed sources (e.g. ``GDACS``, ``Demo Freight Daily``),\n``simulated`` shows the DEMO badge.",
+  "properties": {
+    "alert_id": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Alert Id",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "natural_hazard",
+        "weather",
+        "geopolitical",
+        "labor",
+        "logistics",
+        "regulatory",
+        "cyber",
+        "supplier",
+        "demand",
+        "hypothetical"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "opened_at": {
+      "format": "date-time",
+      "title": "Opened At",
+      "type": "string"
+    },
+    "severity": {
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "simulated": {
+      "title": "Simulated",
+      "type": "boolean"
+    },
+    "source_names": {
+      "items": {
+        "maxLength": 120,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 20,
+      "title": "Source Names",
+      "type": "array"
+    },
+    "title": {
+      "maxLength": 300,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    }
+  },
+  "required": [
+    "alert_id",
+    "title",
+    "severity",
+    "kind",
+    "source_names",
+    "simulated",
+    "opened_at"
+  ],
+  "title": "AlertOriginProps",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.blocks.AlertOriginProps"
+}

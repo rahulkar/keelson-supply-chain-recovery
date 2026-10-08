@@ -1,0 +1,17 @@
+{
+  "id": "blk_narrative_1",
+  "kind": "narrative",
+  "v": 1,
+  "title": "Summary",
+  "placement": "inline",
+  "provenance": {
+    "kind": "inference",
+    "engine": "keelson-engine@0.1",
+    "inputs_hash": "925733dafd743699",
+    "as_of": "2026-10-05"
+  },
+  "data_ref": null,
+  "props": {
+    "markdown": "- **Three purchase orders slip into peak.** PO-BD-0001, PO-BD-0003 and PO-BD-0005 now land after W45.\n- **18,400 units are at risk** across 41 stores, mostly in the UK1-COLD-A and NL1-COLD-B clusters.\n- **Moving stock from DE1 protects 4,800 units** before Black Friday. See the [change batch in Merxa](http://merxa.localhost/change-batches/CB-2026-0042).\n"
+  }
+}

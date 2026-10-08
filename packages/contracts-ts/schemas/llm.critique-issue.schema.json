@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One issue the critic found; ``task_id`` null = about the investigation as a whole.",
+  "properties": {
+    "issue": {
+      "title": "Issue",
+      "type": "string"
+    },
+    "severity": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "task_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Task Id"
+    }
+  },
+  "required": [
+    "task_id",
+    "issue",
+    "severity"
+  ],
+  "title": "CritiqueIssue",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.llm.CritiqueIssue"
+}

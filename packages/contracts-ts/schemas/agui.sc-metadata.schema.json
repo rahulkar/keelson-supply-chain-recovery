@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "``metadata.sc`` carried by every event (camelCase on the wire).",
+  "properties": {
+    "agent": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Agent"
+    },
+    "caseId": {
+      "minLength": 1,
+      "title": "Caseid",
+      "type": "string"
+    },
+    "evidenceRefs": {
+      "items": {
+        "pattern": "^ev_[0-9A-Za-z_-]{1,64}$",
+        "type": "string"
+      },
+      "title": "Evidencerefs",
+      "type": "array"
+    },
+    "label": {
+      "title": "Label",
+      "type": "string"
+    },
+    "prov": {
+      "description": "Where a number or statement comes from (plan §3.3).",
+      "enum": [
+        "fact",
+        "inference",
+        "assumption",
+        "simulated",
+        "decision",
+        "committed"
+      ],
+      "title": "Provenance",
+      "type": "string"
+    },
+    "runId": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Runid"
+    },
+    "seq": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Seq"
+    },
+    "stage": {
+      "description": "Fixed stage vocabulary (``STEP_*.stepName`` and ``metadata.sc.stage``).",
+      "enum": [
+        "understanding",
+        "checking_systems",
+        "measuring_impact",
+        "building_options",
+        "ready_for_review",
+        "preparing_changes",
+        "awaiting_approval",
+        "applying",
+        "verified"
+      ],
+      "title": "Stage",
+      "type": "string"
+    },
+    "tenantId": {
+      "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+      "title": "Tenantid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "tenantId",
+    "caseId",
+    "stage",
+    "prov",
+    "label"
+  ],
+  "title": "ScMetadata",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.agui.ScMetadata"
+}

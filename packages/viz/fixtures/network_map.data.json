@@ -1,0 +1,720 @@
+{
+  "nodes": [
+    {
+      "id": "SUP-MEGHNA",
+      "kind": "supplier",
+      "label": "Meghna Trims (Dhaka)",
+      "lat_e6": 23810000,
+      "lon_e6": 90410000,
+      "status": "disrupted",
+      "units_at_risk": 18400
+    },
+    {
+      "id": "FAC-BD-KNIT",
+      "kind": "factory",
+      "label": "Gazipur Knit Factory",
+      "lat_e6": 24000000,
+      "lon_e6": 90420000,
+      "status": "impacted",
+      "units_at_risk": 18400
+    },
+    {
+      "id": "PORT-CTG",
+      "kind": "port",
+      "label": "Chittagong",
+      "lat_e6": 22330000,
+      "lon_e6": 91810000,
+      "status": "impacted",
+      "units_at_risk": 18400
+    },
+    {
+      "id": "HUB-DXB",
+      "kind": "airport",
+      "label": "Dubai (sea–air hub)",
+      "lat_e6": 25010000,
+      "lon_e6": 55060000,
+      "status": "ok",
+      "units_at_risk": null
+    },
+    {
+      "id": "PORT-FXT",
+      "kind": "port",
+      "label": "Felixstowe",
+      "lat_e6": 51960000,
+      "lon_e6": 1350000,
+      "status": "at_risk",
+      "units_at_risk": 7200
+    },
+    {
+      "id": "PORT-RTM",
+      "kind": "port",
+      "label": "Rotterdam",
+      "lat_e6": 51950000,
+      "lon_e6": 4140000,
+      "status": "at_risk",
+      "units_at_risk": 6800
+    },
+    {
+      "id": "PORT-HAM",
+      "kind": "port",
+      "label": "Hamburg",
+      "lat_e6": 53540000,
+      "lon_e6": 9980000,
+      "status": "ok",
+      "units_at_risk": null
+    },
+    {
+      "id": "SUP-IST",
+      "kind": "supplier",
+      "label": "Anatolia Outerwear (Istanbul)",
+      "lat_e6": 41010000,
+      "lon_e6": 28980000,
+      "status": "ok",
+      "units_at_risk": null
+    },
+    {
+      "id": "UK1",
+      "kind": "dc",
+      "label": "UK1 Midlands DC",
+      "lat_e6": 52260000,
+      "lon_e6": -1160000,
+      "status": "at_risk",
+      "units_at_risk": 7200
+    },
+    {
+      "id": "NL1",
+      "kind": "dc",
+      "label": "NL1 Venlo DC",
+      "lat_e6": 51370000,
+      "lon_e6": 6170000,
+      "status": "at_risk",
+      "units_at_risk": 6800
+    },
+    {
+      "id": "DE1",
+      "kind": "dc",
+      "label": "DE1 Bremen DC",
+      "lat_e6": 53080000,
+      "lon_e6": 8800000,
+      "status": "ok",
+      "units_at_risk": null
+    },
+    {
+      "id": "PL1",
+      "kind": "dc",
+      "label": "PL1 Poznań DC",
+      "lat_e6": 52410000,
+      "lon_e6": 16930000,
+      "status": "ok",
+      "units_at_risk": null
+    },
+    {
+      "id": "CL-UK-N",
+      "kind": "cluster",
+      "label": "UK North stores",
+      "lat_e6": 53480000,
+      "lon_e6": -2240000,
+      "status": "at_risk",
+      "units_at_risk": 4100
+    },
+    {
+      "id": "CL-UK-S",
+      "kind": "cluster",
+      "label": "UK South stores",
+      "lat_e6": 51510000,
+      "lon_e6": -130000,
+      "status": "at_risk",
+      "units_at_risk": 3100
+    },
+    {
+      "id": "CL-NL",
+      "kind": "cluster",
+      "label": "Randstad stores",
+      "lat_e6": 52370000,
+      "lon_e6": 4900000,
+      "status": "at_risk",
+      "units_at_risk": 6800
+    },
+    {
+      "id": "CL-DE",
+      "kind": "cluster",
+      "label": "DE North stores",
+      "lat_e6": 53550000,
+      "lon_e6": 10000000,
+      "status": "ok",
+      "units_at_risk": null
+    }
+  ],
+  "links": [
+    {
+      "id": "ln-meghna-fac",
+      "kind": "inbound",
+      "from": "SUP-MEGHNA",
+      "to": "FAC-BD-KNIT",
+      "path": [
+        [
+          90410000,
+          23810000
+        ],
+        [
+          90420000,
+          24000000
+        ]
+      ],
+      "status": "disrupted",
+      "units": 18400,
+      "option_id": null
+    },
+    {
+      "id": "ln-fac-ctg",
+      "kind": "inbound",
+      "from": "FAC-BD-KNIT",
+      "to": "PORT-CTG",
+      "path": [
+        [
+          90420000,
+          24000000
+        ],
+        [
+          91810000,
+          22330000
+        ]
+      ],
+      "status": "impacted",
+      "units": 18400,
+      "option_id": null
+    },
+    {
+      "id": "ln-ctg-fxt",
+      "kind": "inbound",
+      "from": "PORT-CTG",
+      "to": "PORT-FXT",
+      "path": [
+        [
+          91810000,
+          22330000
+        ],
+        [
+          88000000,
+          18000000
+        ],
+        [
+          80500000,
+          5500000
+        ],
+        [
+          60000000,
+          12000000
+        ],
+        [
+          51500000,
+          12300000
+        ],
+        [
+          43400000,
+          12600000
+        ],
+        [
+          38500000,
+          20000000
+        ],
+        [
+          32550000,
+          29900000
+        ],
+        [
+          32300000,
+          31300000
+        ],
+        [
+          20000000,
+          34500000
+        ],
+        [
+          11000000,
+          37500000
+        ],
+        [
+          -5600000,
+          35950000
+        ],
+        [
+          -9800000,
+          38500000
+        ],
+        [
+          -9500000,
+          43500000
+        ],
+        [
+          -5000000,
+          48500000
+        ],
+        [
+          1350000,
+          51000000
+        ],
+        [
+          1350000,
+          51960000
+        ]
+      ],
+      "status": "impacted",
+      "units": 7200,
+      "option_id": null
+    },
+    {
+      "id": "ln-ctg-rtm",
+      "kind": "inbound",
+      "from": "PORT-CTG",
+      "to": "PORT-RTM",
+      "path": [
+        [
+          91810000,
+          22330000
+        ],
+        [
+          88000000,
+          18000000
+        ],
+        [
+          80500000,
+          5500000
+        ],
+        [
+          60000000,
+          12000000
+        ],
+        [
+          51500000,
+          12300000
+        ],
+        [
+          43400000,
+          12600000
+        ],
+        [
+          38500000,
+          20000000
+        ],
+        [
+          32550000,
+          29900000
+        ],
+        [
+          32300000,
+          31300000
+        ],
+        [
+          20000000,
+          34500000
+        ],
+        [
+          11000000,
+          37500000
+        ],
+        [
+          -5600000,
+          35950000
+        ],
+        [
+          -9800000,
+          38500000
+        ],
+        [
+          -9500000,
+          43500000
+        ],
+        [
+          -5000000,
+          48500000
+        ],
+        [
+          1350000,
+          51000000
+        ],
+        [
+          3200000,
+          51600000
+        ],
+        [
+          4140000,
+          51950000
+        ]
+      ],
+      "status": "impacted",
+      "units": 6800,
+      "option_id": null
+    },
+    {
+      "id": "ln-ctg-ham",
+      "kind": "inbound",
+      "from": "PORT-CTG",
+      "to": "PORT-HAM",
+      "path": [
+        [
+          91810000,
+          22330000
+        ],
+        [
+          88000000,
+          18000000
+        ],
+        [
+          80500000,
+          5500000
+        ],
+        [
+          60000000,
+          12000000
+        ],
+        [
+          51500000,
+          12300000
+        ],
+        [
+          43400000,
+          12600000
+        ],
+        [
+          38500000,
+          20000000
+        ],
+        [
+          32550000,
+          29900000
+        ],
+        [
+          32300000,
+          31300000
+        ],
+        [
+          20000000,
+          34500000
+        ],
+        [
+          11000000,
+          37500000
+        ],
+        [
+          -5600000,
+          35950000
+        ],
+        [
+          -9800000,
+          38500000
+        ],
+        [
+          -9500000,
+          43500000
+        ],
+        [
+          -5000000,
+          48500000
+        ],
+        [
+          1350000,
+          51000000
+        ],
+        [
+          3200000,
+          51600000
+        ],
+        [
+          6500000,
+          53800000
+        ],
+        [
+          8600000,
+          53900000
+        ],
+        [
+          9980000,
+          53540000
+        ]
+      ],
+      "status": "ok",
+      "units": 4400,
+      "option_id": null
+    },
+    {
+      "id": "ln-fxt-uk1",
+      "kind": "inbound",
+      "from": "PORT-FXT",
+      "to": "UK1",
+      "path": [
+        [
+          1350000,
+          51960000
+        ],
+        [
+          -1160000,
+          52260000
+        ]
+      ],
+      "status": "at_risk",
+      "units": 7200,
+      "option_id": null
+    },
+    {
+      "id": "ln-rtm-nl1",
+      "kind": "inbound",
+      "from": "PORT-RTM",
+      "to": "NL1",
+      "path": [
+        [
+          4140000,
+          51950000
+        ],
+        [
+          6170000,
+          51370000
+        ]
+      ],
+      "status": "at_risk",
+      "units": 6800,
+      "option_id": null
+    },
+    {
+      "id": "ln-ham-de1",
+      "kind": "inbound",
+      "from": "PORT-HAM",
+      "to": "DE1",
+      "path": [
+        [
+          9980000,
+          53540000
+        ],
+        [
+          8800000,
+          53080000
+        ]
+      ],
+      "status": "ok",
+      "units": 4400,
+      "option_id": null
+    },
+    {
+      "id": "ln-uk1-cln",
+      "kind": "transfer",
+      "from": "UK1",
+      "to": "CL-UK-N",
+      "path": [
+        [
+          -1160000,
+          52260000
+        ],
+        [
+          -2240000,
+          53480000
+        ]
+      ],
+      "status": "at_risk",
+      "units": 4100,
+      "option_id": null
+    },
+    {
+      "id": "ln-uk1-cls",
+      "kind": "transfer",
+      "from": "UK1",
+      "to": "CL-UK-S",
+      "path": [
+        [
+          -1160000,
+          52260000
+        ],
+        [
+          -130000,
+          51510000
+        ]
+      ],
+      "status": "at_risk",
+      "units": 3100,
+      "option_id": null
+    },
+    {
+      "id": "ln-nl1-clnl",
+      "kind": "transfer",
+      "from": "NL1",
+      "to": "CL-NL",
+      "path": [
+        [
+          6170000,
+          51370000
+        ],
+        [
+          4900000,
+          52370000
+        ]
+      ],
+      "status": "at_risk",
+      "units": 6800,
+      "option_id": null
+    },
+    {
+      "id": "ln-de1-clde",
+      "kind": "transfer",
+      "from": "DE1",
+      "to": "CL-DE",
+      "path": [
+        [
+          8800000,
+          53080000
+        ],
+        [
+          10000000,
+          53550000
+        ]
+      ],
+      "status": "ok",
+      "units": 2600,
+      "option_id": null
+    },
+    {
+      "id": "opt-a-de1-uk1",
+      "kind": "transfer",
+      "from": "DE1",
+      "to": "UK1",
+      "path": [
+        [
+          8800000,
+          53080000
+        ],
+        [
+          -1160000,
+          52260000
+        ]
+      ],
+      "status": "ok",
+      "units": 2600,
+      "option_id": "opt_rebalance"
+    },
+    {
+      "id": "opt-a-de1-nl1",
+      "kind": "transfer",
+      "from": "DE1",
+      "to": "NL1",
+      "path": [
+        [
+          8800000,
+          53080000
+        ],
+        [
+          6170000,
+          51370000
+        ]
+      ],
+      "status": "ok",
+      "units": 2200,
+      "option_id": "opt_rebalance"
+    },
+    {
+      "id": "opt-b-ctg-dxb-uk1",
+      "kind": "sea_air",
+      "from": "PORT-CTG",
+      "to": "UK1",
+      "path": [
+        [
+          91810000,
+          22330000
+        ],
+        [
+          80500000,
+          5500000
+        ],
+        [
+          60000000,
+          20000000
+        ],
+        [
+          55060000,
+          25010000
+        ],
+        [
+          -1160000,
+          52260000
+        ]
+      ],
+      "status": "ok",
+      "units": 3000,
+      "option_id": "opt_sea_air"
+    },
+    {
+      "id": "opt-c-ist-pl1",
+      "kind": "nearshore",
+      "from": "SUP-IST",
+      "to": "PL1",
+      "path": [
+        [
+          28980000,
+          41010000
+        ],
+        [
+          16930000,
+          52410000
+        ]
+      ],
+      "status": "ok",
+      "units": 4000,
+      "option_id": "opt_nearshore"
+    },
+    {
+      "id": "opt-c-ist-nl1",
+      "kind": "nearshore",
+      "from": "SUP-IST",
+      "to": "NL1",
+      "path": [
+        [
+          28980000,
+          41010000
+        ],
+        [
+          6170000,
+          51370000
+        ]
+      ],
+      "status": "ok",
+      "units": 2500,
+      "option_id": "opt_nearshore"
+    }
+  ],
+  "footprint": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "properties": {
+          "label": "Dhaka trims cluster (supplier delay)",
+          "status": "disrupted"
+        },
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                89600000,
+                22000000
+              ],
+              [
+                92400000,
+                21600000
+              ],
+              [
+                92600000,
+                24600000
+              ],
+              [
+                89800000,
+                24900000
+              ],
+              [
+                89600000,
+                22000000
+              ]
+            ]
+          ]
+        }
+      }
+    ]
+  }
+}

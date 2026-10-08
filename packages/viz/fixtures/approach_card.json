@@ -1,0 +1,81 @@
+{
+  "id": "blk_approach_1",
+  "kind": "approach_card",
+  "v": 1,
+  "title": "Here’s what I understood and what I’ll check",
+  "placement": "inline",
+  "provenance": {
+    "kind": "inference",
+    "engine": "keelson-engine@0.1",
+    "inputs_hash": "925733dafd743699",
+    "as_of": "2026-10-05"
+  },
+  "data_ref": null,
+  "props": {
+    "interrupt_id": "int_019a0c4e_approach",
+    "event": {
+      "family": "SUP",
+      "type": "supplier_delay",
+      "description": "Meghna Trims Ltd (TRIM-BD-01) says zip and button deliveries to factories F-BD-01 and F-BD-02 will slip by about three weeks.",
+      "source": "Supplier email, 5 Oct 2026"
+    },
+    "mode": "actual",
+    "matched": {
+      "count": 9,
+      "sample": [
+        {
+          "type": "supplier",
+          "code": "TRIM-BD-01",
+          "label": "Meghna Trims Ltd"
+        },
+        {
+          "type": "factory",
+          "code": "F-BD-01",
+          "label": "Dhaka cut-and-sew 1"
+        },
+        {
+          "type": "po",
+          "code": "PO-BD-0001",
+          "label": "Puffer jackets to UK1, ETA 29 Oct"
+        },
+        {
+          "type": "po",
+          "code": "PO-BD-0003",
+          "label": "Puffer jackets to NL1, ETA 3 Nov"
+        }
+      ]
+    },
+    "assumptions": [
+      {
+        "key": "delay_p50",
+        "label": "Delay",
+        "value_text": "21 days (likely 14–28)",
+        "prov": "decision"
+      },
+      {
+        "key": "affected_share",
+        "label": "Share of POs affected",
+        "value_text": "All open POs using these trims",
+        "prov": "inference"
+      },
+      {
+        "key": "sea_transit",
+        "label": "Sea transit to Felixstowe",
+        "value_text": "32 days",
+        "prov": "assumption"
+      }
+    ],
+    "checks": [
+      "Which open purchase orders use trims from Meghna Trims",
+      "How much stock UK1, NL1 and DE1 hold for the affected styles",
+      "Which store clusters run short during the W45–W48 peak",
+      "Whether stock can be moved between DCs in time"
+    ],
+    "buttons": [
+      "confirm",
+      "edit",
+      "what_if",
+      "cancel"
+    ]
+  }
+}

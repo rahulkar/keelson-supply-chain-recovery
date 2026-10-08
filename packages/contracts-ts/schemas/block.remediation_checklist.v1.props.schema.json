@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "``remediation_checklist@1`` — Guide mode: the lines the user performs by hand in\n``connector``'s UI, ticked ``verified`` by read-back (webhook or poll) or ``done``/\n``skipped`` by hand. ``progress`` must match the steps; the guide is complete when every\nstep is ``verified`` or ``skipped`` (:attr:`completed`).",
+  "properties": {
+    "checklist_id": {
+      "minLength": 1,
+      "title": "Checklist Id",
+      "type": "string"
+    },
+    "connector": {
+      "minLength": 1,
+      "title": "Connector",
+      "type": "string"
+    },
+    "progress": {
+      "additionalProperties": false,
+      "description": "``done`` = steps no longer pending (done, verified or skipped); ``total`` = all steps.",
+      "properties": {
+        "done": {
+          "minimum": 0,
+          "title": "Done",
+          "type": "integer"
+        },
+        "total": {
+          "minimum": 1,
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "done",
+        "total"
+      ],
+      "title": "ChecklistProgress",
+      "type": "object"
+    },
+    "steps": {
+      "items": {
+        "additionalProperties": false,
+        "description": "One manual step. ``verified`` carries ``verified_at``; only verified steps carry an\n``evidence_id`` (the read-back evidence row).",
+        "properties": {
+          "deep_link": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "minLength": 1,
+                "pattern": "^(https?://[A-Za-z0-9.-]+(:[0-9]{1,5})?(/[^\\x00-\\x20\\x7f\\\\]*)?|/([^/\\x00-\\x20\\x7f\\\\][^\\x00-\\x20\\x7f\\\\]*)?)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deep Link"
+          },
+          "evidence_id": {
+            "anyOf": [
+              {
+                "pattern": "^ev_[0-9A-Za-z_-]{1,64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Id"
+          },
+          "expected": {
+            "additionalProperties": false,
+            "description": "What read-back must find for the step to verify: an entity of ``entity_type`` (and\n``entity_ref`` when known up front) whose fields match ``match`` (JSON, no floats).",
+            "properties": {
+              "entity_ref": {
+                "anyOf": [
+                  {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Entity Ref"
+              },
+              "entity_type": {
+                "minLength": 1,
+                "title": "Entity Type",
+                "type": "string"
+              },
+              "match": {
+                "additionalProperties": true,
+                "title": "Match",
+                "type": "object"
+              }
+            },
+            "required": [
+              "entity_type",
+              "entity_ref",
+              "match"
+            ],
+            "title": "ChecklistExpected",
+            "type": "object"
+          },
+          "instructions_md": {
+            "minLength": 1,
+            "title": "Instructions Md",
+            "type": "string"
+          },
+          "seq": {
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "done",
+              "verified",
+              "skipped"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "verified_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified At"
+          }
+        },
+        "required": [
+          "seq",
+          "title",
+          "instructions_md",
+          "deep_link",
+          "expected",
+          "status",
+          "verified_at",
+          "evidence_id"
+        ],
+        "title": "ChecklistStep",
+        "type": "object"
+      },
+      "maxItems": 100,
+      "minItems": 1,
+      "title": "Steps",
+      "type": "array"
+    }
+  },
+  "required": [
+    "checklist_id",
+    "connector",
+    "steps",
+    "progress"
+  ],
+  "title": "RemediationChecklistProps",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.blocks.RemediationChecklistProps"
+}

@@ -1,0 +1,346 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "``connector_mapping`` kind ``read`` (versioned by the engine): how the crawl sync turns a\ntier-A connector's read tools into ``scn/1.0`` rows. The resulting snapshot is\n``consistency: crawled`` (plans built on it are advisory).",
+  "properties": {
+    "entities": {
+      "items": {
+        "additionalProperties": false,
+        "description": "Rows of one ``scn/1.0`` entity from one source. Several mappings may fill the same entity\n(e.g. ``location`` from DCs and from stores). ``dedupe``: rows with the same ``source_id``\ncollapse into the first one (derived rows such as store clusters).",
+        "properties": {
+          "dedupe": {
+            "default": false,
+            "title": "Dedupe",
+            "type": "boolean"
+          },
+          "entity": {
+            "enum": [
+              "location",
+              "item",
+              "bom_line",
+              "lane",
+              "lane_rate",
+              "sailing",
+              "po_line",
+              "production_order",
+              "inventory_position",
+              "demand_forecast",
+              "size_curve",
+              "allocation",
+              "transfer_order_line",
+              "online_order_line",
+              "promotion"
+            ],
+            "title": "Entity",
+            "type": "string"
+          },
+          "fields": {
+            "additionalProperties": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "minProperties": 1,
+            "title": "Fields",
+            "type": "object"
+          },
+          "source": {
+            "additionalProperties": false,
+            "description": "One paged read-tool call sequence.\n\nPaging: with ``cursor_path`` null the crawler sends page numbers ``first_page, first_page+1, …``\nunder ``page_param`` and stops at an empty or short page (fewer than ``page_size`` items);\nwith ``cursor_path`` set it sends no cursor first, then the cursor read from the previous\nresult under ``page_param``, and stops when the cursor is missing, ``null``, ``\"\"`` or\nrepeats. It never fetches more than ``max_pages`` (hitting the cap is reported as truncation).\n``page_size`` is sent under ``page_size_param`` when that is set. Without ``page_param`` the\ntool is called once (``max_pages`` must be 1). ``items_path`` selects the result's list of\nitems (``$`` = the result itself).",
+            "properties": {
+              "args": {
+                "additionalProperties": true,
+                "title": "Args",
+                "type": "object"
+              },
+              "cursor_path": {
+                "anyOf": [
+                  {
+                    "maxLength": 200,
+                    "minLength": 1,
+                    "pattern": "^\\$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Cursor Path"
+              },
+              "first_page": {
+                "default": 1,
+                "maximum": 1,
+                "minimum": 0,
+                "title": "First Page",
+                "type": "integer"
+              },
+              "items_path": {
+                "maxLength": 200,
+                "minLength": 1,
+                "pattern": "^\\$",
+                "title": "Items Path",
+                "type": "string"
+              },
+              "max_pages": {
+                "maximum": 10000,
+                "minimum": 1,
+                "title": "Max Pages",
+                "type": "integer"
+              },
+              "page_param": {
+                "anyOf": [
+                  {
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Page Param"
+              },
+              "page_size": {
+                "maximum": 1000,
+                "minimum": 1,
+                "title": "Page Size",
+                "type": "integer"
+              },
+              "page_size_param": {
+                "anyOf": [
+                  {
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Page Size Param"
+              },
+              "tool": {
+                "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+                "title": "Tool",
+                "type": "string"
+              }
+            },
+            "required": [
+              "tool",
+              "page_param",
+              "page_size",
+              "items_path",
+              "cursor_path",
+              "max_pages"
+            ],
+            "title": "ReadSource",
+            "type": "object"
+          }
+        },
+        "required": [
+          "entity",
+          "source",
+          "fields"
+        ],
+        "title": "EntityMapping",
+        "type": "object"
+      },
+      "maxItems": 64,
+      "minItems": 1,
+      "title": "Entities",
+      "type": "array"
+    },
+    "kind": {
+      "const": "read",
+      "default": "read",
+      "title": "Kind",
+      "type": "string"
+    },
+    "lookups": {
+      "maxProperties": 32,
+      "patternProperties": {
+        "^[a-z][a-z0-9_]{0,39}$": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "description": "A fixed key → value table (keys compared as text).",
+              "properties": {
+                "kind": {
+                  "const": "static",
+                  "title": "Kind",
+                  "type": "string"
+                },
+                "values": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "maxProperties": 10000,
+                  "propertyNames": {
+                    "maxLength": 200
+                  },
+                  "title": "Values",
+                  "type": "object"
+                }
+              },
+              "required": [
+                "kind",
+                "values"
+              ],
+              "title": "StaticLookup",
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "A table crawled from a read tool before the entities: ``key`` → ``value`` per item. Its\nexpressions may not call ``lookup()`` (no chains, no cycles).",
+              "properties": {
+                "key": {
+                  "maxLength": 500,
+                  "minLength": 1,
+                  "title": "Key",
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "source",
+                  "title": "Kind",
+                  "type": "string"
+                },
+                "source": {
+                  "additionalProperties": false,
+                  "description": "One paged read-tool call sequence.\n\nPaging: with ``cursor_path`` null the crawler sends page numbers ``first_page, first_page+1, …``\nunder ``page_param`` and stops at an empty or short page (fewer than ``page_size`` items);\nwith ``cursor_path`` set it sends no cursor first, then the cursor read from the previous\nresult under ``page_param``, and stops when the cursor is missing, ``null``, ``\"\"`` or\nrepeats. It never fetches more than ``max_pages`` (hitting the cap is reported as truncation).\n``page_size`` is sent under ``page_size_param`` when that is set. Without ``page_param`` the\ntool is called once (``max_pages`` must be 1). ``items_path`` selects the result's list of\nitems (``$`` = the result itself).",
+                  "properties": {
+                    "args": {
+                      "additionalProperties": true,
+                      "title": "Args",
+                      "type": "object"
+                    },
+                    "cursor_path": {
+                      "anyOf": [
+                        {
+                          "maxLength": 200,
+                          "minLength": 1,
+                          "pattern": "^\\$",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Cursor Path"
+                    },
+                    "first_page": {
+                      "default": 1,
+                      "maximum": 1,
+                      "minimum": 0,
+                      "title": "First Page",
+                      "type": "integer"
+                    },
+                    "items_path": {
+                      "maxLength": 200,
+                      "minLength": 1,
+                      "pattern": "^\\$",
+                      "title": "Items Path",
+                      "type": "string"
+                    },
+                    "max_pages": {
+                      "maximum": 10000,
+                      "minimum": 1,
+                      "title": "Max Pages",
+                      "type": "integer"
+                    },
+                    "page_param": {
+                      "anyOf": [
+                        {
+                          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Page Param"
+                    },
+                    "page_size": {
+                      "maximum": 1000,
+                      "minimum": 1,
+                      "title": "Page Size",
+                      "type": "integer"
+                    },
+                    "page_size_param": {
+                      "anyOf": [
+                        {
+                          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "title": "Page Size Param"
+                    },
+                    "tool": {
+                      "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+                      "title": "Tool",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "tool",
+                    "page_param",
+                    "page_size",
+                    "items_path",
+                    "cursor_path",
+                    "max_pages"
+                  ],
+                  "title": "ReadSource",
+                  "type": "object"
+                },
+                "value": {
+                  "maxLength": 500,
+                  "minLength": 1,
+                  "title": "Value",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "source",
+                "key",
+                "value"
+              ],
+              "title": "SourceLookup",
+              "type": "object"
+            }
+          ],
+          "discriminator": {
+            "mapping": {
+              "source": "#/$defs/SourceLookup",
+              "static": "#/$defs/StaticLookup"
+            },
+            "propertyName": "kind"
+          }
+        }
+      },
+      "title": "Lookups",
+      "type": "object"
+    }
+  },
+  "required": [
+    "entities"
+  ],
+  "title": "ReadMapping",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.mapping.ReadMapping"
+}

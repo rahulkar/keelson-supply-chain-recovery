@@ -1,0 +1,48 @@
+[project]
+name = "keelson-optimizer"
+version = "0.1.0"
+description = "Keelson deterministic optimizer service: impact (PAB) simulation and lever LPs (OR-Tools GLOP)."
+readme = "README.md"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    "keelson-contracts",
+    "fastapi==0.142.2",
+    "pydantic==2.13.5",
+    "uvicorn==0.54.0",
+    "pyjwt==2.15.1",
+    "ortools==9.15.6755",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4",
+    "httpx==0.28.1",
+]
+
+[project.scripts]
+keelson-optimizer = "keelson_opt.main:run"
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/keelson_opt"]
+
+[tool.uv]
+# Linux containers only (python:3.14-slim-trixie); every third-party dependency must
+# resolve to a manylinux wheel (no compilers in the image).
+environments = ["sys_platform == 'linux'"]
+no-build-package = ["ortools", "numpy", "pandas", "protobuf", "pydantic-core", "absl-py"]
+
+[tool.uv.sources]
+keelson-contracts = { path = "../../packages/contracts-py", editable = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = ["perf: performance check (M0 spike S4 preview)"]
+filterwarnings = [
+    # starlette 1.x nudges TestClient users towards httpx2; httpx is pinned by the build guide.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+]

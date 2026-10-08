@@ -1,0 +1,860 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One normalized observation (``100`` §2). ``tenant`` is ``None`` for global feed/news signals\nand set for tenant-origin ones (connected system, chat). ``geometry`` is ``None`` until an\nitem is geocoded (e.g. a supplier message matched only by ``location_refs``).",
+  "properties": {
+    "confidence_bp": {
+      "maximum": 10000,
+      "minimum": 0,
+      "title": "Confidence Bp",
+      "type": "integer"
+    },
+    "ends_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Ends At"
+    },
+    "event_id": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Event Id"
+    },
+    "expires_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Expires At"
+    },
+    "extracted_by": {
+      "anyOf": [
+        {
+          "maxLength": 120,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Extracted By"
+    },
+    "geometry": {
+      "anyOf": [
+        {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "coordinates": {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "maximum": 180,
+                      "minimum": -180,
+                      "type": "number"
+                    },
+                    {
+                      "maximum": 90,
+                      "minimum": -90,
+                      "type": "number"
+                    }
+                  ],
+                  "title": "Coordinates",
+                  "type": "array"
+                },
+                "type": {
+                  "const": "Point",
+                  "title": "Type",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "coordinates"
+              ],
+              "title": "Point",
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "coordinates": {
+                  "items": {
+                    "maxItems": 2,
+                    "minItems": 2,
+                    "prefixItems": [
+                      {
+                        "maximum": 180,
+                        "minimum": -180,
+                        "type": "number"
+                      },
+                      {
+                        "maximum": 90,
+                        "minimum": -90,
+                        "type": "number"
+                      }
+                    ],
+                    "type": "array"
+                  },
+                  "minItems": 1,
+                  "title": "Coordinates",
+                  "type": "array"
+                },
+                "type": {
+                  "const": "MultiPoint",
+                  "title": "Type",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "coordinates"
+              ],
+              "title": "MultiPoint",
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "coordinates": {
+                  "items": {
+                    "maxItems": 2,
+                    "minItems": 2,
+                    "prefixItems": [
+                      {
+                        "maximum": 180,
+                        "minimum": -180,
+                        "type": "number"
+                      },
+                      {
+                        "maximum": 90,
+                        "minimum": -90,
+                        "type": "number"
+                      }
+                    ],
+                    "type": "array"
+                  },
+                  "minItems": 2,
+                  "title": "Coordinates",
+                  "type": "array"
+                },
+                "type": {
+                  "const": "LineString",
+                  "title": "Type",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "coordinates"
+              ],
+              "title": "LineString",
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "coordinates": {
+                  "items": {
+                    "items": {
+                      "maxItems": 2,
+                      "minItems": 2,
+                      "prefixItems": [
+                        {
+                          "maximum": 180,
+                          "minimum": -180,
+                          "type": "number"
+                        },
+                        {
+                          "maximum": 90,
+                          "minimum": -90,
+                          "type": "number"
+                        }
+                      ],
+                      "type": "array"
+                    },
+                    "minItems": 2,
+                    "type": "array"
+                  },
+                  "minItems": 1,
+                  "title": "Coordinates",
+                  "type": "array"
+                },
+                "type": {
+                  "const": "MultiLineString",
+                  "title": "Type",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "coordinates"
+              ],
+              "title": "MultiLineString",
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "coordinates": {
+                  "items": {
+                    "items": {
+                      "maxItems": 2,
+                      "minItems": 2,
+                      "prefixItems": [
+                        {
+                          "maximum": 180,
+                          "minimum": -180,
+                          "type": "number"
+                        },
+                        {
+                          "maximum": 90,
+                          "minimum": -90,
+                          "type": "number"
+                        }
+                      ],
+                      "type": "array"
+                    },
+                    "minItems": 4,
+                    "type": "array"
+                  },
+                  "minItems": 1,
+                  "title": "Coordinates",
+                  "type": "array"
+                },
+                "type": {
+                  "const": "Polygon",
+                  "title": "Type",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "coordinates"
+              ],
+              "title": "Polygon",
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "coordinates": {
+                  "items": {
+                    "items": {
+                      "items": {
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "prefixItems": [
+                          {
+                            "maximum": 180,
+                            "minimum": -180,
+                            "type": "number"
+                          },
+                          {
+                            "maximum": 90,
+                            "minimum": -90,
+                            "type": "number"
+                          }
+                        ],
+                        "type": "array"
+                      },
+                      "minItems": 4,
+                      "type": "array"
+                    },
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "minItems": 1,
+                  "title": "Coordinates",
+                  "type": "array"
+                },
+                "type": {
+                  "const": "MultiPolygon",
+                  "title": "Type",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "coordinates"
+              ],
+              "title": "MultiPolygon",
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "A merged event footprint (e.g. TC track + cones). Members are simple geometries\n(nested collections are not allowed, per RFC 7946 §3.1.8 guidance).",
+              "properties": {
+                "geometries": {
+                  "items": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "coordinates": {
+                            "maxItems": 2,
+                            "minItems": 2,
+                            "prefixItems": [
+                              {
+                                "maximum": 180,
+                                "minimum": -180,
+                                "type": "number"
+                              },
+                              {
+                                "maximum": 90,
+                                "minimum": -90,
+                                "type": "number"
+                              }
+                            ],
+                            "title": "Coordinates",
+                            "type": "array"
+                          },
+                          "type": {
+                            "const": "Point",
+                            "title": "Type",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "coordinates"
+                        ],
+                        "title": "Point",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "coordinates": {
+                            "items": {
+                              "maxItems": 2,
+                              "minItems": 2,
+                              "prefixItems": [
+                                {
+                                  "maximum": 180,
+                                  "minimum": -180,
+                                  "type": "number"
+                                },
+                                {
+                                  "maximum": 90,
+                                  "minimum": -90,
+                                  "type": "number"
+                                }
+                              ],
+                              "type": "array"
+                            },
+                            "minItems": 1,
+                            "title": "Coordinates",
+                            "type": "array"
+                          },
+                          "type": {
+                            "const": "MultiPoint",
+                            "title": "Type",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "coordinates"
+                        ],
+                        "title": "MultiPoint",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "coordinates": {
+                            "items": {
+                              "maxItems": 2,
+                              "minItems": 2,
+                              "prefixItems": [
+                                {
+                                  "maximum": 180,
+                                  "minimum": -180,
+                                  "type": "number"
+                                },
+                                {
+                                  "maximum": 90,
+                                  "minimum": -90,
+                                  "type": "number"
+                                }
+                              ],
+                              "type": "array"
+                            },
+                            "minItems": 2,
+                            "title": "Coordinates",
+                            "type": "array"
+                          },
+                          "type": {
+                            "const": "LineString",
+                            "title": "Type",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "coordinates"
+                        ],
+                        "title": "LineString",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "coordinates": {
+                            "items": {
+                              "items": {
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "prefixItems": [
+                                  {
+                                    "maximum": 180,
+                                    "minimum": -180,
+                                    "type": "number"
+                                  },
+                                  {
+                                    "maximum": 90,
+                                    "minimum": -90,
+                                    "type": "number"
+                                  }
+                                ],
+                                "type": "array"
+                              },
+                              "minItems": 2,
+                              "type": "array"
+                            },
+                            "minItems": 1,
+                            "title": "Coordinates",
+                            "type": "array"
+                          },
+                          "type": {
+                            "const": "MultiLineString",
+                            "title": "Type",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "coordinates"
+                        ],
+                        "title": "MultiLineString",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "coordinates": {
+                            "items": {
+                              "items": {
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "prefixItems": [
+                                  {
+                                    "maximum": 180,
+                                    "minimum": -180,
+                                    "type": "number"
+                                  },
+                                  {
+                                    "maximum": 90,
+                                    "minimum": -90,
+                                    "type": "number"
+                                  }
+                                ],
+                                "type": "array"
+                              },
+                              "minItems": 4,
+                              "type": "array"
+                            },
+                            "minItems": 1,
+                            "title": "Coordinates",
+                            "type": "array"
+                          },
+                          "type": {
+                            "const": "Polygon",
+                            "title": "Type",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "coordinates"
+                        ],
+                        "title": "Polygon",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "coordinates": {
+                            "items": {
+                              "items": {
+                                "items": {
+                                  "maxItems": 2,
+                                  "minItems": 2,
+                                  "prefixItems": [
+                                    {
+                                      "maximum": 180,
+                                      "minimum": -180,
+                                      "type": "number"
+                                    },
+                                    {
+                                      "maximum": 90,
+                                      "minimum": -90,
+                                      "type": "number"
+                                    }
+                                  ],
+                                  "type": "array"
+                                },
+                                "minItems": 4,
+                                "type": "array"
+                              },
+                              "minItems": 1,
+                              "type": "array"
+                            },
+                            "minItems": 1,
+                            "title": "Coordinates",
+                            "type": "array"
+                          },
+                          "type": {
+                            "const": "MultiPolygon",
+                            "title": "Type",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "coordinates"
+                        ],
+                        "title": "MultiPolygon",
+                        "type": "object"
+                      }
+                    ],
+                    "discriminator": {
+                      "mapping": {
+                        "LineString": "#/$defs/LineString",
+                        "MultiLineString": "#/$defs/MultiLineString",
+                        "MultiPoint": "#/$defs/MultiPoint",
+                        "MultiPolygon": "#/$defs/MultiPolygon",
+                        "Point": "#/$defs/Point",
+                        "Polygon": "#/$defs/Polygon"
+                      },
+                      "propertyName": "type"
+                    }
+                  },
+                  "minItems": 1,
+                  "title": "Geometries",
+                  "type": "array"
+                },
+                "type": {
+                  "const": "GeometryCollection",
+                  "title": "Type",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "geometries"
+              ],
+              "title": "GeometryCollection",
+              "type": "object"
+            }
+          ],
+          "discriminator": {
+            "mapping": {
+              "GeometryCollection": "#/$defs/GeometryCollection",
+              "LineString": "#/$defs/LineString",
+              "MultiLineString": "#/$defs/MultiLineString",
+              "MultiPoint": "#/$defs/MultiPoint",
+              "MultiPolygon": "#/$defs/MultiPolygon",
+              "Point": "#/$defs/Point",
+              "Polygon": "#/$defs/Polygon"
+            },
+            "propertyName": "type"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Geometry"
+    },
+    "id": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Id",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "natural_hazard",
+        "weather",
+        "geopolitical",
+        "labor",
+        "logistics",
+        "regulatory",
+        "cyber",
+        "supplier",
+        "demand",
+        "hypothetical"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "location_refs": {
+      "items": {
+        "pattern": "^(UNLOCODE|ISO3166|CHOKEPOINT|REGION|SUPPLIER|FACTORY|DC|STORE|LANE):[A-Za-z0-9._>-]{1,64}$",
+        "type": "string"
+      },
+      "maxItems": 200,
+      "title": "Location Refs",
+      "type": "array"
+    },
+    "observed_at": {
+      "format": "date-time",
+      "title": "Observed At",
+      "type": "string"
+    },
+    "origin": {
+      "enum": [
+        "feed",
+        "news",
+        "connected_system",
+        "chat",
+        "demo"
+      ],
+      "title": "Origin",
+      "type": "string"
+    },
+    "provenance": {
+      "enum": [
+        "fact",
+        "inference",
+        "simulated"
+      ],
+      "title": "Provenance",
+      "type": "string"
+    },
+    "raw_text": {
+      "anyOf": [
+        {
+          "maxLength": 4000,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Raw Text"
+    },
+    "severity_bp": {
+      "maximum": 10000,
+      "minimum": 0,
+      "title": "Severity Bp",
+      "type": "integer"
+    },
+    "severity_native": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "description": "The source's own severity terms, kept for display/audit: ``{scheme, …}``.\n\n``scheme`` names the vocabulary (``gdacs``, ``usgs``, ``none`` …); the other keys are JSON\nscalars (e.g. ``alertlevel: \"red\"``, ``alertscore: 2.5``, ``mag: 6.8``, ``tsunami: false``).\nNever hashed; floats are allowed here.",
+      "properties": {
+        "scheme": {
+          "pattern": "^[a-z][a-z0-9_.-]{0,31}$",
+          "title": "Scheme",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scheme"
+      ],
+      "title": "SeverityNative",
+      "type": "object"
+    },
+    "source": {
+      "additionalProperties": false,
+      "description": "Attribution of a signal (shown with its licence in the alert drawer).",
+      "properties": {
+        "authority_bp": {
+          "maximum": 10000,
+          "minimum": 0,
+          "title": "Authority Bp",
+          "type": "integer"
+        },
+        "connector_id": {
+          "pattern": "^[a-z][a-z0-9_.-]{0,63}$",
+          "title": "Connector Id",
+          "type": "string"
+        },
+        "license": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "License",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "native_id": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Native Id",
+          "type": "string"
+        },
+        "retrieved_at": {
+          "format": "date-time",
+          "title": "Retrieved At",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "minLength": 1,
+              "pattern": "^https?://[A-Za-z0-9.-]+(:[0-9]{1,5})?(/[^\\x00-\\x20\\x7f\\\\]*)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Url"
+        }
+      },
+      "required": [
+        "connector_id",
+        "name",
+        "url",
+        "license",
+        "authority_bp",
+        "retrieved_at",
+        "native_id"
+      ],
+      "title": "SourceRef",
+      "type": "object"
+    },
+    "starts_at": {
+      "format": "date-time",
+      "title": "Starts At",
+      "type": "string"
+    },
+    "subtype": {
+      "pattern": "^[a-z][a-z0-9_]{0,63}$",
+      "title": "Subtype",
+      "type": "string"
+    },
+    "summary": {
+      "anyOf": [
+        {
+          "maxLength": 2000,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Summary"
+    },
+    "supersedes": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Supersedes"
+    },
+    "tenant": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Tenant"
+    },
+    "title": {
+      "maxLength": 300,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "version": {
+      "minimum": 1,
+      "title": "Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "tenant",
+    "origin",
+    "kind",
+    "subtype",
+    "title",
+    "summary",
+    "raw_text",
+    "geometry",
+    "location_refs",
+    "starts_at",
+    "ends_at",
+    "observed_at",
+    "expires_at",
+    "severity_bp",
+    "severity_native",
+    "confidence_bp",
+    "provenance",
+    "extracted_by",
+    "source",
+    "event_id",
+    "version",
+    "supersedes"
+  ],
+  "title": "DisruptionSignal",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.signals.DisruptionSignal"
+}

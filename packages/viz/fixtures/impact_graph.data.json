@@ -1,0 +1,240 @@
+{
+  "nodes": [
+    {
+      "id": "sup:MEGHNA",
+      "kind": "supplier",
+      "label": "Meghna Trims",
+      "status": "disrupted",
+      "units_at_risk": 18400,
+      "first_breach_week": null
+    },
+    {
+      "id": "cmp:ZIP-5",
+      "kind": "component",
+      "label": "#5 coil zips",
+      "status": "disrupted",
+      "units_at_risk": 18400,
+      "first_breach_week": null
+    },
+    {
+      "id": "fac:BD-KNIT",
+      "kind": "factory",
+      "label": "Gazipur Knit Factory",
+      "status": "impacted",
+      "units_at_risk": 18400,
+      "first_breach_week": null
+    },
+    {
+      "id": "style:PUF-W",
+      "kind": "style",
+      "label": "Women's puffer jacket",
+      "status": "impacted",
+      "units_at_risk": 11900,
+      "first_breach_week": "2026-W44"
+    },
+    {
+      "id": "style:PUF-M",
+      "kind": "style",
+      "label": "Men's puffer jacket",
+      "status": "impacted",
+      "units_at_risk": 6500,
+      "first_breach_week": "2026-W45"
+    },
+    {
+      "id": "po:PO-BD-0006",
+      "kind": "po",
+      "label": "PO-BD-0006 (UK1)",
+      "status": "impacted",
+      "units_at_risk": 7200,
+      "first_breach_week": "2026-W44"
+    },
+    {
+      "id": "po:PO-BD-0007",
+      "kind": "po",
+      "label": "PO-BD-0007 (NL1)",
+      "status": "impacted",
+      "units_at_risk": 6800,
+      "first_breach_week": "2026-W45"
+    },
+    {
+      "id": "po:PO-BD-0008",
+      "kind": "po",
+      "label": "PO-BD-0008 (DE1)",
+      "status": "at_risk",
+      "units_at_risk": 4400,
+      "first_breach_week": null
+    },
+    {
+      "id": "lane:CTG-FXT",
+      "kind": "lane",
+      "label": "Chittagong → Felixstowe",
+      "status": "impacted",
+      "units_at_risk": 7200,
+      "first_breach_week": null
+    },
+    {
+      "id": "lane:CTG-RTM",
+      "kind": "lane",
+      "label": "Chittagong → Rotterdam",
+      "status": "impacted",
+      "units_at_risk": 6800,
+      "first_breach_week": null
+    },
+    {
+      "id": "lane:CTG-HAM",
+      "kind": "lane",
+      "label": "Chittagong → Hamburg",
+      "status": "ok",
+      "units_at_risk": 0,
+      "first_breach_week": null
+    },
+    {
+      "id": "dc:UK1",
+      "kind": "dc",
+      "label": "UK1 Midlands DC",
+      "status": "at_risk",
+      "units_at_risk": 7200,
+      "first_breach_week": "2026-W44"
+    },
+    {
+      "id": "dc:NL1",
+      "kind": "dc",
+      "label": "NL1 Venlo DC",
+      "status": "at_risk",
+      "units_at_risk": 6800,
+      "first_breach_week": "2026-W45"
+    },
+    {
+      "id": "dc:DE1",
+      "kind": "dc",
+      "label": "DE1 Bremen DC",
+      "status": "ok",
+      "units_at_risk": 0,
+      "first_breach_week": null
+    },
+    {
+      "id": "cl:UK-N",
+      "kind": "cluster",
+      "label": "UK North stores",
+      "status": "at_risk",
+      "units_at_risk": 4100,
+      "first_breach_week": "2026-W44"
+    },
+    {
+      "id": "cl:UK-S",
+      "kind": "cluster",
+      "label": "UK South stores",
+      "status": "at_risk",
+      "units_at_risk": 3100,
+      "first_breach_week": "2026-W45"
+    },
+    {
+      "id": "cl:NL-R",
+      "kind": "cluster",
+      "label": "Randstad stores",
+      "status": "at_risk",
+      "units_at_risk": 6800,
+      "first_breach_week": "2026-W45"
+    },
+    {
+      "id": "cl:DE-N",
+      "kind": "cluster",
+      "label": "DE North stores",
+      "status": "ok",
+      "units_at_risk": 0,
+      "first_breach_week": null
+    }
+  ],
+  "edges": [
+    {
+      "source": "sup:MEGHNA",
+      "target": "cmp:ZIP-5",
+      "kind": "supplies"
+    },
+    {
+      "source": "cmp:ZIP-5",
+      "target": "fac:BD-KNIT",
+      "kind": "supplies"
+    },
+    {
+      "source": "fac:BD-KNIT",
+      "target": "style:PUF-W",
+      "kind": "produces"
+    },
+    {
+      "source": "fac:BD-KNIT",
+      "target": "style:PUF-M",
+      "kind": "produces"
+    },
+    {
+      "source": "style:PUF-W",
+      "target": "po:PO-BD-0006",
+      "kind": "produces"
+    },
+    {
+      "source": "style:PUF-W",
+      "target": "po:PO-BD-0007",
+      "kind": "produces"
+    },
+    {
+      "source": "style:PUF-M",
+      "target": "po:PO-BD-0007",
+      "kind": "produces"
+    },
+    {
+      "source": "style:PUF-M",
+      "target": "po:PO-BD-0008",
+      "kind": "produces"
+    },
+    {
+      "source": "po:PO-BD-0006",
+      "target": "lane:CTG-FXT",
+      "kind": "ships"
+    },
+    {
+      "source": "po:PO-BD-0007",
+      "target": "lane:CTG-RTM",
+      "kind": "ships"
+    },
+    {
+      "source": "po:PO-BD-0008",
+      "target": "lane:CTG-HAM",
+      "kind": "ships"
+    },
+    {
+      "source": "lane:CTG-FXT",
+      "target": "dc:UK1",
+      "kind": "ships"
+    },
+    {
+      "source": "lane:CTG-RTM",
+      "target": "dc:NL1",
+      "kind": "ships"
+    },
+    {
+      "source": "lane:CTG-HAM",
+      "target": "dc:DE1",
+      "kind": "ships"
+    },
+    {
+      "source": "dc:UK1",
+      "target": "cl:UK-N",
+      "kind": "stocks"
+    },
+    {
+      "source": "dc:UK1",
+      "target": "cl:UK-S",
+      "kind": "stocks"
+    },
+    {
+      "source": "dc:NL1",
+      "target": "cl:NL-R",
+      "kind": "stocks"
+    },
+    {
+      "source": "dc:DE1",
+      "target": "cl:DE-N",
+      "kind": "stocks"
+    }
+  ]
+}

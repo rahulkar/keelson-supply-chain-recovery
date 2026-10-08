@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "How far a snapshot can be trusted (the engine's ``scn_snapshot`` JSON carries these two\nkeys): ``crawled`` snapshots name their ``as_of_range``; ``consistent`` ones have none (their\npoint in time is ``as_of``).",
+  "properties": {
+    "as_of_range": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "description": "When a crawled snapshot's data was read: the first and the last page (wire keys ``from`` /\n``to``; Python attributes ``from_`` / ``to``). ``to`` is never before ``from``.",
+          "properties": {
+            "from": {
+              "format": "date-time",
+              "title": "From",
+              "type": "string"
+            },
+            "to": {
+              "format": "date-time",
+              "title": "To",
+              "type": "string"
+            }
+          },
+          "required": [
+            "from",
+            "to"
+          ],
+          "title": "AsOfRange",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "consistency": {
+      "enum": [
+        "consistent",
+        "crawled"
+      ],
+      "title": "Consistency",
+      "type": "string"
+    }
+  },
+  "required": [
+    "consistency",
+    "as_of_range"
+  ],
+  "title": "SnapshotLabel",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.scn.SnapshotLabel"
+}

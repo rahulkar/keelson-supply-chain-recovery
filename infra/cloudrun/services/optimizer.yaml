@@ -1,0 +1,56 @@
+# Cloud Run service: optimizer (compose: optimizer). Stateless solver, internal ingress only:
+# reachable from engine-api / engine-worker through Direct VPC egress, never from the internet or
+# the load balancer. Callers authenticate with service JWTs (OPTIMIZER_SHARED_SECRET).
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: optimizer
+  labels:
+    cloud.googleapis.com/location: ${REGION}
+    app.kubernetes.io/part-of: keelson
+  annotations:
+    run.googleapis.com/ingress: internal
+    run.googleapis.com/invoker-iam-disabled: "true"
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: keelson
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "3"
+        run.googleapis.com/execution-environment: gen2
+        run.googleapis.com/startup-cpu-boost: "true"
+    spec:
+      serviceAccountName: keelson-optimizer@${PROJECT}.iam.gserviceaccount.com
+      # CPU-bound solves: one solve per instance at a time (OPTIMIZER_MAX_CONCURRENCY=1); the
+      # extra slots keep health checks and queued requests from opening new instances at once.
+      containerConcurrency: 4
+      timeoutSeconds: 300
+      containers:
+        - name: optimizer
+          image: ${IMAGE_OPTIMIZER}
+          ports:
+            - name: http1
+              containerPort: 8080
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 30
+          env:
+            - name: CPSAT_NUM_WORKERS
+              value: "1"
+            - name: OPTIMIZER_MAX_CONCURRENCY
+              value: "1"
+            - name: OPTIMIZER_SHARED_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keelson-optimizer-shared-secret
+                  key: latest

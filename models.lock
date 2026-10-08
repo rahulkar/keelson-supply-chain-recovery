@@ -1,0 +1,33 @@
+# Pinned model ids behind LiteLLM aliases (bootstrap upserts these; never resolve "latest" at runtime).
+# Refresh deliberately when changing: an alias entry is part of the LLM replay key (runtime/replay.py),
+# so its recordings miss and re-record.
+# No Pro models (user preference, 2026-10-07): every chat alias is a Flash or Flash-Lite id.
+# Token diet (2026-10-07): reasoning-default high -> medium (planner 33-46 s / strategist 37-72 s at high),
+# critic-default medium -> low; fast-default stays low; extract/guard stay Flash-Lite minimal.
+version: 1
+provider_checked_at: "2026-10-07"
+aliases:
+  reasoning-default:            # planner + strategist: Flash with medium reasoning
+    model: gemini/gemini-3.8-flash
+    mode: chat
+    params: { reasoning_effort: medium }
+  fast-default:
+    model: gemini/gemini-3.8-flash
+    mode: chat
+    params: { reasoning_effort: low }
+  extract-fast:
+    model: gemini/gemini-3.5-flash-lite
+    mode: chat
+    params: { reasoning_effort: minimal }
+  critic-default:
+    model: gemini/gemini-3.8-flash
+    mode: chat
+    params: { reasoning_effort: low }
+  guard-default:
+    model: gemini/gemini-3.5-flash-lite
+    mode: chat
+    params: { reasoning_effort: minimal }
+  embed-default:
+    model: gemini/gemini-embedding-001
+    mode: embedding
+    params: { dimensions: 1536 }

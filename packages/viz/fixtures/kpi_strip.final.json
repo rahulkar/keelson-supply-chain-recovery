@@ -1,0 +1,45 @@
+{
+  "id": "blk_kpi_final",
+  "kind": "kpi_strip",
+  "v": 1,
+  "title": "Outcome with the plan",
+  "placement": "inline",
+  "provenance": {
+    "kind": "simulated",
+    "engine": "keelson-opt@0.1",
+    "inputs_hash": "daeb30e06dcf8056",
+    "as_of": "2026-10-05"
+  },
+  "data_ref": null,
+  "props": {
+    "items": [
+      {
+        "key": "units_at_risk",
+        "label": "Units at risk",
+        "value": 18400,
+        "unit": "units",
+        "delta": -4800,
+        "prov": "simulated",
+        "preliminary": false
+      },
+      {
+        "key": "revenue_at_risk",
+        "label": "Revenue at risk",
+        "value": 24760000,
+        "unit": "eur_cents",
+        "delta": -6480000,
+        "prov": "simulated",
+        "preliminary": false
+      },
+      {
+        "key": "stores_short",
+        "label": "Stores short in peak",
+        "value": 41,
+        "unit": "count",
+        "delta": -31,
+        "prov": "inference",
+        "preliminary": false
+      }
+    ]
+  }
+}

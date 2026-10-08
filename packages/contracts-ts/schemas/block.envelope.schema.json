@@ -1,0 +1,3693 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "anyOf": [
+    {
+      "additionalProperties": false,
+      "properties": {
+        "data_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Ref"
+        },
+        "id": {
+          "pattern": "^blk_[0-9A-Za-z_-]{1,64}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "kpi_strip",
+          "title": "Kind",
+          "type": "string"
+        },
+        "placement": {
+          "enum": [
+            "inline",
+            "canvas"
+          ],
+          "title": "Placement",
+          "type": "string"
+        },
+        "props": {
+          "additionalProperties": false,
+          "description": "``kpi_strip@1``.",
+          "properties": {
+            "items": {
+              "items": {
+                "additionalProperties": false,
+                "description": "One KPI tile. ``value``/``delta`` are integers in ``unit``.",
+                "properties": {
+                  "delta": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Delta"
+                  },
+                  "key": {
+                    "pattern": "^[a-z][a-z0-9_]*$",
+                    "title": "Key",
+                    "type": "string"
+                  },
+                  "label": {
+                    "minLength": 1,
+                    "title": "Label",
+                    "type": "string"
+                  },
+                  "preliminary": {
+                    "title": "Preliminary",
+                    "type": "boolean"
+                  },
+                  "prov": {
+                    "description": "Where a number or statement comes from (plan §3.3).",
+                    "enum": [
+                      "fact",
+                      "inference",
+                      "assumption",
+                      "simulated",
+                      "decision",
+                      "committed"
+                    ],
+                    "title": "Provenance",
+                    "type": "string"
+                  },
+                  "unit": {
+                    "enum": [
+                      "units",
+                      "eur_cents",
+                      "days",
+                      "pct_bp",
+                      "count"
+                    ],
+                    "title": "Unit",
+                    "type": "string"
+                  },
+                  "value": {
+                    "title": "Value",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "key",
+                  "label",
+                  "value",
+                  "unit",
+                  "prov",
+                  "preliminary"
+                ],
+                "title": "KpiItem",
+                "type": "object"
+              },
+              "minItems": 1,
+              "title": "Items",
+              "type": "array"
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "title": "KpiStripProps",
+          "type": "object"
+        },
+        "provenance": {
+          "additionalProperties": false,
+          "properties": {
+            "as_of": {
+              "format": "date",
+              "title": "As Of",
+              "type": "string"
+            },
+            "engine": {
+              "minLength": 1,
+              "title": "Engine",
+              "type": "string"
+            },
+            "inputs_hash": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Inputs Hash"
+            },
+            "kind": {
+              "description": "Where a number or statement comes from (plan §3.3).",
+              "enum": [
+                "fact",
+                "inference",
+                "assumption",
+                "simulated",
+                "decision",
+                "committed"
+              ],
+              "title": "Provenance",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "engine",
+            "as_of"
+          ],
+          "title": "BlockProvenance",
+          "type": "object"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "placement",
+        "provenance",
+        "kind",
+        "v",
+        "props"
+      ],
+      "title": "KpiStripBlock",
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "data_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Ref"
+        },
+        "id": {
+          "pattern": "^blk_[0-9A-Za-z_-]{1,64}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "approach_card",
+          "title": "Kind",
+          "type": "string"
+        },
+        "placement": {
+          "enum": [
+            "inline",
+            "canvas"
+          ],
+          "title": "Placement",
+          "type": "string"
+        },
+        "props": {
+          "additionalProperties": false,
+          "description": "``approach_card@1`` — the scenario framing the user confirms before investigation.\n\nM4 additions (``90`` §2, omitted while empty): ``agents`` to be consulted, ``checks`` as\n``{task_id, sentence}`` per plan task (plain strings from M1 cards stay valid), and\n``editable`` values for **Edit**. ``mode`` drives the what-if badge.",
+          "properties": {
+            "agents": {
+              "default": [],
+              "items": {
+                "additionalProperties": false,
+                "description": "An agent the plan will consult (``slug`` from the AgentSpec, friendly display name).",
+                "properties": {
+                  "display_name": {
+                    "minLength": 1,
+                    "title": "Display Name",
+                    "type": "string"
+                  },
+                  "slug": {
+                    "minLength": 1,
+                    "title": "Slug",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "slug",
+                  "display_name"
+                ],
+                "title": "ApproachAgent",
+                "type": "object"
+              },
+              "title": "Agents",
+              "type": "array"
+            },
+            "assumptions": {
+              "items": {
+                "additionalProperties": false,
+                "description": "A scenario assumption shown on the approach card (``{key,label,value_text,prov}``).\n\nM4 (``90`` §5): ``refine_scenario`` turns an inference-backed scenario update into an\nassumption with ``unconfirmed=True`` and the evidence it came from\n(``source_evidence_ids``). Apply stays disabled until the user confirms it (case\naction ``confirm_assumptions`` → :meth:`DisruptionScenario.confirm_assumptions`).\nBoth fields are omitted from dumps at their defaults, so pre-M4 assumptions (and the\nscenario fingerprint) serialize exactly as before.",
+                "properties": {
+                  "key": {
+                    "minLength": 1,
+                    "title": "Key",
+                    "type": "string"
+                  },
+                  "label": {
+                    "title": "Label",
+                    "type": "string"
+                  },
+                  "prov": {
+                    "description": "Where a number or statement comes from (plan §3.3).",
+                    "enum": [
+                      "fact",
+                      "inference",
+                      "assumption",
+                      "simulated",
+                      "decision",
+                      "committed"
+                    ],
+                    "title": "Provenance",
+                    "type": "string"
+                  },
+                  "source_evidence_ids": {
+                    "default": [],
+                    "items": {
+                      "pattern": "^ev_[0-9A-Za-z_-]{1,64}$",
+                      "type": "string"
+                    },
+                    "title": "Source Evidence Ids",
+                    "type": "array"
+                  },
+                  "unconfirmed": {
+                    "default": false,
+                    "title": "Unconfirmed",
+                    "type": "boolean"
+                  },
+                  "value_text": {
+                    "title": "Value Text",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "key",
+                  "label",
+                  "value_text",
+                  "prov"
+                ],
+                "title": "Assumption",
+                "type": "object"
+              },
+              "title": "Assumptions",
+              "type": "array"
+            },
+            "buttons": {
+              "items": {
+                "enum": [
+                  "confirm",
+                  "edit",
+                  "what_if",
+                  "cancel"
+                ],
+                "type": "string"
+              },
+              "minItems": 1,
+              "title": "Buttons",
+              "type": "array"
+            },
+            "checks": {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "description": "One plan task as the user reads it (``sentence`` from the task objective).",
+                    "properties": {
+                      "sentence": {
+                        "minLength": 1,
+                        "title": "Sentence",
+                        "type": "string"
+                      },
+                      "task_id": {
+                        "minLength": 1,
+                        "title": "Task Id",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "task_id",
+                      "sentence"
+                    ],
+                    "title": "ApproachCheck",
+                    "type": "object"
+                  }
+                ]
+              },
+              "title": "Checks",
+              "type": "array"
+            },
+            "editable": {
+              "default": [],
+              "items": {
+                "additionalProperties": false,
+                "description": "A scenario value the user may change with **Edit** (``key`` is the assumption key).\n\n``days``/``pct`` carry ``value_int`` (current value; ``null`` = not set); ``ids`` carries\n``value_ids``. The edited value comes back as a typed resume edit\n(:class:`~keelson_contracts.runs.ApproachEdit`).",
+                "properties": {
+                  "key": {
+                    "pattern": "^[a-z][a-z0-9_]*$",
+                    "title": "Key",
+                    "type": "string"
+                  },
+                  "kind": {
+                    "enum": [
+                      "days",
+                      "pct",
+                      "ids"
+                    ],
+                    "title": "Kind",
+                    "type": "string"
+                  },
+                  "label": {
+                    "minLength": 1,
+                    "title": "Label",
+                    "type": "string"
+                  },
+                  "value_ids": {
+                    "anyOf": [
+                      {
+                        "items": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Value Ids"
+                  },
+                  "value_int": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Value Int"
+                  }
+                },
+                "required": [
+                  "key",
+                  "label",
+                  "kind"
+                ],
+                "title": "EditableValue",
+                "type": "object"
+              },
+              "title": "Editable",
+              "type": "array"
+            },
+            "event": {
+              "additionalProperties": false,
+              "properties": {
+                "description": {
+                  "title": "Description",
+                  "type": "string"
+                },
+                "family": {
+                  "enum": [
+                    "SUP",
+                    "LOG",
+                    "NAT",
+                    "CYB",
+                    "REG",
+                    "DEM",
+                    "OTHER"
+                  ],
+                  "title": "Family",
+                  "type": "string"
+                },
+                "source": {
+                  "minLength": 1,
+                  "title": "Source",
+                  "type": "string"
+                },
+                "type": {
+                  "minLength": 1,
+                  "title": "Type",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "family",
+                "type",
+                "description",
+                "source"
+              ],
+              "title": "DisruptionEventSummary",
+              "type": "object"
+            },
+            "interrupt_id": {
+              "minLength": 1,
+              "title": "Interrupt Id",
+              "type": "string"
+            },
+            "matched": {
+              "additionalProperties": false,
+              "properties": {
+                "count": {
+                  "minimum": 0,
+                  "title": "Count",
+                  "type": "integer"
+                },
+                "sample": {
+                  "items": {
+                    "additionalProperties": false,
+                    "description": "A resolved business entity (``{type, code, label}``).\n\nStrict-compatible (all fields required, no defaults) so it can be used inside\nLLM output schemas as well as render blocks.",
+                    "properties": {
+                      "code": {
+                        "title": "Code",
+                        "type": "string"
+                      },
+                      "label": {
+                        "title": "Label",
+                        "type": "string"
+                      },
+                      "type": {
+                        "enum": [
+                          "supplier",
+                          "po",
+                          "po_line",
+                          "sku",
+                          "style",
+                          "dc",
+                          "cluster",
+                          "store",
+                          "factory",
+                          "component",
+                          "port",
+                          "lane",
+                          "chokepoint",
+                          "region",
+                          "other"
+                        ],
+                        "title": "Type",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "code",
+                      "label"
+                    ],
+                    "title": "EntityRef",
+                    "type": "object"
+                  },
+                  "title": "Sample",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "count",
+                "sample"
+              ],
+              "title": "MatchedEntities",
+              "type": "object"
+            },
+            "mode": {
+              "enum": [
+                "actual",
+                "what_if"
+              ],
+              "title": "Mode",
+              "type": "string"
+            }
+          },
+          "required": [
+            "interrupt_id",
+            "event",
+            "mode",
+            "matched",
+            "assumptions",
+            "checks",
+            "buttons"
+          ],
+          "title": "ApproachCardProps",
+          "type": "object"
+        },
+        "provenance": {
+          "additionalProperties": false,
+          "properties": {
+            "as_of": {
+              "format": "date",
+              "title": "As Of",
+              "type": "string"
+            },
+            "engine": {
+              "minLength": 1,
+              "title": "Engine",
+              "type": "string"
+            },
+            "inputs_hash": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Inputs Hash"
+            },
+            "kind": {
+              "description": "Where a number or statement comes from (plan §3.3).",
+              "enum": [
+                "fact",
+                "inference",
+                "assumption",
+                "simulated",
+                "decision",
+                "committed"
+              ],
+              "title": "Provenance",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "engine",
+            "as_of"
+          ],
+          "title": "BlockProvenance",
+          "type": "object"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "placement",
+        "provenance",
+        "kind",
+        "v",
+        "props"
+      ],
+      "title": "ApproachCardBlock",
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "data_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Ref"
+        },
+        "id": {
+          "pattern": "^blk_[0-9A-Za-z_-]{1,64}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "recommended_option",
+          "title": "Kind",
+          "type": "string"
+        },
+        "placement": {
+          "enum": [
+            "inline",
+            "canvas"
+          ],
+          "title": "Placement",
+          "type": "string"
+        },
+        "props": {
+          "additionalProperties": false,
+          "description": "``recommended_option@1``.\n\nM4 additions (omitted at their defaults): ``unconfirmed`` values and ``what_if``. While\neither is set, an ``apply`` action must be disabled (with its reason); a\n``confirm_assumptions`` action needs ``unconfirmed`` values and ``promote`` needs\n``what_if``.\n\nM5 addition (omitted while unset): ``remediation_mix`` — apply vs guide line counts. When\nit is set, an enabled ``apply`` needs ``apply_lines > 0``.\n\nM7 addition (omitted while unset): ``advisory`` — the option was computed on crawled data.\nApplying stays possible (per-op, with approval as usual).",
+          "properties": {
+            "actions": {
+              "items": {
+                "additionalProperties": false,
+                "description": "A button on the recommended option; disabled actions must say why.\n\nM4 adds ``confirm_assumptions`` (confirm the unconfirmed values, re-runs impact +\nsimulate) and ``promote`` (turn a what-if case into an actual one).",
+                "properties": {
+                  "disabled_reason": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Disabled Reason"
+                  },
+                  "enabled": {
+                    "title": "Enabled",
+                    "type": "boolean"
+                  },
+                  "label": {
+                    "minLength": 1,
+                    "title": "Label",
+                    "type": "string"
+                  },
+                  "type": {
+                    "enum": [
+                      "apply",
+                      "guide",
+                      "confirm_assumptions",
+                      "promote"
+                    ],
+                    "title": "Type",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "label",
+                  "enabled"
+                ],
+                "title": "OptionAction",
+                "type": "object"
+              },
+              "title": "Actions",
+              "type": "array"
+            },
+            "advisory": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "description": "M7: the plan was built on data that is not a consistent snapshot (a tier-A crawl), so the\noptions are advisory. ``text`` is what the UI shows; ``as_of_range`` is when the data was\nread.",
+                  "properties": {
+                    "as_of_range": {
+                      "additionalProperties": false,
+                      "description": "When a crawled snapshot's data was read: the first and the last page (wire keys ``from`` /\n``to``; Python attributes ``from_`` / ``to``). ``to`` is never before ``from``.",
+                      "properties": {
+                        "from": {
+                          "format": "date-time",
+                          "title": "From",
+                          "type": "string"
+                        },
+                        "to": {
+                          "format": "date-time",
+                          "title": "To",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "from",
+                        "to"
+                      ],
+                      "title": "AsOfRange",
+                      "type": "object"
+                    },
+                    "reason": {
+                      "const": "crawled_snapshot",
+                      "title": "Reason",
+                      "type": "string"
+                    },
+                    "text": {
+                      "minLength": 1,
+                      "title": "Text",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "reason",
+                    "text",
+                    "as_of_range"
+                  ],
+                  "title": "Advisory",
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "alternatives": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "minLength": 1,
+                    "title": "Id",
+                    "type": "string"
+                  },
+                  "one_liner": {
+                    "title": "One Liner",
+                    "type": "string"
+                  },
+                  "title": {
+                    "minLength": 1,
+                    "title": "Title",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "title",
+                  "one_liner"
+                ],
+                "title": "AlternativeOption",
+                "type": "object"
+              },
+              "title": "Alternatives",
+              "type": "array"
+            },
+            "option": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "minLength": 1,
+                  "title": "Id",
+                  "type": "string"
+                },
+                "kpis": {
+                  "items": {
+                    "additionalProperties": false,
+                    "description": "One KPI tile. ``value``/``delta`` are integers in ``unit``.",
+                    "properties": {
+                      "delta": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "title": "Delta"
+                      },
+                      "key": {
+                        "pattern": "^[a-z][a-z0-9_]*$",
+                        "title": "Key",
+                        "type": "string"
+                      },
+                      "label": {
+                        "minLength": 1,
+                        "title": "Label",
+                        "type": "string"
+                      },
+                      "preliminary": {
+                        "title": "Preliminary",
+                        "type": "boolean"
+                      },
+                      "prov": {
+                        "description": "Where a number or statement comes from (plan §3.3).",
+                        "enum": [
+                          "fact",
+                          "inference",
+                          "assumption",
+                          "simulated",
+                          "decision",
+                          "committed"
+                        ],
+                        "title": "Provenance",
+                        "type": "string"
+                      },
+                      "unit": {
+                        "enum": [
+                          "units",
+                          "eur_cents",
+                          "days",
+                          "pct_bp",
+                          "count"
+                        ],
+                        "title": "Unit",
+                        "type": "string"
+                      },
+                      "value": {
+                        "title": "Value",
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "label",
+                      "value",
+                      "unit",
+                      "prov",
+                      "preliminary"
+                    ],
+                    "title": "KpiItem",
+                    "type": "object"
+                  },
+                  "title": "Kpis",
+                  "type": "array"
+                },
+                "summary_bullets": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Summary Bullets",
+                  "type": "array"
+                },
+                "title": {
+                  "minLength": 1,
+                  "title": "Title",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "summary_bullets",
+                "kpis"
+              ],
+              "title": "OptionSummary",
+              "type": "object"
+            },
+            "plan_version": {
+              "minimum": 1,
+              "title": "Plan Version",
+              "type": "integer"
+            },
+            "remediation_mix": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "description": "How the option's changes split (M5, ``95`` §2): lines the connectors apply for the user\nand lines the user performs with a guided checklist (\"Apply 3 changes for me · Guide me\nthrough 2\").",
+                  "properties": {
+                    "apply_lines": {
+                      "minimum": 0,
+                      "title": "Apply Lines",
+                      "type": "integer"
+                    },
+                    "guide_lines": {
+                      "minimum": 0,
+                      "title": "Guide Lines",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "apply_lines",
+                    "guide_lines"
+                  ],
+                  "title": "RemediationMix",
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "unconfirmed": {
+              "default": [],
+              "items": {
+                "additionalProperties": false,
+                "description": "A value the plan relies on that a human must confirm first (\"Confirm before applying\").",
+                "properties": {
+                  "key": {
+                    "minLength": 1,
+                    "title": "Key",
+                    "type": "string"
+                  },
+                  "label": {
+                    "minLength": 1,
+                    "title": "Label",
+                    "type": "string"
+                  },
+                  "source": {
+                    "minLength": 1,
+                    "title": "Source",
+                    "type": "string"
+                  },
+                  "value_text": {
+                    "minLength": 1,
+                    "title": "Value Text",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "key",
+                  "label",
+                  "value_text",
+                  "source"
+                ],
+                "title": "UnconfirmedValue",
+                "type": "object"
+              },
+              "title": "Unconfirmed",
+              "type": "array"
+            },
+            "what_if": {
+              "default": false,
+              "title": "What If",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "plan_version",
+            "option",
+            "alternatives",
+            "actions"
+          ],
+          "title": "RecommendedOptionProps",
+          "type": "object"
+        },
+        "provenance": {
+          "additionalProperties": false,
+          "properties": {
+            "as_of": {
+              "format": "date",
+              "title": "As Of",
+              "type": "string"
+            },
+            "engine": {
+              "minLength": 1,
+              "title": "Engine",
+              "type": "string"
+            },
+            "inputs_hash": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Inputs Hash"
+            },
+            "kind": {
+              "description": "Where a number or statement comes from (plan §3.3).",
+              "enum": [
+                "fact",
+                "inference",
+                "assumption",
+                "simulated",
+                "decision",
+                "committed"
+              ],
+              "title": "Provenance",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "engine",
+            "as_of"
+          ],
+          "title": "BlockProvenance",
+          "type": "object"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "placement",
+        "provenance",
+        "kind",
+        "v",
+        "props"
+      ],
+      "title": "RecommendedOptionBlock",
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "data_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Ref"
+        },
+        "id": {
+          "pattern": "^blk_[0-9A-Za-z_-]{1,64}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "plan_diff",
+          "title": "Kind",
+          "type": "string"
+        },
+        "placement": {
+          "enum": [
+            "inline",
+            "canvas"
+          ],
+          "title": "Placement",
+          "type": "string"
+        },
+        "props": {
+          "additionalProperties": false,
+          "description": "``plan_diff@1`` — the change-set as the user reads it.",
+          "properties": {
+            "plan_version": {
+              "minimum": 1,
+              "title": "Plan Version",
+              "type": "integer"
+            },
+            "rows": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "after_text": {
+                    "title": "After Text",
+                    "type": "string"
+                  },
+                  "before_text": {
+                    "title": "Before Text",
+                    "type": "string"
+                  },
+                  "op": {
+                    "minLength": 1,
+                    "title": "Op",
+                    "type": "string"
+                  },
+                  "qty": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Qty"
+                  },
+                  "seq": {
+                    "minimum": 1,
+                    "title": "Seq",
+                    "type": "integer"
+                  },
+                  "system": {
+                    "minLength": 1,
+                    "title": "System",
+                    "type": "string"
+                  },
+                  "target_label": {
+                    "minLength": 1,
+                    "title": "Target Label",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "seq",
+                  "op",
+                  "target_label",
+                  "before_text",
+                  "after_text",
+                  "system"
+                ],
+                "title": "PlanDiffRow",
+                "type": "object"
+              },
+              "title": "Rows",
+              "type": "array"
+            },
+            "totals": {
+              "additionalProperties": false,
+              "properties": {
+                "lines": {
+                  "minimum": 0,
+                  "title": "Lines",
+                  "type": "integer"
+                },
+                "units": {
+                  "minimum": 0,
+                  "title": "Units",
+                  "type": "integer"
+                },
+                "value_cents": {
+                  "description": "Money in integer EUR minor units (cents).",
+                  "title": "Value Cents",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "lines",
+                "units",
+                "value_cents"
+              ],
+              "title": "ChangeTotals",
+              "type": "object"
+            }
+          },
+          "required": [
+            "plan_version",
+            "rows",
+            "totals"
+          ],
+          "title": "PlanDiffProps",
+          "type": "object"
+        },
+        "provenance": {
+          "additionalProperties": false,
+          "properties": {
+            "as_of": {
+              "format": "date",
+              "title": "As Of",
+              "type": "string"
+            },
+            "engine": {
+              "minLength": 1,
+              "title": "Engine",
+              "type": "string"
+            },
+            "inputs_hash": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Inputs Hash"
+            },
+            "kind": {
+              "description": "Where a number or statement comes from (plan §3.3).",
+              "enum": [
+                "fact",
+                "inference",
+                "assumption",
+                "simulated",
+                "decision",
+                "committed"
+              ],
+              "title": "Provenance",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "engine",
+            "as_of"
+          ],
+          "title": "BlockProvenance",
+          "type": "object"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "placement",
+        "provenance",
+        "kind",
+        "v",
+        "props"
+      ],
+      "title": "PlanDiffBlock",
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "data_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Ref"
+        },
+        "id": {
+          "pattern": "^blk_[0-9A-Za-z_-]{1,64}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "approval_card",
+          "title": "Kind",
+          "type": "string"
+        },
+        "placement": {
+          "enum": [
+            "inline",
+            "canvas"
+          ],
+          "title": "Placement",
+          "type": "string"
+        },
+        "props": {
+          "additionalProperties": false,
+          "description": "``approval_card@1``.\n\nM5 additions (omitted while unset/empty, ``95`` §1, §5, §7):\n\n* ``quorum`` — progress (:class:`~keelson_contracts.policy.QuorumView`); its roles are the\n  card's ``required_roles``;\n* ``rejection`` — who rejected and why (only with no remaining quorum progress to show);\n* ``bundle`` — the per-connector change sets one approval covers, in apply order. With a\n  bundle, ``change_set_hash`` is the bundle hash\n  (:func:`~keelson_contracts.changeset.bundle_hash`) and ``summary.lines`` their total.",
+          "properties": {
+            "bundle": {
+              "default": [],
+              "items": {
+                "additionalProperties": false,
+                "description": "One connector's change set inside a multi-system bundle (M5, ``95`` §5).",
+                "properties": {
+                  "change_set_hash": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "title": "Change Set Hash",
+                    "type": "string"
+                  },
+                  "change_set_id": {
+                    "minLength": 1,
+                    "title": "Change Set Id",
+                    "type": "string"
+                  },
+                  "connector": {
+                    "minLength": 1,
+                    "title": "Connector",
+                    "type": "string"
+                  },
+                  "lines": {
+                    "minimum": 1,
+                    "title": "Lines",
+                    "type": "integer"
+                  },
+                  "system": {
+                    "minLength": 1,
+                    "title": "System",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "connector",
+                  "system",
+                  "change_set_id",
+                  "change_set_hash",
+                  "lines"
+                ],
+                "title": "ApprovalBundleMember",
+                "type": "object"
+              },
+              "title": "Bundle",
+              "type": "array"
+            },
+            "buttons": {
+              "items": {
+                "enum": [
+                  "approve",
+                  "reject",
+                  "revise"
+                ],
+                "type": "string"
+              },
+              "minItems": 1,
+              "title": "Buttons",
+              "type": "array"
+            },
+            "change_set_hash": {
+              "pattern": "^[0-9a-f]{64}$",
+              "title": "Change Set Hash",
+              "type": "string"
+            },
+            "change_set_id": {
+              "minLength": 1,
+              "title": "Change Set Id",
+              "type": "string"
+            },
+            "connect": {
+              "additionalProperties": false,
+              "description": "The approver's delegated link to the target system.",
+              "properties": {
+                "connect_url": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Connect Url"
+                },
+                "status": {
+                  "enum": [
+                    "active",
+                    "missing",
+                    "expired"
+                  ],
+                  "title": "Status",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "status"
+              ],
+              "title": "ConnectState",
+              "type": "object"
+            },
+            "interrupt_id": {
+              "minLength": 1,
+              "title": "Interrupt Id",
+              "type": "string"
+            },
+            "plan_version": {
+              "minimum": 1,
+              "title": "Plan Version",
+              "type": "integer"
+            },
+            "quorum": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "description": "Quorum progress of an approval interrupt (API + ``approval_card@1.quorum``).\n\n``remaining`` and ``missing_roles`` are derived from ``required`` and ``approvals`` and\nmust agree with them (build with :meth:`build`). The card renders e.g.\n\"1 of 2 approvals: Marco ✓ · waiting for Compliance\".",
+                  "properties": {
+                    "approvals": {
+                      "items": {
+                        "additionalProperties": false,
+                        "description": "One approval counted towards a quorum (``role`` = the role it counts under).",
+                        "properties": {
+                          "at": {
+                            "format": "date-time",
+                            "title": "At",
+                            "type": "string"
+                          },
+                          "name": {
+                            "title": "Name",
+                            "type": "string"
+                          },
+                          "role": {
+                            "maxLength": 64,
+                            "minLength": 1,
+                            "pattern": "^[a-z][a-z0-9_-]*$",
+                            "title": "Role",
+                            "type": "string"
+                          },
+                          "sub": {
+                            "minLength": 1,
+                            "title": "Sub",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "sub",
+                          "name",
+                          "role",
+                          "at"
+                        ],
+                        "title": "QuorumApproval",
+                        "type": "object"
+                      },
+                      "title": "Approvals",
+                      "type": "array"
+                    },
+                    "missing_roles": {
+                      "items": {
+                        "maxLength": 64,
+                        "minLength": 1,
+                        "pattern": "^[a-z][a-z0-9_-]*$",
+                        "type": "string"
+                      },
+                      "title": "Missing Roles",
+                      "type": "array"
+                    },
+                    "remaining": {
+                      "minimum": 0,
+                      "title": "Remaining",
+                      "type": "integer"
+                    },
+                    "required": {
+                      "additionalProperties": false,
+                      "description": "Who must approve: ``count`` distinct people holding ``roles`` (see module docstring).\n\n``exclude_initiator`` = the person who initiated the change set may not approve it\n(enforced server-side by the decision API). Also the ``interrupt.quorum_spec`` shape.",
+                      "properties": {
+                        "count": {
+                          "maximum": 10,
+                          "minimum": 1,
+                          "title": "Count",
+                          "type": "integer"
+                        },
+                        "exclude_initiator": {
+                          "title": "Exclude Initiator",
+                          "type": "boolean"
+                        },
+                        "roles": {
+                          "items": {
+                            "maxLength": 64,
+                            "minLength": 1,
+                            "pattern": "^[a-z][a-z0-9_-]*$",
+                            "type": "string"
+                          },
+                          "maxItems": 10,
+                          "minItems": 1,
+                          "title": "Roles",
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "roles",
+                        "count",
+                        "exclude_initiator"
+                      ],
+                      "title": "Requirement",
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "required",
+                    "approvals",
+                    "remaining",
+                    "missing_roles"
+                  ],
+                  "title": "QuorumView",
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "reason": {
+              "title": "Reason",
+              "type": "string"
+            },
+            "rejection": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "description": "Who rejected the change set and why (M5; ``reason`` is the person's own note).",
+                  "properties": {
+                    "at": {
+                      "format": "date-time",
+                      "title": "At",
+                      "type": "string"
+                    },
+                    "name": {
+                      "title": "Name",
+                      "type": "string"
+                    },
+                    "reason": {
+                      "anyOf": [
+                        {
+                          "maxLength": 500,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "title": "Reason"
+                    },
+                    "role": {
+                      "anyOf": [
+                        {
+                          "maxLength": 64,
+                          "minLength": 1,
+                          "pattern": "^[a-z][a-z0-9_-]*$",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "title": "Role"
+                    },
+                    "sub": {
+                      "minLength": 1,
+                      "title": "Sub",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "sub",
+                    "name",
+                    "at"
+                  ],
+                  "title": "ApprovalRejection",
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "required_roles": {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "title": "Required Roles",
+              "type": "array"
+            },
+            "summary": {
+              "additionalProperties": false,
+              "properties": {
+                "lines": {
+                  "minimum": 0,
+                  "title": "Lines",
+                  "type": "integer"
+                },
+                "units": {
+                  "minimum": 0,
+                  "title": "Units",
+                  "type": "integer"
+                },
+                "value_cents": {
+                  "description": "Money in integer EUR minor units (cents).",
+                  "title": "Value Cents",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "lines",
+                "units",
+                "value_cents"
+              ],
+              "title": "ChangeTotals",
+              "type": "object"
+            }
+          },
+          "required": [
+            "interrupt_id",
+            "change_set_id",
+            "change_set_hash",
+            "plan_version",
+            "summary",
+            "reason",
+            "required_roles",
+            "connect",
+            "buttons"
+          ],
+          "title": "ApprovalCardProps",
+          "type": "object"
+        },
+        "provenance": {
+          "additionalProperties": false,
+          "properties": {
+            "as_of": {
+              "format": "date",
+              "title": "As Of",
+              "type": "string"
+            },
+            "engine": {
+              "minLength": 1,
+              "title": "Engine",
+              "type": "string"
+            },
+            "inputs_hash": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Inputs Hash"
+            },
+            "kind": {
+              "description": "Where a number or statement comes from (plan §3.3).",
+              "enum": [
+                "fact",
+                "inference",
+                "assumption",
+                "simulated",
+                "decision",
+                "committed"
+              ],
+              "title": "Provenance",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "engine",
+            "as_of"
+          ],
+          "title": "BlockProvenance",
+          "type": "object"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "placement",
+        "provenance",
+        "kind",
+        "v",
+        "props"
+      ],
+      "title": "ApprovalCardBlock",
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "data_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Ref"
+        },
+        "id": {
+          "pattern": "^blk_[0-9A-Za-z_-]{1,64}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "commit_tracker",
+          "title": "Kind",
+          "type": "string"
+        },
+        "placement": {
+          "enum": [
+            "inline",
+            "canvas"
+          ],
+          "title": "Placement",
+          "type": "string"
+        },
+        "props": {
+          "additionalProperties": false,
+          "description": "``commit_tracker@1``.\n\nM5 additions (omitted while empty): ``actions`` (``undo``; enabled only while the change\nset is ``applied``/``verified``), ``conflicts`` that blocked a rollback, and the status\n``rolled_back``.",
+          "properties": {
+            "actions": {
+              "default": [],
+              "items": {
+                "additionalProperties": false,
+                "description": "A button on the commit tracker (M5: ``undo`` → case action ``rollback``); disabled\nactions must say why.",
+                "properties": {
+                  "disabled_reason": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Disabled Reason"
+                  },
+                  "enabled": {
+                    "title": "Enabled",
+                    "type": "boolean"
+                  },
+                  "label": {
+                    "minLength": 1,
+                    "title": "Label",
+                    "type": "string"
+                  },
+                  "type": {
+                    "const": "undo",
+                    "title": "Type",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "label",
+                  "enabled"
+                ],
+                "title": "TrackerAction",
+                "type": "object"
+              },
+              "title": "Actions",
+              "type": "array"
+            },
+            "applied": {
+              "minimum": 0,
+              "title": "Applied",
+              "type": "integer"
+            },
+            "change_set_id": {
+              "minLength": 1,
+              "title": "Change Set Id",
+              "type": "string"
+            },
+            "conflicts": {
+              "default": [],
+              "items": {
+                "additionalProperties": false,
+                "description": "A later change on an entity the rollback would touch (the target system refused).",
+                "properties": {
+                  "detail": {
+                    "minLength": 1,
+                    "title": "Detail",
+                    "type": "string"
+                  },
+                  "entity_ref": {
+                    "minLength": 1,
+                    "title": "Entity Ref",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "entity_ref",
+                  "detail"
+                ],
+                "title": "RollbackConflict",
+                "type": "object"
+              },
+              "title": "Conflicts",
+              "type": "array"
+            },
+            "ext_code": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Ext Code"
+            },
+            "ext_url": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Ext Url"
+            },
+            "status": {
+              "enum": [
+                "applying",
+                "applied",
+                "conflict",
+                "verified",
+                "rolled_back"
+              ],
+              "title": "Status",
+              "type": "string"
+            },
+            "system": {
+              "minLength": 1,
+              "title": "System",
+              "type": "string"
+            },
+            "verified": {
+              "minimum": 0,
+              "title": "Verified",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "change_set_id",
+            "system",
+            "status",
+            "applied",
+            "verified"
+          ],
+          "title": "CommitTrackerProps",
+          "type": "object"
+        },
+        "provenance": {
+          "additionalProperties": false,
+          "properties": {
+            "as_of": {
+              "format": "date",
+              "title": "As Of",
+              "type": "string"
+            },
+            "engine": {
+              "minLength": 1,
+              "title": "Engine",
+              "type": "string"
+            },
+            "inputs_hash": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Inputs Hash"
+            },
+            "kind": {
+              "description": "Where a number or statement comes from (plan §3.3).",
+              "enum": [
+                "fact",
+                "inference",
+                "assumption",
+                "simulated",
+                "decision",
+                "committed"
+              ],
+              "title": "Provenance",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "engine",
+            "as_of"
+          ],
+          "title": "BlockProvenance",
+          "type": "object"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "placement",
+        "provenance",
+        "kind",
+        "v",
+        "props"
+      ],
+      "title": "CommitTrackerBlock",
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "data_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Ref"
+        },
+        "id": {
+          "pattern": "^blk_[0-9A-Za-z_-]{1,64}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "narrative",
+          "title": "Kind",
+          "type": "string"
+        },
+        "placement": {
+          "enum": [
+            "inline",
+            "canvas"
+          ],
+          "title": "Placement",
+          "type": "string"
+        },
+        "props": {
+          "additionalProperties": false,
+          "description": "``narrative@1`` — already composed markdown (placeholders resolved).\n\n``what_changed`` (M4, omitted when unset) is the one-line \"What changed\" diff a\nfollow-up shows against the previous plan version (plain text, numbers resolved).\n\nM5 (omitted while unset/empty): ``banner`` for a signal-triggered re-plan and\n``plan_versions`` (ascending, exactly one ``current``; the banner's versions are listed).\n\nM7 (omitted while unset): ``advisory`` — the plan was built on crawled data.",
+          "properties": {
+            "advisory": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "description": "M7: the plan was built on data that is not a consistent snapshot (a tier-A crawl), so the\noptions are advisory. ``text`` is what the UI shows; ``as_of_range`` is when the data was\nread.",
+                  "properties": {
+                    "as_of_range": {
+                      "additionalProperties": false,
+                      "description": "When a crawled snapshot's data was read: the first and the last page (wire keys ``from`` /\n``to``; Python attributes ``from_`` / ``to``). ``to`` is never before ``from``.",
+                      "properties": {
+                        "from": {
+                          "format": "date-time",
+                          "title": "From",
+                          "type": "string"
+                        },
+                        "to": {
+                          "format": "date-time",
+                          "title": "To",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "from",
+                        "to"
+                      ],
+                      "title": "AsOfRange",
+                      "type": "object"
+                    },
+                    "reason": {
+                      "const": "crawled_snapshot",
+                      "title": "Reason",
+                      "type": "string"
+                    },
+                    "text": {
+                      "minLength": 1,
+                      "title": "Text",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "reason",
+                    "text",
+                    "as_of_range"
+                  ],
+                  "title": "Advisory",
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "banner": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "description": "\"New information: … — plan updated (v2)\" (M5, ``95`` §4): a re-plan triggered by a signal.\n\n``text`` is composed by a deterministic node (numbers resolved); ``signal_id`` names the\nsignal/webhook event that caused it, when there is one.",
+                  "properties": {
+                    "plan_version": {
+                      "minimum": 1,
+                      "title": "Plan Version",
+                      "type": "integer"
+                    },
+                    "previous_plan_version": {
+                      "minimum": 1,
+                      "title": "Previous Plan Version",
+                      "type": "integer"
+                    },
+                    "signal_id": {
+                      "anyOf": [
+                        {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "title": "Signal Id"
+                    },
+                    "text": {
+                      "minLength": 1,
+                      "title": "Text",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "text",
+                    "plan_version",
+                    "previous_plan_version"
+                  ],
+                  "title": "ReplanBanner",
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "markdown": {
+              "minLength": 1,
+              "title": "Markdown",
+              "type": "string"
+            },
+            "plan_versions": {
+              "default": [],
+              "items": {
+                "additionalProperties": false,
+                "description": "One entry of the plan version switcher (v1 ↔ v2).",
+                "properties": {
+                  "current": {
+                    "title": "Current",
+                    "type": "boolean"
+                  },
+                  "label": {
+                    "minLength": 1,
+                    "title": "Label",
+                    "type": "string"
+                  },
+                  "status": {
+                    "enum": [
+                      "proposed",
+                      "committed",
+                      "superseded",
+                      "rolled_back"
+                    ],
+                    "title": "Status",
+                    "type": "string"
+                  },
+                  "version": {
+                    "minimum": 1,
+                    "title": "Version",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "version",
+                  "label",
+                  "status",
+                  "current"
+                ],
+                "title": "PlanVersionLink",
+                "type": "object"
+              },
+              "title": "Plan Versions",
+              "type": "array"
+            },
+            "what_changed": {
+              "anyOf": [
+                {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "What Changed"
+            }
+          },
+          "required": [
+            "markdown"
+          ],
+          "title": "NarrativeProps",
+          "type": "object"
+        },
+        "provenance": {
+          "additionalProperties": false,
+          "properties": {
+            "as_of": {
+              "format": "date",
+              "title": "As Of",
+              "type": "string"
+            },
+            "engine": {
+              "minLength": 1,
+              "title": "Engine",
+              "type": "string"
+            },
+            "inputs_hash": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Inputs Hash"
+            },
+            "kind": {
+              "description": "Where a number or statement comes from (plan §3.3).",
+              "enum": [
+                "fact",
+                "inference",
+                "assumption",
+                "simulated",
+                "decision",
+                "committed"
+              ],
+              "title": "Provenance",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "engine",
+            "as_of"
+          ],
+          "title": "BlockProvenance",
+          "type": "object"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "placement",
+        "provenance",
+        "kind",
+        "v",
+        "props"
+      ],
+      "title": "NarrativeBlock",
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "data_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Ref"
+        },
+        "id": {
+          "pattern": "^blk_[0-9A-Za-z_-]{1,64}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "evidence_pack",
+          "title": "Kind",
+          "type": "string"
+        },
+        "placement": {
+          "enum": [
+            "inline",
+            "canvas"
+          ],
+          "title": "Placement",
+          "type": "string"
+        },
+        "props": {
+          "additionalProperties": false,
+          "description": "``evidence_pack@1`` (canvas).",
+          "properties": {
+            "items": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "pattern": "^ev_[0-9A-Za-z_-]{1,64}$",
+                    "title": "Id",
+                    "type": "string"
+                  },
+                  "label": {
+                    "minLength": 1,
+                    "title": "Label",
+                    "type": "string"
+                  },
+                  "prov": {
+                    "description": "Where a number or statement comes from (plan §3.3).",
+                    "enum": [
+                      "fact",
+                      "inference",
+                      "assumption",
+                      "simulated",
+                      "decision",
+                      "committed"
+                    ],
+                    "title": "Provenance",
+                    "type": "string"
+                  },
+                  "retrieved_at": {
+                    "format": "date-time",
+                    "title": "Retrieved At",
+                    "type": "string"
+                  },
+                  "source": {
+                    "minLength": 1,
+                    "title": "Source",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "source",
+                  "label",
+                  "prov",
+                  "retrieved_at"
+                ],
+                "title": "EvidenceItem",
+                "type": "object"
+              },
+              "title": "Items",
+              "type": "array"
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "title": "EvidencePackProps",
+          "type": "object"
+        },
+        "provenance": {
+          "additionalProperties": false,
+          "properties": {
+            "as_of": {
+              "format": "date",
+              "title": "As Of",
+              "type": "string"
+            },
+            "engine": {
+              "minLength": 1,
+              "title": "Engine",
+              "type": "string"
+            },
+            "inputs_hash": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Inputs Hash"
+            },
+            "kind": {
+              "description": "Where a number or statement comes from (plan §3.3).",
+              "enum": [
+                "fact",
+                "inference",
+                "assumption",
+                "simulated",
+                "decision",
+                "committed"
+              ],
+              "title": "Provenance",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "engine",
+            "as_of"
+          ],
+          "title": "BlockProvenance",
+          "type": "object"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "placement",
+        "provenance",
+        "kind",
+        "v",
+        "props"
+      ],
+      "title": "EvidencePackBlock",
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "data_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Ref"
+        },
+        "id": {
+          "pattern": "^blk_[0-9A-Za-z_-]{1,64}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "network_map",
+          "title": "Kind",
+          "type": "string"
+        },
+        "placement": {
+          "enum": [
+            "inline",
+            "canvas"
+          ],
+          "title": "Placement",
+          "type": "string"
+        },
+        "props": {
+          "additionalProperties": false,
+          "description": "``network_map@1`` (canvas; data in :class:`NetworkMapData` via ``data_ref``).\n\n``bbox`` is ``[west, south, east, north]`` in degrees x 1e6.",
+          "properties": {
+            "bbox": {
+              "maxItems": 4,
+              "minItems": 4,
+              "prefixItems": [
+                {
+                  "maximum": 180000000,
+                  "minimum": -180000000,
+                  "type": "integer"
+                },
+                {
+                  "maximum": 90000000,
+                  "minimum": -90000000,
+                  "type": "integer"
+                },
+                {
+                  "maximum": 180000000,
+                  "minimum": -180000000,
+                  "type": "integer"
+                },
+                {
+                  "maximum": 90000000,
+                  "minimum": -90000000,
+                  "type": "integer"
+                }
+              ],
+              "title": "Bbox",
+              "type": "array"
+            },
+            "legend": {
+              "items": {
+                "additionalProperties": false,
+                "description": "A legend entry; ``key`` is the node status / link kind / footprint label it explains.",
+                "properties": {
+                  "key": {
+                    "minLength": 1,
+                    "title": "Key",
+                    "type": "string"
+                  },
+                  "kind": {
+                    "enum": [
+                      "node",
+                      "link",
+                      "footprint"
+                    ],
+                    "title": "Kind",
+                    "type": "string"
+                  },
+                  "label": {
+                    "minLength": 1,
+                    "title": "Label",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "key",
+                  "label",
+                  "kind"
+                ],
+                "title": "MapLegendItem",
+                "type": "object"
+              },
+              "title": "Legend",
+              "type": "array"
+            },
+            "summary": {
+              "additionalProperties": false,
+              "properties": {
+                "at_risk_nodes": {
+                  "minimum": 0,
+                  "title": "At Risk Nodes",
+                  "type": "integer"
+                },
+                "lanes": {
+                  "minimum": 0,
+                  "title": "Lanes",
+                  "type": "integer"
+                },
+                "nodes": {
+                  "minimum": 0,
+                  "title": "Nodes",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "nodes",
+                "at_risk_nodes",
+                "lanes"
+              ],
+              "title": "MapSummary",
+              "type": "object"
+            },
+            "title": {
+              "title": "Title",
+              "type": "string"
+            }
+          },
+          "required": [
+            "title",
+            "summary",
+            "bbox",
+            "legend"
+          ],
+          "title": "NetworkMapProps",
+          "type": "object"
+        },
+        "provenance": {
+          "additionalProperties": false,
+          "properties": {
+            "as_of": {
+              "format": "date",
+              "title": "As Of",
+              "type": "string"
+            },
+            "engine": {
+              "minLength": 1,
+              "title": "Engine",
+              "type": "string"
+            },
+            "inputs_hash": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Inputs Hash"
+            },
+            "kind": {
+              "description": "Where a number or statement comes from (plan §3.3).",
+              "enum": [
+                "fact",
+                "inference",
+                "assumption",
+                "simulated",
+                "decision",
+                "committed"
+              ],
+              "title": "Provenance",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "engine",
+            "as_of"
+          ],
+          "title": "BlockProvenance",
+          "type": "object"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "placement",
+        "provenance",
+        "kind",
+        "v",
+        "props"
+      ],
+      "title": "NetworkMapBlock",
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "data_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Ref"
+        },
+        "id": {
+          "pattern": "^blk_[0-9A-Za-z_-]{1,64}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "impact_graph",
+          "title": "Kind",
+          "type": "string"
+        },
+        "placement": {
+          "enum": [
+            "inline",
+            "canvas"
+          ],
+          "title": "Placement",
+          "type": "string"
+        },
+        "props": {
+          "additionalProperties": false,
+          "description": "``impact_graph@1`` (canvas; data = :class:`~keelson_contracts.optimizer.ImpactGraph`,\nat most 300 nodes).",
+          "properties": {
+            "summary": {
+              "additionalProperties": false,
+              "properties": {
+                "disrupted": {
+                  "minimum": 0,
+                  "title": "Disrupted",
+                  "type": "integer"
+                },
+                "impacted": {
+                  "minimum": 0,
+                  "title": "Impacted",
+                  "type": "integer"
+                },
+                "nodes": {
+                  "minimum": 0,
+                  "title": "Nodes",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "nodes",
+                "disrupted",
+                "impacted"
+              ],
+              "title": "ImpactGraphSummary",
+              "type": "object"
+            }
+          },
+          "required": [
+            "summary"
+          ],
+          "title": "ImpactGraphProps",
+          "type": "object"
+        },
+        "provenance": {
+          "additionalProperties": false,
+          "properties": {
+            "as_of": {
+              "format": "date",
+              "title": "As Of",
+              "type": "string"
+            },
+            "engine": {
+              "minLength": 1,
+              "title": "Engine",
+              "type": "string"
+            },
+            "inputs_hash": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Inputs Hash"
+            },
+            "kind": {
+              "description": "Where a number or statement comes from (plan §3.3).",
+              "enum": [
+                "fact",
+                "inference",
+                "assumption",
+                "simulated",
+                "decision",
+                "committed"
+              ],
+              "title": "Provenance",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "engine",
+            "as_of"
+          ],
+          "title": "BlockProvenance",
+          "type": "object"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "placement",
+        "provenance",
+        "kind",
+        "v",
+        "props"
+      ],
+      "title": "ImpactGraphBlock",
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "data_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Ref"
+        },
+        "id": {
+          "pattern": "^blk_[0-9A-Za-z_-]{1,64}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "stockout_timeline",
+          "title": "Kind",
+          "type": "string"
+        },
+        "placement": {
+          "enum": [
+            "inline",
+            "canvas"
+          ],
+          "title": "Placement",
+          "type": "string"
+        },
+        "props": {
+          "additionalProperties": false,
+          "description": "``stockout_timeline@1`` (canvas; rows in :class:`StockoutTimelineData`).",
+          "properties": {
+            "options": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "minLength": 1,
+                    "title": "Id",
+                    "type": "string"
+                  },
+                  "title": {
+                    "minLength": 1,
+                    "title": "Title",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "title"
+                ],
+                "title": "TimelineOption",
+                "type": "object"
+              },
+              "title": "Options",
+              "type": "array"
+            },
+            "weeks": {
+              "items": {
+                "pattern": "^\\d{4}-W(0[1-9]|[1-4][0-9]|5[0-3])$",
+                "type": "string"
+              },
+              "minItems": 1,
+              "title": "Weeks",
+              "type": "array"
+            }
+          },
+          "required": [
+            "weeks",
+            "options"
+          ],
+          "title": "StockoutTimelineProps",
+          "type": "object"
+        },
+        "provenance": {
+          "additionalProperties": false,
+          "properties": {
+            "as_of": {
+              "format": "date",
+              "title": "As Of",
+              "type": "string"
+            },
+            "engine": {
+              "minLength": 1,
+              "title": "Engine",
+              "type": "string"
+            },
+            "inputs_hash": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Inputs Hash"
+            },
+            "kind": {
+              "description": "Where a number or statement comes from (plan §3.3).",
+              "enum": [
+                "fact",
+                "inference",
+                "assumption",
+                "simulated",
+                "decision",
+                "committed"
+              ],
+              "title": "Provenance",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "engine",
+            "as_of"
+          ],
+          "title": "BlockProvenance",
+          "type": "object"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "placement",
+        "provenance",
+        "kind",
+        "v",
+        "props"
+      ],
+      "title": "StockoutTimelineBlock",
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "data_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Ref"
+        },
+        "id": {
+          "pattern": "^blk_[0-9A-Za-z_-]{1,64}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "scenario_compare",
+          "title": "Kind",
+          "type": "string"
+        },
+        "placement": {
+          "enum": [
+            "inline",
+            "canvas"
+          ],
+          "title": "Placement",
+          "type": "string"
+        },
+        "props": {
+          "additionalProperties": false,
+          "description": "``scenario_compare@1`` (canvas): every candidate option with its scorecard.\n\nM7 (omitted while unset): ``advisory`` — the options were computed on crawled data.",
+          "properties": {
+            "advisory": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "description": "M7: the plan was built on data that is not a consistent snapshot (a tier-A crawl), so the\noptions are advisory. ``text`` is what the UI shows; ``as_of_range`` is when the data was\nread.",
+                  "properties": {
+                    "as_of_range": {
+                      "additionalProperties": false,
+                      "description": "When a crawled snapshot's data was read: the first and the last page (wire keys ``from`` /\n``to``; Python attributes ``from_`` / ``to``). ``to`` is never before ``from``.",
+                      "properties": {
+                        "from": {
+                          "format": "date-time",
+                          "title": "From",
+                          "type": "string"
+                        },
+                        "to": {
+                          "format": "date-time",
+                          "title": "To",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "from",
+                        "to"
+                      ],
+                      "title": "AsOfRange",
+                      "type": "object"
+                    },
+                    "reason": {
+                      "const": "crawled_snapshot",
+                      "title": "Reason",
+                      "type": "string"
+                    },
+                    "text": {
+                      "minLength": 1,
+                      "title": "Text",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "reason",
+                    "text",
+                    "as_of_range"
+                  ],
+                  "title": "Advisory",
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "axes": {
+              "additionalProperties": false,
+              "properties": {
+                "x": {
+                  "default": "incremental_cost_cents",
+                  "enum": [
+                    "fill_rate_bp",
+                    "lost_units",
+                    "lost_margin_cents",
+                    "incremental_cost_cents",
+                    "net_benefit_cents",
+                    "shortage_days",
+                    "first_breach_shift_days",
+                    "tts_gain_days",
+                    "changes"
+                  ],
+                  "title": "X",
+                  "type": "string"
+                },
+                "y": {
+                  "default": "lost_units",
+                  "enum": [
+                    "fill_rate_bp",
+                    "lost_units",
+                    "lost_margin_cents",
+                    "incremental_cost_cents",
+                    "net_benefit_cents",
+                    "shortage_days",
+                    "first_breach_shift_days",
+                    "tts_gain_days",
+                    "changes"
+                  ],
+                  "title": "Y",
+                  "type": "string"
+                }
+              },
+              "title": "CompareAxes",
+              "type": "object"
+            },
+            "options": {
+              "items": {
+                "additionalProperties": false,
+                "description": "A plan option on the Pareto view; guided-only options must say why.",
+                "properties": {
+                  "guided_only": {
+                    "title": "Guided Only",
+                    "type": "boolean"
+                  },
+                  "guided_reason": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Guided Reason"
+                  },
+                  "id": {
+                    "minLength": 1,
+                    "title": "Id",
+                    "type": "string"
+                  },
+                  "levers": {
+                    "items": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "title": "Levers",
+                    "type": "array"
+                  },
+                  "pareto": {
+                    "title": "Pareto",
+                    "type": "boolean"
+                  },
+                  "recommended": {
+                    "title": "Recommended",
+                    "type": "boolean"
+                  },
+                  "scorecard": {
+                    "additionalProperties": false,
+                    "description": "Plan KPIs recomputed from the rounded plan (never from the objective).",
+                    "properties": {
+                      "changes": {
+                        "minimum": 0,
+                        "title": "Changes",
+                        "type": "integer"
+                      },
+                      "cost_breakdown": {
+                        "additionalProperties": false,
+                        "description": "Incremental cost by component, in cents.",
+                        "properties": {
+                          "expedite_premium": {
+                            "minimum": 0,
+                            "title": "Expedite Premium",
+                            "type": "integer"
+                          },
+                          "nearshore_premium": {
+                            "minimum": 0,
+                            "title": "Nearshore Premium",
+                            "type": "integer"
+                          },
+                          "transfer": {
+                            "minimum": 0,
+                            "title": "Transfer",
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "transfer",
+                          "expedite_premium",
+                          "nearshore_premium"
+                        ],
+                        "title": "CostBreakdown",
+                        "type": "object"
+                      },
+                      "fill_rate_bp": {
+                        "maximum": 10000,
+                        "minimum": 0,
+                        "title": "Fill Rate Bp",
+                        "type": "integer"
+                      },
+                      "first_breach_shift_days": {
+                        "title": "First Breach Shift Days",
+                        "type": "integer"
+                      },
+                      "incremental_cost_cents": {
+                        "minimum": 0,
+                        "title": "Incremental Cost Cents",
+                        "type": "integer"
+                      },
+                      "lost_margin_cents": {
+                        "title": "Lost Margin Cents",
+                        "type": "integer"
+                      },
+                      "lost_units": {
+                        "minimum": 0,
+                        "title": "Lost Units",
+                        "type": "integer"
+                      },
+                      "net_benefit_cents": {
+                        "title": "Net Benefit Cents",
+                        "type": "integer"
+                      },
+                      "shortage_days": {
+                        "minimum": 0,
+                        "title": "Shortage Days",
+                        "type": "integer"
+                      },
+                      "tts_gain_days": {
+                        "title": "Tts Gain Days",
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "fill_rate_bp",
+                      "lost_units",
+                      "lost_margin_cents",
+                      "incremental_cost_cents",
+                      "cost_breakdown",
+                      "net_benefit_cents",
+                      "shortage_days",
+                      "first_breach_shift_days",
+                      "tts_gain_days",
+                      "changes"
+                    ],
+                    "title": "Scorecard",
+                    "type": "object"
+                  },
+                  "title": {
+                    "minLength": 1,
+                    "title": "Title",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "title",
+                  "levers",
+                  "scorecard",
+                  "recommended",
+                  "guided_only",
+                  "pareto"
+                ],
+                "title": "CompareOption",
+                "type": "object"
+              },
+              "minItems": 1,
+              "title": "Options",
+              "type": "array"
+            }
+          },
+          "required": [
+            "options"
+          ],
+          "title": "ScenarioCompareProps",
+          "type": "object"
+        },
+        "provenance": {
+          "additionalProperties": false,
+          "properties": {
+            "as_of": {
+              "format": "date",
+              "title": "As Of",
+              "type": "string"
+            },
+            "engine": {
+              "minLength": 1,
+              "title": "Engine",
+              "type": "string"
+            },
+            "inputs_hash": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Inputs Hash"
+            },
+            "kind": {
+              "description": "Where a number or statement comes from (plan §3.3).",
+              "enum": [
+                "fact",
+                "inference",
+                "assumption",
+                "simulated",
+                "decision",
+                "committed"
+              ],
+              "title": "Provenance",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "engine",
+            "as_of"
+          ],
+          "title": "BlockProvenance",
+          "type": "object"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "placement",
+        "provenance",
+        "kind",
+        "v",
+        "props"
+      ],
+      "title": "ScenarioCompareBlock",
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "data_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Ref"
+        },
+        "id": {
+          "pattern": "^blk_[0-9A-Za-z_-]{1,64}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "remediation_checklist",
+          "title": "Kind",
+          "type": "string"
+        },
+        "placement": {
+          "enum": [
+            "inline",
+            "canvas"
+          ],
+          "title": "Placement",
+          "type": "string"
+        },
+        "props": {
+          "additionalProperties": false,
+          "description": "``remediation_checklist@1`` — Guide mode: the lines the user performs by hand in\n``connector``'s UI, ticked ``verified`` by read-back (webhook or poll) or ``done``/\n``skipped`` by hand. ``progress`` must match the steps; the guide is complete when every\nstep is ``verified`` or ``skipped`` (:attr:`completed`).",
+          "properties": {
+            "checklist_id": {
+              "minLength": 1,
+              "title": "Checklist Id",
+              "type": "string"
+            },
+            "connector": {
+              "minLength": 1,
+              "title": "Connector",
+              "type": "string"
+            },
+            "progress": {
+              "additionalProperties": false,
+              "description": "``done`` = steps no longer pending (done, verified or skipped); ``total`` = all steps.",
+              "properties": {
+                "done": {
+                  "minimum": 0,
+                  "title": "Done",
+                  "type": "integer"
+                },
+                "total": {
+                  "minimum": 1,
+                  "title": "Total",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "done",
+                "total"
+              ],
+              "title": "ChecklistProgress",
+              "type": "object"
+            },
+            "steps": {
+              "items": {
+                "additionalProperties": false,
+                "description": "One manual step. ``verified`` carries ``verified_at``; only verified steps carry an\n``evidence_id`` (the read-back evidence row).",
+                "properties": {
+                  "deep_link": {
+                    "anyOf": [
+                      {
+                        "maxLength": 2000,
+                        "minLength": 1,
+                        "pattern": "^(https?://[A-Za-z0-9.-]+(:[0-9]{1,5})?(/[^\\x00-\\x20\\x7f\\\\]*)?|/([^/\\x00-\\x20\\x7f\\\\][^\\x00-\\x20\\x7f\\\\]*)?)$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Deep Link"
+                  },
+                  "evidence_id": {
+                    "anyOf": [
+                      {
+                        "pattern": "^ev_[0-9A-Za-z_-]{1,64}$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Evidence Id"
+                  },
+                  "expected": {
+                    "additionalProperties": false,
+                    "description": "What read-back must find for the step to verify: an entity of ``entity_type`` (and\n``entity_ref`` when known up front) whose fields match ``match`` (JSON, no floats).",
+                    "properties": {
+                      "entity_ref": {
+                        "anyOf": [
+                          {
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "title": "Entity Ref"
+                      },
+                      "entity_type": {
+                        "minLength": 1,
+                        "title": "Entity Type",
+                        "type": "string"
+                      },
+                      "match": {
+                        "additionalProperties": true,
+                        "title": "Match",
+                        "type": "object"
+                      }
+                    },
+                    "required": [
+                      "entity_type",
+                      "entity_ref",
+                      "match"
+                    ],
+                    "title": "ChecklistExpected",
+                    "type": "object"
+                  },
+                  "instructions_md": {
+                    "minLength": 1,
+                    "title": "Instructions Md",
+                    "type": "string"
+                  },
+                  "seq": {
+                    "minimum": 1,
+                    "title": "Seq",
+                    "type": "integer"
+                  },
+                  "status": {
+                    "enum": [
+                      "pending",
+                      "done",
+                      "verified",
+                      "skipped"
+                    ],
+                    "title": "Status",
+                    "type": "string"
+                  },
+                  "title": {
+                    "minLength": 1,
+                    "title": "Title",
+                    "type": "string"
+                  },
+                  "verified_at": {
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Verified At"
+                  }
+                },
+                "required": [
+                  "seq",
+                  "title",
+                  "instructions_md",
+                  "deep_link",
+                  "expected",
+                  "status",
+                  "verified_at",
+                  "evidence_id"
+                ],
+                "title": "ChecklistStep",
+                "type": "object"
+              },
+              "maxItems": 100,
+              "minItems": 1,
+              "title": "Steps",
+              "type": "array"
+            }
+          },
+          "required": [
+            "checklist_id",
+            "connector",
+            "steps",
+            "progress"
+          ],
+          "title": "RemediationChecklistProps",
+          "type": "object"
+        },
+        "provenance": {
+          "additionalProperties": false,
+          "properties": {
+            "as_of": {
+              "format": "date",
+              "title": "As Of",
+              "type": "string"
+            },
+            "engine": {
+              "minLength": 1,
+              "title": "Engine",
+              "type": "string"
+            },
+            "inputs_hash": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Inputs Hash"
+            },
+            "kind": {
+              "description": "Where a number or statement comes from (plan §3.3).",
+              "enum": [
+                "fact",
+                "inference",
+                "assumption",
+                "simulated",
+                "decision",
+                "committed"
+              ],
+              "title": "Provenance",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "engine",
+            "as_of"
+          ],
+          "title": "BlockProvenance",
+          "type": "object"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "placement",
+        "provenance",
+        "kind",
+        "v",
+        "props"
+      ],
+      "title": "RemediationChecklistBlock",
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "data_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Ref"
+        },
+        "id": {
+          "pattern": "^blk_[0-9A-Za-z_-]{1,64}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "alert_origin",
+          "title": "Kind",
+          "type": "string"
+        },
+        "placement": {
+          "enum": [
+            "inline",
+            "canvas"
+          ],
+          "title": "Placement",
+          "type": "string"
+        },
+        "props": {
+          "additionalProperties": false,
+          "description": "``alert_origin@1`` — the \"Opened from alert\" card at the top of a case thread.\n\nDeterministic fields copied from the Signal Hub alert/event (no LLM text): ``kind`` is the\nevent kind, ``source_names`` the attributed sources (e.g. ``GDACS``, ``Demo Freight Daily``),\n``simulated`` shows the DEMO badge.",
+          "properties": {
+            "alert_id": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "title": "Alert Id",
+              "type": "string"
+            },
+            "kind": {
+              "enum": [
+                "natural_hazard",
+                "weather",
+                "geopolitical",
+                "labor",
+                "logistics",
+                "regulatory",
+                "cyber",
+                "supplier",
+                "demand",
+                "hypothetical"
+              ],
+              "title": "Kind",
+              "type": "string"
+            },
+            "opened_at": {
+              "format": "date-time",
+              "title": "Opened At",
+              "type": "string"
+            },
+            "severity": {
+              "enum": [
+                "low",
+                "medium",
+                "high",
+                "critical"
+              ],
+              "title": "Severity",
+              "type": "string"
+            },
+            "simulated": {
+              "title": "Simulated",
+              "type": "boolean"
+            },
+            "source_names": {
+              "items": {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 20,
+              "title": "Source Names",
+              "type": "array"
+            },
+            "title": {
+              "maxLength": 300,
+              "minLength": 1,
+              "title": "Title",
+              "type": "string"
+            }
+          },
+          "required": [
+            "alert_id",
+            "title",
+            "severity",
+            "kind",
+            "source_names",
+            "simulated",
+            "opened_at"
+          ],
+          "title": "AlertOriginProps",
+          "type": "object"
+        },
+        "provenance": {
+          "additionalProperties": false,
+          "properties": {
+            "as_of": {
+              "format": "date",
+              "title": "As Of",
+              "type": "string"
+            },
+            "engine": {
+              "minLength": 1,
+              "title": "Engine",
+              "type": "string"
+            },
+            "inputs_hash": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Inputs Hash"
+            },
+            "kind": {
+              "description": "Where a number or statement comes from (plan §3.3).",
+              "enum": [
+                "fact",
+                "inference",
+                "assumption",
+                "simulated",
+                "decision",
+                "committed"
+              ],
+              "title": "Provenance",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "engine",
+            "as_of"
+          ],
+          "title": "BlockProvenance",
+          "type": "object"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "placement",
+        "provenance",
+        "kind",
+        "v",
+        "props"
+      ],
+      "title": "AlertOriginBlock",
+      "type": "object"
+    }
+  ],
+  "title": "BlockEnvelope",
+  "x-keelson-source": "keelson_contracts.blocks.BlockEnvelope"
+}

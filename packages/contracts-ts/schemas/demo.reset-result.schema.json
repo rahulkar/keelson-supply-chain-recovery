@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The reset's step log. ``ok`` is true exactly when no step failed.",
+  "properties": {
+    "duration_ms": {
+      "minimum": 0,
+      "title": "Duration Ms",
+      "type": "integer"
+    },
+    "keep_consents": {
+      "title": "Keep Consents",
+      "type": "boolean"
+    },
+    "ok": {
+      "title": "Ok",
+      "type": "boolean"
+    },
+    "started_at": {
+      "format": "date-time",
+      "title": "Started At",
+      "type": "string"
+    },
+    "steps": {
+      "items": {
+        "additionalProperties": false,
+        "description": "One step of the reset log. ``counts`` = what the step touched (e.g. rows per table);\n``detail`` = a short human-readable note (the error summary for a failed step).",
+        "properties": {
+          "counts": {
+            "additionalProperties": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Detail"
+          },
+          "duration_ms": {
+            "minimum": 0,
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "skipped",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "step": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_.-]*$",
+            "title": "Step",
+            "type": "string"
+          }
+        },
+        "required": [
+          "step",
+          "status",
+          "duration_ms"
+        ],
+        "title": "DemoResetStep",
+        "type": "object"
+      },
+      "minItems": 1,
+      "title": "Steps",
+      "type": "array"
+    }
+  },
+  "required": [
+    "ok",
+    "keep_consents",
+    "started_at",
+    "duration_ms",
+    "steps"
+  ],
+  "title": "DemoResetResult",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.demo.DemoResetResult"
+}

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "``stockout_timeline@1`` (canvas; rows in :class:`StockoutTimelineData`).",
+  "properties": {
+    "options": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "TimelineOption",
+        "type": "object"
+      },
+      "title": "Options",
+      "type": "array"
+    },
+    "weeks": {
+      "items": {
+        "pattern": "^\\d{4}-W(0[1-9]|[1-4][0-9]|5[0-3])$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Weeks",
+      "type": "array"
+    }
+  },
+  "required": [
+    "weeks",
+    "options"
+  ],
+  "title": "StockoutTimelineProps",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.blocks.StockoutTimelineProps"
+}

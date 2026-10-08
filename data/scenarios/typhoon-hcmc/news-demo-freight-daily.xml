@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SIMULATED demo data (Keelson pack typhoon-hcmc). "Demo Freight Daily" is a fictional outlet and
+     Typhoon Kestrel is a fictional storm; the .example domain is reserved and never resolves.
+     Shaped like a WordPress RSS 2.0 trade-press feed (the Signal Hub's RSS adapter keeps only the
+     headline, a <= 300 character snippet of <description> and the link; content:encoded is never read). -->
+<rss version="2.0"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:atom="http://www.w3.org/2005/Atom"
+	xmlns:sy="http://purl.org/rss/1.0/modules/syndication/">
+<channel>
+	<title>Demo Freight Daily</title>
+	<atom:link href="https://demo-freight-daily.example/feed/" rel="self" type="application/rss+xml" />
+	<link>https://demo-freight-daily.example</link>
+	<description>Fictional trade-press outlet for Keelson demo packs. Simulated news, not real events.</description>
+	<lastBuildDate>Mon, 05 Oct 2026 14:00:00 +0000</lastBuildDate>
+	<language>en-GB</language>
+	<sy:updatePeriod>hourly</sy:updatePeriod>
+	<sy:updateFrequency>1</sy:updateFrequency>
+	<item>
+		<title>Cat Lai terminal suspends operations ahead of Typhoon Kestrel</title>
+		<link>https://demo-freight-daily.example/2026/10/05/cat-lai-terminal-suspends-operations-typhoon-kestrel/</link>
+		<dc:creator><![CDATA[Demo Desk]]></dc:creator>
+		<pubDate>Mon, 05 Oct 2026 14:00:00 +0000</pubDate>
+		<category><![CDATA[Ports]]></category>
+		<category><![CDATA[Asia]]></category>
+		<guid isPermaLink="false">https://demo-freight-daily.example/?p=26101</guid>
+		<description><![CDATA[<p>Vessel operations at <strong>Cat Lai terminal</strong> in Ho Chi Minh City were suspended from 21:00 local time on Monday as Typhoon Kestrel nears the coast. Gate-in of export containers is halted until the storm passes; carriers warn of rolled bookings on Europe services.</p>]]></description>
+		<content:encoded><![CDATA[<p>Simulated article body (never stored by the Signal Hub).</p>]]></content:encoded>
+	</item>
+</channel>
+</rss>

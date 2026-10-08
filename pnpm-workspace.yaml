@@ -1,0 +1,18 @@
+# Keelson web workspace. Merxa (apps/merxa-web) is a SEPARATE product with its own lockfile and is
+# deliberately NOT part of this workspace (it must never import @keelson/*).
+packages:
+  - apps/keelson-web
+  - packages/tokens-keelson
+  - packages/ui-keelson
+  - packages/viz
+  - packages/contracts-ts
+
+# Install scripts (pnpm 10 runs none unless allowed). unrs-resolver (eslint-config-next →
+# eslint-import-resolver-typescript) ships a `napi-postinstall … check` that is not needed: its
+# prebuilt platform binding is an optionalDependency in the lockfile and is installed normally.
+# Allowing it (onlyBuiltDependencies) was tried and is NOT safe: on a fresh install (Docker build)
+# the check runs before pnpm's hidden hoisting exists, fails to resolve the binding and downloads
+# it from registry.npmjs.org despite --offline. Listing it as ignored silences the
+# "Ignored build scripts" warning without running anything.
+ignoredBuiltDependencies:
+  - unrs-resolver

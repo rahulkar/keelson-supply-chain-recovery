@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Output of the ``critic`` (tool-free). ``REVISE`` re-runs ``revise_task_ids`` once.",
+  "properties": {
+    "issues": {
+      "items": {
+        "additionalProperties": false,
+        "description": "One issue the critic found; ``task_id`` null = about the investigation as a whole.",
+        "properties": {
+          "issue": {
+            "title": "Issue",
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Id"
+          }
+        },
+        "required": [
+          "task_id",
+          "issue",
+          "severity"
+        ],
+        "title": "CritiqueIssue",
+        "type": "object"
+      },
+      "title": "Issues",
+      "type": "array"
+    },
+    "revise_task_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Revise Task Ids",
+      "type": "array"
+    },
+    "verdict": {
+      "enum": [
+        "PASS",
+        "REVISE"
+      ],
+      "title": "Verdict",
+      "type": "string"
+    }
+  },
+  "required": [
+    "verdict",
+    "issues",
+    "revise_task_ids"
+  ],
+  "title": "Critique",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.llm.Critique"
+}

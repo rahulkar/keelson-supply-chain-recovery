@@ -1,0 +1,327 @@
+{
+ "version": 1,
+ "description": "Maritime chokepoints for taxonomy framing (docs/contracts/90 §1). Codes match the 'via' codes of inbound lanes. Mentions resolve deterministically: the code or any alias, case-insensitive, punctuation and a leading 'the' ignored. 'polygon' is an approximate closed ring [[lon_e6, lat_e6], ...] (integer degrees x 1e6), illustrative only, not for navigation.",
+ "chokepoints": {
+  "SUEZ": {
+   "name": "Suez Canal",
+   "aliases": [
+    "suez",
+    "suez canal",
+    "canal de suez",
+    "suez route"
+   ],
+   "polygon": [
+    [
+     32100000,
+     31450000
+    ],
+    [
+     32650000,
+     31450000
+    ],
+    [
+     32750000,
+     29850000
+    ],
+    [
+     32350000,
+     29750000
+    ],
+    [
+     32100000,
+     31450000
+    ]
+   ]
+  },
+  "BAB_EL_MANDEB": {
+   "name": "Bab-el-Mandeb",
+   "aliases": [
+    "bab el mandeb",
+    "bab al mandab",
+    "bab el mandab",
+    "mandeb strait",
+    "strait of bab el mandeb",
+    "red sea",
+    "red sea route",
+    "gate of tears"
+   ],
+   "polygon": [
+    [
+     42900000,
+     13100000
+    ],
+    [
+     43800000,
+     13100000
+    ],
+    [
+     43800000,
+     12200000
+    ],
+    [
+     42900000,
+     12200000
+    ],
+    [
+     42900000,
+     13100000
+    ]
+   ]
+  },
+  "CAPE": {
+   "name": "Cape of Good Hope",
+   "aliases": [
+    "cape of good hope",
+    "good hope",
+    "cape route",
+    "cape good hope"
+   ],
+   "polygon": [
+    [
+     17500000,
+     -33700000
+    ],
+    [
+     20600000,
+     -33700000
+    ],
+    [
+     20600000,
+     -35900000
+    ],
+    [
+     17500000,
+     -35900000
+    ],
+    [
+     17500000,
+     -33700000
+    ]
+   ]
+  },
+  "PANAMA": {
+   "name": "Panama Canal",
+   "aliases": [
+    "panama canal",
+    "panama",
+    "canal de panama"
+   ],
+   "polygon": [
+    [
+     -80050000,
+     9450000
+    ],
+    [
+     -79450000,
+     9450000
+    ],
+    [
+     -79450000,
+     8800000
+    ],
+    [
+     -80050000,
+     8800000
+    ],
+    [
+     -80050000,
+     9450000
+    ]
+   ]
+  },
+  "MALACCA": {
+   "name": "Strait of Malacca",
+   "aliases": [
+    "strait of malacca",
+    "malacca strait",
+    "straits of malacca",
+    "malacca"
+   ],
+   "polygon": [
+    [
+     95300000,
+     6200000
+    ],
+    [
+     98500000,
+     6000000
+    ],
+    [
+     101500000,
+     3300000
+    ],
+    [
+     104400000,
+     1500000
+    ],
+    [
+     104200000,
+     1000000
+    ],
+    [
+     103300000,
+     1100000
+    ],
+    [
+     100500000,
+     2300000
+    ],
+    [
+     97500000,
+     4300000
+    ],
+    [
+     95300000,
+     5400000
+    ],
+    [
+     95300000,
+     6200000
+    ]
+   ]
+  },
+  "HORMUZ": {
+   "name": "Strait of Hormuz",
+   "aliases": [
+    "strait of hormuz",
+    "hormuz strait",
+    "hormuz",
+    "straits of hormuz"
+   ],
+   "polygon": [
+    [
+     55900000,
+     27000000
+    ],
+    [
+     57100000,
+     27000000
+    ],
+    [
+     57100000,
+     25900000
+    ],
+    [
+     55900000,
+     25900000
+    ],
+    [
+     55900000,
+     27000000
+    ]
+   ]
+  },
+  "BOSPORUS": {
+   "name": "Bosporus / Dardanelles",
+   "aliases": [
+    "bosporus",
+    "bosphorus",
+    "istanbul strait",
+    "dardanelles",
+    "turkish straits",
+    "bosporus strait"
+   ],
+   "polygon": [
+    [
+     26100000,
+     40000000
+    ],
+    [
+     26300000,
+     40500000
+    ],
+    [
+     27500000,
+     40750000
+    ],
+    [
+     28900000,
+     41300000
+    ],
+    [
+     29200000,
+     41300000
+    ],
+    [
+     29150000,
+     40950000
+    ],
+    [
+     27600000,
+     40400000
+    ],
+    [
+     26600000,
+     40000000
+    ],
+    [
+     26100000,
+     40000000
+    ]
+   ]
+  },
+  "GIBRALTAR": {
+   "name": "Strait of Gibraltar",
+   "aliases": [
+    "strait of gibraltar",
+    "gibraltar strait",
+    "gibraltar",
+    "straits of gibraltar"
+   ],
+   "polygon": [
+    [
+     -6100000,
+     36200000
+    ],
+    [
+     -5200000,
+     36200000
+    ],
+    [
+     -5200000,
+     35800000
+    ],
+    [
+     -6100000,
+     35800000
+    ],
+    [
+     -6100000,
+     36200000
+    ]
+   ]
+  },
+  "DOVER": {
+   "name": "Strait of Dover",
+   "aliases": [
+    "strait of dover",
+    "dover strait",
+    "english channel",
+    "pas de calais",
+    "dover"
+   ],
+   "polygon": [
+    [
+     900000,
+     51300000
+    ],
+    [
+     2200000,
+     51300000
+    ],
+    [
+     2200000,
+     50700000
+    ],
+    [
+     900000,
+     50700000
+    ],
+    [
+     900000,
+     51300000
+    ]
+   ]
+  }
+ }
+}

@@ -1,0 +1,197 @@
+# Keelson / Merxa edge proxy (dev). Contract: docs/contracts/00-overview.md "Hostnames".
+#
+# * HTTP only (auto_https off), listening on :80 in the container (published as host :80).
+# * Inside the compose networks the same hostnames resolve to this container through
+#   network aliases, so OIDC issuers are identical for browsers and services.
+# * reverse_proxy keeps the original Host header and sets X-Forwarded-For/-Proto/-Host
+#   itself; incoming X-Forwarded-* from clients are NOT trusted (no trusted_proxies),
+#   so Keycloak (KC_PROXY_HEADERS=xforwarded) always sees values written by Caddy.
+# * Upstreams can be overridden with env vars (e.g. a host-dev overlay pointing the web
+#   apps to host.docker.internal); defaults are the compose service names.
+{
+	auto_https off
+	admin 127.0.0.1:2019
+	servers {
+		# Long-lived SSE / MCP streams: no read/write timeouts for proxied bodies.
+		timeouts {
+			read_header 30s
+			idle 5m
+		}
+	}
+	log {
+		output stdout
+		format json
+		level INFO
+	}
+}
+
+# Host and X-Forwarded-For/-Proto/-Host are passed/set by reverse_proxy by default.
+# NOTE: only real placeholders here - an unknown one (e.g. {server_port}) is sent as a
+# literal string, which Keycloak's forwarded-header parser rejects on every request.
+# {http.request.local.port} is the port Caddy accepted the connection on (80).
+(proxy_headers) {
+	header_up X-Forwarded-Port {http.request.local.port}
+	header_up X-Real-IP {remote_host}
+}
+
+# Access log (JSON). Caddy already redacts Cookie/Set-Cookie/Authorization; also drop the
+# credential-bearing headers of our own contracts (X-Demo-Access = DEMO_ACCESS_SECRET,
+# X-CSRF-Token) and one-time values in query strings: OAuth authorization codes and the
+# console handoff ticket (/__keelson/handoff?ticket=..., a 60 s single-use bearer credential).
+# The same values also travel in redirect Location headers (Keycloak -> ...?code=,
+# /api/console/handoff -> .../__keelson/handoff?ticket=), which Caddy logs as resp_headers.
+(access_log) {
+	log {
+		format filter {
+			wrap json
+			request>headers>X-Demo-Access replace REDACTED
+			request>headers>X-Csrf-Token replace REDACTED
+			request>headers>Proxy-Authorization replace REDACTED
+			request>uri query {
+				replace code REDACTED
+				replace session_state REDACTED
+				replace ticket REDACTED
+			}
+			resp_headers>Location query {
+				replace code REDACTED
+				replace session_state REDACTED
+				replace ticket REDACTED
+			}
+		}
+	}
+}
+
+(common) {
+	import access_log
+	header {
+		-Server
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+}
+
+# forward_auth guard for platform-admin-only consoles. engine-api answers 2xx (allow),
+# 401 or 403 - anything non-2xx is returned to the client as-is (fail closed when
+# engine-api is down: 502).
+(platform_admin_only) {
+	forward_auth {$ENGINE_API_UPSTREAM:engine-api:8000} {
+		uri /api/internal/forward-auth?role=platform-admin
+		copy_headers X-Auth-User X-Auth-Roles
+	}
+}
+
+# ── Keelson web + engine API ────────────────────────────────────────────────────
+http://keelson.localhost {
+	import common
+
+	# API bypasses Next.js; no response buffering (SSE).
+	@api path /api /api/*
+	handle @api {
+		reverse_proxy {$ENGINE_API_UPSTREAM:engine-api:8000} {
+			import proxy_headers
+			flush_interval -1
+		}
+	}
+
+	handle {
+		encode zstd gzip
+		reverse_proxy {$KEELSON_WEB_UPSTREAM:keelson-web:3000} {
+			import proxy_headers
+		}
+	}
+}
+
+# ── Merxa (third-party mock ERP) ────────────────────────────────────────────────
+http://merxa.localhost {
+	import common
+
+	# MCP (streamable HTTP) - never buffer.
+	@mcp path /mcp /mcp/* /mcp-lite*
+	handle @mcp {
+		reverse_proxy {$MERXA_API_UPSTREAM:merxa-api:8100} {
+			import proxy_headers
+			flush_interval -1
+		}
+	}
+
+	@merxa_api path /v1/* /.well-known/*
+	handle @merxa_api {
+		reverse_proxy {$MERXA_API_UPSTREAM:merxa-api:8100} {
+			import proxy_headers
+			flush_interval -1
+		}
+	}
+
+	handle {
+		encode zstd gzip
+		reverse_proxy {$MERXA_WEB_UPSTREAM:merxa-web:3001} {
+			import proxy_headers
+		}
+	}
+}
+
+# ── Keycloak ─────────────────────────────────────────────────────────────────
+http://auth.localhost {
+	import common
+
+	# Admin console/API and the master realm are not public unless DEV_ALLOW_KC_ADMIN=1.
+	# Services use http://keycloak:8080 directly for the admin API.
+	@kc_admin {
+		path /admin /admin/* /realms/master /realms/master/*
+		expression `"{$DEV_ALLOW_KC_ADMIN:0}" != "1"`
+	}
+	handle @kc_admin {
+		respond "Forbidden" 403
+	}
+
+	handle {
+		reverse_proxy {$KEYCLOAK_UPSTREAM:keycloak:8080} {
+			import proxy_headers
+		}
+	}
+}
+
+# Console handoff (engine-api): keelson_session is host-only on keelson.localhost, so the
+# browser never sends it to the console hosts. GET /api/console/handoff (platform-admin)
+# redirects to <console>/__keelson/handoff?ticket=... (60 s, single use); engine-api turns
+# the ticket into a host-only keelson_console cookie that forward_auth then accepts.
+# /__keelson/* is therefore routed to engine-api WITHOUT forward_auth (it authenticates
+# the ticket itself and never proxies to the console).
+(console_handoff) {
+	handle /__keelson/* {
+		reverse_proxy {$ENGINE_API_UPSTREAM:engine-api:8000} {
+			import proxy_headers
+		}
+	}
+}
+
+# ── LiteLLM console (platform-admin only) ───────────────────────────────────────
+http://gateway.localhost {
+	import common
+	import console_handoff
+	handle {
+		import platform_admin_only
+		reverse_proxy {$LITELLM_UPSTREAM:litellm:4000} {
+			import proxy_headers
+			flush_interval -1
+		}
+	}
+}
+
+# ── Phoenix traces (profile obs; platform-admin only) ─────────────────────────────
+http://traces.localhost {
+	import common
+	import console_handoff
+	handle {
+		import platform_admin_only
+		reverse_proxy {$PHOENIX_UPSTREAM:phoenix:6006} {
+			import proxy_headers
+		}
+	}
+}
+
+# Anything else on :80 (unknown Host, raw IP) - no default site.
+http:// {
+	import access_log
+	respond "Unknown host" 404
+}

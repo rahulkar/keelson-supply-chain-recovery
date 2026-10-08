@@ -1,0 +1,33 @@
+{
+  "name": "@keelson/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Keelson wire contracts for the web: Zod schemas generated from packages/contracts-ts/schemas (render blocks, metadata.sc, interrupts) and an AG-UI 1.0 event parser.",
+  "type": "module",
+  "sideEffects": false,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schemas/*": "./schemas/*",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "generate": "node scripts/gen-zod.mjs",
+    "prebuild": "node scripts/gen-zod.mjs",
+    "build": "node scripts/gen-zod.mjs --check",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ag-ui/core": "1.0.2",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.1",
+    "json-schema-to-zod": "2.8.1",
+    "typescript": "5.9.3",
+    "vite": "8.3.2",
+    "vitest": "5.0.3"
+  }
+}

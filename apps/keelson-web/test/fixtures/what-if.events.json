@@ -1,0 +1,2140 @@
+{
+ "source": "Recorded from keelson_engine.runtime.translator via the engine test harness: hypothetical chat (auto-confirmed what-if) -> apply refused for a what-if case. metadata.sc.seq is set the way core.events.EventBus stores/streams it (persisted: the run_event id; live-only: absent). metadata.sc.runId is set on every event as the engine emits it since ScMetadata.run_id was added (the recording's run_id).",
+ "case_id": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+ "runs": [
+  [
+   "chat_what_if",
+   "019a0c50-0000-7000-8000-000000000001"
+  ],
+  [
+   "action_refused",
+   "019a0c50-0000-7000-8000-000000000002"
+  ]
+ ],
+ "events": [
+  {
+   "seq": 1,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "RUN_STARTED",
+    "threadId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+    "runId": "019a0c50-0000-7000-8000-000000000001",
+    "protocolVersion": "1.0",
+    "timestamp": 1791256920151,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 1,
+      "stage": "understanding",
+      "prov": "fact",
+      "label": "Run started",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 2,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "STEP_STARTED",
+    "stepName": "understanding",
+    "timestamp": 1791256921378,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 2,
+      "stage": "understanding",
+      "prov": "fact",
+      "label": "Understanding",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 3,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "SUBAGENT_STARTED",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/intake@1",
+    "name": "intake",
+    "description": "Intake",
+    "timestamp": 1791256921378,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 3,
+      "stage": "understanding",
+      "prov": "inference",
+      "label": "Intake started",
+      "agent": "intake",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 4,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "REASONING_START",
+    "messageId": "rsn_019a0c50-0000-7000-8000-000000000001_3",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/intake@1",
+    "timestamp": 1791256921378,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 4,
+      "stage": "understanding",
+      "prov": "inference",
+      "label": "Thinking",
+      "agent": "intake",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 5,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "REASONING_MESSAGE_START",
+    "messageId": "rsn_019a0c50-0000-7000-8000-000000000001_3",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/intake@1",
+    "role": "reasoning",
+    "timestamp": 1791256921378,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 5,
+      "stage": "understanding",
+      "prov": "inference",
+      "label": "Thinking",
+      "agent": "intake",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 0,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": false,
+   "live": true,
+   "event": {
+    "type": "REASONING_MESSAGE_CONTENT",
+    "messageId": "rsn_019a0c50-0000-7000-8000-000000000001_3",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/intake@1",
+    "delta": "The user reports a suppl",
+    "timestamp": 1791256921379,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "stage": "understanding",
+      "prov": "inference",
+      "label": "Thinking",
+      "agent": "intake",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 0,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": false,
+   "live": true,
+   "event": {
+    "type": "REASONING_MESSAGE_CONTENT",
+    "messageId": "rsn_019a0c50-0000-7000-8000-000000000001_3",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/intake@1",
+    "delta": "ier trim delay.",
+    "timestamp": 1791256921379,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "stage": "understanding",
+      "prov": "inference",
+      "label": "Thinking",
+      "agent": "intake",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 6,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": false,
+   "event": {
+    "type": "REASONING_MESSAGE_CONTENT",
+    "messageId": "rsn_019a0c50-0000-7000-8000-000000000001_3",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/intake@1",
+    "delta": "The user reports a supplier trim delay.",
+    "timestamp": 1791256921404,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 6,
+      "stage": "understanding",
+      "prov": "inference",
+      "label": "Thinking",
+      "agent": "intake",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 7,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "REASONING_MESSAGE_END",
+    "messageId": "rsn_019a0c50-0000-7000-8000-000000000001_3",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/intake@1",
+    "timestamp": 1791256921404,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 7,
+      "stage": "understanding",
+      "prov": "inference",
+      "label": "Thinking",
+      "agent": "intake",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 8,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "REASONING_END",
+    "messageId": "rsn_019a0c50-0000-7000-8000-000000000001_3",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/intake@1",
+    "timestamp": 1791256921404,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 8,
+      "stage": "understanding",
+      "prov": "inference",
+      "label": "Thinking",
+      "agent": "intake",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 9,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "SUBAGENT_FINISHED",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/intake@1",
+    "outcome": {
+     "type": "success"
+    },
+    "timestamp": 1791256921404,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 9,
+      "stage": "understanding",
+      "prov": "inference",
+      "label": "Intake finished",
+      "agent": "intake",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 10,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "CUSTOM",
+    "name": "sc.case.updated",
+    "value": {
+     "mode": "what_if",
+     "status": "open",
+     "title": "Trim delay"
+    },
+    "timestamp": 1791256921655,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 10,
+      "stage": "understanding",
+      "prov": "decision",
+      "label": "Case updated",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 11,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "STEP_FINISHED",
+    "stepName": "understanding",
+    "timestamp": 1791256921745,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 11,
+      "stage": "understanding",
+      "prov": "fact",
+      "label": "Understanding",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 12,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "STEP_STARTED",
+    "stepName": "measuring_impact",
+    "timestamp": 1791256921745,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 12,
+      "stage": "measuring_impact",
+      "prov": "fact",
+      "label": "Measuring impact",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 13,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "ACTIVITY_SNAPSHOT",
+    "messageId": "blk_cb27b7d9cd47c5ee954efe643933827e",
+    "activityType": "sc.render",
+    "content": {
+     "id": "blk_cb27b7d9cd47c5ee954efe643933827e",
+     "title": "Exposure (preliminary)",
+     "placement": "inline",
+     "provenance": {
+      "kind": "simulated",
+      "engine": "keelson-opt@0.1",
+      "inputs_hash": "e574fb1d6df7746b7bfdc778ad81543012d14b6b53b6918260a28bd2b2f7195d",
+      "as_of": "2026-10-05"
+     },
+     "data_ref": null,
+     "kind": "kpi_strip",
+     "v": 1,
+     "props": {
+      "items": [
+       {
+        "key": "units_at_risk",
+        "label": "Units at risk",
+        "value": 1200,
+        "unit": "units",
+        "delta": 1200,
+        "prov": "simulated",
+        "preliminary": true
+       },
+       {
+        "key": "revenue_at_risk_cents",
+        "label": "Revenue at risk",
+        "value": 3000000,
+        "unit": "eur_cents",
+        "delta": 3000000,
+        "prov": "simulated",
+        "preliminary": true
+       },
+       {
+        "key": "margin_at_risk_cents",
+        "label": "Margin at risk",
+        "value": 1920000,
+        "unit": "eur_cents",
+        "delta": 1920000,
+        "prov": "simulated",
+        "preliminary": true
+       },
+       {
+        "key": "shortage_cluster_weeks",
+        "label": "Short cluster-weeks",
+        "value": 2,
+        "unit": "count",
+        "delta": 2,
+        "prov": "simulated",
+        "preliminary": true
+       }
+      ]
+     }
+    },
+    "replace": true,
+    "timestamp": 1791256921746,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 13,
+      "stage": "measuring_impact",
+      "prov": "simulated",
+      "label": "Exposure (preliminary)",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 14,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "STEP_FINISHED",
+    "stepName": "measuring_impact",
+    "timestamp": 1791256921825,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 14,
+      "stage": "measuring_impact",
+      "prov": "fact",
+      "label": "Measuring impact",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 15,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "STEP_STARTED",
+    "stepName": "understanding",
+    "timestamp": 1791256921825,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 15,
+      "stage": "understanding",
+      "prov": "fact",
+      "label": "Understanding",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 16,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "ACTIVITY_SNAPSHOT",
+    "messageId": "blk_6c96e5c10a42a80aaed299865784365e",
+    "activityType": "sc.render",
+    "content": {
+     "id": "blk_6c96e5c10a42a80aaed299865784365e",
+     "title": "How I will approach this",
+     "placement": "inline",
+     "provenance": {
+      "kind": "inference",
+      "engine": "keelson-frame@0.1",
+      "inputs_hash": null,
+      "as_of": "2026-10-05"
+     },
+     "data_ref": null,
+     "kind": "approach_card",
+     "v": 1,
+     "props": {
+      "interrupt_id": "approach-019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51-1",
+      "event": {
+       "family": "SUP",
+       "type": "trim_delay",
+       "description": "Meghna Trims reports delayed trims for puffer jackets",
+       "source": "chat"
+      },
+      "mode": "what_if",
+      "matched": {
+       "count": 3,
+       "sample": [
+        {
+         "type": "supplier",
+         "code": "TRIM-BD-01",
+         "label": "Meghna Trims Ltd"
+        },
+        {
+         "type": "po",
+         "code": "PO-BD-0001",
+         "label": "Purchase order PO-BD-0001"
+        },
+        {
+         "type": "po",
+         "code": "PO-BD-0002",
+         "label": "Purchase order PO-BD-0002"
+        }
+       ]
+      },
+      "assumptions": [
+       {
+        "key": "delay_days",
+        "label": "Delay",
+        "value_text": "21 days",
+        "prov": "decision"
+       },
+       {
+        "key": "affected_receipts",
+        "label": "Affected purchase-order lines",
+        "value_text": "4 open lines on PO-BD-0001, PO-BD-0002",
+        "prov": "fact"
+       }
+      ],
+      "checks": [
+       "Open purchase orders and lines in Merxa",
+       "DC and store inventory (ATP) in Merxa",
+       "Demand forecast 2026-W41 to 2026-W49",
+       "Transfer lanes between your DCs"
+      ],
+      "buttons": [
+       "confirm",
+       "edit",
+       "what_if",
+       "cancel"
+      ]
+     }
+    },
+    "replace": true,
+    "timestamp": 1791256921826,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 16,
+      "stage": "understanding",
+      "prov": "inference",
+      "label": "How I will approach this",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 17,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "STEP_FINISHED",
+    "stepName": "understanding",
+    "timestamp": 1791256922040,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 17,
+      "stage": "understanding",
+      "prov": "fact",
+      "label": "Understanding",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 18,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "STEP_STARTED",
+    "stepName": "checking_systems",
+    "timestamp": 1791256922040,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 18,
+      "stage": "checking_systems",
+      "prov": "fact",
+      "label": "Checking your systems",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 19,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "SUBAGENT_STARTED",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/investigate@1/inventory_demand@task-inventory_demand-r1",
+    "name": "inventory_demand",
+    "description": "Inventory & demand analyst",
+    "timestamp": 1791256922041,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 19,
+      "stage": "checking_systems",
+      "prov": "inference",
+      "label": "Inventory & demand analyst started",
+      "agent": "inventory_demand",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 20,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "TOOL_CALL_START",
+    "toolCallId": "fc-1",
+    "toolCallName": "get_inventory",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/investigate@1/inventory_demand@task-inventory_demand-r1",
+    "timestamp": 1791256922075,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 20,
+      "stage": "checking_systems",
+      "prov": "fact",
+      "label": "Checking get inventory in Merxa",
+      "agent": "inventory_demand",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 21,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "TOOL_CALL_END",
+    "toolCallId": "fc-1",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/investigate@1/inventory_demand@task-inventory_demand-r1",
+    "timestamp": 1791256922075,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 21,
+      "stage": "checking_systems",
+      "prov": "fact",
+      "label": "Checking get inventory in Merxa",
+      "agent": "inventory_demand",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 22,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "TOOL_CALL_START",
+    "toolCallId": "fc-2",
+    "toolCallName": "get_demand_forecast",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/investigate@1/inventory_demand@task-inventory_demand-r1",
+    "timestamp": 1791256922076,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 22,
+      "stage": "checking_systems",
+      "prov": "fact",
+      "label": "Checking get demand forecast in Merxa",
+      "agent": "inventory_demand",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 23,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "TOOL_CALL_END",
+    "toolCallId": "fc-2",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/investigate@1/inventory_demand@task-inventory_demand-r1",
+    "timestamp": 1791256922076,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 23,
+      "stage": "checking_systems",
+      "prov": "fact",
+      "label": "Checking get demand forecast in Merxa",
+      "agent": "inventory_demand",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 24,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "TOOL_CALL_RESULT",
+    "messageId": "fc-1:result",
+    "toolCallId": "fc-1",
+    "content": "Read 8 inventory positions from Merxa",
+    "role": "tool",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/investigate@1/inventory_demand@task-inventory_demand-r1",
+    "timestamp": 1791256922131,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 24,
+      "stage": "checking_systems",
+      "prov": "fact",
+      "label": "Read 8 inventory positions from Merxa",
+      "agent": "inventory_demand",
+      "evidenceRefs": [
+       "ev_01a10f3b87f470f7a0e52d8bb4bf10de"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "seq": 25,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "TOOL_CALL_RESULT",
+    "messageId": "fc-2:result",
+    "toolCallId": "fc-2",
+    "content": "Read 4 demand forecast rows from Merxa",
+    "role": "tool",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/investigate@1/inventory_demand@task-inventory_demand-r1",
+    "timestamp": 1791256922131,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 25,
+      "stage": "checking_systems",
+      "prov": "fact",
+      "label": "Read 4 demand forecast rows from Merxa",
+      "agent": "inventory_demand",
+      "evidenceRefs": [
+       "ev_01a10f3b87f171eab380316bc6f0fa59"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "seq": 26,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "REASONING_START",
+    "messageId": "rsn_019a0c50-0000-7000-8000-000000000001_27",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/investigate@1/inventory_demand@task-inventory_demand-r1",
+    "timestamp": 1791256922140,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 26,
+      "stage": "checking_systems",
+      "prov": "inference",
+      "label": "Thinking",
+      "agent": "inventory_demand",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 27,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "REASONING_MESSAGE_START",
+    "messageId": "rsn_019a0c50-0000-7000-8000-000000000001_27",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/investigate@1/inventory_demand@task-inventory_demand-r1",
+    "role": "reasoning",
+    "timestamp": 1791256922141,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 27,
+      "stage": "checking_systems",
+      "prov": "inference",
+      "label": "Thinking",
+      "agent": "inventory_demand",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 0,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": false,
+   "live": true,
+   "event": {
+    "type": "REASONING_MESSAGE_CONTENT",
+    "messageId": "rsn_019a0c50-0000-7000-8000-000000000001_27",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/investigate@1/inventory_demand@task-inventory_demand-r1",
+    "delta": "Checking stock against f",
+    "timestamp": 1791256922141,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "stage": "checking_systems",
+      "prov": "inference",
+      "label": "Thinking",
+      "agent": "inventory_demand",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 0,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": false,
+   "live": true,
+   "event": {
+    "type": "REASONING_MESSAGE_CONTENT",
+    "messageId": "rsn_019a0c50-0000-7000-8000-000000000001_27",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/investigate@1/inventory_demand@task-inventory_demand-r1",
+    "delta": "orecast.",
+    "timestamp": 1791256922141,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "stage": "checking_systems",
+      "prov": "inference",
+      "label": "Thinking",
+      "agent": "inventory_demand",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 28,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": false,
+   "event": {
+    "type": "REASONING_MESSAGE_CONTENT",
+    "messageId": "rsn_019a0c50-0000-7000-8000-000000000001_27",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/investigate@1/inventory_demand@task-inventory_demand-r1",
+    "delta": "Checking stock against forecast.",
+    "timestamp": 1791256922168,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 28,
+      "stage": "checking_systems",
+      "prov": "inference",
+      "label": "Thinking",
+      "agent": "inventory_demand",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 29,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "REASONING_MESSAGE_END",
+    "messageId": "rsn_019a0c50-0000-7000-8000-000000000001_27",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/investigate@1/inventory_demand@task-inventory_demand-r1",
+    "timestamp": 1791256922168,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 29,
+      "stage": "checking_systems",
+      "prov": "inference",
+      "label": "Thinking",
+      "agent": "inventory_demand",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 30,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "REASONING_END",
+    "messageId": "rsn_019a0c50-0000-7000-8000-000000000001_27",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/investigate@1/inventory_demand@task-inventory_demand-r1",
+    "timestamp": 1791256922169,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 30,
+      "stage": "checking_systems",
+      "prov": "inference",
+      "label": "Thinking",
+      "agent": "inventory_demand",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 31,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "SUBAGENT_FINISHED",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/investigate@1/inventory_demand@task-inventory_demand-r1",
+    "outcome": {
+     "type": "success"
+    },
+    "timestamp": 1791256922308,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 31,
+      "stage": "checking_systems",
+      "prov": "inference",
+      "label": "Inventory & demand analyst finished",
+      "agent": "inventory_demand",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 32,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "STEP_FINISHED",
+    "stepName": "checking_systems",
+    "timestamp": 1791256922410,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 32,
+      "stage": "checking_systems",
+      "prov": "fact",
+      "label": "Checking your systems",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 33,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "STEP_STARTED",
+    "stepName": "measuring_impact",
+    "timestamp": 1791256922410,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 33,
+      "stage": "measuring_impact",
+      "prov": "fact",
+      "label": "Measuring impact",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 34,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "ACTIVITY_SNAPSHOT",
+    "messageId": "blk_cb27b7d9cd47c5ee954efe643933827e",
+    "activityType": "sc.render",
+    "content": {
+     "id": "blk_cb27b7d9cd47c5ee954efe643933827e",
+     "title": "Exposure",
+     "placement": "inline",
+     "provenance": {
+      "kind": "simulated",
+      "engine": "keelson-opt@0.1",
+      "inputs_hash": "e574fb1d6df7746b7bfdc778ad81543012d14b6b53b6918260a28bd2b2f7195d",
+      "as_of": "2026-10-05"
+     },
+     "data_ref": null,
+     "kind": "kpi_strip",
+     "v": 1,
+     "props": {
+      "items": [
+       {
+        "key": "units_at_risk",
+        "label": "Units at risk",
+        "value": 1200,
+        "unit": "units",
+        "delta": 1200,
+        "prov": "simulated",
+        "preliminary": false
+       },
+       {
+        "key": "revenue_at_risk_cents",
+        "label": "Revenue at risk",
+        "value": 3000000,
+        "unit": "eur_cents",
+        "delta": 3000000,
+        "prov": "simulated",
+        "preliminary": false
+       },
+       {
+        "key": "margin_at_risk_cents",
+        "label": "Margin at risk",
+        "value": 1920000,
+        "unit": "eur_cents",
+        "delta": 1920000,
+        "prov": "simulated",
+        "preliminary": false
+       },
+       {
+        "key": "shortage_cluster_weeks",
+        "label": "Short cluster-weeks",
+        "value": 2,
+        "unit": "count",
+        "delta": 2,
+        "prov": "simulated",
+        "preliminary": false
+       }
+      ]
+     }
+    },
+    "replace": true,
+    "timestamp": 1791256922411,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 34,
+      "stage": "measuring_impact",
+      "prov": "simulated",
+      "label": "Exposure",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 35,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "STEP_FINISHED",
+    "stepName": "measuring_impact",
+    "timestamp": 1791256922557,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 35,
+      "stage": "measuring_impact",
+      "prov": "fact",
+      "label": "Measuring impact",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 36,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "STEP_STARTED",
+    "stepName": "building_options",
+    "timestamp": 1791256922558,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 36,
+      "stage": "building_options",
+      "prov": "fact",
+      "label": "Building options",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 37,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "SUBAGENT_STARTED",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/recommend@1",
+    "name": "recommender",
+    "description": "Strategist",
+    "timestamp": 1791256922619,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 37,
+      "stage": "building_options",
+      "prov": "inference",
+      "label": "Strategist started",
+      "agent": "recommender",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 38,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "REASONING_START",
+    "messageId": "rsn_019a0c50-0000-7000-8000-000000000001_41",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/recommend@1",
+    "timestamp": 1791256922619,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 38,
+      "stage": "building_options",
+      "prov": "inference",
+      "label": "Thinking",
+      "agent": "recommender",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 39,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "REASONING_MESSAGE_START",
+    "messageId": "rsn_019a0c50-0000-7000-8000-000000000001_41",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/recommend@1",
+    "role": "reasoning",
+    "timestamp": 1791256922619,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 39,
+      "stage": "building_options",
+      "prov": "inference",
+      "label": "Thinking",
+      "agent": "recommender",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 0,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": false,
+   "live": true,
+   "event": {
+    "type": "REASONING_MESSAGE_CONTENT",
+    "messageId": "rsn_019a0c50-0000-7000-8000-000000000001_41",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/recommend@1",
+    "delta": "Rebalancing beats doing ",
+    "timestamp": 1791256922620,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "stage": "building_options",
+      "prov": "inference",
+      "label": "Thinking",
+      "agent": "recommender",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 0,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": false,
+   "live": true,
+   "event": {
+    "type": "REASONING_MESSAGE_CONTENT",
+    "messageId": "rsn_019a0c50-0000-7000-8000-000000000001_41",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/recommend@1",
+    "delta": "nothing.",
+    "timestamp": 1791256922620,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "stage": "building_options",
+      "prov": "inference",
+      "label": "Thinking",
+      "agent": "recommender",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 40,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": false,
+   "event": {
+    "type": "REASONING_MESSAGE_CONTENT",
+    "messageId": "rsn_019a0c50-0000-7000-8000-000000000001_41",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/recommend@1",
+    "delta": "Rebalancing beats doing nothing.",
+    "timestamp": 1791256922644,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 40,
+      "stage": "building_options",
+      "prov": "inference",
+      "label": "Thinking",
+      "agent": "recommender",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 41,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "REASONING_MESSAGE_END",
+    "messageId": "rsn_019a0c50-0000-7000-8000-000000000001_41",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/recommend@1",
+    "timestamp": 1791256922644,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 41,
+      "stage": "building_options",
+      "prov": "inference",
+      "label": "Thinking",
+      "agent": "recommender",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 42,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "REASONING_END",
+    "messageId": "rsn_019a0c50-0000-7000-8000-000000000001_41",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/recommend@1",
+    "timestamp": 1791256922644,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 42,
+      "stage": "building_options",
+      "prov": "inference",
+      "label": "Thinking",
+      "agent": "recommender",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 43,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "SUBAGENT_FINISHED",
+    "subagentRunId": "e-019a0c50-0000-7000-8000-000000000001:keelson@1/recommend@1",
+    "outcome": {
+     "type": "success"
+    },
+    "timestamp": 1791256922645,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 43,
+      "stage": "building_options",
+      "prov": "inference",
+      "label": "Strategist finished",
+      "agent": "recommender",
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 44,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "STEP_FINISHED",
+    "stepName": "building_options",
+    "timestamp": 1791256922734,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 44,
+      "stage": "building_options",
+      "prov": "fact",
+      "label": "Building options",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 45,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "STEP_STARTED",
+    "stepName": "ready_for_review",
+    "timestamp": 1791256922734,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 45,
+      "stage": "ready_for_review",
+      "prov": "fact",
+      "label": "Ready for review",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 46,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "ACTIVITY_SNAPSHOT",
+    "messageId": "blk_6f02630b6fe9d0b5696a11affbcc4f69",
+    "activityType": "sc.render",
+    "content": {
+     "id": "blk_6f02630b6fe9d0b5696a11affbcc4f69",
+     "title": "Recommended option",
+     "placement": "inline",
+     "provenance": {
+      "kind": "simulated",
+      "engine": "keelson-compose@0.1",
+      "inputs_hash": "9e43fa8603d2e7e662d270ce091b55a34955e264484069a022396c23df6a34ee",
+      "as_of": "2026-10-05"
+     },
+     "data_ref": null,
+     "kind": "recommended_option",
+     "v": 1,
+     "props": {
+      "plan_version": 1,
+      "option": {
+       "id": "opt-A",
+       "title": "Rebalance between DCs",
+       "summary_bullets": [
+        "Moves 300 units from DE1 to NL1 and recovers 280 units.",
+        "Net benefit is €4,375 after transfer costs."
+       ],
+       "kpis": [
+        {
+         "key": "units_recovered",
+         "label": "Units recovered",
+         "value": 280,
+         "unit": "units",
+         "delta": null,
+         "prov": "simulated",
+         "preliminary": false
+        },
+        {
+         "key": "net_benefit_cents",
+         "label": "Net benefit",
+         "value": 437500,
+         "unit": "eur_cents",
+         "delta": null,
+         "prov": "simulated",
+         "preliminary": false
+        },
+        {
+         "key": "transfer_cost_cents",
+         "label": "Transfer cost",
+         "value": 10500,
+         "unit": "eur_cents",
+         "delta": null,
+         "prov": "simulated",
+         "preliminary": false
+        },
+        {
+         "key": "units_at_risk",
+         "label": "Units still at risk",
+         "value": 920,
+         "unit": "units",
+         "delta": null,
+         "prov": "simulated",
+         "preliminary": false
+        }
+       ]
+      },
+      "alternatives": [
+       {
+        "id": "do-nothing",
+        "title": "Do nothing",
+        "one_liner": "Leaves 1,200 units at risk."
+       }
+      ],
+      "actions": [
+       {
+        "type": "apply",
+        "label": "Apply changes for me",
+        "enabled": false,
+        "disabled_reason": "This is a what-if case: promote it to an actual case before applying changes."
+       },
+       {
+        "type": "guide",
+        "label": "Guide me",
+        "enabled": false,
+        "disabled_reason": "Guided manual steps are not available in this release."
+       }
+      ]
+     }
+    },
+    "replace": true,
+    "timestamp": 1791256922734,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 46,
+      "stage": "ready_for_review",
+      "prov": "simulated",
+      "label": "Recommended option",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 47,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "ACTIVITY_SNAPSHOT",
+    "messageId": "blk_9d353aec85563e7c914582eb25e58e88",
+    "activityType": "sc.render",
+    "content": {
+     "id": "blk_9d353aec85563e7c914582eb25e58e88",
+     "title": "Changes in Merxa",
+     "placement": "canvas",
+     "provenance": {
+      "kind": "simulated",
+      "engine": "keelson-compose@0.1",
+      "inputs_hash": null,
+      "as_of": "2026-10-05"
+     },
+     "data_ref": null,
+     "kind": "plan_diff",
+     "v": 1,
+     "props": {
+      "plan_version": 1,
+      "rows": [
+       {
+        "seq": 1,
+        "op": "transfer_order.create",
+        "target_label": "Transfer DE1 → NL1, ships 2026-10-12",
+        "before_text": "No transfer order",
+        "after_text": "PUF-W-BLK-M × 120, PUF-W-BLK-S × 180",
+        "qty": 300,
+        "system": "Merxa"
+       }
+      ],
+      "totals": {
+       "lines": 1,
+       "units": 300,
+       "value_cents": 270000
+      }
+     }
+    },
+    "replace": true,
+    "timestamp": 1791256922735,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 47,
+      "stage": "ready_for_review",
+      "prov": "simulated",
+      "label": "Changes in Merxa",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 48,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "ACTIVITY_SNAPSHOT",
+    "messageId": "blk_913ee50190c6a584c7a02470a53c597c",
+    "activityType": "sc.render",
+    "content": {
+     "id": "blk_913ee50190c6a584c7a02470a53c597c",
+     "title": "Evidence",
+     "placement": "canvas",
+     "provenance": {
+      "kind": "fact",
+      "engine": "keelson-compose@0.1",
+      "inputs_hash": null,
+      "as_of": "2026-10-05"
+     },
+     "data_ref": null,
+     "kind": "evidence_pack",
+     "v": 1,
+     "props": {
+      "items": [
+       {
+        "id": "ev_01a10f3b85e073efbb4df3bb10dd27d1",
+        "source": "Merxa",
+        "label": "list locations",
+        "prov": "fact",
+        "retrieved_at": "2026-10-05T09:00:00Z"
+       },
+       {
+        "id": "ev_01a10f3b85e970c5afb114627c1bd25f",
+        "source": "Merxa",
+        "label": "get demand forecast (weeks=['2026-W41', '2026-W42', '2026-W43', '2026-W44', '2026-W45', '2026-W46', '2026-W47', '2026-W48', '2026-W49'])",
+        "prov": "fact",
+        "retrieved_at": "2026-10-05T09:00:00Z"
+       },
+       {
+        "id": "ev_01a10f3b85f177489f87ba142ee5fa75",
+        "source": "Merxa",
+        "label": "get entity (code=PUF-W-BLK, type=style)",
+        "prov": "fact",
+        "retrieved_at": "2026-10-05T09:00:00Z"
+       },
+       {
+        "id": "ev_01a10f3b85fc7331af12c1d0bb2e4ecb",
+        "source": "Merxa",
+        "label": "get inventory (limit=1000, location_type=dc)",
+        "prov": "fact",
+        "retrieved_at": "2026-10-05T09:00:00Z"
+       },
+       {
+        "id": "ev_01a10f3b86037204b161b9287e57b9e3",
+        "source": "Merxa",
+        "label": "list stores (limit=1000)",
+        "prov": "fact",
+        "retrieved_at": "2026-10-05T09:00:00Z"
+       },
+       {
+        "id": "ev_01a10f3b860a7444bb576d6e3c1ab44c",
+        "source": "Merxa",
+        "label": "get inventory (limit=1000, location_type=store)",
+        "prov": "fact",
+        "retrieved_at": "2026-10-05T09:00:00Z"
+       },
+       {
+        "id": "ev_01a10f3b8614729b8de844326fcf1dae",
+        "source": "Merxa",
+        "label": "list purchase orders (limit=1000)",
+        "prov": "fact",
+        "retrieved_at": "2026-10-05T09:00:00Z"
+       },
+       {
+        "id": "ev_01a10f3b861c757782de2fa1e2f1feeb",
+        "source": "Merxa",
+        "label": "list purchase orders (cursor=2, limit=1000)",
+        "prov": "fact",
+        "retrieved_at": "2026-10-05T09:00:00Z"
+       },
+       {
+        "id": "ev_01a10f3b86217292844b908f68c55485",
+        "source": "Merxa",
+        "label": "get purchase order (code=PO-BD-0001)",
+        "prov": "fact",
+        "retrieved_at": "2026-10-05T09:00:00Z"
+       },
+       {
+        "id": "ev_01a10f3b86267736bacb43f0217b0dbe",
+        "source": "Merxa",
+        "label": "get purchase order (code=PO-BD-0002)",
+        "prov": "fact",
+        "retrieved_at": "2026-10-05T09:00:00Z"
+       },
+       {
+        "id": "ev_01a10f3b862b76dcaee07ae1f4d733a7",
+        "source": "Merxa",
+        "label": "search entities (limit=5, query=Meghna Trims, types=['supplier'])",
+        "prov": "fact",
+        "retrieved_at": "2026-10-05T09:00:00Z"
+       },
+       {
+        "id": "ev_01a10f3b862f7008b2ac3b7b5e5c72f8",
+        "source": "Merxa",
+        "label": "get bom where used (supplier_code=TRIM-BD-01)",
+        "prov": "fact",
+        "retrieved_at": "2026-10-05T09:00:00Z"
+       },
+       {
+        "id": "ev_01a10f3b87f470f7a0e52d8bb4bf10de",
+        "source": "Merxa",
+        "label": "get inventory (location_type=dc)",
+        "prov": "fact",
+        "retrieved_at": "2026-10-05T09:00:00Z"
+       }
+      ]
+     }
+    },
+    "replace": true,
+    "timestamp": 1791256922735,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 48,
+      "stage": "ready_for_review",
+      "prov": "fact",
+      "label": "Evidence",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 49,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "ACTIVITY_SNAPSHOT",
+    "messageId": "blk_54c49f1b45b400dcfd2b2df6dc34c71e",
+    "activityType": "sc.render",
+    "content": {
+     "id": "blk_54c49f1b45b400dcfd2b2df6dc34c71e",
+     "title": "Recommendation",
+     "placement": "inline",
+     "provenance": {
+      "kind": "inference",
+      "engine": "keelson-compose@0.1",
+      "inputs_hash": null,
+      "as_of": "2026-10-05"
+     },
+     "data_ref": null,
+     "kind": "narrative",
+     "v": 1,
+     "props": {
+      "markdown": "**Rebalance stock from DE1 to NL1 to protect the peak weeks.**\n\n- Moves 300 units from DE1 to NL1 and recovers 280 units.\n- Net benefit is €4,375 after transfer costs.\n\n**Why not the alternatives**\n- Do nothing: Leaves 1,200 units at risk.\n\n**Risks**\n- Transit could slip if the lane is congested.\n\n**Next steps**\n- Confirm the new ETA with Meghna Trims."
+     }
+    },
+    "replace": true,
+    "timestamp": 1791256922736,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 49,
+      "stage": "ready_for_review",
+      "prov": "inference",
+      "label": "Recommendation",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 50,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "TEXT_MESSAGE_START",
+    "messageId": "msg_019a0c50-0000-7000-8000-000000000001_compose",
+    "role": "assistant",
+    "timestamp": 1791256922736,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 50,
+      "stage": "ready_for_review",
+      "prov": "inference",
+      "label": "Answer",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 51,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "TEXT_MESSAGE_CONTENT",
+    "messageId": "msg_019a0c50-0000-7000-8000-000000000001_compose",
+    "delta": "**Rebalance stock from DE1 to NL1 to protect the peak weeks.**\n\n- Moves 300 units from DE1 to NL1 and recovers 280 units.\n- Net benefit is €4,375 after transfer costs.\n\n**Why not the alternatives**\n- Do nothing: Leaves 1,200 units at risk.\n\n**Risks**\n- Transit could slip if the lane is congested.\n\n**Next steps**\n- Confirm the new ETA with Meghna Trims.",
+    "timestamp": 1791256922736,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 51,
+      "stage": "ready_for_review",
+      "prov": "inference",
+      "label": "Answer",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 52,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "TEXT_MESSAGE_END",
+    "messageId": "msg_019a0c50-0000-7000-8000-000000000001_compose",
+    "timestamp": 1791256922736,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 52,
+      "stage": "ready_for_review",
+      "prov": "inference",
+      "label": "Answer",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 53,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "STEP_FINISHED",
+    "stepName": "ready_for_review",
+    "timestamp": 1791256922840,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 53,
+      "stage": "ready_for_review",
+      "prov": "fact",
+      "label": "Ready for review",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 54,
+   "run_id": "019a0c50-0000-7000-8000-000000000001",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "RUN_FINISHED",
+    "threadId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+    "runId": "019a0c50-0000-7000-8000-000000000001",
+    "outcome": {
+     "type": "success"
+    },
+    "timestamp": 1791256922840,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000001",
+      "seq": 54,
+      "stage": "ready_for_review",
+      "prov": "fact",
+      "label": "Run finished",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 55,
+   "run_id": "019a0c50-0000-7000-8000-000000000002",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "RUN_STARTED",
+    "threadId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+    "runId": "019a0c50-0000-7000-8000-000000000002",
+    "protocolVersion": "1.0",
+    "timestamp": 1791256922863,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000002",
+      "seq": 55,
+      "stage": "understanding",
+      "prov": "fact",
+      "label": "Run started",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 56,
+   "run_id": "019a0c50-0000-7000-8000-000000000002",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "STEP_STARTED",
+    "stepName": "preparing_changes",
+    "timestamp": 1791256923058,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000002",
+      "seq": 56,
+      "stage": "preparing_changes",
+      "prov": "fact",
+      "label": "Preparing changes",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 57,
+   "run_id": "019a0c50-0000-7000-8000-000000000002",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "TEXT_MESSAGE_START",
+    "messageId": "msg_019a0c50-0000-7000-8000-000000000002_close_refused",
+    "role": "assistant",
+    "timestamp": 1791256923104,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000002",
+      "seq": 57,
+      "stage": "preparing_changes",
+      "prov": "inference",
+      "label": "Answer",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 58,
+   "run_id": "019a0c50-0000-7000-8000-000000000002",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "TEXT_MESSAGE_CONTENT",
+    "messageId": "msg_019a0c50-0000-7000-8000-000000000002_close_refused",
+    "delta": "This is a what-if case; promote it to an actual case before applying changes.",
+    "timestamp": 1791256923105,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000002",
+      "seq": 58,
+      "stage": "preparing_changes",
+      "prov": "inference",
+      "label": "Answer",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 59,
+   "run_id": "019a0c50-0000-7000-8000-000000000002",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "TEXT_MESSAGE_END",
+    "messageId": "msg_019a0c50-0000-7000-8000-000000000002_close_refused",
+    "timestamp": 1791256923105,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000002",
+      "seq": 59,
+      "stage": "preparing_changes",
+      "prov": "inference",
+      "label": "Answer",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 60,
+   "run_id": "019a0c50-0000-7000-8000-000000000002",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "STEP_FINISHED",
+    "stepName": "preparing_changes",
+    "timestamp": 1791256923194,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000002",
+      "seq": 60,
+      "stage": "preparing_changes",
+      "prov": "fact",
+      "label": "Preparing changes",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  },
+  {
+   "seq": 61,
+   "run_id": "019a0c50-0000-7000-8000-000000000002",
+   "persist": true,
+   "live": true,
+   "event": {
+    "type": "RUN_FINISHED",
+    "threadId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+    "runId": "019a0c50-0000-7000-8000-000000000002",
+    "outcome": {
+     "type": "success"
+    },
+    "timestamp": 1791256923194,
+    "metadata": {
+     "sc": {
+      "tenantId": "demo-retail",
+      "caseId": "019a0c4e-7777-7c8a-9d55-0b1c2d3e4f51",
+      "runId": "019a0c50-0000-7000-8000-000000000002",
+      "seq": 61,
+      "stage": "preparing_changes",
+      "prov": "fact",
+      "label": "Run finished",
+      "agent": null,
+      "evidenceRefs": []
+     }
+    }
+   }
+  }
+ ]
+}

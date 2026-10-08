@@ -1,0 +1,5101 @@
+{
+ "data": {
+  "tenant": "demo-retail",
+  "as_of": "2026-10-05",
+  "horizon": {
+   "start_week": "2026-W41",
+   "weeks": 9
+  },
+  "dcs": [
+   {
+    "code": "UK1",
+    "outbound_cap_units_wk": 50000
+   },
+   {
+    "code": "NL1",
+    "outbound_cap_units_wk": 60000
+   },
+   {
+    "code": "DE1",
+    "outbound_cap_units_wk": 60000
+   },
+   {
+    "code": "PL1",
+    "outbound_cap_units_wk": 40000
+   }
+  ],
+  "clusters": [
+   {
+    "code": "UK1-COLD-A",
+    "dc_code": "UK1"
+   },
+   {
+    "code": "UK1-MILD-BC",
+    "dc_code": "UK1"
+   },
+   {
+    "code": "NL1-MILD-A",
+    "dc_code": "NL1"
+   },
+   {
+    "code": "NL1-MILD-BC",
+    "dc_code": "NL1"
+   },
+   {
+    "code": "DE1-COLD-A",
+    "dc_code": "DE1"
+   },
+   {
+    "code": "DE1-MILD-BC",
+    "dc_code": "DE1"
+   },
+   {
+    "code": "PL1-COLD-A",
+    "dc_code": "PL1"
+   },
+   {
+    "code": "PL1-COLD-BC",
+    "dc_code": "PL1"
+   }
+  ],
+  "skus": [
+   {
+    "code": "PUF-W-BLK-S",
+    "style_code": "PUF-W-BLK",
+    "retail_price_cents": 2500,
+    "unit_cost_cents": 900
+   },
+   {
+    "code": "PUF-W-BLK-M",
+    "style_code": "PUF-W-BLK",
+    "retail_price_cents": 2500,
+    "unit_cost_cents": 900
+   },
+   {
+    "code": "PUF-W-BLK-L",
+    "style_code": "PUF-W-BLK",
+    "retail_price_cents": 2500,
+    "unit_cost_cents": 900
+   },
+   {
+    "code": "PUF-W-NVY-S",
+    "style_code": "PUF-W-NVY",
+    "retail_price_cents": 2500,
+    "unit_cost_cents": 900
+   },
+   {
+    "code": "PUF-W-NVY-M",
+    "style_code": "PUF-W-NVY",
+    "retail_price_cents": 2500,
+    "unit_cost_cents": 900
+   },
+   {
+    "code": "PUF-W-NVY-L",
+    "style_code": "PUF-W-NVY",
+    "retail_price_cents": 2500,
+    "unit_cost_cents": 900
+   },
+   {
+    "code": "PUF-M-OLV-S",
+    "style_code": "PUF-M-OLV",
+    "retail_price_cents": 3000,
+    "unit_cost_cents": 1100
+   },
+   {
+    "code": "PUF-M-OLV-M",
+    "style_code": "PUF-M-OLV",
+    "retail_price_cents": 3000,
+    "unit_cost_cents": 1100
+   },
+   {
+    "code": "PUF-M-OLV-L",
+    "style_code": "PUF-M-OLV",
+    "retail_price_cents": 3000,
+    "unit_cost_cents": 1100
+   }
+  ],
+  "inventory": [
+   {
+    "location_type": "dc",
+    "location_code": "UK1",
+    "sku": "PUF-W-BLK-S",
+    "on_hand": 237,
+    "allocated": 23,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "NL1",
+    "sku": "PUF-W-BLK-S",
+    "on_hand": 237,
+    "allocated": 23,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "DE1",
+    "sku": "PUF-W-BLK-S",
+    "on_hand": 1233,
+    "allocated": 123,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "PL1",
+    "sku": "PUF-W-BLK-S",
+    "on_hand": 1130,
+    "allocated": 113,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "UK1",
+    "sku": "PUF-W-BLK-M",
+    "on_hand": 362,
+    "allocated": 36,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "NL1",
+    "sku": "PUF-W-BLK-M",
+    "on_hand": 362,
+    "allocated": 36,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "DE1",
+    "sku": "PUF-W-BLK-M",
+    "on_hand": 1868,
+    "allocated": 186,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "PL1",
+    "sku": "PUF-W-BLK-M",
+    "on_hand": 1712,
+    "allocated": 171,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "UK1",
+    "sku": "PUF-W-BLK-L",
+    "on_hand": 300,
+    "allocated": 30,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "NL1",
+    "sku": "PUF-W-BLK-L",
+    "on_hand": 300,
+    "allocated": 30,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "DE1",
+    "sku": "PUF-W-BLK-L",
+    "on_hand": 1550,
+    "allocated": 155,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "PL1",
+    "sku": "PUF-W-BLK-L",
+    "on_hand": 1421,
+    "allocated": 142,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "UK1",
+    "sku": "PUF-W-NVY-S",
+    "on_hand": 200,
+    "allocated": 20,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "NL1",
+    "sku": "PUF-W-NVY-S",
+    "on_hand": 200,
+    "allocated": 20,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "DE1",
+    "sku": "PUF-W-NVY-S",
+    "on_hand": 1034,
+    "allocated": 103,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "PL1",
+    "sku": "PUF-W-NVY-S",
+    "on_hand": 947,
+    "allocated": 94,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "UK1",
+    "sku": "PUF-W-NVY-M",
+    "on_hand": 300,
+    "allocated": 30,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "NL1",
+    "sku": "PUF-W-NVY-M",
+    "on_hand": 300,
+    "allocated": 30,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "DE1",
+    "sku": "PUF-W-NVY-M",
+    "on_hand": 1550,
+    "allocated": 155,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "PL1",
+    "sku": "PUF-W-NVY-M",
+    "on_hand": 1421,
+    "allocated": 142,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "UK1",
+    "sku": "PUF-W-NVY-L",
+    "on_hand": 250,
+    "allocated": 25,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "NL1",
+    "sku": "PUF-W-NVY-L",
+    "on_hand": 250,
+    "allocated": 25,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "DE1",
+    "sku": "PUF-W-NVY-L",
+    "on_hand": 1292,
+    "allocated": 129,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "PL1",
+    "sku": "PUF-W-NVY-L",
+    "on_hand": 1184,
+    "allocated": 118,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "UK1",
+    "sku": "PUF-M-OLV-S",
+    "on_hand": 162,
+    "allocated": 16,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "NL1",
+    "sku": "PUF-M-OLV-S",
+    "on_hand": 162,
+    "allocated": 16,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "DE1",
+    "sku": "PUF-M-OLV-S",
+    "on_hand": 834,
+    "allocated": 83,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "PL1",
+    "sku": "PUF-M-OLV-S",
+    "on_hand": 765,
+    "allocated": 76,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "UK1",
+    "sku": "PUF-M-OLV-M",
+    "on_hand": 237,
+    "allocated": 23,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "NL1",
+    "sku": "PUF-M-OLV-M",
+    "on_hand": 237,
+    "allocated": 23,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "DE1",
+    "sku": "PUF-M-OLV-M",
+    "on_hand": 1233,
+    "allocated": 123,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "PL1",
+    "sku": "PUF-M-OLV-M",
+    "on_hand": 1130,
+    "allocated": 113,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "UK1",
+    "sku": "PUF-M-OLV-L",
+    "on_hand": 200,
+    "allocated": 20,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "NL1",
+    "sku": "PUF-M-OLV-L",
+    "on_hand": 200,
+    "allocated": 20,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "DE1",
+    "sku": "PUF-M-OLV-L",
+    "on_hand": 1034,
+    "allocated": 103,
+    "in_transit": 0
+   },
+   {
+    "location_type": "dc",
+    "location_code": "PL1",
+    "sku": "PUF-M-OLV-L",
+    "on_hand": 947,
+    "allocated": 94,
+    "in_transit": 0
+   }
+  ],
+  "cluster_inventory": [
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "on_hand": 46
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "on_hand": 70
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "on_hand": 58
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "on_hand": 38
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "on_hand": 58
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "on_hand": 48
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "on_hand": 31
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "on_hand": 46
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "on_hand": 38
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "on_hand": 30
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "on_hand": 46
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "on_hand": 38
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "on_hand": 26
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "on_hand": 38
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "on_hand": 32
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "on_hand": 21
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "on_hand": 30
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "on_hand": 26
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-S",
+    "on_hand": 46
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-M",
+    "on_hand": 70
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-L",
+    "on_hand": 58
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-S",
+    "on_hand": 38
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-M",
+    "on_hand": 58
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-L",
+    "on_hand": 48
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-S",
+    "on_hand": 31
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-M",
+    "on_hand": 46
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-L",
+    "on_hand": 38
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "on_hand": 30
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "on_hand": 46
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "on_hand": 38
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "on_hand": 26
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "on_hand": 38
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "on_hand": 32
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "on_hand": 21
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "on_hand": 30
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "on_hand": 26
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "on_hand": 46
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "on_hand": 70
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "on_hand": 58
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "on_hand": 38
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "on_hand": 58
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "on_hand": 48
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "on_hand": 31
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "on_hand": 46
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "on_hand": 38
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "on_hand": 30
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "on_hand": 46
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "on_hand": 38
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "on_hand": 26
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "on_hand": 38
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "on_hand": 32
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "on_hand": 21
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "on_hand": 30
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "on_hand": 26
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "on_hand": 46
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "on_hand": 70
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "on_hand": 58
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "on_hand": 38
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "on_hand": 58
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "on_hand": 48
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "on_hand": 31
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "on_hand": 46
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "on_hand": 38
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-S",
+    "on_hand": 30
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-M",
+    "on_hand": 46
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-L",
+    "on_hand": 38
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-S",
+    "on_hand": 26
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-M",
+    "on_hand": 38
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-L",
+    "on_hand": 32
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-S",
+    "on_hand": 21
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-M",
+    "on_hand": 30
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-L",
+    "on_hand": 26
+   }
+  ],
+  "receipts": [
+   {
+    "ref": "PO-26-0101#1",
+    "dc_code": "UK1",
+    "sku": "PUF-W-BLK-S",
+    "qty": 354,
+    "eta": "2026-11-02"
+   },
+   {
+    "ref": "PO-26-0102#1",
+    "dc_code": "NL1",
+    "sku": "PUF-W-BLK-S",
+    "qty": 531,
+    "eta": "2026-11-04"
+   },
+   {
+    "ref": "PO-26-0103#1",
+    "dc_code": "UK1",
+    "sku": "PUF-W-BLK-S",
+    "qty": 433,
+    "eta": "2026-11-16"
+   },
+   {
+    "ref": "PO-26-0104#1",
+    "dc_code": "NL1",
+    "sku": "PUF-W-BLK-S",
+    "qty": 255,
+    "eta": "2026-11-23"
+   },
+   {
+    "ref": "PO-26-0106#1",
+    "dc_code": "PL1",
+    "sku": "PUF-W-BLK-S",
+    "qty": 86,
+    "eta": "2026-11-09"
+   },
+   {
+    "ref": "PO-26-0101#2",
+    "dc_code": "UK1",
+    "sku": "PUF-W-BLK-M",
+    "qty": 536,
+    "eta": "2026-11-02"
+   },
+   {
+    "ref": "PO-26-0102#2",
+    "dc_code": "NL1",
+    "sku": "PUF-W-BLK-M",
+    "qty": 803,
+    "eta": "2026-11-04"
+   },
+   {
+    "ref": "PO-26-0103#2",
+    "dc_code": "UK1",
+    "sku": "PUF-W-BLK-M",
+    "qty": 655,
+    "eta": "2026-11-16"
+   },
+   {
+    "ref": "PO-26-0104#2",
+    "dc_code": "NL1",
+    "sku": "PUF-W-BLK-M",
+    "qty": 387,
+    "eta": "2026-11-23"
+   },
+   {
+    "ref": "PO-26-0106#2",
+    "dc_code": "PL1",
+    "sku": "PUF-W-BLK-M",
+    "qty": 130,
+    "eta": "2026-11-09"
+   },
+   {
+    "ref": "PO-26-0101#3",
+    "dc_code": "UK1",
+    "sku": "PUF-W-BLK-L",
+    "qty": 445,
+    "eta": "2026-11-02"
+   },
+   {
+    "ref": "PO-26-0102#3",
+    "dc_code": "NL1",
+    "sku": "PUF-W-BLK-L",
+    "qty": 667,
+    "eta": "2026-11-04"
+   },
+   {
+    "ref": "PO-26-0103#3",
+    "dc_code": "UK1",
+    "sku": "PUF-W-BLK-L",
+    "qty": 544,
+    "eta": "2026-11-16"
+   },
+   {
+    "ref": "PO-26-0104#3",
+    "dc_code": "NL1",
+    "sku": "PUF-W-BLK-L",
+    "qty": 321,
+    "eta": "2026-11-23"
+   },
+   {
+    "ref": "PO-26-0106#3",
+    "dc_code": "PL1",
+    "sku": "PUF-W-BLK-L",
+    "qty": 108,
+    "eta": "2026-11-09"
+   },
+   {
+    "ref": "PO-26-0101#4",
+    "dc_code": "UK1",
+    "sku": "PUF-W-NVY-S",
+    "qty": 297,
+    "eta": "2026-11-02"
+   },
+   {
+    "ref": "PO-26-0102#4",
+    "dc_code": "NL1",
+    "sku": "PUF-W-NVY-S",
+    "qty": 445,
+    "eta": "2026-11-04"
+   },
+   {
+    "ref": "PO-26-0103#4",
+    "dc_code": "UK1",
+    "sku": "PUF-W-NVY-S",
+    "qty": 363,
+    "eta": "2026-11-16"
+   },
+   {
+    "ref": "PO-26-0104#4",
+    "dc_code": "NL1",
+    "sku": "PUF-W-NVY-S",
+    "qty": 214,
+    "eta": "2026-11-23"
+   },
+   {
+    "ref": "PO-26-0106#4",
+    "dc_code": "PL1",
+    "sku": "PUF-W-NVY-S",
+    "qty": 72,
+    "eta": "2026-11-09"
+   },
+   {
+    "ref": "PO-26-0101#5",
+    "dc_code": "UK1",
+    "sku": "PUF-W-NVY-M",
+    "qty": 445,
+    "eta": "2026-11-02"
+   },
+   {
+    "ref": "PO-26-0102#5",
+    "dc_code": "NL1",
+    "sku": "PUF-W-NVY-M",
+    "qty": 667,
+    "eta": "2026-11-04"
+   },
+   {
+    "ref": "PO-26-0103#5",
+    "dc_code": "UK1",
+    "sku": "PUF-W-NVY-M",
+    "qty": 544,
+    "eta": "2026-11-16"
+   },
+   {
+    "ref": "PO-26-0104#5",
+    "dc_code": "NL1",
+    "sku": "PUF-W-NVY-M",
+    "qty": 321,
+    "eta": "2026-11-23"
+   },
+   {
+    "ref": "PO-26-0106#5",
+    "dc_code": "PL1",
+    "sku": "PUF-W-NVY-M",
+    "qty": 108,
+    "eta": "2026-11-09"
+   },
+   {
+    "ref": "PO-26-0101#6",
+    "dc_code": "UK1",
+    "sku": "PUF-W-NVY-L",
+    "qty": 371,
+    "eta": "2026-11-02"
+   },
+   {
+    "ref": "PO-26-0102#6",
+    "dc_code": "NL1",
+    "sku": "PUF-W-NVY-L",
+    "qty": 556,
+    "eta": "2026-11-04"
+   },
+   {
+    "ref": "PO-26-0103#6",
+    "dc_code": "UK1",
+    "sku": "PUF-W-NVY-L",
+    "qty": 453,
+    "eta": "2026-11-16"
+   },
+   {
+    "ref": "PO-26-0104#6",
+    "dc_code": "NL1",
+    "sku": "PUF-W-NVY-L",
+    "qty": 268,
+    "eta": "2026-11-23"
+   },
+   {
+    "ref": "PO-26-0106#6",
+    "dc_code": "PL1",
+    "sku": "PUF-W-NVY-L",
+    "qty": 90,
+    "eta": "2026-11-09"
+   },
+   {
+    "ref": "PO-26-0101#7",
+    "dc_code": "UK1",
+    "sku": "PUF-M-OLV-S",
+    "qty": 239,
+    "eta": "2026-11-02"
+   },
+   {
+    "ref": "PO-26-0102#7",
+    "dc_code": "NL1",
+    "sku": "PUF-M-OLV-S",
+    "qty": 358,
+    "eta": "2026-11-04"
+   },
+   {
+    "ref": "PO-26-0103#7",
+    "dc_code": "UK1",
+    "sku": "PUF-M-OLV-S",
+    "qty": 293,
+    "eta": "2026-11-16"
+   },
+   {
+    "ref": "PO-26-0104#7",
+    "dc_code": "NL1",
+    "sku": "PUF-M-OLV-S",
+    "qty": 173,
+    "eta": "2026-11-23"
+   },
+   {
+    "ref": "PO-26-0106#7",
+    "dc_code": "PL1",
+    "sku": "PUF-M-OLV-S",
+    "qty": 58,
+    "eta": "2026-11-09"
+   },
+   {
+    "ref": "PO-26-0101#8",
+    "dc_code": "UK1",
+    "sku": "PUF-M-OLV-M",
+    "qty": 354,
+    "eta": "2026-11-02"
+   },
+   {
+    "ref": "PO-26-0102#8",
+    "dc_code": "NL1",
+    "sku": "PUF-M-OLV-M",
+    "qty": 531,
+    "eta": "2026-11-04"
+   },
+   {
+    "ref": "PO-26-0103#8",
+    "dc_code": "UK1",
+    "sku": "PUF-M-OLV-M",
+    "qty": 433,
+    "eta": "2026-11-16"
+   },
+   {
+    "ref": "PO-26-0104#8",
+    "dc_code": "NL1",
+    "sku": "PUF-M-OLV-M",
+    "qty": 255,
+    "eta": "2026-11-23"
+   },
+   {
+    "ref": "PO-26-0106#8",
+    "dc_code": "PL1",
+    "sku": "PUF-M-OLV-M",
+    "qty": 86,
+    "eta": "2026-11-09"
+   },
+   {
+    "ref": "PO-26-0101#9",
+    "dc_code": "UK1",
+    "sku": "PUF-M-OLV-L",
+    "qty": 297,
+    "eta": "2026-11-02"
+   },
+   {
+    "ref": "PO-26-0102#9",
+    "dc_code": "NL1",
+    "sku": "PUF-M-OLV-L",
+    "qty": 445,
+    "eta": "2026-11-04"
+   },
+   {
+    "ref": "PO-26-0103#9",
+    "dc_code": "UK1",
+    "sku": "PUF-M-OLV-L",
+    "qty": 363,
+    "eta": "2026-11-16"
+   },
+   {
+    "ref": "PO-26-0104#9",
+    "dc_code": "NL1",
+    "sku": "PUF-M-OLV-L",
+    "qty": 214,
+    "eta": "2026-11-23"
+   },
+   {
+    "ref": "PO-26-0106#9",
+    "dc_code": "PL1",
+    "sku": "PUF-M-OLV-L",
+    "qty": 72,
+    "eta": "2026-11-09"
+   }
+  ],
+  "demand": [
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W41",
+    "units": 46
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W42",
+    "units": 46
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W43",
+    "units": 46
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W44",
+    "units": 46
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W45",
+    "units": 103
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W46",
+    "units": 103
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W47",
+    "units": 103
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W48",
+    "units": 103
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W49",
+    "units": 46
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W41",
+    "units": 70
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W42",
+    "units": 70
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W43",
+    "units": 70
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W44",
+    "units": 70
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W45",
+    "units": 156
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W46",
+    "units": 156
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W47",
+    "units": 156
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W48",
+    "units": 156
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W49",
+    "units": 70
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W41",
+    "units": 58
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W42",
+    "units": 58
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W43",
+    "units": 58
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W44",
+    "units": 58
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W45",
+    "units": 130
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W46",
+    "units": 130
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W47",
+    "units": 130
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W48",
+    "units": 130
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W49",
+    "units": 58
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W41",
+    "units": 38
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W42",
+    "units": 38
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W43",
+    "units": 38
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W44",
+    "units": 38
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W45",
+    "units": 86
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W46",
+    "units": 86
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W47",
+    "units": 86
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W48",
+    "units": 86
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W49",
+    "units": 38
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W41",
+    "units": 58
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W42",
+    "units": 58
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W43",
+    "units": 58
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W44",
+    "units": 58
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W45",
+    "units": 130
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W46",
+    "units": 130
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W47",
+    "units": 130
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W48",
+    "units": 130
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W49",
+    "units": 58
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W41",
+    "units": 48
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W42",
+    "units": 48
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W43",
+    "units": 48
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W44",
+    "units": 48
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W45",
+    "units": 108
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W46",
+    "units": 108
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W47",
+    "units": 108
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W48",
+    "units": 108
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W49",
+    "units": 48
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W41",
+    "units": 31
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W42",
+    "units": 31
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W43",
+    "units": 31
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W44",
+    "units": 31
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W45",
+    "units": 70
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W46",
+    "units": 70
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W47",
+    "units": 70
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W48",
+    "units": 70
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W49",
+    "units": 31
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W41",
+    "units": 46
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W42",
+    "units": 46
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W43",
+    "units": 46
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W44",
+    "units": 46
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W45",
+    "units": 103
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W46",
+    "units": 103
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W47",
+    "units": 103
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W48",
+    "units": 103
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W49",
+    "units": 46
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W41",
+    "units": 38
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W42",
+    "units": 38
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W43",
+    "units": 38
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W44",
+    "units": 38
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W45",
+    "units": 86
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W46",
+    "units": 86
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W47",
+    "units": 86
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W48",
+    "units": 86
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W49",
+    "units": 38
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W41",
+    "units": 30
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W42",
+    "units": 30
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W43",
+    "units": 30
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W44",
+    "units": 30
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W45",
+    "units": 69
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W46",
+    "units": 69
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W47",
+    "units": 69
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W48",
+    "units": 69
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W49",
+    "units": 30
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W41",
+    "units": 46
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W42",
+    "units": 46
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W43",
+    "units": 46
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W44",
+    "units": 46
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W45",
+    "units": 104
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W46",
+    "units": 104
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W47",
+    "units": 104
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W48",
+    "units": 104
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W49",
+    "units": 46
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W41",
+    "units": 38
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W42",
+    "units": 38
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W43",
+    "units": 38
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W44",
+    "units": 38
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W45",
+    "units": 86
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W46",
+    "units": 86
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W47",
+    "units": 86
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W48",
+    "units": 86
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W49",
+    "units": 38
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W41",
+    "units": 26
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W42",
+    "units": 26
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W43",
+    "units": 26
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W44",
+    "units": 26
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W45",
+    "units": 58
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W46",
+    "units": 58
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W47",
+    "units": 58
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W48",
+    "units": 58
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W49",
+    "units": 26
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W41",
+    "units": 38
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W42",
+    "units": 38
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W43",
+    "units": 38
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W44",
+    "units": 38
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W45",
+    "units": 86
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W46",
+    "units": 86
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W47",
+    "units": 86
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W48",
+    "units": 86
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W49",
+    "units": 38
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W41",
+    "units": 32
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W42",
+    "units": 32
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W43",
+    "units": 32
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W44",
+    "units": 32
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W45",
+    "units": 72
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W46",
+    "units": 72
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W47",
+    "units": 72
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W48",
+    "units": 72
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W49",
+    "units": 32
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W41",
+    "units": 21
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W42",
+    "units": 21
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W43",
+    "units": 21
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W44",
+    "units": 21
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W45",
+    "units": 46
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W46",
+    "units": 46
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W47",
+    "units": 46
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W48",
+    "units": 46
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W49",
+    "units": 21
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W41",
+    "units": 30
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W42",
+    "units": 30
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W43",
+    "units": 30
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W44",
+    "units": 30
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W45",
+    "units": 69
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W46",
+    "units": 69
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W47",
+    "units": 69
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W48",
+    "units": 69
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W49",
+    "units": 30
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W41",
+    "units": 26
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W42",
+    "units": 26
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W43",
+    "units": 26
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W44",
+    "units": 26
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W45",
+    "units": 58
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W46",
+    "units": 58
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W47",
+    "units": 58
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W48",
+    "units": 58
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W49",
+    "units": 26
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W41",
+    "units": 46
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W42",
+    "units": 46
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W43",
+    "units": 46
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W44",
+    "units": 46
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W45",
+    "units": 103
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W46",
+    "units": 103
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W47",
+    "units": 103
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W48",
+    "units": 103
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W49",
+    "units": 46
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W41",
+    "units": 70
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W42",
+    "units": 70
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W43",
+    "units": 70
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W44",
+    "units": 70
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W45",
+    "units": 156
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W46",
+    "units": 156
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W47",
+    "units": 156
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W48",
+    "units": 156
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W49",
+    "units": 70
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W41",
+    "units": 58
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W42",
+    "units": 58
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W43",
+    "units": 58
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W44",
+    "units": 58
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W45",
+    "units": 130
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W46",
+    "units": 130
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W47",
+    "units": 130
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W48",
+    "units": 130
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W49",
+    "units": 58
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W41",
+    "units": 38
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W42",
+    "units": 38
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W43",
+    "units": 38
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W44",
+    "units": 38
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W45",
+    "units": 86
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W46",
+    "units": 86
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W47",
+    "units": 86
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W48",
+    "units": 86
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W49",
+    "units": 38
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W41",
+    "units": 58
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W42",
+    "units": 58
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W43",
+    "units": 58
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W44",
+    "units": 58
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W45",
+    "units": 130
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W46",
+    "units": 130
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W47",
+    "units": 130
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W48",
+    "units": 130
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W49",
+    "units": 58
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W41",
+    "units": 48
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W42",
+    "units": 48
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W43",
+    "units": 48
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W44",
+    "units": 48
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W45",
+    "units": 108
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W46",
+    "units": 108
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W47",
+    "units": 108
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W48",
+    "units": 108
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W49",
+    "units": 48
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W41",
+    "units": 31
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W42",
+    "units": 31
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W43",
+    "units": 31
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W44",
+    "units": 31
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W45",
+    "units": 70
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W46",
+    "units": 70
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W47",
+    "units": 70
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W48",
+    "units": 70
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W49",
+    "units": 31
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W41",
+    "units": 46
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W42",
+    "units": 46
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W43",
+    "units": 46
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W44",
+    "units": 46
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W45",
+    "units": 103
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W46",
+    "units": 103
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W47",
+    "units": 103
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W48",
+    "units": 103
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W49",
+    "units": 46
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W41",
+    "units": 38
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W42",
+    "units": 38
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W43",
+    "units": 38
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W44",
+    "units": 38
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W45",
+    "units": 86
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W46",
+    "units": 86
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W47",
+    "units": 86
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W48",
+    "units": 86
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W49",
+    "units": 38
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W41",
+    "units": 30
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W42",
+    "units": 30
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W43",
+    "units": 30
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W44",
+    "units": 30
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W45",
+    "units": 69
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W46",
+    "units": 69
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W47",
+    "units": 69
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W48",
+    "units": 69
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W49",
+    "units": 30
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W41",
+    "units": 46
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W42",
+    "units": 46
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W43",
+    "units": 46
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W44",
+    "units": 46
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W45",
+    "units": 104
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W46",
+    "units": 104
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W47",
+    "units": 104
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W48",
+    "units": 104
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W49",
+    "units": 46
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W41",
+    "units": 38
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W42",
+    "units": 38
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W43",
+    "units": 38
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W44",
+    "units": 38
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W45",
+    "units": 86
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W46",
+    "units": 86
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W47",
+    "units": 86
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W48",
+    "units": 86
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W49",
+    "units": 38
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W41",
+    "units": 26
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W42",
+    "units": 26
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W43",
+    "units": 26
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W44",
+    "units": 26
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W45",
+    "units": 58
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W46",
+    "units": 58
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W47",
+    "units": 58
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W48",
+    "units": 58
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W49",
+    "units": 26
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W41",
+    "units": 38
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W42",
+    "units": 38
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W43",
+    "units": 38
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W44",
+    "units": 38
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W45",
+    "units": 86
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W46",
+    "units": 86
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W47",
+    "units": 86
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W48",
+    "units": 86
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W49",
+    "units": 38
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W41",
+    "units": 32
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W42",
+    "units": 32
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W43",
+    "units": 32
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W44",
+    "units": 32
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W45",
+    "units": 72
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W46",
+    "units": 72
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W47",
+    "units": 72
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W48",
+    "units": 72
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W49",
+    "units": 32
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W41",
+    "units": 21
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W42",
+    "units": 21
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W43",
+    "units": 21
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W44",
+    "units": 21
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W45",
+    "units": 46
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W46",
+    "units": 46
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W47",
+    "units": 46
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W48",
+    "units": 46
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W49",
+    "units": 21
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W41",
+    "units": 30
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W42",
+    "units": 30
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W43",
+    "units": 30
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W44",
+    "units": 30
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W45",
+    "units": 69
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W46",
+    "units": 69
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W47",
+    "units": 69
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W48",
+    "units": 69
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W49",
+    "units": 30
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W41",
+    "units": 26
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W42",
+    "units": 26
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W43",
+    "units": 26
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W44",
+    "units": 26
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W45",
+    "units": 58
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W46",
+    "units": 58
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W47",
+    "units": 58
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W48",
+    "units": 58
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W49",
+    "units": 26
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W41",
+    "units": 46
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W42",
+    "units": 46
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W43",
+    "units": 46
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W44",
+    "units": 46
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W45",
+    "units": 103
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W46",
+    "units": 103
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W47",
+    "units": 103
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W48",
+    "units": 103
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W49",
+    "units": 46
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W41",
+    "units": 70
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W42",
+    "units": 70
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W43",
+    "units": 70
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W44",
+    "units": 70
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W45",
+    "units": 156
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W46",
+    "units": 156
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W47",
+    "units": 156
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W48",
+    "units": 156
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W49",
+    "units": 70
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W41",
+    "units": 58
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W42",
+    "units": 58
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W43",
+    "units": 58
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W44",
+    "units": 58
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W45",
+    "units": 130
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W46",
+    "units": 130
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W47",
+    "units": 130
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W48",
+    "units": 130
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W49",
+    "units": 58
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W41",
+    "units": 38
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W42",
+    "units": 38
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W43",
+    "units": 38
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W44",
+    "units": 38
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W45",
+    "units": 86
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W46",
+    "units": 86
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W47",
+    "units": 86
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W48",
+    "units": 86
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W49",
+    "units": 38
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W41",
+    "units": 58
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W42",
+    "units": 58
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W43",
+    "units": 58
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W44",
+    "units": 58
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W45",
+    "units": 130
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W46",
+    "units": 130
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W47",
+    "units": 130
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W48",
+    "units": 130
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W49",
+    "units": 58
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W41",
+    "units": 48
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W42",
+    "units": 48
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W43",
+    "units": 48
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W44",
+    "units": 48
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W45",
+    "units": 108
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W46",
+    "units": 108
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W47",
+    "units": 108
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W48",
+    "units": 108
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W49",
+    "units": 48
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W41",
+    "units": 31
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W42",
+    "units": 31
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W43",
+    "units": 31
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W44",
+    "units": 31
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W45",
+    "units": 70
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W46",
+    "units": 70
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W47",
+    "units": 70
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W48",
+    "units": 70
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W49",
+    "units": 31
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W41",
+    "units": 46
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W42",
+    "units": 46
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W43",
+    "units": 46
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W44",
+    "units": 46
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W45",
+    "units": 103
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W46",
+    "units": 103
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W47",
+    "units": 103
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W48",
+    "units": 103
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W49",
+    "units": 46
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W41",
+    "units": 38
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W42",
+    "units": 38
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W43",
+    "units": 38
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W44",
+    "units": 38
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W45",
+    "units": 86
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W46",
+    "units": 86
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W47",
+    "units": 86
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W48",
+    "units": 86
+   },
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W49",
+    "units": 38
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W41",
+    "units": 30
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W42",
+    "units": 30
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W43",
+    "units": 30
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W44",
+    "units": 30
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W45",
+    "units": 69
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W46",
+    "units": 69
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W47",
+    "units": 69
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W48",
+    "units": 69
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W49",
+    "units": 30
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W41",
+    "units": 46
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W42",
+    "units": 46
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W43",
+    "units": 46
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W44",
+    "units": 46
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W45",
+    "units": 104
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W46",
+    "units": 104
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W47",
+    "units": 104
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W48",
+    "units": 104
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W49",
+    "units": 46
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W41",
+    "units": 38
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W42",
+    "units": 38
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W43",
+    "units": 38
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W44",
+    "units": 38
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W45",
+    "units": 86
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W46",
+    "units": 86
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W47",
+    "units": 86
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W48",
+    "units": 86
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W49",
+    "units": 38
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W41",
+    "units": 26
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W42",
+    "units": 26
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W43",
+    "units": 26
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W44",
+    "units": 26
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W45",
+    "units": 58
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W46",
+    "units": 58
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W47",
+    "units": 58
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W48",
+    "units": 58
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W49",
+    "units": 26
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W41",
+    "units": 38
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W42",
+    "units": 38
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W43",
+    "units": 38
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W44",
+    "units": 38
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W45",
+    "units": 86
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W46",
+    "units": 86
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W47",
+    "units": 86
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W48",
+    "units": 86
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W49",
+    "units": 38
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W41",
+    "units": 32
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W42",
+    "units": 32
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W43",
+    "units": 32
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W44",
+    "units": 32
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W45",
+    "units": 72
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W46",
+    "units": 72
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W47",
+    "units": 72
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W48",
+    "units": 72
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W49",
+    "units": 32
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W41",
+    "units": 21
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W42",
+    "units": 21
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W43",
+    "units": 21
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W44",
+    "units": 21
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W45",
+    "units": 46
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W46",
+    "units": 46
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W47",
+    "units": 46
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W48",
+    "units": 46
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W49",
+    "units": 21
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W41",
+    "units": 30
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W42",
+    "units": 30
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W43",
+    "units": 30
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W44",
+    "units": 30
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W45",
+    "units": 69
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W46",
+    "units": 69
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W47",
+    "units": 69
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W48",
+    "units": 69
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W49",
+    "units": 30
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W41",
+    "units": 26
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W42",
+    "units": 26
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W43",
+    "units": 26
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W44",
+    "units": 26
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W45",
+    "units": 58
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W46",
+    "units": 58
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W47",
+    "units": 58
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W48",
+    "units": 58
+   },
+   {
+    "cluster_code": "DE1-MILD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W49",
+    "units": 26
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W41",
+    "units": 46
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W42",
+    "units": 46
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W43",
+    "units": 46
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W44",
+    "units": 46
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W45",
+    "units": 103
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W46",
+    "units": 103
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W47",
+    "units": 103
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W48",
+    "units": 103
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W49",
+    "units": 46
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W41",
+    "units": 70
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W42",
+    "units": 70
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W43",
+    "units": 70
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W44",
+    "units": 70
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W45",
+    "units": 156
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W46",
+    "units": 156
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W47",
+    "units": 156
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W48",
+    "units": 156
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W49",
+    "units": 70
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W41",
+    "units": 58
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W42",
+    "units": 58
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W43",
+    "units": 58
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W44",
+    "units": 58
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W45",
+    "units": 130
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W46",
+    "units": 130
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W47",
+    "units": 130
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W48",
+    "units": 130
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W49",
+    "units": 58
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W41",
+    "units": 38
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W42",
+    "units": 38
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W43",
+    "units": 38
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W44",
+    "units": 38
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W45",
+    "units": 86
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W46",
+    "units": 86
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W47",
+    "units": 86
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W48",
+    "units": 86
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W49",
+    "units": 38
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W41",
+    "units": 58
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W42",
+    "units": 58
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W43",
+    "units": 58
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W44",
+    "units": 58
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W45",
+    "units": 130
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W46",
+    "units": 130
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W47",
+    "units": 130
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W48",
+    "units": 130
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W49",
+    "units": 58
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W41",
+    "units": 48
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W42",
+    "units": 48
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W43",
+    "units": 48
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W44",
+    "units": 48
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W45",
+    "units": 108
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W46",
+    "units": 108
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W47",
+    "units": 108
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W48",
+    "units": 108
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W49",
+    "units": 48
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W41",
+    "units": 31
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W42",
+    "units": 31
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W43",
+    "units": 31
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W44",
+    "units": 31
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W45",
+    "units": 70
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W46",
+    "units": 70
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W47",
+    "units": 70
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W48",
+    "units": 70
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W49",
+    "units": 31
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W41",
+    "units": 46
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W42",
+    "units": 46
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W43",
+    "units": 46
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W44",
+    "units": 46
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W45",
+    "units": 103
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W46",
+    "units": 103
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W47",
+    "units": 103
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W48",
+    "units": 103
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W49",
+    "units": 46
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W41",
+    "units": 38
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W42",
+    "units": 38
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W43",
+    "units": 38
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W44",
+    "units": 38
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W45",
+    "units": 86
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W46",
+    "units": 86
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W47",
+    "units": 86
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W48",
+    "units": 86
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W49",
+    "units": 38
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W41",
+    "units": 30
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W42",
+    "units": 30
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W43",
+    "units": 30
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W44",
+    "units": 30
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W45",
+    "units": 69
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W46",
+    "units": 69
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W47",
+    "units": 69
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W48",
+    "units": 69
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-S",
+    "iso_week": "2026-W49",
+    "units": 30
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W41",
+    "units": 46
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W42",
+    "units": 46
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W43",
+    "units": 46
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W44",
+    "units": 46
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W45",
+    "units": 104
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W46",
+    "units": 104
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W47",
+    "units": 104
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W48",
+    "units": 104
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-M",
+    "iso_week": "2026-W49",
+    "units": 46
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W41",
+    "units": 38
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W42",
+    "units": 38
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W43",
+    "units": 38
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W44",
+    "units": 38
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W45",
+    "units": 86
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W46",
+    "units": 86
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W47",
+    "units": 86
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W48",
+    "units": 86
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-BLK-L",
+    "iso_week": "2026-W49",
+    "units": 38
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W41",
+    "units": 26
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W42",
+    "units": 26
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W43",
+    "units": 26
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W44",
+    "units": 26
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W45",
+    "units": 58
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W46",
+    "units": 58
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W47",
+    "units": 58
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W48",
+    "units": 58
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-S",
+    "iso_week": "2026-W49",
+    "units": 26
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W41",
+    "units": 38
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W42",
+    "units": 38
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W43",
+    "units": 38
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W44",
+    "units": 38
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W45",
+    "units": 86
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W46",
+    "units": 86
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W47",
+    "units": 86
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W48",
+    "units": 86
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-M",
+    "iso_week": "2026-W49",
+    "units": 38
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W41",
+    "units": 32
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W42",
+    "units": 32
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W43",
+    "units": 32
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W44",
+    "units": 32
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W45",
+    "units": 72
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W46",
+    "units": 72
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W47",
+    "units": 72
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W48",
+    "units": 72
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-W-NVY-L",
+    "iso_week": "2026-W49",
+    "units": 32
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W41",
+    "units": 21
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W42",
+    "units": 21
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W43",
+    "units": 21
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W44",
+    "units": 21
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W45",
+    "units": 46
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W46",
+    "units": 46
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W47",
+    "units": 46
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W48",
+    "units": 46
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-S",
+    "iso_week": "2026-W49",
+    "units": 21
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W41",
+    "units": 30
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W42",
+    "units": 30
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W43",
+    "units": 30
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W44",
+    "units": 30
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W45",
+    "units": 69
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W46",
+    "units": 69
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W47",
+    "units": 69
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W48",
+    "units": 69
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-M",
+    "iso_week": "2026-W49",
+    "units": 30
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W41",
+    "units": 26
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W42",
+    "units": 26
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W43",
+    "units": 26
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W44",
+    "units": 26
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W45",
+    "units": 58
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W46",
+    "units": 58
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W47",
+    "units": 58
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W48",
+    "units": 58
+   },
+   {
+    "cluster_code": "PL1-COLD-BC",
+    "sku": "PUF-M-OLV-L",
+    "iso_week": "2026-W49",
+    "units": 26
+   }
+  ],
+  "lanes": [
+   {
+    "from_dc": "DE1",
+    "to_dc": "NL1",
+    "transit_days": 2,
+    "cost_per_unit_cents": 35,
+    "max_units_wk": 20000
+   },
+   {
+    "from_dc": "DE1",
+    "to_dc": "UK1",
+    "transit_days": 4,
+    "cost_per_unit_cents": 60,
+    "max_units_wk": 12000
+   },
+   {
+    "from_dc": "PL1",
+    "to_dc": "NL1",
+    "transit_days": 3,
+    "cost_per_unit_cents": 45,
+    "max_units_wk": 15000
+   },
+   {
+    "from_dc": "PL1",
+    "to_dc": "DE1",
+    "transit_days": 2,
+    "cost_per_unit_cents": 30,
+    "max_units_wk": 15000
+   },
+   {
+    "from_dc": "NL1",
+    "to_dc": "UK1",
+    "transit_days": 2,
+    "cost_per_unit_cents": 50,
+    "max_units_wk": 15000
+   }
+  ],
+  "protected_min": [
+   {
+    "cluster_code": "DE1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "units": 10
+   },
+   {
+    "cluster_code": "PL1-COLD-A",
+    "sku": "PUF-W-BLK-M",
+    "units": 10
+   }
+  ]
+ },
+ "perturbations": [
+  {
+   "op": "lead_time_shift",
+   "target": {
+    "kinds": [
+     "receipt"
+    ],
+    "ids": [
+     "PO-26-0101#1",
+     "PO-26-0101#2",
+     "PO-26-0101#3",
+     "PO-26-0101#4",
+     "PO-26-0101#5",
+     "PO-26-0101#6",
+     "PO-26-0101#7",
+     "PO-26-0101#8",
+     "PO-26-0101#9",
+     "PO-26-0102#1",
+     "PO-26-0102#2",
+     "PO-26-0102#3",
+     "PO-26-0102#4",
+     "PO-26-0102#5",
+     "PO-26-0102#6",
+     "PO-26-0102#7",
+     "PO-26-0102#8",
+     "PO-26-0102#9",
+     "PO-26-0103#1",
+     "PO-26-0103#2",
+     "PO-26-0103#3",
+     "PO-26-0103#4",
+     "PO-26-0103#5",
+     "PO-26-0103#6",
+     "PO-26-0103#7",
+     "PO-26-0103#8",
+     "PO-26-0103#9",
+     "PO-26-0104#1",
+     "PO-26-0104#2",
+     "PO-26-0104#3",
+     "PO-26-0104#4",
+     "PO-26-0104#5",
+     "PO-26-0104#6",
+     "PO-26-0104#7",
+     "PO-26-0104#8",
+     "PO-26-0104#9"
+    ]
+   },
+   "days": 7,
+   "prov": "decision"
+  }
+ ],
+ "plan_spec": {
+  "id": "opt-A",
+  "title": "Rebalance between DCs",
+  "levers": [
+   {
+    "code": "reallocate_inventory",
+    "params": {
+     "max_units_total": 20000,
+     "allowed_lanes": [
+      "DE1>NL1",
+      "DE1>UK1",
+      "PL1>NL1"
+     ]
+    }
+   }
+  ],
+  "weights": {
+   "lost_margin": 10000,
+   "transfer_cost": 10000
+  }
+ },
+ "solver": {
+  "time_limit_s": 5,
+  "seed": 7
+ }
+}

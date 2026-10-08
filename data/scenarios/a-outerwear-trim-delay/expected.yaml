@@ -1,0 +1,35 @@
+# Expected replay outcome of a-outerwear-trim-delay for a value-fashion-eu tenant on the Merxa `full`
+# seed (reference network: ../network-value-fashion-eu.yaml). Checked exactly by
+# data/scenarios/validate.py. Members are signal keys (native ids without the tenant/pack prefix).
+pack: a-outerwear-trim-delay
+network: network-value-fashion-eu.yaml
+checkpoints:
+  - after_step: 0   # supplier message → quarantined free text (pre-baked) → supplier_delay inference
+    signals: 1
+    events:
+      - label: trim-delay
+        members: ["supplier_message/01a10b13-a800-7f0b-8b1d-4c9e2a7d5b01"]
+        kind: supplier
+        subtype: supplier_delay
+        severity_bp: 4500
+        radius_km: 50
+        # SUPPLIER:TRIM-BD-01 comes from the trusted structured field, never from the free text
+        alert: {action: alert, severity: medium}
+        exposures:
+          supplier: {TRIM-BD-01: entity_match}
+  - after_step: 1   # cold-weather demand advisory: context only (no footprint, below the alert threshold)
+    signals: 2
+    events:
+      - label: trim-delay
+        members: ["supplier_message/01a10b13-a800-7f0b-8b1d-4c9e2a7d5b01"]
+        severity_bp: 4500
+        alert: {action: alert, severity: medium}
+        exposures:
+          supplier: {TRIM-BD-01: entity_match}
+      - label: cold-snap
+        members: ["demo-weather-desk-2026-10-05-cold-snap"]
+        kind: demand
+        subtype: demand_spike
+        severity_bp: 3500
+        alert: null
+        exposures: {}

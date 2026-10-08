@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Body of ``POST /api/demo/reset`` (may be empty).",
+  "properties": {
+    "keep_consents": {
+      "default": false,
+      "title": "Keep Consents",
+      "type": "boolean"
+    }
+  },
+  "title": "DemoResetRequest",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.demo.DemoResetRequest"
+}

@@ -1,0 +1,72 @@
+{
+  "name": "@keelson/viz",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Keelson render-block registry: BlockRenderer + M1 blocks (KPI strip, approach, recommended option, plan diff, approval, commit tracker, narrative, evidence pack, raw data) + M3 canvas visuals (network map, impact graph, stockout timeline, scenario compare).",
+  "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./fixtures": "./src/fixtures.ts",
+    "./fixtures/*.json": "./fixtures/*.json",
+    "./network-map": "./src/blocks/NetworkMap.tsx",
+    "./impact-graph": "./src/blocks/ImpactGraph.tsx",
+    "./stockout-timeline": "./src/blocks/StockoutTimeline.tsx",
+    "./scenario-compare": "./src/blocks/ScenarioCompare.tsx",
+    "./workflow-graph": "./src/workflow/WorkflowGraph.tsx",
+    "./styles.css": {
+      "style": "./src/styles.css",
+      "default": "./src/styles.css"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@deck.gl/core": "9.4.0",
+    "@deck.gl/layers": "9.4.0",
+    "@deck.gl/maplibre": "9.4.0",
+    "@keelson/contracts": "workspace:*",
+    "@keelson/tokens": "workspace:*",
+    "@keelson/ui": "workspace:*",
+    "@luma.gl/core": "9.4.0",
+    "@luma.gl/engine": "9.4.0",
+    "@tanstack/react-table": "8.21.3",
+    "@tanstack/react-virtual": "3.14.13",
+    "@xyflow/react": "12.12.0",
+    "clsx": "2.1.1",
+    "echarts": "6.1.0",
+    "elkjs": "0.12.0",
+    "lucide-react": "1.52.0",
+    "maplibre-gl": "6.12.0",
+    "react-map-gl": "8.1.3",
+    "streamdown": "2.7.0",
+    "zod": "4.6.5"
+  },
+  "peerDependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.7",
+    "@types/node": "24.19.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "axe-core": "4.14.0",
+    "jsdom": "30.1.2",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "typescript": "5.9.3",
+    "vite": "8.3.2",
+    "vitest": "5.0.3"
+  }
+}

@@ -1,0 +1,893 @@
+{
+ "version": 1,
+ "description": "UN/LOCODE subset for the Signal Hub gazetteer (docs/contracts/100 §4): every Merxa/Keelson port plus major Asia/Europe/Middle East gateways. 'lat'/'lon' are float WGS84 degrees of the main container terminal area (approximate, illustrative only, not for navigation); Merxa ports use the coordinates of the Merxa seed. Mentions resolve deterministically on the code, name or any alias (case, accents and punctuation ignored; a leading 'the'/'port of' and a trailing 'port'/'terminal' dropped).",
+ "ports": {
+  "BDCGP": {
+   "name": "Chittagong",
+   "country": "BD",
+   "lat": 22.3089,
+   "lon": 91.8,
+   "aliases": [
+    "chattogram",
+    "chittagong port"
+   ]
+  },
+  "LKCMB": {
+   "name": "Colombo",
+   "country": "LK",
+   "lat": 6.9497,
+   "lon": 79.8428,
+   "aliases": [
+    "colombo port"
+   ]
+  },
+  "VNSGN": {
+   "name": "Ho Chi Minh City (Cat Lai)",
+   "country": "VN",
+   "lat": 10.7626,
+   "lon": 106.788,
+   "aliases": [
+    "ho chi minh city",
+    "hcmc",
+    "saigon",
+    "cat lai",
+    "cat lai terminal",
+    "tan cang cat lai",
+    "saigon port"
+   ]
+  },
+  "KHPNH": {
+   "name": "Phnom Penh",
+   "country": "KH",
+   "lat": 11.573,
+   "lon": 104.9282,
+   "aliases": [
+    "phnom penh port",
+    "phnom penh autonomous port"
+   ]
+  },
+  "NLRTM": {
+   "name": "Rotterdam",
+   "country": "NL",
+   "lat": 51.9496,
+   "lon": 4.1453,
+   "aliases": [
+    "port of rotterdam",
+    "maasvlakte"
+   ]
+  },
+  "GBFXT": {
+   "name": "Felixstowe",
+   "country": "GB",
+   "lat": 51.9563,
+   "lon": 1.3301,
+   "aliases": [
+    "port of felixstowe"
+   ]
+  },
+  "DEHAM": {
+   "name": "Hamburg",
+   "country": "DE",
+   "lat": 53.5395,
+   "lon": 9.9663,
+   "aliases": [
+    "port of hamburg"
+   ]
+  },
+  "PLGDN": {
+   "name": "Gdańsk",
+   "country": "PL",
+   "lat": 54.4013,
+   "lon": 18.6763,
+   "aliases": [
+    "gdansk",
+    "port of gdansk",
+    "dct gdansk"
+   ]
+  },
+  "AEJEA": {
+   "name": "Jebel Ali",
+   "country": "AE",
+   "lat": 25.0115,
+   "lon": 55.0618,
+   "aliases": [
+    "jebel ali port",
+    "dubai jebel ali"
+   ]
+  },
+  "TRIST": {
+   "name": "Istanbul (Ambarli)",
+   "country": "TR",
+   "lat": 40.9667,
+   "lon": 28.6833,
+   "aliases": [
+    "ambarli",
+    "istanbul ambarli"
+   ]
+  },
+  "MATNG": {
+   "name": "Tanger Med",
+   "country": "MA",
+   "lat": 35.8833,
+   "lon": -5.5,
+   "aliases": [
+    "tanger-med",
+    "tangier med",
+    "tangier"
+   ]
+  },
+  "CNSHA": {
+   "name": "Shanghai",
+   "country": "CN",
+   "lat": 31.36,
+   "lon": 121.62,
+   "aliases": [
+    "port of shanghai",
+    "yangshan",
+    "waigaoqiao"
+   ]
+  },
+  "CNNGB": {
+   "name": "Ningbo",
+   "country": "CN",
+   "lat": 29.93,
+   "lon": 121.85,
+   "aliases": [
+    "ningbo-zhoushan",
+    "ningbo zhoushan",
+    "beilun"
+   ]
+  },
+  "CNYTN": {
+   "name": "Yantian",
+   "country": "CN",
+   "lat": 22.57,
+   "lon": 114.27,
+   "aliases": [
+    "yantian port",
+    "shenzhen yantian"
+   ]
+  },
+  "CNSZX": {
+   "name": "Shenzhen",
+   "country": "CN",
+   "lat": 22.5,
+   "lon": 113.88,
+   "aliases": [
+    "shekou",
+    "chiwan",
+    "port of shenzhen"
+   ]
+  },
+  "CNNSA": {
+   "name": "Nansha",
+   "country": "CN",
+   "lat": 22.75,
+   "lon": 113.6,
+   "aliases": [
+    "nansha port",
+    "guangzhou nansha"
+   ]
+  },
+  "CNCAN": {
+   "name": "Guangzhou",
+   "country": "CN",
+   "lat": 23.1,
+   "lon": 113.45,
+   "aliases": [
+    "port of guangzhou",
+    "huangpu"
+   ]
+  },
+  "CNTAO": {
+   "name": "Qingdao",
+   "country": "CN",
+   "lat": 36.07,
+   "lon": 120.32,
+   "aliases": [
+    "port of qingdao"
+   ]
+  },
+  "CNTXG": {
+   "name": "Tianjin (Xingang)",
+   "country": "CN",
+   "lat": 39.0,
+   "lon": 117.73,
+   "aliases": [
+    "tianjin",
+    "xingang"
+   ]
+  },
+  "CNXMN": {
+   "name": "Xiamen",
+   "country": "CN",
+   "lat": 24.45,
+   "lon": 118.07,
+   "aliases": [
+    "port of xiamen"
+   ]
+  },
+  "HKHKG": {
+   "name": "Hong Kong",
+   "country": "HK",
+   "lat": 22.3,
+   "lon": 114.17,
+   "aliases": [
+    "port of hong kong",
+    "kwai tsing"
+   ]
+  },
+  "TWKHH": {
+   "name": "Kaohsiung",
+   "country": "TW",
+   "lat": 22.61,
+   "lon": 120.28,
+   "aliases": [
+    "port of kaohsiung"
+   ]
+  },
+  "KRPUS": {
+   "name": "Busan",
+   "country": "KR",
+   "lat": 35.1,
+   "lon": 129.04,
+   "aliases": [
+    "pusan",
+    "port of busan"
+   ]
+  },
+  "JPTYO": {
+   "name": "Tokyo",
+   "country": "JP",
+   "lat": 35.62,
+   "lon": 139.78,
+   "aliases": [
+    "port of tokyo"
+   ]
+  },
+  "JPYOK": {
+   "name": "Yokohama",
+   "country": "JP",
+   "lat": 35.45,
+   "lon": 139.65,
+   "aliases": [
+    "port of yokohama"
+   ]
+  },
+  "JPUKB": {
+   "name": "Kobe",
+   "country": "JP",
+   "lat": 34.68,
+   "lon": 135.2,
+   "aliases": [
+    "port of kobe"
+   ]
+  },
+  "JPOSA": {
+   "name": "Osaka",
+   "country": "JP",
+   "lat": 34.65,
+   "lon": 135.43,
+   "aliases": [
+    "port of osaka"
+   ]
+  },
+  "SGSIN": {
+   "name": "Singapore",
+   "country": "SG",
+   "lat": 1.26,
+   "lon": 103.84,
+   "aliases": [
+    "port of singapore",
+    "tuas",
+    "pasir panjang"
+   ]
+  },
+  "MYPKG": {
+   "name": "Port Klang",
+   "country": "MY",
+   "lat": 3.0,
+   "lon": 101.39,
+   "aliases": [
+    "klang",
+    "westports",
+    "northport"
+   ]
+  },
+  "MYTPP": {
+   "name": "Tanjung Pelepas",
+   "country": "MY",
+   "lat": 1.36,
+   "lon": 103.55,
+   "aliases": [
+    "ptp",
+    "port of tanjung pelepas"
+   ]
+  },
+  "THLCH": {
+   "name": "Laem Chabang",
+   "country": "TH",
+   "lat": 13.08,
+   "lon": 100.88,
+   "aliases": [
+    "laem chabang port"
+   ]
+  },
+  "THBKK": {
+   "name": "Bangkok",
+   "country": "TH",
+   "lat": 13.7,
+   "lon": 100.57,
+   "aliases": [
+    "bangkok port",
+    "klong toey"
+   ]
+  },
+  "VNHPH": {
+   "name": "Haiphong",
+   "country": "VN",
+   "lat": 20.86,
+   "lon": 106.68,
+   "aliases": [
+    "hai phong",
+    "port of haiphong",
+    "lach huyen"
+   ]
+  },
+  "VNCMT": {
+   "name": "Cai Mep",
+   "country": "VN",
+   "lat": 10.53,
+   "lon": 107.03,
+   "aliases": [
+    "cai mep-thi vai",
+    "cai mep thi vai",
+    "thi vai"
+   ]
+  },
+  "VNDAD": {
+   "name": "Da Nang",
+   "country": "VN",
+   "lat": 16.07,
+   "lon": 108.22,
+   "aliases": [
+    "danang",
+    "port of da nang"
+   ]
+  },
+  "VNVUT": {
+   "name": "Vung Tau",
+   "country": "VN",
+   "lat": 10.35,
+   "lon": 107.07,
+   "aliases": [
+    "ba ria-vung tau"
+   ]
+  },
+  "KHKOS": {
+   "name": "Sihanoukville",
+   "country": "KH",
+   "lat": 10.63,
+   "lon": 103.5,
+   "aliases": [
+    "kampong saom",
+    "sihanoukville autonomous port"
+   ]
+  },
+  "IDTPP": {
+   "name": "Tanjung Priok",
+   "country": "ID",
+   "lat": -6.1,
+   "lon": 106.88,
+   "aliases": [
+    "jakarta",
+    "port of jakarta"
+   ]
+  },
+  "IDSUB": {
+   "name": "Surabaya",
+   "country": "ID",
+   "lat": -7.2,
+   "lon": 112.73,
+   "aliases": [
+    "tanjung perak"
+   ]
+  },
+  "PHMNL": {
+   "name": "Manila",
+   "country": "PH",
+   "lat": 14.59,
+   "lon": 120.97,
+   "aliases": [
+    "port of manila"
+   ]
+  },
+  "MMRGN": {
+   "name": "Yangon",
+   "country": "MM",
+   "lat": 16.77,
+   "lon": 96.17,
+   "aliases": [
+    "rangoon",
+    "port of yangon"
+   ]
+  },
+  "BDMGL": {
+   "name": "Mongla",
+   "country": "BD",
+   "lat": 22.47,
+   "lon": 89.6,
+   "aliases": [
+    "port of mongla"
+   ]
+  },
+  "INNSA": {
+   "name": "Nhava Sheva",
+   "country": "IN",
+   "lat": 18.95,
+   "lon": 72.95,
+   "aliases": [
+    "jnpt",
+    "jawaharlal nehru port",
+    "mumbai"
+   ]
+  },
+  "INMUN": {
+   "name": "Mundra",
+   "country": "IN",
+   "lat": 22.74,
+   "lon": 69.7,
+   "aliases": [
+    "mundra port"
+   ]
+  },
+  "INMAA": {
+   "name": "Chennai",
+   "country": "IN",
+   "lat": 13.1,
+   "lon": 80.3,
+   "aliases": [
+    "madras",
+    "chennai port"
+   ]
+  },
+  "INCOK": {
+   "name": "Cochin",
+   "country": "IN",
+   "lat": 9.97,
+   "lon": 76.27,
+   "aliases": [
+    "kochi",
+    "vallarpadam"
+   ]
+  },
+  "INCCU": {
+   "name": "Kolkata",
+   "country": "IN",
+   "lat": 22.54,
+   "lon": 88.31,
+   "aliases": [
+    "calcutta",
+    "haldia"
+   ]
+  },
+  "PKKHI": {
+   "name": "Karachi",
+   "country": "PK",
+   "lat": 24.84,
+   "lon": 66.98,
+   "aliases": [
+    "port of karachi",
+    "port qasim"
+   ]
+  },
+  "AEKHL": {
+   "name": "Khalifa Port",
+   "country": "AE",
+   "lat": 24.81,
+   "lon": 54.65,
+   "aliases": [
+    "abu dhabi khalifa"
+   ]
+  },
+  "OMSLL": {
+   "name": "Salalah",
+   "country": "OM",
+   "lat": 16.95,
+   "lon": 54.0,
+   "aliases": [
+    "port of salalah"
+   ]
+  },
+  "SAJED": {
+   "name": "Jeddah",
+   "country": "SA",
+   "lat": 21.46,
+   "lon": 39.17,
+   "aliases": [
+    "jeddah islamic port",
+    "jiddah"
+   ]
+  },
+  "DJJIB": {
+   "name": "Djibouti",
+   "country": "DJ",
+   "lat": 11.6,
+   "lon": 43.13,
+   "aliases": [
+    "port of djibouti",
+    "doraleh"
+   ]
+  },
+  "EGPSD": {
+   "name": "Port Said",
+   "country": "EG",
+   "lat": 31.26,
+   "lon": 32.3,
+   "aliases": [
+    "east port said",
+    "port said east"
+   ]
+  },
+  "EGAIS": {
+   "name": "Ain Sokhna",
+   "country": "EG",
+   "lat": 29.6,
+   "lon": 32.35,
+   "aliases": [
+    "sokhna",
+    "ain sukhna"
+   ]
+  },
+  "ZADUR": {
+   "name": "Durban",
+   "country": "ZA",
+   "lat": -29.87,
+   "lon": 31.03,
+   "aliases": [
+    "port of durban"
+   ]
+  },
+  "ZACPT": {
+   "name": "Cape Town",
+   "country": "ZA",
+   "lat": -33.91,
+   "lon": 18.43,
+   "aliases": [
+    "port of cape town"
+   ]
+  },
+  "LKHBA": {
+   "name": "Hambantota",
+   "country": "LK",
+   "lat": 6.12,
+   "lon": 81.11,
+   "aliases": [
+    "hambantota port"
+   ]
+  },
+  "BEANR": {
+   "name": "Antwerp",
+   "country": "BE",
+   "lat": 51.27,
+   "lon": 4.33,
+   "aliases": [
+    "antwerp-bruges",
+    "antwerpen",
+    "port of antwerp"
+   ]
+  },
+  "FRLEH": {
+   "name": "Le Havre",
+   "country": "FR",
+   "lat": 49.48,
+   "lon": 0.11,
+   "aliases": [
+    "port of le havre",
+    "haropa"
+   ]
+  },
+  "FRFOS": {
+   "name": "Fos-sur-Mer",
+   "country": "FR",
+   "lat": 43.42,
+   "lon": 4.89,
+   "aliases": [
+    "fos",
+    "marseille fos",
+    "marseille"
+   ]
+  },
+  "ESVLC": {
+   "name": "Valencia",
+   "country": "ES",
+   "lat": 39.44,
+   "lon": -0.32,
+   "aliases": [
+    "port of valencia"
+   ]
+  },
+  "ESALG": {
+   "name": "Algeciras",
+   "country": "ES",
+   "lat": 36.13,
+   "lon": -5.43,
+   "aliases": [
+    "port of algeciras"
+   ]
+  },
+  "ESBCN": {
+   "name": "Barcelona",
+   "country": "ES",
+   "lat": 41.35,
+   "lon": 2.16,
+   "aliases": [
+    "port of barcelona"
+   ]
+  },
+  "PTSIE": {
+   "name": "Sines",
+   "country": "PT",
+   "lat": 37.95,
+   "lon": -8.87,
+   "aliases": [
+    "port of sines"
+   ]
+  },
+  "ITGOA": {
+   "name": "Genoa",
+   "country": "IT",
+   "lat": 44.41,
+   "lon": 8.91,
+   "aliases": [
+    "genova",
+    "port of genoa"
+   ]
+  },
+  "ITSPE": {
+   "name": "La Spezia",
+   "country": "IT",
+   "lat": 44.1,
+   "lon": 9.83,
+   "aliases": [
+    "port of la spezia"
+   ]
+  },
+  "ITGIT": {
+   "name": "Gioia Tauro",
+   "country": "IT",
+   "lat": 38.44,
+   "lon": 15.9,
+   "aliases": [
+    "port of gioia tauro"
+   ]
+  },
+  "ITTRS": {
+   "name": "Trieste",
+   "country": "IT",
+   "lat": 45.65,
+   "lon": 13.76,
+   "aliases": [
+    "port of trieste"
+   ]
+  },
+  "SIKOP": {
+   "name": "Koper",
+   "country": "SI",
+   "lat": 45.55,
+   "lon": 13.73,
+   "aliases": [
+    "port of koper",
+    "capodistria"
+   ]
+  },
+  "GRPIR": {
+   "name": "Piraeus",
+   "country": "GR",
+   "lat": 37.94,
+   "lon": 23.63,
+   "aliases": [
+    "port of piraeus"
+   ]
+  },
+  "MTMAR": {
+   "name": "Marsaxlokk",
+   "country": "MT",
+   "lat": 35.83,
+   "lon": 14.54,
+   "aliases": [
+    "malta freeport"
+   ]
+  },
+  "TRMER": {
+   "name": "Mersin",
+   "country": "TR",
+   "lat": 36.79,
+   "lon": 34.63,
+   "aliases": [
+    "port of mersin"
+   ]
+  },
+  "ROCND": {
+   "name": "Constanta",
+   "country": "RO",
+   "lat": 44.17,
+   "lon": 28.66,
+   "aliases": [
+    "constanța",
+    "port of constanta"
+   ]
+  },
+  "GBSOU": {
+   "name": "Southampton",
+   "country": "GB",
+   "lat": 50.9,
+   "lon": -1.43,
+   "aliases": [
+    "port of southampton"
+   ]
+  },
+  "GBLGP": {
+   "name": "London Gateway",
+   "country": "GB",
+   "lat": 51.5,
+   "lon": 0.47,
+   "aliases": [
+    "dp world london gateway"
+   ]
+  },
+  "GBLIV": {
+   "name": "Liverpool",
+   "country": "GB",
+   "lat": 53.45,
+   "lon": -3.02,
+   "aliases": [
+    "port of liverpool"
+   ]
+  },
+  "DEBRV": {
+   "name": "Bremerhaven",
+   "country": "DE",
+   "lat": 53.56,
+   "lon": 8.55,
+   "aliases": [
+    "port of bremerhaven"
+   ]
+  },
+  "DEWVN": {
+   "name": "Wilhelmshaven",
+   "country": "DE",
+   "lat": 53.59,
+   "lon": 8.15,
+   "aliases": [
+    "jadeweserport",
+    "jade weser port"
+   ]
+  },
+  "NLAMS": {
+   "name": "Amsterdam",
+   "country": "NL",
+   "lat": 52.4,
+   "lon": 4.83,
+   "aliases": [
+    "port of amsterdam"
+   ]
+  },
+  "PLGDY": {
+   "name": "Gdynia",
+   "country": "PL",
+   "lat": 54.53,
+   "lon": 18.55,
+   "aliases": [
+    "port of gdynia"
+   ]
+  },
+  "SEGOT": {
+   "name": "Gothenburg",
+   "country": "SE",
+   "lat": 57.69,
+   "lon": 11.86,
+   "aliases": [
+    "goteborg",
+    "göteborg",
+    "port of gothenburg"
+   ]
+  },
+  "DKAAR": {
+   "name": "Aarhus",
+   "country": "DK",
+   "lat": 56.15,
+   "lon": 10.23,
+   "aliases": [
+    "port of aarhus"
+   ]
+  },
+  "LTKLJ": {
+   "name": "Klaipeda",
+   "country": "LT",
+   "lat": 55.71,
+   "lon": 21.12,
+   "aliases": [
+    "klaipėda",
+    "port of klaipeda"
+   ]
+  },
+  "IEDUB": {
+   "name": "Dublin",
+   "country": "IE",
+   "lat": 53.35,
+   "lon": -6.21,
+   "aliases": [
+    "dublin port"
+   ]
+  },
+  "FIHEL": {
+   "name": "Helsinki",
+   "country": "FI",
+   "lat": 60.15,
+   "lon": 24.93,
+   "aliases": [
+    "port of helsinki",
+    "vuosaari"
+   ]
+  },
+  "USLAX": {
+   "name": "Los Angeles",
+   "country": "US",
+   "lat": 33.74,
+   "lon": -118.27,
+   "aliases": [
+    "port of los angeles",
+    "san pedro bay"
+   ]
+  },
+  "USLGB": {
+   "name": "Long Beach",
+   "country": "US",
+   "lat": 33.75,
+   "lon": -118.21,
+   "aliases": [
+    "port of long beach"
+   ]
+  },
+  "USNYC": {
+   "name": "New York / New Jersey",
+   "country": "US",
+   "lat": 40.67,
+   "lon": -74.04,
+   "aliases": [
+    "port newark",
+    "port of new york and new jersey"
+   ]
+  },
+  "USSAV": {
+   "name": "Savannah",
+   "country": "US",
+   "lat": 32.08,
+   "lon": -81.09,
+   "aliases": [
+    "port of savannah",
+    "garden city terminal"
+   ]
+  },
+  "PAPTY": {
+   "name": "Panama (Balboa)",
+   "country": "PA",
+   "lat": 8.95,
+   "lon": -79.57,
+   "aliases": [
+    "balboa"
+   ]
+  },
+  "PAONX": {
+   "name": "Colón",
+   "country": "PA",
+   "lat": 9.36,
+   "lon": -79.9,
+   "aliases": [
+    "colon",
+    "manzanillo international terminal"
+   ]
+  }
+ }
+}

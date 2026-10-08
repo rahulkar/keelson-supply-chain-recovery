@@ -1,0 +1,541 @@
+{
+ "actions": [
+  {
+   "expected_version": null,
+   "op": "transfer_order.create",
+   "payload": {
+    "from_dc": "DE1",
+    "lines": [
+     {
+      "qty": 66,
+      "sku": "PUF-M-OLV-L"
+     },
+     {
+      "qty": 78,
+      "sku": "PUF-M-OLV-M"
+     },
+     {
+      "qty": 52,
+      "sku": "PUF-M-OLV-S"
+     },
+     {
+      "qty": 98,
+      "sku": "PUF-W-BLK-L"
+     },
+     {
+      "qty": 108,
+      "sku": "PUF-W-BLK-M"
+     },
+     {
+      "qty": 78,
+      "sku": "PUF-W-BLK-S"
+     },
+     {
+      "qty": 82,
+      "sku": "PUF-W-NVY-L"
+     },
+     {
+      "qty": 98,
+      "sku": "PUF-W-NVY-M"
+     },
+     {
+      "qty": 66,
+      "sku": "PUF-W-NVY-S"
+     }
+    ],
+    "ship_date": "2026-10-05",
+    "to_dc": "NL1"
+   },
+   "seq": 1,
+   "target_ref": null
+  },
+  {
+   "expected_version": null,
+   "op": "transfer_order.create",
+   "payload": {
+    "from_dc": "DE1",
+    "lines": [
+     {
+      "qty": 136,
+      "sku": "PUF-M-OLV-L"
+     },
+     {
+      "qty": 163,
+      "sku": "PUF-M-OLV-M"
+     },
+     {
+      "qty": 110,
+      "sku": "PUF-M-OLV-S"
+     },
+     {
+      "qty": 204,
+      "sku": "PUF-W-BLK-L"
+     },
+     {
+      "qty": 246,
+      "sku": "PUF-W-BLK-M"
+     },
+     {
+      "qty": 163,
+      "sku": "PUF-W-BLK-S"
+     },
+     {
+      "qty": 170,
+      "sku": "PUF-W-NVY-L"
+     },
+     {
+      "qty": 204,
+      "sku": "PUF-W-NVY-M"
+     },
+     {
+      "qty": 136,
+      "sku": "PUF-W-NVY-S"
+     }
+    ],
+    "ship_date": "2026-10-05",
+    "to_dc": "UK1"
+   },
+   "seq": 2,
+   "target_ref": null
+  },
+  {
+   "expected_version": null,
+   "op": "transfer_order.create",
+   "payload": {
+    "from_dc": "PL1",
+    "lines": [
+     {
+      "qty": 70,
+      "sku": "PUF-M-OLV-L"
+     },
+     {
+      "qty": 85,
+      "sku": "PUF-M-OLV-M"
+     },
+     {
+      "qty": 58,
+      "sku": "PUF-M-OLV-S"
+     },
+     {
+      "qty": 106,
+      "sku": "PUF-W-BLK-L"
+     },
+     {
+      "qty": 138,
+      "sku": "PUF-W-BLK-M"
+     },
+     {
+      "qty": 85,
+      "sku": "PUF-W-BLK-S"
+     },
+     {
+      "qty": 88,
+      "sku": "PUF-W-NVY-L"
+     },
+     {
+      "qty": 106,
+      "sku": "PUF-W-NVY-M"
+     },
+     {
+      "qty": 70,
+      "sku": "PUF-W-NVY-S"
+     }
+    ],
+    "ship_date": "2026-10-05",
+    "to_dc": "NL1"
+   },
+   "seq": 3,
+   "target_ref": null
+  }
+ ],
+ "decisions": [
+  {
+   "arrive_week": "2026-W42",
+   "from_dc": "DE1",
+   "lever": "reallocate_inventory",
+   "qty": 66,
+   "ship_week": "2026-W41",
+   "sku": "PUF-M-OLV-L",
+   "to_dc": "NL1"
+  },
+  {
+   "arrive_week": "2026-W42",
+   "from_dc": "DE1",
+   "lever": "reallocate_inventory",
+   "qty": 78,
+   "ship_week": "2026-W41",
+   "sku": "PUF-M-OLV-M",
+   "to_dc": "NL1"
+  },
+  {
+   "arrive_week": "2026-W42",
+   "from_dc": "DE1",
+   "lever": "reallocate_inventory",
+   "qty": 52,
+   "ship_week": "2026-W41",
+   "sku": "PUF-M-OLV-S",
+   "to_dc": "NL1"
+  },
+  {
+   "arrive_week": "2026-W42",
+   "from_dc": "DE1",
+   "lever": "reallocate_inventory",
+   "qty": 98,
+   "ship_week": "2026-W41",
+   "sku": "PUF-W-BLK-L",
+   "to_dc": "NL1"
+  },
+  {
+   "arrive_week": "2026-W42",
+   "from_dc": "DE1",
+   "lever": "reallocate_inventory",
+   "qty": 108,
+   "ship_week": "2026-W41",
+   "sku": "PUF-W-BLK-M",
+   "to_dc": "NL1"
+  },
+  {
+   "arrive_week": "2026-W42",
+   "from_dc": "DE1",
+   "lever": "reallocate_inventory",
+   "qty": 78,
+   "ship_week": "2026-W41",
+   "sku": "PUF-W-BLK-S",
+   "to_dc": "NL1"
+  },
+  {
+   "arrive_week": "2026-W42",
+   "from_dc": "DE1",
+   "lever": "reallocate_inventory",
+   "qty": 82,
+   "ship_week": "2026-W41",
+   "sku": "PUF-W-NVY-L",
+   "to_dc": "NL1"
+  },
+  {
+   "arrive_week": "2026-W42",
+   "from_dc": "DE1",
+   "lever": "reallocate_inventory",
+   "qty": 98,
+   "ship_week": "2026-W41",
+   "sku": "PUF-W-NVY-M",
+   "to_dc": "NL1"
+  },
+  {
+   "arrive_week": "2026-W42",
+   "from_dc": "DE1",
+   "lever": "reallocate_inventory",
+   "qty": 66,
+   "ship_week": "2026-W41",
+   "sku": "PUF-W-NVY-S",
+   "to_dc": "NL1"
+  },
+  {
+   "arrive_week": "2026-W42",
+   "from_dc": "DE1",
+   "lever": "reallocate_inventory",
+   "qty": 136,
+   "ship_week": "2026-W41",
+   "sku": "PUF-M-OLV-L",
+   "to_dc": "UK1"
+  },
+  {
+   "arrive_week": "2026-W42",
+   "from_dc": "DE1",
+   "lever": "reallocate_inventory",
+   "qty": 163,
+   "ship_week": "2026-W41",
+   "sku": "PUF-M-OLV-M",
+   "to_dc": "UK1"
+  },
+  {
+   "arrive_week": "2026-W42",
+   "from_dc": "DE1",
+   "lever": "reallocate_inventory",
+   "qty": 110,
+   "ship_week": "2026-W41",
+   "sku": "PUF-M-OLV-S",
+   "to_dc": "UK1"
+  },
+  {
+   "arrive_week": "2026-W42",
+   "from_dc": "DE1",
+   "lever": "reallocate_inventory",
+   "qty": 204,
+   "ship_week": "2026-W41",
+   "sku": "PUF-W-BLK-L",
+   "to_dc": "UK1"
+  },
+  {
+   "arrive_week": "2026-W42",
+   "from_dc": "DE1",
+   "lever": "reallocate_inventory",
+   "qty": 246,
+   "ship_week": "2026-W41",
+   "sku": "PUF-W-BLK-M",
+   "to_dc": "UK1"
+  },
+  {
+   "arrive_week": "2026-W42",
+   "from_dc": "DE1",
+   "lever": "reallocate_inventory",
+   "qty": 163,
+   "ship_week": "2026-W41",
+   "sku": "PUF-W-BLK-S",
+   "to_dc": "UK1"
+  },
+  {
+   "arrive_week": "2026-W42",
+   "from_dc": "DE1",
+   "lever": "reallocate_inventory",
+   "qty": 170,
+   "ship_week": "2026-W41",
+   "sku": "PUF-W-NVY-L",
+   "to_dc": "UK1"
+  },
+  {
+   "arrive_week": "2026-W42",
+   "from_dc": "DE1",
+   "lever": "reallocate_inventory",
+   "qty": 204,
+   "ship_week": "2026-W41",
+   "sku": "PUF-W-NVY-M",
+   "to_dc": "UK1"
+  },
+  {
+   "arrive_week": "2026-W42",
+   "from_dc": "DE1",
+   "lever": "reallocate_inventory",
+   "qty": 136,
+   "ship_week": "2026-W41",
+   "sku": "PUF-W-NVY-S",
+   "to_dc": "UK1"
+  },
+  {
+   "arrive_week": "2026-W42",
+   "from_dc": "PL1",
+   "lever": "reallocate_inventory",
+   "qty": 70,
+   "ship_week": "2026-W41",
+   "sku": "PUF-M-OLV-L",
+   "to_dc": "NL1"
+  },
+  {
+   "arrive_week": "2026-W42",
+   "from_dc": "PL1",
+   "lever": "reallocate_inventory",
+   "qty": 85,
+   "ship_week": "2026-W41",
+   "sku": "PUF-M-OLV-M",
+   "to_dc": "NL1"
+  },
+  {
+   "arrive_week": "2026-W42",
+   "from_dc": "PL1",
+   "lever": "reallocate_inventory",
+   "qty": 58,
+   "ship_week": "2026-W41",
+   "sku": "PUF-M-OLV-S",
+   "to_dc": "NL1"
+  },
+  {
+   "arrive_week": "2026-W42",
+   "from_dc": "PL1",
+   "lever": "reallocate_inventory",
+   "qty": 106,
+   "ship_week": "2026-W41",
+   "sku": "PUF-W-BLK-L",
+   "to_dc": "NL1"
+  },
+  {
+   "arrive_week": "2026-W42",
+   "from_dc": "PL1",
+   "lever": "reallocate_inventory",
+   "qty": 138,
+   "ship_week": "2026-W41",
+   "sku": "PUF-W-BLK-M",
+   "to_dc": "NL1"
+  },
+  {
+   "arrive_week": "2026-W42",
+   "from_dc": "PL1",
+   "lever": "reallocate_inventory",
+   "qty": 85,
+   "ship_week": "2026-W41",
+   "sku": "PUF-W-BLK-S",
+   "to_dc": "NL1"
+  },
+  {
+   "arrive_week": "2026-W42",
+   "from_dc": "PL1",
+   "lever": "reallocate_inventory",
+   "qty": 88,
+   "ship_week": "2026-W41",
+   "sku": "PUF-W-NVY-L",
+   "to_dc": "NL1"
+  },
+  {
+   "arrive_week": "2026-W42",
+   "from_dc": "PL1",
+   "lever": "reallocate_inventory",
+   "qty": 106,
+   "ship_week": "2026-W41",
+   "sku": "PUF-W-NVY-M",
+   "to_dc": "NL1"
+  },
+  {
+   "arrive_week": "2026-W42",
+   "from_dc": "PL1",
+   "lever": "reallocate_inventory",
+   "qty": 70,
+   "ship_week": "2026-W41",
+   "sku": "PUF-W-NVY-S",
+   "to_dc": "NL1"
+  }
+ ],
+ "explain": {
+  "binding_constraints": []
+ },
+ "kpi_delta": {
+  "margin_recovered_cents": 5147800,
+  "net_benefit_cents": 4994200,
+  "transfer_cost_cents": 153600,
+  "transfers": 3,
+  "units_recovered": 3064
+ },
+ "kpis_after": {
+  "first_breach": [],
+  "margin_at_risk_cents": 0,
+  "revenue_at_risk_cents": 0,
+  "shortage_cluster_weeks": 0,
+  "units_at_risk": 0
+ },
+ "kpis_before": {
+  "first_breach": [
+   {
+    "cluster_code": "NL1-MILD-A",
+    "date": "2026-11-02",
+    "dc_code": "NL1",
+    "style_code": "PUF-M-OLV",
+    "week": "2026-W45"
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "date": "2026-11-02",
+    "dc_code": "NL1",
+    "style_code": "PUF-W-BLK",
+    "week": "2026-W45"
+   },
+   {
+    "cluster_code": "NL1-MILD-A",
+    "date": "2026-11-02",
+    "dc_code": "NL1",
+    "style_code": "PUF-W-NVY",
+    "week": "2026-W45"
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "date": "2026-11-02",
+    "dc_code": "NL1",
+    "style_code": "PUF-M-OLV",
+    "week": "2026-W45"
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "date": "2026-11-02",
+    "dc_code": "NL1",
+    "style_code": "PUF-W-BLK",
+    "week": "2026-W45"
+   },
+   {
+    "cluster_code": "NL1-MILD-BC",
+    "date": "2026-11-02",
+    "dc_code": "NL1",
+    "style_code": "PUF-W-NVY",
+    "week": "2026-W45"
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "date": "2026-11-02",
+    "dc_code": "UK1",
+    "style_code": "PUF-M-OLV",
+    "week": "2026-W45"
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "date": "2026-11-02",
+    "dc_code": "UK1",
+    "style_code": "PUF-W-BLK",
+    "week": "2026-W45"
+   },
+   {
+    "cluster_code": "UK1-COLD-A",
+    "date": "2026-11-02",
+    "dc_code": "UK1",
+    "style_code": "PUF-W-NVY",
+    "week": "2026-W45"
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "date": "2026-11-02",
+    "dc_code": "UK1",
+    "style_code": "PUF-M-OLV",
+    "week": "2026-W45"
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "date": "2026-11-02",
+    "dc_code": "UK1",
+    "style_code": "PUF-W-BLK",
+    "week": "2026-W45"
+   },
+   {
+    "cluster_code": "UK1-MILD-BC",
+    "date": "2026-11-02",
+    "dc_code": "UK1",
+    "style_code": "PUF-W-NVY",
+    "week": "2026-W45"
+   }
+  ],
+  "margin_at_risk_cents": 5147800,
+  "revenue_at_risk_cents": 8069000,
+  "shortage_cluster_weeks": 4,
+  "units_at_risk": 3064
+ },
+ "plan_spec_id": "opt-A",
+ "scorecard": {
+  "changes": 3,
+  "cost_breakdown": {
+   "expedite_premium": 0,
+   "nearshore_premium": 0,
+   "transfer": 153600
+  },
+  "fill_rate_bp": 10000,
+  "first_breach_shift_days": 35,
+  "incremental_cost_cents": 153600,
+  "lost_margin_cents": 0,
+  "lost_units": 0,
+  "net_benefit_cents": 4994200,
+  "shortage_days": 0,
+  "tts_gain_days": 7
+ },
+ "solver": {
+  "inputs_hash": "15383eeb78d6c7dc1bc46931cf2fe5472f27c3e8e1bfe492914cfe8a7cec1c1d",
+  "name": "GLOP",
+  "ortools": "9.15.6755",
+  "params": {
+   "glop_parameters": "random_seed:7",
+   "levers": "reallocate_inventory",
+   "num_constraints": 945,
+   "num_variables": 1696,
+   "rounding": "floor",
+   "time_limit_s": 5,
+   "weight_lost_margin_bp": 10000,
+   "weight_transfer_cost_bp": 10000
+  },
+  "seed": 7,
+  "status_detail": null
+ },
+ "status": "OPTIMAL",
+ "warnings": []
+}

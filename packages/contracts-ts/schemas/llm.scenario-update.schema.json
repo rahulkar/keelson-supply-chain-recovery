@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A proposed scenario change backed by evidence (``Findings.scenario_updates``).\n\n``refine_scenario`` applies fact-backed updates and turns inference-backed ones into\n``Assumption(unconfirmed=True)`` entries. The value shape is checked deterministically\nwith :meth:`shape_error` (a malformed update is dropped, not the whole ``Findings``).",
+  "properties": {
+    "evidence_id": {
+      "title": "Evidence Id",
+      "type": "string"
+    },
+    "json_pointer": {
+      "title": "Json Pointer",
+      "type": "string"
+    },
+    "key": {
+      "enum": [
+        "delay_days",
+        "duration_days",
+        "demand_change_pct",
+        "add_receipts",
+        "remove_receipts"
+      ],
+      "title": "Key",
+      "type": "string"
+    },
+    "value_ids": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Value Ids"
+    },
+    "value_int": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Value Int"
+    }
+  },
+  "required": [
+    "key",
+    "value_int",
+    "value_ids",
+    "evidence_id",
+    "json_pointer"
+  ],
+  "title": "ScenarioUpdate",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.llm.ScenarioUpdate"
+}

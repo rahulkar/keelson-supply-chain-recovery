@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Quorum progress of an approval interrupt (API + ``approval_card@1.quorum``).\n\n``remaining`` and ``missing_roles`` are derived from ``required`` and ``approvals`` and\nmust agree with them (build with :meth:`build`). The card renders e.g.\n\"1 of 2 approvals: Marco ✓ · waiting for Compliance\".",
+  "properties": {
+    "approvals": {
+      "items": {
+        "additionalProperties": false,
+        "description": "One approval counted towards a quorum (``role`` = the role it counts under).",
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_-]*$",
+            "title": "Role",
+            "type": "string"
+          },
+          "sub": {
+            "minLength": 1,
+            "title": "Sub",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sub",
+          "name",
+          "role",
+          "at"
+        ],
+        "title": "QuorumApproval",
+        "type": "object"
+      },
+      "title": "Approvals",
+      "type": "array"
+    },
+    "missing_roles": {
+      "items": {
+        "maxLength": 64,
+        "minLength": 1,
+        "pattern": "^[a-z][a-z0-9_-]*$",
+        "type": "string"
+      },
+      "title": "Missing Roles",
+      "type": "array"
+    },
+    "remaining": {
+      "minimum": 0,
+      "title": "Remaining",
+      "type": "integer"
+    },
+    "required": {
+      "additionalProperties": false,
+      "description": "Who must approve: ``count`` distinct people holding ``roles`` (see module docstring).\n\n``exclude_initiator`` = the person who initiated the change set may not approve it\n(enforced server-side by the decision API). Also the ``interrupt.quorum_spec`` shape.",
+      "properties": {
+        "count": {
+          "maximum": 10,
+          "minimum": 1,
+          "title": "Count",
+          "type": "integer"
+        },
+        "exclude_initiator": {
+          "title": "Exclude Initiator",
+          "type": "boolean"
+        },
+        "roles": {
+          "items": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_-]*$",
+            "type": "string"
+          },
+          "maxItems": 10,
+          "minItems": 1,
+          "title": "Roles",
+          "type": "array"
+        }
+      },
+      "required": [
+        "roles",
+        "count",
+        "exclude_initiator"
+      ],
+      "title": "Requirement",
+      "type": "object"
+    }
+  },
+  "required": [
+    "required",
+    "approvals",
+    "remaining",
+    "missing_roles"
+  ],
+  "title": "QuorumView",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.policy.QuorumView"
+}

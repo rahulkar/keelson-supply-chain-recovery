@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Output of the Signal Hub's quarantined news extractor (LiteLLM ``extract-fast`` behind the\n``guard-default`` screen; no tools). Input is a headline + snippet only. Everything here is\n``inference``; places/ports/chokepoints are resolved by the gazetteer, never trusted as codes.\nCheck with :func:`news_extraction_violations` before use (``injection_suspected`` → drop).",
+  "properties": {
+    "chokepoints": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Chokepoints",
+      "type": "array"
+    },
+    "companies": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Companies",
+      "type": "array"
+    },
+    "dates_text": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Dates Text",
+      "type": "array"
+    },
+    "injection_suspected": {
+      "title": "Injection Suspected",
+      "type": "boolean"
+    },
+    "kind": {
+      "enum": [
+        "natural_hazard",
+        "weather",
+        "geopolitical",
+        "labor",
+        "logistics",
+        "regulatory",
+        "cyber",
+        "supplier",
+        "demand",
+        "hypothetical"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "places": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Places",
+      "type": "array"
+    },
+    "ports": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Ports",
+      "type": "array"
+    },
+    "subtype": {
+      "title": "Subtype",
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "subtype",
+    "places",
+    "companies",
+    "ports",
+    "chokepoints",
+    "dates_text",
+    "injection_suspected"
+  ],
+  "title": "NewsExtraction",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.llm.NewsExtraction"
+}

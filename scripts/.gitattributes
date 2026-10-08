@@ -1,0 +1,3 @@
+# Run inside Linux containers / Git Bash: keep LF. PowerShell scripts are ASCII-only.
+*.sh text eol=lf
+*.py text eol=lf

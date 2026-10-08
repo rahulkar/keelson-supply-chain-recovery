@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A tenant's alert for one event (``100`` §2, §5). ``why`` is a deterministic sentence built\nfrom the rule and the exposure; ``case_id`` is set once a case is opened (one per alert).",
+  "properties": {
+    "case_id": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Case Id"
+    },
+    "event_id": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Event Id",
+      "type": "string"
+    },
+    "exposure_summary": {
+      "additionalProperties": false,
+      "description": "Counts for the inbox row (\"3 sites · 4 lanes · 2 open POs\"). All numbers come from the tenant\nnetwork snapshot / ERP reads, never from an LLM; ``None`` = not computed.",
+      "properties": {
+        "nodes_by_type": {
+          "additionalProperties": false,
+          "description": "Exposed nodes per type (every type present, 0 when none).",
+          "properties": {
+            "dc": {
+              "minimum": 0,
+              "title": "Dc",
+              "type": "integer"
+            },
+            "factory": {
+              "minimum": 0,
+              "title": "Factory",
+              "type": "integer"
+            },
+            "lane": {
+              "minimum": 0,
+              "title": "Lane",
+              "type": "integer"
+            },
+            "port": {
+              "minimum": 0,
+              "title": "Port",
+              "type": "integer"
+            },
+            "store": {
+              "minimum": 0,
+              "title": "Store",
+              "type": "integer"
+            },
+            "supplier": {
+              "minimum": 0,
+              "title": "Supplier",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "supplier",
+            "factory",
+            "port",
+            "dc",
+            "store",
+            "lane"
+          ],
+          "title": "NodeCounts",
+          "type": "object"
+        },
+        "open_po_lines": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Open Po Lines"
+        },
+        "units_inbound": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Units Inbound"
+        }
+      },
+      "required": [
+        "nodes_by_type",
+        "open_po_lines",
+        "units_inbound"
+      ],
+      "title": "ExposureSummary",
+      "type": "object"
+    },
+    "first_raised_at": {
+      "format": "date-time",
+      "title": "First Raised At",
+      "type": "string"
+    },
+    "id": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Id",
+      "type": "string"
+    },
+    "severity": {
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "simulated": {
+      "title": "Simulated",
+      "type": "boolean"
+    },
+    "status": {
+      "enum": [
+        "new",
+        "seen",
+        "snoozed",
+        "dismissed",
+        "opened",
+        "resolved"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "tenant": {
+      "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+      "title": "Tenant",
+      "type": "string"
+    },
+    "title": {
+      "maxLength": 300,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    },
+    "why": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Why",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "tenant",
+    "event_id",
+    "status",
+    "severity",
+    "title",
+    "why",
+    "exposure_summary",
+    "first_raised_at",
+    "updated_at",
+    "case_id",
+    "simulated"
+  ],
+  "title": "Alert",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.signals.Alert"
+}

@@ -1,0 +1,53 @@
+# Action mapping (connector_mapping kind=action) for Merxa /mcp-lite
+# (services/merxa-api/src/merxa_api/mcp/lite.py). Ops not listed here become guided steps.
+kind: action
+ops:
+  # create_transfer_order(from_dc, to_dc, ship_date, lines_json, request_id?) → {code, status, transfer_order}
+  # Merxa replays a seen request_id, but the admin-confirmed guarantee is best_effort: the line is
+  # read back before any retry. /mcp-lite exposes no transfer-order lines nor the request id on the
+  # record, so the read-back matches the header (route + ship date + created via mcp-lite): a
+  # transfer order with the same route and date that already existed also matches.
+  - op: transfer_order.create
+    tool: create_transfer_order
+    args:
+      from_dc: "{{payload.from_dc}}"
+      to_dc: "{{payload.to_dc}}"
+      ship_date: "{{payload.ship_date}}"
+      lines_json: {"$json": "{{payload.lines}}"}
+    idempotency: best_effort
+    request_id_arg: request_id
+    readback:
+      tool: list_items
+      args:
+        type: transfer_order
+        filter_json:
+          $json:
+            from_dc: "{{payload.from_dc}}"
+            to_dc: "{{payload.to_dc}}"
+            ship_date: "{{payload.ship_date}}"
+            created_via: mcp-lite
+        page_size: 200
+      items_path: $.items
+      match:
+        $.from_dc: "{{payload.from_dc}}"
+        $.to_dc: "{{payload.to_dc}}"
+        $.ship_date: "{{payload.ship_date}}"
+  # update_item(type, key, fields_json, expected_version, request_id?) → {type, key, item}
+  # (optimistic concurrency: a moved version is a version_conflict tool error, nothing applied)
+  - op: allocation.set_qty
+    tool: update_item
+    args:
+      type: allocation
+      key: "{{target_ref}}"
+      fields_json: {"$json": {"qty": "{{payload.qty}}"}}
+      expected_version: "{{expected_version}}"
+    idempotency: best_effort
+    request_id_arg: request_id
+    readback:
+      tool: get_item
+      args:
+        type: allocation
+        key: "{{target_ref}}"
+      items_path: $.item
+      match:
+        $.qty: "{{payload.qty}}"

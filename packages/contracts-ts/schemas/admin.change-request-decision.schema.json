@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Body of ``…/approve`` and ``…/reject`` (a reject needs ``reason``).",
+  "properties": {
+    "reason": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reason"
+    }
+  },
+  "title": "ChangeRequestDecision",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.admin.ChangeRequestDecision"
+}

@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "``evidence_pack@1`` (canvas).",
+  "properties": {
+    "items": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "pattern": "^ev_[0-9A-Za-z_-]{1,64}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "prov": {
+            "description": "Where a number or statement comes from (plan §3.3).",
+            "enum": [
+              "fact",
+              "inference",
+              "assumption",
+              "simulated",
+              "decision",
+              "committed"
+            ],
+            "title": "Provenance",
+            "type": "string"
+          },
+          "retrieved_at": {
+            "format": "date-time",
+            "title": "Retrieved At",
+            "type": "string"
+          },
+          "source": {
+            "minLength": 1,
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "source",
+          "label",
+          "prov",
+          "retrieved_at"
+        ],
+        "title": "EvidenceItem",
+        "type": "object"
+      },
+      "title": "Items",
+      "type": "array"
+    }
+  },
+  "required": [
+    "items"
+  ],
+  "title": "EvidencePackProps",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.blocks.EvidencePackProps"
+}

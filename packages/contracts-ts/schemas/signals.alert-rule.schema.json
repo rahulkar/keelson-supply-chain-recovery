@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A per-tenant alert rule (``100`` §2, §5). ``hysteresis_bp``: an update edits the existing\nalert and only re-notifies when severity rose by at least this much. Immutable, like\n:class:`AlertCondition` (the defaults are shared module state).",
+  "properties": {
+    "action": {
+      "enum": [
+        "alert",
+        "alert_and_draft_case",
+        "ignore"
+      ],
+      "title": "Action",
+      "type": "string"
+    },
+    "hysteresis_bp": {
+      "maximum": 10000,
+      "minimum": 0,
+      "title": "Hysteresis Bp",
+      "type": "integer"
+    },
+    "id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_-]*$",
+      "title": "Id",
+      "type": "string"
+    },
+    "when": {
+      "additionalProperties": false,
+      "description": "When a rule matches. Empty ``kinds`` / ``node_types`` = any; ``min_exposed_nodes`` counts\nexposed nodes of ``node_types`` (all types, lanes included, when empty).\n\nImmutable (frozen, tuple fields) so the shared :data:`DEFAULT_ALERT_RULES` can never be\nchanged in place by one tenant's rule handling; derive variants with ``model_copy(update=…)``.",
+      "properties": {
+        "kinds": {
+          "items": {
+            "enum": [
+              "natural_hazard",
+              "weather",
+              "geopolitical",
+              "labor",
+              "logistics",
+              "regulatory",
+              "cyber",
+              "supplier",
+              "demand",
+              "hypothetical"
+            ],
+            "type": "string"
+          },
+          "maxItems": 10,
+          "title": "Kinds",
+          "type": "array"
+        },
+        "min_confidence_bp": {
+          "maximum": 10000,
+          "minimum": 0,
+          "title": "Min Confidence Bp",
+          "type": "integer"
+        },
+        "min_exposed_nodes": {
+          "minimum": 0,
+          "title": "Min Exposed Nodes",
+          "type": "integer"
+        },
+        "min_severity_bp": {
+          "maximum": 10000,
+          "minimum": 0,
+          "title": "Min Severity Bp",
+          "type": "integer"
+        },
+        "node_types": {
+          "items": {
+            "enum": [
+              "supplier",
+              "factory",
+              "port",
+              "dc",
+              "store",
+              "lane"
+            ],
+            "type": "string"
+          },
+          "maxItems": 6,
+          "title": "Node Types",
+          "type": "array"
+        }
+      },
+      "required": [
+        "min_severity_bp",
+        "kinds",
+        "min_confidence_bp",
+        "min_exposed_nodes",
+        "node_types"
+      ],
+      "title": "AlertCondition",
+      "type": "object"
+    }
+  },
+  "required": [
+    "id",
+    "when",
+    "action",
+    "hysteresis_bp"
+  ],
+  "title": "AlertRule",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.signals.AlertRule"
+}

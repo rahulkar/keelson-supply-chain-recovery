@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Impact graph (``/v1/impact`` with ``include_graph``; also the ``impact_graph@1``\nblock data). At most :data:`MAX_GRAPH_NODES` nodes; edges reference node ids.",
+  "properties": {
+    "edges": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "supplies",
+              "produces",
+              "ships",
+              "stocks",
+              "serves"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "source": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Source",
+            "type": "string"
+          },
+          "target": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "target",
+          "kind"
+        ],
+        "title": "GraphEdge",
+        "type": "object"
+      },
+      "title": "Edges",
+      "type": "array"
+    },
+    "nodes": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "first_breach_week": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-W(0[1-9]|[1-4]\\d|5[0-3])$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "First Breach Week"
+          },
+          "id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "supplier",
+              "component",
+              "factory",
+              "port",
+              "chokepoint",
+              "lane",
+              "po",
+              "po_line",
+              "dc",
+              "cluster",
+              "store",
+              "style",
+              "sku"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "disrupted",
+              "impacted",
+              "at_risk",
+              "ok"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "units_at_risk": {
+            "minimum": 0,
+            "title": "Units At Risk",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "label",
+          "status",
+          "units_at_risk"
+        ],
+        "title": "GraphNode",
+        "type": "object"
+      },
+      "maxItems": 300,
+      "title": "Nodes",
+      "type": "array"
+    }
+  },
+  "required": [
+    "nodes"
+  ],
+  "title": "ImpactGraph",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.optimizer.ImpactGraph"
+}

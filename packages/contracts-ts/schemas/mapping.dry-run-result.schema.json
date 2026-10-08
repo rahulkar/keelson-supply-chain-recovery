@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Dry-run answer: the exact tool call the commit service would make (``executed`` is always\nfalse), or why the op is guided.",
+  "properties": {
+    "call": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "args": {
+              "additionalProperties": true,
+              "title": "Args",
+              "type": "object"
+            },
+            "tool": {
+              "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+              "title": "Tool",
+              "type": "string"
+            }
+          },
+          "required": [
+            "tool",
+            "args"
+          ],
+          "title": "RenderedCall",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "executed": {
+      "const": false,
+      "default": false,
+      "title": "Executed",
+      "type": "boolean"
+    },
+    "guided_reason": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Guided Reason"
+    },
+    "idempotency": {
+      "anyOf": [
+        {
+          "enum": [
+            "enforced",
+            "best_effort",
+            "none"
+          ],
+          "title": "Idempotency",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "mapped": {
+      "title": "Mapped",
+      "type": "boolean"
+    },
+    "op": {
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "title": "Op",
+      "type": "string"
+    },
+    "readback": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "description": "The rendered read-back and, when it ran, what it found.",
+          "properties": {
+            "call": {
+              "additionalProperties": false,
+              "properties": {
+                "args": {
+                  "additionalProperties": true,
+                  "title": "Args",
+                  "type": "object"
+                },
+                "tool": {
+                  "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+                  "title": "Tool",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "tool",
+                "args"
+              ],
+              "title": "RenderedCall",
+              "type": "object"
+            },
+            "detail": {
+              "anyOf": [
+                {
+                  "maxLength": 500,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Detail"
+            },
+            "executed": {
+              "title": "Executed",
+              "type": "boolean"
+            },
+            "items_found": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Items Found"
+            },
+            "matched": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Matched"
+            },
+            "ok": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ok"
+            }
+          },
+          "required": [
+            "call",
+            "executed",
+            "ok",
+            "items_found",
+            "matched"
+          ],
+          "title": "DryRunReadback",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "request_id_arg": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Request Id Arg"
+    }
+  },
+  "required": [
+    "op",
+    "mapped",
+    "call",
+    "idempotency",
+    "request_id_arg",
+    "readback",
+    "guided_reason"
+  ],
+  "title": "ActionDryRunResult",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.mapping.ActionDryRunResult"
+}

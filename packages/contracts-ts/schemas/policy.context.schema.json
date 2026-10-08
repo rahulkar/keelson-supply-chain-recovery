@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Typed CEL context ``{cs, case, initiator}`` (also the admin test-bench input).",
+  "properties": {
+    "case": {
+      "additionalProperties": false,
+      "description": "``case`` — the case the change set belongs to.",
+      "properties": {
+        "mode": {
+          "enum": [
+            "actual",
+            "what_if"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "origin": {
+          "enum": [
+            "chat",
+            "signal",
+            "webhook"
+          ],
+          "title": "Origin",
+          "type": "string"
+        },
+        "tainted": {
+          "title": "Tainted",
+          "type": "boolean"
+        },
+        "unconfirmed": {
+          "minimum": 0,
+          "title": "Unconfirmed",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "mode",
+        "origin",
+        "tainted",
+        "unconfirmed"
+      ],
+      "title": "PolicyCase",
+      "type": "object"
+    },
+    "cs": {
+      "additionalProperties": false,
+      "description": "``cs`` — facts about the change set (or bundle) being approved.",
+      "properties": {
+        "connectors": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Connectors",
+          "type": "array"
+        },
+        "incremental_cost_cents": {
+          "description": "Money in integer EUR minor units (cents).",
+          "title": "Incremental Cost Cents",
+          "type": "integer"
+        },
+        "levers": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Levers",
+          "type": "array"
+        },
+        "lines": {
+          "minimum": 0,
+          "title": "Lines",
+          "type": "integer"
+        },
+        "lost_units_after": {
+          "minimum": 0,
+          "title": "Lost Units After",
+          "type": "integer"
+        },
+        "ops": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Ops",
+          "type": "array"
+        },
+        "units": {
+          "minimum": 0,
+          "title": "Units",
+          "type": "integer"
+        },
+        "value_cents": {
+          "description": "Money in integer EUR minor units (cents).",
+          "title": "Value Cents",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "lines",
+        "units",
+        "value_cents",
+        "ops",
+        "connectors",
+        "incremental_cost_cents",
+        "lost_units_after",
+        "levers"
+      ],
+      "title": "PolicyChangeSet",
+      "type": "object"
+    },
+    "initiator": {
+      "additionalProperties": false,
+      "description": "``initiator`` — the person (or signal principal) who started the run.",
+      "properties": {
+        "roles": {
+          "items": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_-]*$",
+            "type": "string"
+          },
+          "title": "Roles",
+          "type": "array"
+        }
+      },
+      "required": [
+        "roles"
+      ],
+      "title": "PolicyInitiator",
+      "type": "object"
+    }
+  },
+  "required": [
+    "cs",
+    "case",
+    "initiator"
+  ],
+  "title": "PolicyContext",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.policy.PolicyContext"
+}

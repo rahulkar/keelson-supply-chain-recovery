@@ -1,0 +1,54 @@
+{
+  "id": "blk_approval_bundle",
+  "kind": "approval_card",
+  "v": 1,
+  "title": "Approval needed",
+  "placement": "inline",
+  "provenance": {
+    "kind": "decision",
+    "engine": "keelson-engine@0.5",
+    "inputs_hash": "5c0ffee15ba5e000",
+    "as_of": "2026-10-07"
+  },
+  "data_ref": null,
+  "props": {
+    "interrupt_id": "approval-csb_01a1bndl",
+    "change_set_id": "csb_01a1bndl",
+    "change_set_hash": "62511d5d43f62ceacf87367d049a9daa5192f0e4dd123003c7ef9a9643934ae1",
+    "plan_version": 2,
+    "summary": {
+      "lines": 11,
+      "units": 5600,
+      "value_cents": 7420000
+    },
+    "reason": "More than 5,000 units move between DCs, so an approver must sign off.",
+    "required_roles": [
+      "approver"
+    ],
+    "connect": {
+      "status": "active",
+      "connect_url": null
+    },
+    "buttons": [
+      "approve",
+      "reject",
+      "revise"
+    ],
+    "bundle": [
+      {
+        "system": "Merxa",
+        "connector": "merxa",
+        "change_set_id": "cs_01a1bndl_merxa",
+        "lines": 9,
+        "change_set_hash": "62511d5d43f62ceacf87367d049a9daa5192f0e4dd123003c7ef9a9643934ae1"
+      },
+      {
+        "system": "Warehouse (WMS)",
+        "connector": "wms",
+        "change_set_id": "cs_01a1bndl_wms",
+        "lines": 2,
+        "change_set_hash": "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0"
+      }
+    ]
+  }
+}

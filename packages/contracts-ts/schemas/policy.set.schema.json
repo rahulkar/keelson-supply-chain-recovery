@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The versioned rule set (``GET/PUT /api/admin/policies``; part of the agent spec).",
+  "properties": {
+    "rules": {
+      "items": {
+        "additionalProperties": false,
+        "description": "One approval rule. ``when`` is a CEL expression over :class:`PolicyContext`;\n``require`` is a quorum, ``\"auto\"`` (commit under the autocommit principal, receipt\n``approved_by: policy:<id>@<version>``) or ``\"refuse\"`` (no change set is compiled).",
+        "properties": {
+          "description": {
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_-]*$",
+            "title": "Id",
+            "type": "string"
+          },
+          "priority": {
+            "minimum": 0,
+            "title": "Priority",
+            "type": "integer"
+          },
+          "require": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "description": "Who must approve: ``count`` distinct people holding ``roles`` (see module docstring).\n\n``exclude_initiator`` = the person who initiated the change set may not approve it\n(enforced server-side by the decision API). Also the ``interrupt.quorum_spec`` shape.",
+                "properties": {
+                  "count": {
+                    "maximum": 10,
+                    "minimum": 1,
+                    "title": "Count",
+                    "type": "integer"
+                  },
+                  "exclude_initiator": {
+                    "title": "Exclude Initiator",
+                    "type": "boolean"
+                  },
+                  "roles": {
+                    "items": {
+                      "maxLength": 64,
+                      "minLength": 1,
+                      "pattern": "^[a-z][a-z0-9_-]*$",
+                      "type": "string"
+                    },
+                    "maxItems": 10,
+                    "minItems": 1,
+                    "title": "Roles",
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "roles",
+                  "count",
+                  "exclude_initiator"
+                ],
+                "title": "Requirement",
+                "type": "object"
+              },
+              {
+                "enum": [
+                  "auto",
+                  "refuse"
+                ],
+                "type": "string"
+              }
+            ],
+            "title": "Require"
+          },
+          "when": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "When",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "description",
+          "when",
+          "require",
+          "priority"
+        ],
+        "title": "PolicyRule",
+        "type": "object"
+      },
+      "maxItems": 50,
+      "minItems": 1,
+      "title": "Rules",
+      "type": "array"
+    },
+    "version": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "version",
+    "rules"
+  ],
+  "title": "PolicySet",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.policy.PolicySet"
+}

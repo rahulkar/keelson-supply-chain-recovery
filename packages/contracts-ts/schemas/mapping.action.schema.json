@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "``connector_mapping`` kind ``action`` (versioned by the engine): the ops a tier-A connector\ncan apply per-op. Ops not listed are guided (``95`` §2).",
+  "properties": {
+    "kind": {
+      "const": "action",
+      "default": "action",
+      "title": "Kind",
+      "type": "string"
+    },
+    "ops": {
+      "items": {
+        "additionalProperties": false,
+        "description": "One canonical op → one vendor tool call. ``idempotency`` is the admin-confirmed guarantee\nof that tool: ``enforced`` needs ``request_id_arg`` (the per-op idempotency key is sent\nthere); ``best_effort`` / ``none`` need a ``readback`` (read back before any retry; ``none``\nops are never auto-retried).",
+        "properties": {
+          "args": {
+            "additionalProperties": true,
+            "title": "Args",
+            "type": "object"
+          },
+          "idempotency": {
+            "enum": [
+              "enforced",
+              "best_effort",
+              "none"
+            ],
+            "title": "Idempotency",
+            "type": "string"
+          },
+          "op": {
+            "maxLength": 64,
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+            "title": "Op",
+            "type": "string"
+          },
+          "readback": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "description": "How to confirm an op took effect without repeating it: call ``tool`` with ``args`` (a\nread tool; same placeholders as the action), take the items at ``items_path`` (``null`` = the\nresult is the single item; a path to an object = that single item; to a list = its items) and\nsucceed when some item has every ``match`` path (JSONPath-lite relative to the item) equal to\nthe rendered value.",
+                "properties": {
+                  "args": {
+                    "additionalProperties": true,
+                    "title": "Args",
+                    "type": "object"
+                  },
+                  "items_path": {
+                    "anyOf": [
+                      {
+                        "maxLength": 200,
+                        "minLength": 1,
+                        "pattern": "^\\$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Items Path"
+                  },
+                  "match": {
+                    "additionalProperties": true,
+                    "maxProperties": 32,
+                    "minProperties": 1,
+                    "title": "Match",
+                    "type": "object"
+                  },
+                  "tool": {
+                    "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+                    "title": "Tool",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tool",
+                  "match"
+                ],
+                "title": "Readback",
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_id_arg": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id Arg"
+          },
+          "tool": {
+            "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "op",
+          "tool",
+          "args",
+          "idempotency",
+          "request_id_arg",
+          "readback"
+        ],
+        "title": "ActionOpMapping",
+        "type": "object"
+      },
+      "maxItems": 64,
+      "minItems": 1,
+      "title": "Ops",
+      "type": "array"
+    }
+  },
+  "required": [
+    "ops"
+  ],
+  "title": "ActionMapping",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.mapping.ActionMapping"
+}

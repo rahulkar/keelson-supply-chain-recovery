@@ -17,12 +17,13 @@ this compiler must agree with it on every value, ``null`` and error (differentia
   ``true``/``false``, floats as Python ``repr``, containers as JSON). The raw item is kept as JSON
   text (``raw``) for error messages.
 * **Values with errors.** Every AST node compiles to three columns — tag, text and an error code
-  (``NULL`` = no error) — defined once as DuckDB *lateral column aliases* (``CASE`` chains, never a
-  function that can raise: ``TRY_CAST``, guarded ``make_date``). Errors are values, so the lazy
-  semantics of ``coalesce`` / ``if_present`` / ``+`` (an argument that is not evaluated never
-  fails) are reproduced exactly by choosing whose error propagates. Messages are not generated in
-  SQL: the execution re-evaluates the failing item with the interpreter, which raises the exact
-  M7 message.
+  (``NULL`` = no error) — each defined once, in the first of a chain of CTE stages after everything
+  it reads (never a lateral alias: DuckDB expands those by copying, exponentially in the nesting);
+  ``CASE`` chains, never a function that can raise (``TRY_CAST``, guarded ``make_date``). Errors are
+  values, so the lazy semantics of ``coalesce`` / ``if_present`` / ``+`` (an argument that is not
+  evaluated never fails) are reproduced exactly by choosing whose error propagates. Messages are
+  not generated in SQL: the execution re-evaluates the failing item with the interpreter, which
+  raises the exact M7 message.
 * **Joins.** ``lookup()`` / ``field()`` call sites are ``LEFT JOIN`` s onto per-table key → value
   (record) tables built first (first item wins). A call whose key needs another join's result is
   placed one CTE stage later.
@@ -37,6 +38,7 @@ this compiler must agree with it on every value, ``null`` and error (differentia
 from __future__ import annotations
 
 import json
+import re
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -126,6 +128,9 @@ def _re_class(chars: str) -> str:
 
 
 _STRIP_RE: Final = f"^{_re_class(PY_WHITESPACE)}+|{_re_class(PY_WHITESPACE)}+$"
+_ALIAS_RE: Final = re.compile(r"\b(n\d+_[a-z]+)\b")
+_JOIN_RE: Final = re.compile(r"\b(j\d+)\.")
+_COL_RE: Final = re.compile(r"\b(ord|raw|p\d+_[tv]|n\d+_[a-z]+)\b")
 _ASCII_TRIM: Final = " || ".join(f"chr({ord(c)})" for c in ASCII_SPACE)
 _NULL_E: Final = "NULL::VARCHAR"
 _UPPER_FROM: Final = sql_str("abcdefghijklmnopqrstuvwxyz")
@@ -324,6 +329,8 @@ class _Gen:
         self.memo: dict[tuple[Any, ...], _Val] = {}
         self.n = 0
         self.calls: Counter[str] = Counter()
+        self.stage_of: dict[str, int] = {}
+        self.join_stage: dict[str, int] = {}
 
     # ── helpers ──
     def _stage(self, level: int) -> None:
@@ -335,15 +342,35 @@ class _Gen:
         self.n += 1
         return f"n{self.n}"
 
+    def _stage_for(self, *sqls: str) -> int:
+        """The first CTE stage where ``sqls`` can be evaluated: after every alias they read (an alias
+        is never read in its own stage — DuckDB expands lateral aliases by copying, exponentially),
+        and in the stage of every join whose columns they read."""
+        stage = 1
+        for sql in sqls:
+            for alias in _ALIAS_RE.findall(sql):
+                stage = max(stage, self.stage_of.get(alias, 0) + 1)
+            for join in _JOIN_RE.findall(sql):
+                stage = max(stage, self.join_stage[join])
+        return stage
+
     def _helper(self, level: int, name: str, suffix: str, sql: str) -> str:
-        self._stage(level)
-        self.defs[level].append(f"{sql} AS {name}_{suffix}")
-        return f"{name}_{suffix}"
+        del level  # the stage follows from what the SQL reads
+        alias = f"{name}_{suffix}"
+        stage = self._stage_for(sql)
+        self._stage(stage)
+        self.defs[stage].append(f"{sql} AS {alias}")
+        self.stage_of[alias] = stage
+        return alias
 
     def _define(self, level: int, name: str, t: str, v: str, e: str) -> _Val:
-        self._stage(level)
-        self.defs[level] += [f"{t} AS {name}_t", f"{v} AS {name}_v", f"{e} AS {name}_e"]
-        return _Val(f"{name}_t", f"{name}_v", f"{name}_e", level)
+        del level
+        stage = self._stage_for(t, v, e)
+        self._stage(stage)
+        self.defs[stage] += [f"{t} AS {name}_t", f"{v} AS {name}_v", f"{e} AS {name}_e"]
+        for suffix in ("t", "v", "e"):
+            self.stage_of[f"{name}_{suffix}"] = stage
+        return _Val(f"{name}_t", f"{name}_v", f"{name}_e", stage)
 
     # ── nodes ──
     def val(self, expr: Expr) -> _Val:
@@ -520,13 +547,14 @@ class _Gen:
         return self._define(level, name, t, v, e)
 
     def _join(self, table: str, key: _Val) -> tuple[str, int]:
-        level = key.level + 1
-        self._stage(level)
+        condition = f"(CASE WHEN {key.t} IN (1, 2, 3) THEN {key.v} END)"
+        stage = self._stage_for(condition)
+        self._stage(stage)
         self.n += 1
         alias = f"j{self.n}"
-        self.joins[level].append(
-            f"LEFT JOIN {table} AS {alias} ON {alias}.k = (CASE WHEN {key.t} IN (1, 2, 3) THEN {key.v} END)")
-        return alias, level
+        self.join_stage[alias] = stage
+        self.joins[stage].append(f"LEFT JOIN {table} AS {alias} ON {alias}.k = {condition}")
+        return alias, stage
 
     def _fn_lookup(self, expr: CallExpr) -> _Val:
         table = expr.args[0]
@@ -563,15 +591,28 @@ class _Gen:
 
     # ── query ──
     def query(self, outputs: Sequence[str]) -> str:
-        """``WITH s0 … sN SELECT <outputs> FROM sN`` (``outputs`` may use lateral aliases)."""
-        n_paths = len(self.source.paths)
-        base = ["ord"] + (["raw"] if self.raw else []) + [f"p{i}_t, p{i}_v" for i in range(n_paths)]
-        stages = [f"s0 AS (SELECT {', '.join(base + self.defs[0])} FROM {self.source.table})"]
-        for level in range(1, len(self.defs)):
-            cols = ", ".join([f"s{level - 1}.*", *self.defs[level]])
-            joins = " ".join(self.joins[level])
-            stages.append(f"s{level} AS (SELECT {cols} FROM s{level - 1} {joins})")
-        return f"WITH {', '.join(stages)} SELECT {', '.join(outputs)} FROM s{len(self.defs) - 1}"
+        """``WITH s0 … sN SELECT <outputs> FROM sN`` (``outputs`` read the stages' columns)."""
+        base = ["ord", *(["raw"] if self.raw else []),
+                *(c for i in range(len(self.source.paths)) for c in (f"p{i}_t", f"p{i}_v"))]
+        last = len(self.defs) - 1
+        defined = [[d.rsplit(" AS ", 1)[1] for d in self.defs[k]] for k in range(last + 1)]
+        order = {c: i for i, c in enumerate([*base, *(a for names in defined for a in names)])}
+        # liveness: each stage passes on only what a later stage or the outputs read (a wide
+        # pass-through of every column through every stage costs a vector per column and stage)
+        out = {c for c in _COL_RE.findall(" ".join(outputs)) if c in order} | {"ord"}
+        carry: list[list[str]] = [[] for _ in range(last + 1)]
+        for k in range(last, 0, -1):
+            own = set(defined[k])
+            exprs = [d.rsplit(" AS ", 1)[0] for d in self.defs[k]]
+            reads = {c for c in _COL_RE.findall(" ".join([*exprs, *self.joins[k]])) if c in order}
+            carry[k] = sorted((out - own) & set(order), key=order.__getitem__)
+            out = (out - own) | reads
+        first = [c for c in base if c in out]
+        stages = [f"s0 AS (SELECT {', '.join(first)} FROM {self.source.table})"]
+        for k in range(1, last + 1):
+            cols = ", ".join([*(f"s{k - 1}.{c}" for c in carry[k]), *self.defs[k]])
+            stages.append(f"s{k} AS (SELECT {cols} FROM s{k - 1} {' '.join(self.joins[k])})")
+        return f"WITH {', '.join(stages)} SELECT {', '.join(outputs)} FROM s{last}"
 
     def node_sql(self, val: _Val) -> str:
         """The definitions of ``val``'s own columns (for the explain view)."""
@@ -651,7 +692,7 @@ def _compile_entity(index: int, where: str, em: EntityMapping, source: CompiledS
         for j, (column, ast) in enumerate(columns):
             val = gen.val(ast)
             outputs += [f"{val.t} AS c{j}_t", f"{val.v} AS c{j}_v", f"{val.e} AS c{j}_e"]
-            errs.append(f"c{j}_e")
+            errs.append(val.e)
             column_sql[column] = gen.node_sql(val)
         outputs.append(f"{_err_any(errs)} AS err")
         return CompiledEntity(index, where, em, source, columns, [], gen.query(outputs), column_sql, gen.calls)

@@ -4,6 +4,7 @@ white-box harness that evaluates many expressions through the compiler's SQL at 
 
 from __future__ import annotations
 
+import json
 import math
 from collections.abc import Sequence
 from typing import Any
@@ -95,6 +96,8 @@ def interpreter_lookups() -> me.Lookups:
 def _same(a: Any, b: Any) -> bool:
     if isinstance(a, float) and isinstance(b, float):
         return (math.isnan(a) and math.isnan(b)) or repr(a) == repr(b)
+    if isinstance(a, (dict, list)) and type(a) is type(b):  # NaN inside: compare the JSON texts
+        return json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
     return type(a) is type(b) and a == b
 
 

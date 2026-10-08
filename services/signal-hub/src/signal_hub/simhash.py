@@ -22,6 +22,7 @@ syndicated edits; an unrelated pair within 6 bits has a probability below 1e-10.
 from __future__ import annotations
 
 import hashlib
+import itertools
 import re
 import unicodedata
 from collections.abc import Iterable
@@ -29,8 +30,8 @@ from dataclasses import dataclass
 from typing import Final
 
 __all__ = [
-    "BAND_BITS",
     "BANDS",
+    "BAND_BITS",
     "MAX_EXACT_BITS",
     "MIN_TOKENS",
     "Fingerprint",
@@ -85,7 +86,7 @@ def features(words: Iterable[str]) -> dict[str, int]:
     out: dict[str, int] = {}
     for w in seq:
         out[w] = out.get(w, 0) + 1
-    for a, b in zip(seq, seq[1:], strict=False):
+    for a, b in itertools.pairwise(seq):
         key = f"{a} {b}"
         out[key] = out.get(key, 0) + 1
     return out

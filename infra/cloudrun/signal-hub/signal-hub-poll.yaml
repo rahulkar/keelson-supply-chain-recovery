@@ -1,5 +1,5 @@
 # Cloud Run job template: signal-hub-poll-${SH_ADAPTER} (compose: signal-hub-poller). One job per
-# adapter (gdacs, usgs, rss, extraction, sweep), each triggered by a Cloud Scheduler job
+# adapter (gdacs, usgs, rss, nhc, copernicus_ems, ofac, gdelt, [meteoalarm], extraction, sweep), each triggered by a Cloud Scheduler job
 # (${SH_SCHEDULE}); `--once` runs one poll and exits (1 = a fetch failed). Concurrent runs of one
 # adapter are skipped by an advisory lock. No Squid on Cloud Run: public feeds leave through
 # Cloud NAT (vpc-access-egress all-traffic also reaches Cloud SQL and the internal LiteLLM).
@@ -47,3 +47,7 @@ spec:
                     secretKeyRef:
                       name: keelson-litellm-signals-key
                       key: latest
+                - name: SIGNAL_ADAPTERS
+                  value: "${SH_SIGNAL_ADAPTERS}"
+                - name: METEOALARM_COUNTRIES
+                  value: "${SH_METEOALARM_COUNTRIES}"

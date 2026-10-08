@@ -21,16 +21,27 @@
 #   signal-hub-api       → Service signal-hub-api (internal ingress, minScale 1)
 #   signal-hub-poller    → one Job per adapter, signal-hub-poll-<adapter> (`--once --adapter X`),
 #                          each run by a Cloud Scheduler job on the adapter's cadence
+#
+# M8 feeds (docs/contracts/124-m8-signal-feeds.md): nhc, copernicus_ems, ofac and gdelt jobs; a paused
+# source (GDELT until a workspace opts in) exits 0 at once. meteoalarm gets a job only when .env sets
+# METEOALARM_COUNTRIES (its redistribution terms are the operator's call); SIGNAL_ADAPTERS and
+# METEOALARM_COUNTRIES reach the API service and every poll job (rendered from .env / defaults).
 
 SIGNAL_HUB_DIR="${CR:?CR must be set by deploy.sh}/signal-hub"
-SIGNAL_HUB_ADAPTERS=(gdacs usgs rss extraction sweep)
+SIGNAL_HUB_ADAPTERS=(gdacs usgs rss nhc copernicus_ems ofac gdelt extraction sweep)
 declare -A SIGNAL_HUB_SCHEDULES=(
   [gdacs]="*/10 * * * *"
   [usgs]="*/5 * * * *"
   [rss]="*/15 * * * *"
+  [nhc]="*/15 * * * *"
+  [copernicus_ems]="*/30 * * * *"
+  [ofac]="0 * * * *"
+  [gdelt]="*/15 * * * *"
+  [meteoalarm]="*/15 * * * *"
   [extraction]="*/5 * * * *"
   [sweep]="*/10 * * * *"
 )
+SH_DEFAULT_ADAPTERS="gdacs,usgs,rss,nhc,copernicus_ems,ofac,gdelt"
 SIGNAL_HUB_SA="keelson-signal-hub"
 
 signal_hub_init() {
@@ -38,7 +49,14 @@ signal_hub_init() {
   URL_SIGNAL_HUB="$(run_url signal-hub-api)"
   SH_ADAPTER=""
   SH_SCHEDULE=""
-  RENDER_VARS+=(IMAGE_SIGNAL_HUB URL_SIGNAL_HUB SH_ADAPTER SH_SCHEDULE)
+  # M8 feeds: the allow-list and the MeteoAlarm countries (empty = no MeteoAlarm job)
+  SH_SIGNAL_ADAPTERS="$(cfg SIGNAL_ADAPTERS "$SH_DEFAULT_ADAPTERS")"
+  SH_METEOALARM_COUNTRIES="$(cfg METEOALARM_COUNTRIES "")"
+  if [ -n "$SH_METEOALARM_COUNTRIES" ]; then
+    case ",$SH_SIGNAL_ADAPTERS," in *,meteoalarm,*) ;; *) SH_SIGNAL_ADAPTERS="${SH_SIGNAL_ADAPTERS},meteoalarm" ;; esac
+    case " ${SIGNAL_HUB_ADAPTERS[*]} " in *" meteoalarm "*) ;; *) SIGNAL_HUB_ADAPTERS+=(meteoalarm) ;; esac
+  fi
+  RENDER_VARS+=(IMAGE_SIGNAL_HUB URL_SIGNAL_HUB SH_ADAPTER SH_SCHEDULE SH_SIGNAL_ADAPTERS SH_METEOALARM_COUNTRIES)
   export IMAGE_SIGNAL_HUB URL_SIGNAL_HUB
 }
 

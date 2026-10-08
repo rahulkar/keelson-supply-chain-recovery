@@ -37,6 +37,7 @@ import { useSession } from "@/lib/client/session";
 import { hasAnyRole } from "@/lib/roles";
 import { DemoPacksPanel } from "../shell/DemoPacks";
 import { AdminPageHeader, AdminSection, InlineError, ResourceView } from "./common";
+import { SourceLicenceCell, SourceNameCell, SourceSubscribeCell, SourceTypeCell } from "./SignalSourceCells";
 
 const KIND_LABELS: Record<string, string> = {
   natural_hazard: "Natural hazard",
@@ -96,7 +97,7 @@ function SourcesSection() {
   };
 
   return (
-    <AdminSection title="Sources" description="Public feeds and connected systems the Signal Hub watches. Turn a source off to stop its alerts for this workspace. Licences are shown wherever their data appears.">
+    <AdminSection title="Sources" description="Public feeds and connected systems the Signal Hub watches. Turn a source off to stop its alerts for this workspace; opt-in sources stay off until you subscribe. Licences are shown wherever their data appears.">
       <ResourceView resource={list} label="signal sources">
         {({ sources, hubError }) => (
           <div className="flex flex-col gap-3">
@@ -109,18 +110,9 @@ function SourcesSection() {
               rowTone={(s) => (s.enabled ? (s.last_status === "error" ? "warning" : undefined) : "muted")}
               empty="No sources reported by the Signal Hub."
               columns={[
-                {
-                  id: "name",
-                  header: "Source",
-                  rowHeader: true,
-                  cell: (s) => (
-                    <span className="flex flex-col text-left">
-                      <span className="font-medium">{s.name}</span>
-                      {s.name !== s.id ? <span className="font-mono text-caption font-normal text-fg-muted">{s.id}</span> : null}
-                    </span>
-                  ),
-                },
-                { id: "licence", header: "Licence", cell: (s) => s.licence ?? s.attribution ?? "—" },
+                { id: "name", header: "Source", rowHeader: true, cell: (s) => <SourceNameCell source={s} /> },
+                { id: "type", header: "Type", cell: (s) => <SourceTypeCell source={s} /> },
+                { id: "licence", header: "Licence", cell: (s) => <SourceLicenceCell source={s} /> },
                 {
                   id: "status",
                   header: "Last poll",
@@ -147,7 +139,7 @@ function SourcesSection() {
                   cell: (s) => (
                     <span className="flex flex-col gap-0.5">
                       <Field label={`Polling cadence of ${s.name}`} hideLabel>
-                        <Select value={s.cadence_s ? String(s.cadence_s) : ""} disabled={busy === s.id} options={cadenceOptions(s)} onChange={(v) => setCadence(s, v)} />
+                        <Select value={s.cadence_s ? String(s.cadence_s) : ""} disabled={busy === s.id || (s.opt_in === true && !s.enabled)} options={cadenceOptions(s)} onChange={(v) => setCadence(s, v)} />
                       </Field>
                       {s.effective_cadence_s && s.effective_cadence_s !== (s.cadence_s ?? s.default_cadence_s) ? (
                         <span className="text-caption text-fg-muted">Polled {cadenceLabel(s.effective_cadence_s)}</span>
@@ -158,14 +150,7 @@ function SourcesSection() {
                 {
                   id: "enabled",
                   header: "Subscribed",
-                  cell: (s) => (
-                    <Switch
-                      checked={s.enabled}
-                      disabled={busy === s.id}
-                      aria-label={`${s.enabled ? "Unsubscribe from" : "Subscribe to"} ${s.name}`}
-                      onCheckedChange={(on) => void subscribe(s, on)}
-                    />
-                  ),
+                  cell: (s) => <SourceSubscribeCell source={s} busy={busy === s.id} onChange={(on) => void subscribe(s, on)} />,
                 },
               ]}
             />

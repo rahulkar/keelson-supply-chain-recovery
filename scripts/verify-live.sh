@@ -8,6 +8,8 @@
 # pass replays). M7: the foreign-ERP proof (northwind-test on Merxa /mcp-lite: crawl → advisory options →
 # per-op apply of the mapped lines with approval → guided rest → read-back) and the Signal Hub's
 # provisioned extraction key (/v1/sources reports llm_key_source db; a pending news item is extracted).
+# M8: one live poll of each new public feed (NHC, Copernicus EMS, OFAC, GDELT) through the poller's
+# egress proxy — no model involved; GDELT exits 0 at once while no workspace has opted in.
 # Every step runs even if an earlier one failed; the summary at the end lists them and the
 # script exits 1 when any failed.
 #
@@ -18,14 +20,14 @@
 #
 # Usage: scripts/verify-live.sh [--only STEP[,STEP...]] [--list]
 #   steps: m4-thin-slice m4-whatif m4-followup evals playwright m5-act3 m5-autocommit m6-act1
-#          m7-foreign-erp m7-hub-key reset
+#          m7-foreign-erp m7-hub-key m8-feeds reset
 #   env DEMO_USER_PASSWORD (default: read from .env), LLM_REPLAY_MODE must not be "off"/"replay"
 set -uo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 export MSYS_NO_PATHCONV=1
-ALL_STEPS=(m4-thin-slice m4-whatif m4-followup evals playwright m5-act3 m5-autocommit m6-act1 m7-foreign-erp m7-hub-key reset)
+ALL_STEPS=(m4-thin-slice m4-whatif m4-followup evals playwright m5-act3 m5-autocommit m6-act1 m7-foreign-erp m7-hub-key m8-feeds reset)
 ONLY=""
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -94,6 +96,9 @@ step m6-act1      twice engine_e2e api_m6_act1.py
 step m7-foreign-erp twice engine_e2e api_m7_foreign_erp.py
 # M7 Signal Hub: the bootstrap-provisioned LiteLLM key (alias keelson-signal-hub) extracts pending news
 step m7-hub-key engine_e2e m7_hub_key.py
+# M8 feeds (docs/contracts/124): the real publishers, parsed by the real adapters (exit 1 = a fetch failed)
+step m8-feeds compose run --rm --no-deps -T signal-hub-poller sh -c \
+  'for a in nhc copernicus_ems ofac gdelt; do python -m signal_hub.poller --once --adapter "$a" || exit 1; done'
 step reset bash scripts/demo-reset.sh
 
 echo; echo "================ summary ================"

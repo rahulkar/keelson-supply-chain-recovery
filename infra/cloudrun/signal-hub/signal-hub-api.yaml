@@ -52,6 +52,11 @@ spec:
               value: ${URL_LITELLM}
             - name: DEMO_MODE
               value: "${DEMO_MODE}"
+            # M8 feeds: the catalogue (polled flags, MeteoAlarm countries) must match the poll jobs
+            - name: SIGNAL_ADAPTERS
+              value: "${SH_SIGNAL_ADAPTERS}"
+            - name: METEOALARM_COUNTRIES
+              value: "${SH_METEOALARM_COUNTRIES}"
             - name: SIGNALS_DATABASE_URL
               valueFrom:
                 secretKeyRef:

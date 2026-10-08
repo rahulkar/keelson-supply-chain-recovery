@@ -561,6 +561,9 @@ function Get-SignalHubEnv {
         GDACS_URL                = V GDACS_URL 'https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?eventlist=TC;EQ;FL&alertlevel=orange;red'
         USGS_URL                 = V USGS_URL 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson'
         RSS_FEEDS                = V RSS_FEEDS 'rss.theloadstar=The Loadstar|https://theloadstar.com/feed/'
+        # M8 feeds (docs/contracts/124): allow-list and MeteoAlarm countries (empty = none)
+        SIGNAL_ADAPTERS          = V SIGNAL_ADAPTERS 'gdacs,usgs,rss,nhc,copernicus_ems,ofac,gdelt'
+        METEOALARM_COUNTRIES     = V METEOALARM_COUNTRIES
         LOG_LEVEL                = V SIGNALS_LOG_LEVEL 'INFO'
         SCENARIOS_DIR            = Join-Path $Root 'data\scenarios'
         GEO_DIR                  = Join-Path $Root 'data\geo'

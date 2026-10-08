@@ -458,6 +458,16 @@ services:
       GDACS_URL: ${GDACS_URL:-https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?eventlist=TC;EQ;FL&alertlevel=orange;red}
       USGS_URL: ${USGS_URL:-https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson}
       RSS_FEEDS: "${RSS_FEEDS:-rss.theloadstar=The Loadstar|https://theloadstar.com/feed/}"
+      # M8 feeds (docs/contracts/124-m8-signal-feeds.md): the operator's allow-list (MeteoAlarm only once its
+      # redistribution terms were reviewed; GDELT stays paused until a workspace opts in) and URL overrides
+      SIGNAL_ADAPTERS: ${SIGNAL_ADAPTERS:-gdacs,usgs,rss,nhc,copernicus_ems,ofac,gdelt}
+      NHC_URL: ${NHC_URL:-https://www.nhc.noaa.gov/CurrentStorms.json}
+      COPERNICUS_EMS_URL: ${COPERNICUS_EMS_URL:-https://rapidmapping.emergency.copernicus.eu/backend/dashboard-api/public-activations-info/?limit=50}
+      OFAC_SDN_URL: ${OFAC_SDN_URL:-https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV}
+      OFAC_ALT_URL: ${OFAC_ALT_URL:-https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/ALT.CSV}
+      OFAC_ADD_URL: ${OFAC_ADD_URL:-https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/ADD.CSV}
+      GDELT_LASTUPDATE_URL: ${GDELT_LASTUPDATE_URL:-https://data.gdeltproject.org/gdeltv2/lastupdate.txt}
+      METEOALARM_COUNTRIES: ${METEOALARM_COUNTRIES:-}
       LOG_LEVEL: ${SIGNALS_LOG_LEVEL:-INFO}
     volumes:
       - ./data/scenarios:/app/scenarios:ro

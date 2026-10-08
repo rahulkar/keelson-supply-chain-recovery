@@ -70,6 +70,10 @@ MAX_REGION_POSITIONS: Final = 2000
 CADENCE_RANGE: Final = (60, 86_400)
 """Allowed polling cadence wish (the hub clamps it to each source's own limits)."""
 _SOURCE_ID_RE: Final = re.compile(r"[a-z0-9][a-z0-9_.:-]{0,79}")
+_TERMS_URL_RE: Final = re.compile(r"https://[A-Za-z0-9.-]+(:[0-9]{1,5})?/[^\s\x00-\x1f\x7f\\\"'<>]{0,500}")
+"""A source's terms link as the web may render it: absolute https, plain host (M8, ``124`` §4)."""
+_PROVENANCES: Final = ("fact", "inference")
+_LICENCE_CLASSES: Final = ("public_domain", "open_attribution", "terms_apply", "publisher_copyright")
 _ID_PATTERN: Final = r"^[a-z][a-z0-9_-]{0,39}$"
 _NODE_CODE_PATTERN: Final = r"^[A-Za-z0-9][A-Za-z0-9_.:/#>-]*$"
 
@@ -261,8 +265,24 @@ def _int(value: Any) -> int | None:
     return value if isinstance(value, int) and not isinstance(value, bool) else None
 
 
+def _bool(value: Any) -> bool | None:
+    return value if isinstance(value, bool) else None
+
+
+def _choice(value: Any, allowed: tuple[str, ...]) -> str | None:
+    return value if isinstance(value, str) and value in allowed else None
+
+
+def _terms_url(value: Any) -> str | None:
+    """Only an https link with a plain host survives (no ``javascript:``, userinfo or whitespace)."""
+    return value if isinstance(value, str) and _TERMS_URL_RE.fullmatch(value) else None
+
+
 async def get_sources(tenant: str) -> dict[str, Any]:
-    """The hub's feeds (catalogue, cadence, licence, poll state) + this tenant's subscription."""
+    """The hub's feeds (catalogue, cadence, licence, poll state) + this tenant's subscription. M8
+    (``124`` §4) passes through the catalogue facts the hub reports — provenance, licence class,
+    terms link (https only), opt-in, polled (``SIGNAL_ADAPTERS``), authority, cadence limits,
+    coverage and description — each cleaned and ``None`` when absent or malformed."""
     from keelson_engine.core import signal_hub
 
     subs = _subscriptions(await _config(tenant))
@@ -293,6 +313,17 @@ async def get_sources(tenant: str) -> dict[str, Any]:
             "kind": _short(r.get("kind"), 60),
             "licence": _short(r.get("licence") or r.get("license")),
             "attribution": _short(r.get("attribution")),
+            # M8 catalogue facts (124 §4); every one optional, cleaned, never trusted as markup
+            "provenance": _choice(r.get("provenance"), _PROVENANCES),
+            "licence_class": _choice(r.get("licence_class"), _LICENCE_CLASSES),
+            "terms_url": _terms_url(r.get("terms_url")),
+            "opt_in": _bool(r.get("opt_in")),
+            "polled": _bool(r.get("polled")),
+            "authority_bp": _int(r.get("authority_bp")),
+            "min_cadence_s": _int(r.get("min_cadence_s")),
+            "max_cadence_s": _int(r.get("max_cadence_s")),
+            "coverage": _short(r.get("coverage")),
+            "description": _short(r.get("description"), 500),
             "cadence_s": (sub or {}).get("cadence_s", _int(r.get("cadence_s"))),
             "effective_cadence_s": _int(r.get("effective_cadence_s")),
             "default_cadence_s": _int(r.get("default_cadence_s")),
@@ -306,6 +337,9 @@ async def get_sources(tenant: str) -> dict[str, Any]:
     for sid, sub in sorted(subs.items()):
         if sid not in seen:  # a subscription to a source the hub does not report (yet)
             items.append({"id": sid, "name": None, "title": None, "kind": None, "licence": None, "attribution": None,
+                          "provenance": None, "licence_class": None, "terms_url": None, "opt_in": None,
+                          "polled": None, "authority_bp": None, "min_cadence_s": None, "max_cadence_s": None,
+                          "coverage": None, "description": None,
                           "cadence_s": sub.get("cadence_s"), "effective_cadence_s": None, "default_cadence_s": None,
                           "paused": None, "last_polled_at": None, "next_poll_at": None, "last_status": None,
                           "last_error": None, "consecutive_failures": None, "items_total": None,
@@ -325,7 +359,10 @@ async def put_source(tenant: str, source_id: str, setting: SourceSetting, actor:
     if not _SOURCE_ID_RE.fullmatch(source_id or ""):
         raise AdminError(404, "not_found", "source not found")
     subs = _subscriptions(await _config(tenant))
-    before = dict(subs.get(source_id) or {"enabled": True})
+    default = True
+    if source_id not in subs and not ("enabled" in setting.model_fields_set and setting.enabled is not None):
+        default = await _hub_enabled_default(tenant, source_id)  # an opt-in source starts unsubscribed (124 §1)
+    before = dict(subs.get(source_id) or {"enabled": default})
     after = dict(before)
     if "enabled" in setting.model_fields_set and setting.enabled is not None:
         after["enabled"] = setting.enabled
@@ -343,6 +380,21 @@ async def put_source(tenant: str, source_id: str, setting: SourceSetting, actor:
                       {**after, "hub_synced": synced}, tenant=tenant)
     return {"id": source_id, "enabled": after["enabled"], "cadence_s": after.get("cadence_s"),
             "hub_synced": synced, "hub_error": error}
+
+
+async def _hub_enabled_default(tenant: str, source_id: str) -> bool:
+    """Whether the hub counts ``source_id`` as subscribed for a tenant without a stored wish: true,
+    except for an opt-in source (GDELT, MeteoAlarm). Unknown (hub down, older hub) → true, the M7 rule."""
+    from keelson_engine.core import signal_hub
+
+    try:
+        body = await signal_hub.request_json("GET", f"/v1/tenants/{tenant}/sources", tenant=tenant)
+    except signal_hub.HubError:
+        return True
+    for r in (body.get("items") if isinstance(body, dict) else None) or []:
+        if isinstance(r, dict) and r.get("connector_id") == source_id and isinstance(r.get("enabled"), bool):
+            return bool(r["enabled"])
+    return True
 
 
 # ───────────────────────────── network codes (radius regions) ─────────────────────────────

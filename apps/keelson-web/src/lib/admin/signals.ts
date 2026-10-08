@@ -14,7 +14,10 @@ const iso = z.string().nullable().optional();
 /**
  * `GET /api/admin/signals/sources` row: the hub's feed status (cadence and licence when the hub
  * reports them) plus this tenant's subscription: on / off and an optional cadence override
- * (`cadence_s`; `null` = the source's default).
+ * (`cadence_s`; `null` = the source's default). M8 (`docs/contracts/124` §4) adds the catalogue
+ * facts: grouping `kind`, `provenance`, licence class, attribution, an https terms link, `opt_in`
+ * (off until the workspace subscribes), `polled` (enabled on this installation), coverage and a
+ * description. Every one is optional: an older engine or hub simply omits them.
  */
 export const signalSourceSchema = z
   .object({
@@ -32,6 +35,16 @@ export const signalSourceSchema = z
     licence: z.string().nullable().optional(),
     license: z.string().nullable().optional(),
     attribution: z.string().nullable().optional(),
+    provenance: z.string().nullable().optional(),
+    licence_class: z.string().nullable().optional(),
+    /** Rendered only through {@link safeTermsUrl} (https, plain host). */
+    terms_url: z.string().nullable().optional(),
+    opt_in: z.boolean().nullable().optional(),
+    polled: z.boolean().nullable().optional(),
+    paused: z.boolean().nullable().optional(),
+    authority_bp: z.number().int().nonnegative().nullable().optional(),
+    coverage: z.string().nullable().optional(),
+    description: z.string().nullable().optional(),
     last_polled_at: iso,
     last_status: z.string().nullable().optional(),
     last_error: z.string().nullable().optional(),
@@ -110,6 +123,44 @@ export function cadenceFromOption(value: string): number | null | undefined {
   if (value === "") return null;
   const n = Number(value);
   return Number.isInteger(n) && n >= CADENCE_RANGE.min && n <= CADENCE_RANGE.max ? n : undefined;
+}
+
+/** Catalogue grouping of a source (`kind`), as a short badge label. */
+export const SOURCE_KIND_LABEL: Readonly<Record<string, string>> = {
+  hazard: "Hazard",
+  weather: "Weather",
+  regulatory: "Regulatory",
+  news: "News",
+};
+
+/** Below this authority an inference source is labelled "low authority" (GDELT: 4000). */
+export const LOW_AUTHORITY_BP = 5000;
+
+/** The provenance chip: deterministic `Fact`, or `Inference` (with "low authority" when it is). */
+export function provenanceLabel(s: Pick<SignalSource, "provenance" | "authority_bp">): string | null {
+  if (s.provenance === "fact") return "Fact";
+  if (s.provenance === "inference") return typeof s.authority_bp === "number" && s.authority_bp < LOW_AUTHORITY_BP ? "Inference · low authority" : "Inference";
+  return null;
+}
+
+const TERMS_URL_RE = /^https:\/\/[A-Za-z0-9.-]+(:\d{1,5})?\/[^\s"'<>\\]*$/;
+
+/** A terms link as it may be rendered: absolute `https:` with a plain host, else `null` (never `javascript:`). */
+export function safeTermsUrl(url: string | null | undefined): string | null {
+  if (!url || url.length > 500 || !TERMS_URL_RE.test(url)) return null;
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" && !u.username && !u.password ? u.href : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Note under the Subscribed switch: not enabled on this installation, or an opt-in source waiting for a subscriber. */
+export function sourceSwitchNote(s: Pick<SignalSource, "polled" | "opt_in" | "enabled" | "paused">): string | null {
+  if (s.polled === false) return "Not enabled on this installation (platform admin: SIGNAL_ADAPTERS)";
+  if (s.opt_in && !s.enabled && s.paused !== false) return "Starts polling when a workspace subscribes";
+  return null;
 }
 
 // ───────────────────────────── network codes (radius regions) ─────────────────────────────

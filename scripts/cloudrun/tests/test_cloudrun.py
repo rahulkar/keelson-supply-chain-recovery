@@ -322,7 +322,8 @@ def test_manifest_set(rendered: dict[str, dict]) -> None:
         "jobs/keelson-db-init-keelson-pg.yaml", "lb/url-map.yaml", "lb/http-redirect.yaml",
         # M6 Signal Hub (infra/cloudrun/signal-hub.sh): API service, bootstrap job, one poll job per adapter
         "signal-hub/signal-hub-api.yaml", "signal-hub/signal-hub-bootstrap.yaml",
-        *(f"signal-hub/signal-hub-poll-{a}.yaml" for a in ("gdacs", "usgs", "rss", "extraction", "sweep")),
+        *(f"signal-hub/signal-hub-poll-{a}.yaml" for a in ("gdacs", "usgs", "rss", "nhc", "copernicus_ems", "ofac",
+                                                             "gdelt", "extraction", "sweep")),  # M8 feeds (124)
     }
     for name, doc in rendered.items():
         if name.startswith("services/"):

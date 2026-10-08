@@ -38,15 +38,17 @@ import structlog
 from google.adk.agents.context import Context
 from keelson_contracts.blocks import NarrativeProps, PlanVersionLink, ReplanBanner
 from keelson_contracts.common import Provenance
-from keelson_contracts.optimizer import OptimizeRequest, PlanSpec, ProblemData, SolverOptions
+from keelson_contracts.optimizer import PlanSpec, ProblemData
 from keelson_contracts.scenario import CapacityScale, Selector, Window
 
 from ..candidates import DO_NOTHING_ID, capability_table, lever_specs
 from ..context import RunContext, current_run
 from ..errors import McpToolError, McpTransportError
+from ..geo import get_geo
 from ..mcp_client import get_gateway
 from ..optimizer_client import get_optimizer
 from ..remediation import applied_items, delta_actions, lane_label, plan_dependencies, remediation_mix
+from ..robustness import OptimizeInputs, plan_weights
 from .common import ENGINE_COMPOSE, as_of, block_event, input_dict, progress_event, routed, say
 from .framing import ROUTE_DONE, SNAPSHOT_ERRORS, SNAPSHOT_STATE_KEY, load_case_bundle, load_problem, resimulate_payload
 from .planning import default_recommendation, option_from, plan_diff_props, plan_summary, what_changed_line
@@ -318,7 +320,7 @@ async def prepare_replan(ctx: Context, node_input: Any) -> AsyncGenerator[Any]:
     capacity, mode = _lane_capacity(problem, parsed.lane_code, parsed.factor_bp, fresh=fresh)
     label = lane_label(mode)
     planning = run.spec.planning
-    solver = SolverOptions(time_limit_s=planning.solver_time_limit_s, seed=planning.solver_seed)
+    inputs = OptimizeInputs.build(planning, scenario, problem, perturbations, get_geo())  # M8 (126): CO2e + bands
     options = [dict(o) for o in plan.get("options") or []]
     committed_ids = list(dict.fromkeys(str(i.get("option_id")) for i in applied if i.get("option_id")))
     previous_version = int(plan["version"])
@@ -337,10 +339,9 @@ async def prepare_replan(ctx: Context, node_input: Any) -> AsyncGenerator[Any]:
     for option in affected:
         levers = [str(x) for x in option.get("levers") or []]
         spec = PlanSpec.model_validate({"id": str(option["id"]), "title": str(option.get("title") or option["id"]),
-                                        "levers": lever_specs(levers, planning) if levers else []})
-        resp = await get_optimizer().optimize(
-            OptimizeRequest(data=problem, perturbations=perturbations, plan_spec=spec, solver=solver)
-        )
+                                        "levers": lever_specs(levers, planning) if levers else [],
+                                        "weights": plan_weights(planning)})
+        resp = await get_optimizer().optimize(inputs.request(spec))
         fresh_option = option_from(resp, str(option.get("title") or option["id"]), levers=levers, problem=problem)
         new_options[str(option["id"])] = fresh_option
     if applied and target_id is not None and target_id in new_options:
@@ -365,7 +366,7 @@ async def prepare_replan(ctx: Context, node_input: Any) -> AsyncGenerator[Any]:
         if fresh_option.get("actions"):
             fresh_option["remediation"] = remediation_mix(fresh_option["actions"], table)
     merged = [new_options.get(str(o["id"]), o) for o in options]
-    recommended = target_id or default_recommendation(merged)
+    recommended = target_id or default_recommendation(merged, planning.scoring)
     new_version = previous_version + 1
     kpis = dict(plan.get("kpis") or {})
     kpis.update({

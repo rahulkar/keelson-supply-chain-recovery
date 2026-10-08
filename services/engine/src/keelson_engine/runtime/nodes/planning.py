@@ -15,6 +15,12 @@ mark unverified) and emits the review blocks — inline: ``kpi_strip`` (the expo
 the recommended plan's effect; same block id, so it replaces) and ``recommended_option``; canvas:
 ``scenario_compare``, ``network_map``, ``impact_graph``, ``stockout_timeline`` (large payloads via
 ``data_ref``), ``plan_diff`` and ``evidence_pack`` — and the only user-visible text of the turn.
+
+M8 (``126-m8-co2-robustness.md``): every optimize request of a plan version carries the CO₂e inputs
+and the robustness spec (:class:`~keelson_engine.runtime.robustness.OptimizeInputs`); the default
+recommendation ranks by the tenant's default weight profile; the KPI strip, the recommended option and
+``scenario_compare`` show p10–p90 bands, the plan's extra CO₂e, profile scores and win rates. The
+Strategist brief and its KPI catalog are unchanged (recorded replays stay valid).
 """
 
 from __future__ import annotations
@@ -51,16 +57,16 @@ from keelson_contracts.optimizer import (
     LEVER_OPS,
     LEVERS,
     ImpactKpis,
-    OptimizeRequest,
     OptimizeResponse,
     PlanSpec,
     ProblemData,
-    SolverOptions,
 )
 
 from ..advisory import ADVISORY_SENTENCE, advisory_from_kpis
 from ..agents import KeelsonLlmAgent, fill_nullable
 from ..candidates import DO_NOTHING_ID, build_candidates, capability_table
+from ..robustness import OptimizeInputs, band_kpi_items, co2_item, decorate_compare, rank_key
+from ..spec_m8 import ScoringConfig
 from ..remediation import plan_dependencies, remediation_mix
 from ..geo import get_geo
 from ..visuals import (
@@ -123,7 +129,9 @@ __all__ = [
     "plan_diff_props",
     "plan_summary",
     "repair_needed",
+    "option_items_m8",
     "simulate",
+    "strip_items_m8",
     "what_changed_line",
 ]
 
@@ -285,6 +293,10 @@ def _option_from(
         "fallback": fallback,
         "inputs_hash": resp.solver.inputs_hash,
     }
+    if resp.emissions is not None:  # M8 (126): factor set + coverage of the scorecard's CO2e
+        option["emissions"] = resp.emissions.model_dump(mode="json")
+    if resp.robustness is not None:  # M8: per-sample vectors (win rates), sampled inputs
+        option["robustness"] = resp.robustness.model_dump(mode="json")
     if resp.scorecard is not None:
         option["scorecard"] = resp.scorecard.model_dump(mode="json")
     elif problem is not None:
@@ -308,16 +320,18 @@ def improves(option: Mapping[str, Any]) -> bool:
     )
 
 
-def default_recommendation(options: Sequence[Mapping[str, Any]]) -> str:
+def default_recommendation(options: Sequence[Mapping[str, Any]], scoring: ScoringConfig | None = None) -> str:
     """Deterministic default: the applicable improving option with the best net benefit (fewer
     changes, then candidate order on ties); guided-only options only when nothing applicable
-    improves; else "Do nothing"."""
+    improves; else "Do nothing". M8 (126 §4): with ``scoring`` the improving options rank by the
+    tenant's default weight profile (the built-in ``net-benefit`` profile is the net benefit)."""
     order = {str(o["id"]): i for i, o in enumerate(options)}
+    score = rank_key(scoring)
 
     def best(pool: Sequence[Mapping[str, Any]]) -> str | None:
         ranked = sorted(
             (o for o in pool if improves(o)),
-            key=lambda o: (-int(o["kpi_delta"]["net_benefit_cents"]), len(o.get("actions") or []), order[str(o["id"])]),
+            key=lambda o: (score(o), len(o.get("actions") or []), order[str(o["id"])]),
         )
         return str(ranked[0]["id"]) if ranked else None
 
@@ -376,13 +390,11 @@ async def simulate(ctx: Context, node_input: Any) -> AsyncGenerator[Any]:
     )
     caps = table.primary
     candidates = build_candidates(planning, table)
-    solver = SolverOptions(time_limit_s=planning.solver_time_limit_s, seed=planning.solver_seed)
+    inputs = OptimizeInputs.build(planning, record.scenario, problem, record.scenario.perturbations, get_geo())
     options: list[dict[str, Any]] = []
     plans = [(c.plan_spec, c) for c in candidates] + [(PlanSpec(id=DO_NOTHING_ID, title="Do nothing", levers=[]), None)]
     for spec, cand in plans:  # the optimizer runs one computation at a time
-        resp = await get_optimizer().optimize(
-            OptimizeRequest(data=problem, perturbations=list(record.scenario.perturbations), plan_spec=spec, solver=solver)
-        )
+        resp = await get_optimizer().optimize(inputs.request(spec))
         options.append(
             _option_from(
                 resp, spec.title, levers=cand.levers if cand else (), guided_only=bool(cand and cand.guided_only),
@@ -411,7 +423,7 @@ async def simulate(ctx: Context, node_input: Any) -> AsyncGenerator[Any]:
             options = overrides.merge(list(latest.get("options") or []), options)
         banned = set(overrides.over_budget(options))
     ctx.state[BANNED_OPTIONS_KEY] = sorted(banned)
-    default_id = default_recommendation([o for o in options if str(o["id"]) not in banned])
+    default_id = default_recommendation([o for o in options if str(o["id"]) not in banned], planning.scoring)
     version = int((latest or {}).get("version") or 0) + 1
     snapshot_id = ctx.state.get(SNAPSHOT_STATE_KEY)
     dependencies = plan_dependencies(options, problem, run.spec.write_connectors())
@@ -875,6 +887,31 @@ async def _impact_result(run: RunContext, ctx: Context) -> dict[str, Any] | None
     return dict(rows[0]["result"]) if rows else None
 
 
+EXPOSURE_BAND_KEYS = frozenset({"units_at_risk", "margin_at_risk_cents", "shortage_cluster_weeks"})
+"""Exposure tiles of the KPI strip: their bands are do-nothing's (what happens if nothing is done)."""
+
+
+def strip_items_m8(items: Sequence[KpiItem], option: Mapping[str, Any],
+                   options: Sequence[Mapping[str, Any]]) -> list[KpiItem]:
+    """M8 (126 §5): the exposure + plan strip with p10–p90 bands (exposure from "Do nothing", the
+    plan tiles from the recommended option) and the plan's extra CO₂e tile."""
+    nothing = next((o for o in options if str(o["id"]) == DO_NOTHING_ID), None)
+    out = band_kpi_items(items, option, exposure=nothing, exposure_keys=EXPOSURE_BAND_KEYS)
+    co2 = co2_item(option)
+    if co2 is not None and all(i.key != co2.key for i in out):
+        out.append(co2)
+    return out
+
+
+def option_items_m8(items: Sequence[KpiItem], option: Mapping[str, Any]) -> list[KpiItem]:
+    """M8: the recommended option's KPI tiles with bands, plus its extra CO₂e (within the card's limit)."""
+    out = band_kpi_items(items, option)
+    co2 = co2_item(option)
+    if co2 is not None and len(out) < MAX_OPTION_KPIS and all(i.key != co2.key for i in out):
+        out.append(co2)
+    return out
+
+
 async def _visual_blocks(
     run: RunContext,
     *,
@@ -898,10 +935,11 @@ async def _visual_blocks(
         kpis = ImpactKpis.model_validate(impact_data["kpis"])
         baseline = ImpactKpis.model_validate(impact_data["baseline_kpis"])
         card = option_scorecard(option, total_demand=total_demand(problem), horizon_end=horizon_end(problem))
+        items = outcome_kpi_items(impact_kpi_items(kpis, baseline, preliminary=False), option, card)
         events.append(
             await block_event(
                 run, "kpi_strip",
-                KpiStripProps(items=outcome_kpi_items(impact_kpi_items(kpis, baseline, preliminary=False), option, card)),
+                KpiStripProps(items=strip_items_m8(items, option, options)),
                 title="Exposure and recommended plan", prov=Provenance.SIMULATED, engine=ENGINE_OPT,
                 key=("exposure", problem_id), inputs_hash=str(impact_data["provenance"]["inputs_hash"]),
             )
@@ -917,7 +955,8 @@ async def _visual_blocks(
         events.append(
             await block_event(
                 run, "scenario_compare",
-                scenario_compare_props(scored, recommended_id=chosen).model_copy(update={"advisory": advisory}),
+                decorate_compare(scenario_compare_props(scored, recommended_id=chosen), scored,
+                                 run.spec.planning.scoring).model_copy(update={"advisory": advisory}),
                 title="Options compared", prov=Provenance.SIMULATED, engine=ENGINE_OPT, key=("compare", version),
                 placement="canvas",
             )
@@ -1077,12 +1116,12 @@ def make_compose(repair_agent: KeelsonLlmAgent) -> FunctionNode:
                 id=chosen,
                 title=titles[chosen],
                 summary_bullets=[filled[f"bullet{i}"] for i in range(len(rec.bullets)) if f"bullet{i}" in filled],
-                kpis=[
+                kpis=option_items_m8([
                     KpiItem(key=k, label=KPI_LABELS[k], value=kpi_values[k], unit=KPI_UNITS[k],  # type: ignore[arg-type]
                             prov=Provenance.SIMULATED, preliminary=False)
                     for k in kpi_keys
                     if k in kpi_values
-                ],
+                ], option),
             ),
             alternatives=[
                 AlternativeOption(

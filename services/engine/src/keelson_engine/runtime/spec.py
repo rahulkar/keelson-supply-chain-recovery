@@ -19,6 +19,9 @@ M4 (``90-m4-investigation.md`` §2–§5): the ``sourcing`` / ``logistics`` / ``
 from the planner) and the ``investigation`` budgets (parallelism, task count, the shared REVISE
 budget, verify threshold, quarantine limits).
 
+M8 (``126-m8-co2-robustness.md`` §6): ``planning.emissions`` (CO₂e KPI), ``planning.robustness``
+(p10 / p50 / p90 bands) and ``planning.scoring`` (weight profiles), see :mod:`.spec_m8`.
+
 M3 (``80-m3-deterministic-core.md`` §4): ``planning.candidates`` (deterministic candidate plans,
 default A–D), ``planning.enabled_levers`` / ``lever_params`` and the snapshot conversion priors
 (``units_per_teu``, ``grams_per_unit``, ``alt_sourcing``).
@@ -39,6 +42,8 @@ from typing import Annotated, Any, Final, Literal, get_args
 from keelson_contracts.agents import CustomSpecialistSpec, custom_specialists_violations
 from keelson_contracts.policy import PolicyRule
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from .spec_m8 import DEFAULT_SCORING, EmissionsDefaults, RobustnessDefaults, ScoringConfig
 
 __all__ = [
     "BUILTIN_SPECIALISTS",
@@ -590,6 +595,11 @@ class PlanningDefaults(_SpecModel):
     alt_sourcing: AltSourcingDefaults = Field(default_factory=AltSourcingDefaults)
     max_change_set_items: Annotated[int, Field(ge=1, le=10_000)] = 500
     """Largest change set the connector accepts (Merxa: 500 items)."""
+    # ── M8 (126-m8-co2-robustness.md §6) ──
+    emissions: EmissionsDefaults = Field(default_factory=EmissionsDefaults)
+    robustness: RobustnessDefaults = Field(default_factory=RobustnessDefaults)
+    scoring: ScoringConfig = DEFAULT_SCORING
+    """Weight profiles; the default one sets the LP weights and ranks the options."""
 
     @field_validator("enabled_levers")
     @classmethod

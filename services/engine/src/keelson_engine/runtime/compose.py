@@ -29,6 +29,7 @@ __all__ = [
     "ComposeContext",
     "KpiValue",
     "Unit",
+    "CO2_TOKENS",
     "UNVERIFIED_NOTE",
     "allowed_tokens_from",
     "fill_placeholders",
@@ -39,7 +40,7 @@ __all__ = [
     "check_text",
 ]
 
-Unit = Literal["units", "eur_cents", "days", "pct_bp", "count", "date", "week", "number", "text"]
+Unit = Literal["units", "eur_cents", "days", "pct_bp", "count", "kg_co2e", "date", "week", "number", "text"]
 
 PLACEHOLDER_RE = re.compile(r"\{\{\s*(kpi|ev|calc)\s*:\s*([^{}]+?)\s*\}\}")
 _ANY_PLACEHOLDER_RE = re.compile(r"\{\{[^{}]*\}\}")
@@ -49,6 +50,8 @@ _TOKEN_RE = re.compile(r"[\w€£$][\w#./:,%€-]*")
 _ISO_WEEK_RE = re.compile(r"^(\d{4})-W(\d{2})$")
 _ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 UNVERIFIED_NOTE = "_Some statements were removed because their figures could not be verified._"
+CO2_TOKENS = frozenset({"CO2", "CO₂", "CO2e", "CO₂e", "tCO2e", "tCO₂e", "kgCO2e", "kgCO₂e"})
+"""M8 (126): the names of CO₂ are words, not free numbers (the subscript two is a numeric character)."""
 
 
 @dataclass(frozen=True)
@@ -96,6 +99,8 @@ def format_value(value: Any, unit: Unit) -> str:
         whole, rem = divmod(abs(value), 100)
         sign = "-" if value < 0 else ""
         return f"{sign}{whole}%" if rem == 0 else f"{sign}{whole}.{rem:02d}".rstrip("0") + "%"
+    if unit == "kg_co2e":  # M8 (126): kilograms of CO2-equivalent
+        return f"{_fmt_int(value)} kg CO₂e"
     return _fmt_int(value)
 
 
@@ -192,7 +197,7 @@ def numeric_lint(text: str, allowed_tokens: set[str]) -> list[str]:
         token = m.group(0).rstrip(".,;:%")
         if not any(ch.isnumeric() for ch in token):
             continue
-        if token in allowed_tokens or token.split("#", 1)[0] in allowed_tokens:
+        if token in allowed_tokens or token in CO2_TOKENS or token.split("#", 1)[0] in allowed_tokens:
             continue
         violations.append(f"free number {token!r}")
     return violations

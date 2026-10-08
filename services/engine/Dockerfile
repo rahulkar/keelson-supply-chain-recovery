@@ -35,6 +35,8 @@ COPY data/packs /src/data/packs
 COPY data/geo /src/data/geo
 # event taxonomy (contracts/90 §1): runtime/nodes/taxonomy.py finds it at <source tree>/data/taxonomy
 COPY data/taxonomy /src/data/taxonomy
+# transport emission factors (contracts/126 §2): runtime/emissions.py finds them at <source tree>/data/emissions
+COPY data/emissions /src/data/emissions
 # knowledge-base seed + adversarial fixture (contracts/90 §7): test_kb checks the repo seed documents
 COPY data/kb /src/data/kb
 ENV PATH=/opt/venv/bin:$PATH PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PACKS_DIR=/src/data/packs
@@ -50,6 +52,8 @@ COPY services/engine/migrations /app/migrations
 COPY data/geo /app/geo
 # event taxonomy (contracts/90 §1; runtime/nodes/taxonomy.py reads /app/taxonomy, checked at worker start-up)
 COPY data/taxonomy /app/taxonomy
+# transport emission factors for the plan CO2e KPI (contracts/126 §2; runtime/emissions.py reads /app/emissions)
+COPY data/emissions /app/emissions
 # knowledge-base seed (contracts/90 §7; bootstrap ingests /app/kb/<tenant slug>/*.md into an empty tenant KB).
 # Only the tenant folders: the adversarial fixture (data/kb/adversarial) is for evals and never ships.
 COPY data/kb/demo-retail /app/kb/demo-retail

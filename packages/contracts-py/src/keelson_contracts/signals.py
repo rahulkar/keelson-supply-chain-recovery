@@ -171,7 +171,11 @@ ALERT_SEVERITIES: Final[tuple[str, ...]] = get_args(AlertSeverity)
 AlertAction = Literal["alert", "alert_and_draft_case", "ignore"]
 ALERT_ACTIONS: Final[tuple[str, ...]] = get_args(AlertAction)
 
-PackAdapter = Literal["gdacs", "usgs", "rss", "merxa_inject", "chat_hint"]
+PackAdapter = Literal[
+    "gdacs", "usgs", "rss", "merxa_inject", "chat_hint", "nhc", "copernicus_ems", "meteoalarm", "gdelt",
+]
+"""Demo-pack step adapters (``100`` §7; M8 feeds ``124``). ``ofac`` is deliberately not one: a
+simulated sanctions designation that matches seed supplier names is not acceptable demo data."""
 PACK_ADAPTERS: Final[tuple[str, ...]] = get_args(PackAdapter)
 
 # ───────────────────────────────── scalars ──────────────────────────────────
@@ -440,7 +444,8 @@ class DisruptionSignal(ContractModel):
     confidence_bp: BasisPoints10k
     provenance: SignalProvenance
     extracted_by: Annotated[str, Field(min_length=1, max_length=120)] | None
-    """Who produced the inferred fields (LiteLLM alias such as ``extract-fast``, or ``prebaked``)."""
+    """Who produced the inferred fields (LiteLLM alias such as ``extract-fast``, or ``prebaked``;
+    ``gdelt-cameo`` for GDELT's machine-coded events, never an LLM)."""
     source: SourceRef
     event_id: Uuid | None
     version: PositiveInt
@@ -519,12 +524,20 @@ SUBTYPE_TAXONOMY: Final[Mapping[str, EventTypeKey]] = {
     "capacity_loss": "SUP.capacity_loss",
     "demand_spike": "DEM.spike",
     "demand_drop": "DEM.drop",
+    "wind_storm": "NAT.storm",
+    "coastal_flood": "NAT.flood",
+    "heavy_rain": "NAT.flood",
 }
 """Deterministic event subtype → taxonomy key (``100`` §6); anything else is ``OTHER``.
 
 Regional names of a tropical cyclone (``typhoon``, ``hurricane``, ``cyclone``, ``tropical_storm``)
 map like ``tropical_cyclone``: the news extractor's free ``subtype`` must not turn a typhoon
-headline into an ``OTHER`` event."""
+headline into an ``OTHER`` event. The M8 weather feeds (``124``: MeteoAlarm, Copernicus EMS) add
+``wind_storm`` (a storm warning frames like a storm) and ``coastal_flood`` / ``heavy_rain`` (flood);
+their other subtypes (``snow_ice``, ``thunderstorm``, ``heat``, ``cold``, ``wildfire``, ``landslide``,
+``volcano``) and the regulatory / geopolitical ones (``sanctions_designation``, ``blockade``,
+``armed_conflict``, ``civil_unrest``, ``trade_restriction``, ``state_of_emergency``) stay ``OTHER``
+(an investigation-only case)."""
 
 
 def taxonomy_key_for(subtype: str) -> EventTypeKey:

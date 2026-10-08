@@ -13,10 +13,16 @@ Severity (0..10000 bp) per source:
   never derived from LLM numbers.
 * **Connector events** (``fact``) — from structured fields: delays ``1500 + 700 × days`` (cap 9000),
   lane capacity cuts ``10000 − factor_bp``.
+* **M8 feeds** (``124`` §2): NHC by intensity (Saffir-Simpson bands, :func:`nhc_severity_bp`);
+  Copernicus EMS by activation category (:data:`COPERNICUS_EMS_SEVERITY`); MeteoAlarm by awareness
+  level (:data:`METEOALARM_SEVERITY`: yellow 3000, orange 6000, red 8500); an OFAC SDN publication
+  :data:`OFAC_SEVERITY_BP`; GDELT a subtype prior (:data:`GDELT_PRIOR`) capped at
+  ``GDELT_MAX_SEVERITY_BP`` (3900), below the default alert threshold.
 
 Confidence = ``authority × corroboration × recency`` (:func:`keelson_contracts.signals.combine_confidence_bp`):
 
-* authority: per source (GDACS/USGS 9500, connector structured 8500, trade press 7000, free text 6000);
+* authority: per source (GDACS/USGS/NHC/OFAC 9500, Copernicus EMS/MeteoAlarm 9000, connector structured
+  8500, trade press 7000, free text 6000, GDELT 4000);
 * corroboration: anchored by an authoritative feed 10000; else 1 source 6000, 2 sources 8000, ≥ 3 10000;
 * recency: 10000 up to 24 h old, then linear down to 5000 at 7 days, 5000 after.
 
@@ -35,12 +41,18 @@ from keelson_contracts.signals import combine_confidence_bp
 
 __all__ = [
     "AUTHORITY",
+    "COPERNICUS_EMS_SEVERITY",
+    "GDELT_PRIOR",
+    "METEOALARM_SEVERITY",
     "NEWS_SEVERITY",
+    "OFAC_SEVERITY_BP",
     "clamp_bp",
     "corroboration_bp",
     "event_severity_bp",
     "gdacs_severity_bp",
+    "gdelt_severity_bp",
     "news_severity_bp",
+    "nhc_severity_bp",
     "recency_bp",
     "signal_confidence_bp",
     "usgs_severity_bp",
@@ -53,6 +65,12 @@ AUTHORITY: Final[dict[str, int]] = {
     "rss": 7000,
     "free_text": 6000,
     "chat": 6000,
+    # M8 feeds (124 §2)
+    "nhc": 9500,
+    "copernicus_ems": 9000,
+    "ofac": 9500,
+    "gdelt": 4000,
+    "meteoalarm": 9000,
 }
 
 NEWS_SEVERITY: Final[dict[str, int]] = {
@@ -73,6 +91,32 @@ NEWS_SEVERITY: Final[dict[str, int]] = {
     "demand_drop": 3500,
 }
 DEFAULT_NEWS_SEVERITY: Final = 3000
+
+COPERNICUS_EMS_SEVERITY: Final[dict[str, int]] = {
+    "flood": 6500,
+    "wind_storm": 6500,
+    "earthquake": 7000,
+    "wildfire": 5000,
+    "volcano": 6000,
+    "landslide": 5000,
+}
+"""Copernicus EMS rapid-mapping activation (by mapped subtype): an activation means a civil-protection
+authority asked for emergency maps, i.e. a significant event."""
+METEOALARM_SEVERITY: Final[dict[int, int]] = {2: 3000, 3: 6000, 4: 8500}
+"""MeteoAlarm awareness level (2 yellow, 3 orange, 4 red)."""
+OFAC_SEVERITY_BP: Final = 8000
+"""One SDN publication with new or changed organisations: an exposed supplier/factory drafts a case
+under the default rules (awareness only; never a screening verdict)."""
+GDELT_PRIOR: Final[dict[str, int]] = {
+    "strike": 5500,
+    "blockade": 6000,
+    "armed_conflict": 6500,
+    "civil_unrest": 4500,
+    "trade_restriction": 5000,
+    "state_of_emergency": 5000,
+}
+"""GDELT subtype priors, always capped by ``GDELT_MAX_SEVERITY_BP`` (kept apart from
+:data:`NEWS_SEVERITY` so the M6/M7 news severities do not change)."""
 
 _GDACS_LEVEL: Final[dict[str, int]] = {"green": 2000, "orange": 6000, "red": 8500}
 _GDACS_SCORE_FLOOR: Final[dict[str, Decimal]] = {"green": Decimal(0), "orange": Decimal("1.5"), "red": Decimal("2.5")}
@@ -141,6 +185,23 @@ def usgs_severity_bp(mag: float | None, *, alert: str | None = None, tsunami: in
 
 def news_severity_bp(subtype: str) -> int:
     return NEWS_SEVERITY.get(subtype, DEFAULT_NEWS_SEVERITY)
+
+
+def nhc_severity_bp(intensity_kt: int | None) -> int:
+    """Maximum sustained wind (knots) → severity: < 34 kt (depression) 3000; tropical storm 34–49
+    5000, 50–63 5500; Saffir-Simpson H1 64–82 6500, H2 83–95 7500, H3 96–112 8500, H4 113–136 9200,
+    H5 >= 137 9700. Unknown → 3000."""
+    if intensity_kt is None or intensity_kt < 34:
+        return 3000
+    for floor, bp in ((137, 9700), (113, 9200), (96, 8500), (83, 7500), (64, 6500), (50, 5500)):
+        if intensity_kt >= floor:
+            return bp
+    return 5000
+
+
+def gdelt_severity_bp(subtype: str, cap_bp: int) -> int:
+    """The GDELT prior of ``subtype`` (else the news default), never above ``cap_bp``."""
+    return clamp_bp(min(GDELT_PRIOR.get(subtype, DEFAULT_NEWS_SEVERITY), cap_bp))
 
 
 def delay_severity_bp(days: int) -> int:

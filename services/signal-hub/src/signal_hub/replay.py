@@ -15,6 +15,7 @@ Step payloads (``ScenarioPackStep.payload``) per adapter:
 * ``merxa_inject``: ``{event: {type, id, timestamp?, data}} | {fixture: "<file>.json"}`` (+ optional
   ``extraction`` for the free text) — handled like a forwarded Merxa webhook.
 * ``chat_hint``: ``{text: str}`` — a presenter hint, logged only.
+* ``nhc`` / ``copernicus_ems`` / ``meteoalarm`` / ``gdelt`` (M8): see :mod:`signal_hub.replay_feeds`.
 
 SimClock: ``sim_now = start_at + offset_s (+ speed × wall seconds since start when speed > 0)``.
 ``advance`` moves the offset (``seconds``, ``to_step``, or by default to the next step) and applies
@@ -46,6 +47,8 @@ from signal_hub.httpfetch import Fetcher
 from signal_hub.logs import get_logger
 from signal_hub.models import NewsItemDraft, SourceContext
 from signal_hub.pipeline import CLUSTER_LOCK, IngestReport, Pipeline
+from signal_hub.replay_feeds import ADAPTERS as FEED_STEP_ADAPTERS
+from signal_hub.replay_feeds import StepError, fixture_names, parse_step
 
 __all__ = ["FIXTURE_TYPES", "PackError", "Replay", "fixture_path", "list_packs", "load_pack"]
 
@@ -57,6 +60,11 @@ FIXTURE_TYPES: Final[dict[str, str]] = {
     ".rss": "application/rss+xml",
     ".atom": "application/atom+xml",
     ".txt": "text/plain; charset=utf-8",
+    # M8 feeds (124 §5): NHC cone/track products, GDELT exports
+    ".kml": "application/vnd.google-earth.kml+xml",
+    ".kmz": "application/vnd.google-earth.kmz",
+    ".zip": "application/zip",
+    ".csv": "text/csv; charset=utf-8",
 }
 _PACK_RE = re.compile(PACK_ID_PATTERN)
 
@@ -360,6 +368,13 @@ class Replay:
             drafts, texts = parse_connector_event(event, ctx)
             report = await self.pipeline.ingest(drafts, now=at)
             report.merge(await self._news(texts, tenant, payload, at))
+        elif step.adapter in FEED_STEP_ADAPTERS:
+            try:
+                names = fixture_names(step.adapter, payload)
+            except StepError as exc:
+                raise PackError(f"step {index}: {exc}") from None
+            blobs = {name: await self._fixture(pack, name) for name in names}
+            report = await self.pipeline.ingest(parse_step(step.adapter, payload, blobs, ctx, self.gaz), now=at)
         # chat_hint: presenter hint only (nothing ingested)
         return {
             "index": index, "step_id": pack_step_id(pack.id, index), "adapter": step.adapter,

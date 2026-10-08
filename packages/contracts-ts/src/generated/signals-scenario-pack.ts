@@ -3,5 +3,5 @@
 // Regenerate: pnpm --filter @keelson/contracts generate
 import { z } from "zod"
 
-export const signalsScenarioPackSchema = z.object({ "description": z.string().max(2000), "id": z.string().regex(new RegExp("^[a-z0-9][a-z0-9-]{0,62}$")), "start_at": z.string().datetime({ offset: true }), "steps": z.array(z.object({ "adapter": z.enum(["gdacs","usgs","rss","merxa_inject","chat_hint"]), "note": z.string().max(500), "payload": z.record(z.string(), z.any()), "t_offset_s": z.number().int().gte(0) }).strict()).min(1).max(500), "title": z.string().min(1).max(300) }).strict()
+export const signalsScenarioPackSchema = z.object({ "description": z.string().max(2000), "id": z.string().regex(new RegExp("^[a-z0-9][a-z0-9-]{0,62}$")), "start_at": z.string().datetime({ offset: true }), "steps": z.array(z.object({ "adapter": z.enum(["gdacs","usgs","rss","merxa_inject","chat_hint","nhc","copernicus_ems","meteoalarm","gdelt"]), "note": z.string().max(500), "payload": z.record(z.string(), z.any()), "t_offset_s": z.number().int().gte(0) }).strict()).min(1).max(500), "title": z.string().min(1).max(300) }).strict()
 export type SignalsScenarioPack = z.infer<typeof signalsScenarioPackSchema>

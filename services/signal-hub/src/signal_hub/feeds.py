@@ -3,6 +3,9 @@
 Persisted per source in ``source_cursor``: ETag / Last-Modified (conditional GET), an adapter
 cursor (GDACS: last footprint episode per TC; RSS: newest item date), last status/error,
 consecutive failures and the next poll time (cadence, exponential backoff on failure, max 1 h).
+
+Sources come from the registry (:mod:`signal_hub.sources`); the M8 adapters (NHC, Copernicus EMS,
+OFAC, GDELT, MeteoAlarm) poll in :mod:`signal_hub.feeds_more`.
 """
 
 from __future__ import annotations
@@ -18,7 +21,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import asyncpg
 
-from signal_hub import geo
+from signal_hub import geo, sources
 from signal_hub.adapters.gdacs import CONNECTOR_ID as GDACS_ID
 from signal_hub.adapters.gdacs import footprint_urls, latest_episodes, parse_gdacs
 from signal_hub.adapters.rss import parse_feed
@@ -46,6 +49,17 @@ class PollResult:
     items: int = 0
     report: IngestReport | None = None
     error: str | None = None
+    skipped: int = 0
+    """Feed items the adapter did not turn into signals (unmapped category, below the level …)."""
+    withdrawn: int = 0
+    """Current signals of a snapshot feed that left it (NHC storms, MeteoAlarm warnings): expired now."""
+
+    def _counts(self, out: dict[str, Any]) -> dict[str, Any]:
+        if self.skipped:
+            out["skipped"] = self.skipped
+        if self.withdrawn:
+            out["withdrawn"] = self.withdrawn
+        return out
 
     def summary(self) -> dict[str, Any]:
         out: dict[str, Any] = {"connector_id": self.connector_id, "status": self.status, "items": self.items}
@@ -54,7 +68,7 @@ class PollResult:
         if self.report is not None:
             out.update(new=self.report.new, updated=self.report.updated, invalid=self.report.invalid,
                        alerts=len(self.report.alert_changes), queued=self.report.news_queued)
-        return out
+        return self._counts(out)
 
     def as_dict(self) -> dict[str, Any]:
         out: dict[str, Any] = {"connector_id": self.connector_id, "status": self.status, "items": self.items}
@@ -62,7 +76,7 @@ class PollResult:
             out["error"] = self.error
         if self.report is not None:
             out["report"] = self.report.as_dict()
-        return out
+        return self._counts(out)
 
 
 def gdacs_list_url(base: str, now: dt.datetime, window_days: int) -> str:
@@ -150,31 +164,33 @@ class FeedRunner:
     # ───────────── adapters ─────────────
     def connectors(self, *, include_disabled_adapters: bool = False) -> list[tuple[str, str, int]]:
         """``(adapter, connector_id, cadence_s)`` of every enabled source (``SIGNAL_ADAPTERS``; all
-        configured sources with ``include_disabled_adapters``, for ``--once``)."""
-        enabled = ("gdacs", "usgs", "rss") if include_disabled_adapters else self.settings.enabled_adapters
-        out: list[tuple[str, str, int]] = []
-        if "gdacs" in enabled:
-            out.append(("gdacs", GDACS_ID, self.cadence(GDACS_ID, self.settings.cadence_gdacs_s)))
-        if "usgs" in enabled:
-            out.append(("usgs", USGS_ID, self.cadence(USGS_ID, self.settings.cadence_usgs_s)))
-        if "rss" in enabled:
-            out += [("rss", f.connector_id, self.cadence(f.connector_id, self.settings.cadence_rss_s))
-                    for f in self.settings.rss_feeds]
-        return out
+        configured sources with ``include_disabled_adapters``, for ``--once``), in catalogue order."""
+        enabled = set(sources.ADAPTERS if include_disabled_adapters else self.settings.enabled_adapters)
+        return [(spec.adapter, spec.connector_id, self.cadence(spec.connector_id, spec.default_cadence_s))
+                for spec in sources.catalogue(self.settings) if spec.adapter in enabled]
 
     async def poll(self, adapter: str, *, now: dt.datetime, connector_id: str | None = None) -> list[PollResult]:
-        if adapter == "gdacs":
-            return [await self._guarded(GDACS_ID, self.cadence(GDACS_ID, self.settings.cadence_gdacs_s), now,
-                                        self.poll_gdacs(now))]
-        if adapter == "usgs":
-            return [await self._guarded(USGS_ID, self.cadence(USGS_ID, self.settings.cadence_usgs_s), now,
-                                        self.poll_usgs(now))]
-        if adapter == "rss":
-            feeds = [f for f in self.settings.rss_feeds if connector_id in (None, f.connector_id)]
-            return [await self._guarded(f.connector_id, self.cadence(f.connector_id, self.settings.cadence_rss_s), now,
-                                        self.poll_rss(f, now))
-                    for f in feeds]
-        raise ValueError(f"unknown adapter {adapter!r}")
+        """Poll every configured source of ``adapter`` (or only ``connector_id``)."""
+        if adapter not in sources.ADAPTERS:
+            raise ValueError(f"unknown adapter {adapter!r}")
+        results: list[PollResult] = []
+        for spec in sources.catalogue(self.settings):
+            if spec.adapter != adapter or connector_id not in (None, spec.connector_id):
+                continue
+            cadence = self.cadence(spec.connector_id, spec.default_cadence_s)
+            results.append(await self._guarded(spec.connector_id, cadence, now, self._run(spec, now)))
+        return results
+
+    def _run(self, spec: sources.SourceSpec, now: dt.datetime) -> Awaitable[PollResult]:
+        if spec.adapter == "gdacs":
+            return self.poll_gdacs(now)
+        if spec.adapter == "usgs":
+            return self.poll_usgs(now)
+        if spec.adapter == "rss":
+            return self.poll_rss(next(f for f in self.settings.rss_feeds if f.connector_id == spec.connector_id), now)
+        from signal_hub import feeds_more  # the M8 pollers (they use PollResult / FeedRunner from here)
+
+        return feeds_more.POLLERS[spec.adapter](self, spec, now)
 
     async def _guarded(self, cid: str, cadence_s: int, now: dt.datetime, run: Awaitable[PollResult]) -> PollResult:
         """One source's poll; an unexpected error (malformed feed data the parser did not foresee,

@@ -528,7 +528,7 @@ def test_scenario_pack() -> None:
         _pack(steps=[]),
         _pack(id="Typhoon HCMC"),
         _pack(steps=list(reversed(_pack()["steps"]))),
-        _pack(steps=[{**_pack()["steps"][0], "adapter": "gdelt"}]),
+        _pack(steps=[{**_pack()["steps"][0], "adapter": "acled"}]),
         _pack(steps=[{**_pack()["steps"][0], "t_offset_s": -1}]),
         _pack(start_at="2026-10-07T00:00:00"),
     ):

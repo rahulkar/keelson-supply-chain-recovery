@@ -10,6 +10,8 @@ Per (event, tenant), in the tenant's RLS context:
 * ``location_refs`` of the event's current member signals naming a tenant node or lane
   (``UNLOCODE:`` port, ``SUPPLIER:``, ``FACTORY:``, ``DC:``, ``STORE:``, ``LANE:``) → ``entity_match``
   (weight 10000);
+* the public organisation-name keys of a current member (``signal.match_keys``, OFAC SDN names)
+  equal to a tenant supplier/factory ``name_key`` → ``entity_match`` (weight 10000; ``124`` §1);
 * the tenant's enabled **watch regions** (``110`` §5, :mod:`signal_hub.admin`): a ``radius`` region
   exposes its named node within ``radius_km`` of the footprint (``dwithin_km``, weight 10000 → 2000
   over the region radius; a lane → ``lane_crosses`` 7000); a ``polygon`` region touched by the
@@ -133,7 +135,27 @@ async def compute_exposures(conn: asyncpg.Connection, event_id: str, tenant: str
             if r["code"] in wanted.get(r["type"], set()):
                 matches.append({"node_type": r["type"], "node_code": r["code"], "method": "entity_match",
                                 "distance_km": None, "weight_bp": 10_000})
+    matches += await _name_matches(conn, event_id, tenant)
     return merge_matches(event_id, tenant, matches)
+
+
+async def _name_matches(conn: asyncpg.Connection, event_id: str, tenant: str) -> list[dict[str, Any]]:
+    """``entity_match`` by organisation name (``124`` §1): a current member's public ``match_keys``
+    (OFAC SDN names) equal to the ``name_key`` of one of the tenant's suppliers or factories. Runs
+    in the tenant's context, so only its own nodes are compared and no tenant code ever enters a
+    global row."""
+    rows = await conn.fetch(
+        """
+        SELECT DISTINCT n.type, n.code
+        FROM signal s
+        JOIN network_node n ON n.tenant = $2 AND n.name_key = ANY(s.match_keys)
+        WHERE s.event_id = $1 AND s.is_current AND cardinality(s.match_keys) > 0
+          AND n.type IN ('supplier', 'factory')
+        """,
+        event_id, tenant,
+    )
+    return [{"node_type": r["type"], "node_code": r["code"], "method": "entity_match", "distance_km": None,
+             "weight_bp": 10_000} for r in rows]
 
 
 async def _watch_region_matches(conn: asyncpg.Connection, event_id: str, tenant: str) -> list[dict[str, Any]]:

@@ -3,7 +3,8 @@
 * conditional requests: ``If-None-Match`` (ETag) / ``If-Modified-Since`` → ``304`` = not modified;
 * per-source rate limit: at least ``min_interval_s`` between two requests to one source
   (``connector_id``), enforced in-process (the poller is a single leader);
-* explicit timeouts and a response size cap (streamed, aborted beyond ``max_bytes``);
+* explicit timeouts and a response size cap (streamed, aborted beyond ``max_bytes``; one call may
+  raise or lower it with ``get(…, max_bytes=)``, e.g. the OFAC SDN list);
 * public feeds go **only** through the egress proxy when one is configured (``HTTPS_PROXY``,
   compose: ``http://egress:3128``); ``trust_env`` is off so a stray ``NO_PROXY`` can never route a
   feed around it. Internal calls (demo fixture route, LiteLLM) use a separate client without proxy;
@@ -183,7 +184,9 @@ class Fetcher:
         last_modified: str | None = None,
         accept: str | None = None,
         throttle: bool = True,
+        max_bytes: int | None = None,
     ) -> FetchResult:
+        cap = self.max_bytes if max_bytes is None else max_bytes
         if throttle and self.min_interval_s > 0:
             await self._throttle(source)
         headers: dict[str, str] = {}
@@ -200,14 +203,14 @@ class Fetcher:
                 if resp.status_code >= 400:
                     raise FetchError(f"{source}: HTTP {resp.status_code}", status=resp.status_code)
                 declared = resp.headers.get("content-length")
-                if declared and declared.isdigit() and int(declared) > self.max_bytes:
-                    raise FetchError(f"{source}: response larger than {self.max_bytes} bytes")
+                if declared and declared.isdigit() and int(declared) > cap:
+                    raise FetchError(f"{source}: response larger than {cap} bytes")
                 chunks: list[bytes] = []
                 size = 0
                 async for chunk in resp.aiter_bytes():
                     size += len(chunk)
-                    if size > self.max_bytes:
-                        raise FetchError(f"{source}: response larger than {self.max_bytes} bytes")
+                    if size > cap:
+                        raise FetchError(f"{source}: response larger than {cap} bytes")
                     chunks.append(chunk)
                 return FetchResult(
                     resp.status_code,

@@ -103,7 +103,7 @@ async def test_source_subscription_controls_alerts(hub: Hub, pool: asyncpg.Pool)
         r = await c.get(f"/v1/tenants/{TENANT}/sources", headers=hub.auth())
         assert r.status_code == 200
         items = {i["connector_id"]: i for i in r.json()["items"]}
-        assert list(items) == ["gdacs", "usgs", "rss.fixture"]
+        assert list(items) == ["gdacs", "usgs", "rss.fixture", "nhc", "copernicus_ems", "ofac", "gdelt"]  # M8: 124 §0
         assert items["gdacs"]["enabled"] is True and items["gdacs"]["license"] == "CC BY 4.0"
         assert items["gdacs"]["effective_cadence_s"] == 600 and items["gdacs"]["paused"] is False
         # disable GDACS: the TC alert resolves for this tenant only
@@ -569,7 +569,7 @@ async def test_sources_lists_catalogue_for_engine(hub: Hub) -> None:
     async with hub.client() as c:
         body = (await c.get("/v1/sources", headers=hub.auth())).json()
     rows = {r["connector_id"]: r for r in body["sources"]}
-    assert list(rows) == ["gdacs", "rss.fixture", "usgs"]  # configured, never polled yet
+    assert list(rows) == ["copernicus_ems", "gdacs", "gdelt", "nhc", "ofac", "rss.fixture", "usgs"]  # configured, never polled yet
     assert rows["gdacs"]["license"] == "CC BY 4.0" and rows["gdacs"]["name"].startswith("GDACS")
     assert rows["gdacs"]["cadence_s"] == 600 and rows["gdacs"]["paused"] is False
     assert rows["gdacs"]["last_polled_at"] is None

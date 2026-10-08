@@ -29,6 +29,7 @@ from signal_hub.exposure import compute_exposures, persist_exposures
 from signal_hub.gazetteer import Gazetteer
 from signal_hub.logs import get_logger
 from signal_hub.models import NewsItemDraft, SignalDraft, clip
+from signal_hub.names import match_key
 from signal_hub.quarantine import ExtractionOutcome, LlmClient, backoff, normalise_subtype, run_quarantine
 
 __all__ = ["CLUSTER_LOCK", "IngestReport", "Pipeline", "draft_from_extraction"]
@@ -152,10 +153,12 @@ class Pipeline:
             await conn.execute("DELETE FROM network_node WHERE tenant = $1", tenant)
             await conn.execute("DELETE FROM network_lane WHERE tenant = $1", tenant)
             if network.nodes:
+                # name_key: the organisation-name match key (124 §1) — only ever compared inside this
+                # tenant's RLS context against the public keys a global signal names (OFAC)
                 await conn.executemany(
-                    """INSERT INTO network_node (tenant, type, code, name, geog)
-                       VALUES ($1, $2, $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326)::geography)""",
-                    [(tenant, n.type, n.code, n.name, n.lon, n.lat) for n in network.nodes],
+                    """INSERT INTO network_node (tenant, type, code, name, geog, name_key)
+                       VALUES ($1, $2, $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326)::geography, $7)""",
+                    [(tenant, n.type, n.code, n.name, n.lon, n.lat, match_key(n.name)) for n in network.nodes],
                 )
             if network.lanes:
                 await conn.executemany(
@@ -217,6 +220,9 @@ class Pipeline:
             json.dumps(doc["geometry"]) if doc["geometry"] is not None else None,
             prev_event, draft.pack_id, doc,
         )
+        if draft.match_keys:  # 124 §1: public organisation-name keys (OFAC); empty for every other source
+            await conn.execute("UPDATE signal SET match_keys = $2::text[] WHERE id = $1",
+                               sid, sorted(set(draft.match_keys)))
         return sid, True, prev_event, version
 
     async def _candidates(self, conn: asyncpg.Connection, sid: str, draft: SignalDraft) -> list[Candidate]:

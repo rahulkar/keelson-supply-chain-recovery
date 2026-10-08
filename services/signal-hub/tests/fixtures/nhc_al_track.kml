@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TEST FIXTURE (fictional Hurricane Tern, AL142026): shaped like an NHC forecast-track KML (the
+     TRACK.kmz member, kml 2.2 namespace, CDATA descriptions, line + forecast points) as recorded 2026-10-08. -->
+	<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+	<Document>
+	<name>AL142026 (Advisory #12) - Forecast Track</name>
+	<description><![CDATA[<TABLE><TR><TD><B>Title:</B> Tropical Cyclone Forecast Track for AL142026 (Advisory #12)</TD></TR></TABLE>]]></description>
+	<Style id="120_line"><LineStyle><color>ff000000</color><width>3</width></LineStyle></Style>
+	<Folder id="Forecast Track">
+	   <name>Forecast Track</name>
+	   <Placemark>
+	      <Snippet maxLines="0">empty</Snippet>
+	      <description><![CDATA[<table><tr><td>120 Hour Forecast Track</td></tr></table>]]></description>
+	      <styleUrl>#120_line</styleUrl>
+	      <LineString>
+	        <coordinates>  -71.2,24.5,0 -72.4,25.6,0 -73.8,26.9,0 -75.2,28.3,0 -76.4,29.7,0 -77.3,30.6,0 </coordinates>
+	      </LineString>
+	      <ExtendedData>
+	        <Data name="stormType"><value>HU</value></Data>
+	        <Data name="maxWindKnots"><value>105</value></Data>
+	      </ExtendedData>
+	   </Placemark>
+	   <Placemark>
+	      <description><![CDATA[<table><tr><td>12 hr Forecast</td></tr><tr><td>Maximum Wind: 110 knots</td></tr></table>]]></description>
+	      <styleUrl>#m_point</styleUrl>
+	      <Point>
+	         <coordinates> -72.4,25.6,0 </coordinates>
+	      </Point>
+	   </Placemark>
+	   <Placemark>
+	      <description><![CDATA[<table><tr><td>24 hr Forecast</td></tr><tr><td>Maximum Wind: 100 knots</td></tr></table>]]></description>
+	      <styleUrl>#m_point</styleUrl>
+	      <Point>
+	         <coordinates> -73.8,26.9,0 </coordinates>
+	      </Point>
+	   </Placemark>
+	</Folder>
+	</Document>
+	</kml>

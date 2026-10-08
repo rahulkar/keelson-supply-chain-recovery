@@ -3,15 +3,18 @@
 Everything here is reached through ``/v1/tenants/{tenant}/…`` with the engine's service JWT (the
 engine checks the admin role and proxies); the token's tenant scopes every read and write (RLS).
 
-**Sources.** The catalogue is the configured feeds (GDACS, USGS, each ``RSS_FEEDS`` entry). A tenant
-subscription (``source_subscription``; no row = subscribed, default cadence) can
+**Sources.** The catalogue is the configured feeds (:mod:`signal_hub.sources`: GDACS, USGS, each
+``RSS_FEEDS`` entry, NHC, Copernicus EMS, OFAC, GDELT, each ``METEOALARM_COUNTRIES`` entry). A tenant
+subscription (``source_subscription``; no row = subscribed, default cadence — except for an
+**opt-in** source, GDELT and MeteoAlarm, where no row means *not* subscribed) can
 
 * disable a source: events whose current members all come from disabled sources raise no alert for
   that tenant, and its open alerts on them resolve (:func:`event_subscribed`); the tenant's own
   signals (connector events, demo packs) always count. Global data stays readable (MCP, search);
 * ask for another cadence within :data:`CADENCE_LIMITS`. Polling is shared, so the poll cadence of a
   source is the fastest cadence any subscribed tenant wants (default when none overrides), and a
-  source every registered tenant disabled is paused (:func:`recompute_schedule`, ``source_schedule``).
+  source every registered tenant disabled is paused (:func:`recompute_schedule`, ``source_schedule``);
+  an opt-in source is paused until at least one tenant enabled it.
 
 **Watch regions** (``watch_region``) extend exposure (:mod:`signal_hub.exposure`):
 
@@ -32,7 +35,6 @@ import re
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from typing import Annotated, Any, Final, Literal
-from urllib.parse import urlsplit
 
 import asyncpg
 from pydantic import BaseModel, ConfigDict, Discriminator, Field, StrictBool, StrictInt, field_validator, model_validator
@@ -46,8 +48,7 @@ from keelson_contracts.signals import (
     Polygon,
     geometry_positions,
 )
-from signal_hub import scoring
-from signal_hub.adapters import gdacs, rss, usgs
+from signal_hub import sources
 from signal_hub.config import Settings
 from signal_hub.db import tx
 from signal_hub.exposure import WATCH_POLYGON_WEIGHT_BP
@@ -92,11 +93,7 @@ __all__ = [
 
 log = get_logger(__name__)
 
-CADENCE_LIMITS: Final[dict[str, tuple[int, int]]] = {
-    "gdacs": (300, 86_400),
-    "usgs": (120, 86_400),
-    "rss": (600, 86_400),
-}
+CADENCE_LIMITS: Final[dict[str, tuple[int, int]]] = sources.CADENCE_LIMITS
 """Allowed poll cadence per adapter (seconds): politeness floors towards the publishers, one day max."""
 CADENCE_DB_RANGE: Final = (60, 86_400)
 """``source_subscription.cadence_s`` CHECK range (migration 0003)."""
@@ -139,35 +136,46 @@ class SourceInfo:
     max_cadence_s: int
     polled: bool
     """The poller runs this adapter (``SIGNAL_ADAPTERS``)."""
+    kind: str = "hazard"
+    """Catalogue grouping: ``hazard`` / ``weather`` / ``regulatory`` / ``news`` (not a SignalKind)."""
+    provenance: str = "fact"
+    licence_class: str = "open_attribution"
+    attribution: str | None = None
+    terms_url: str | None = None
+    opt_in: bool = False
+    """No subscription row = not subscribed; paused until a tenant enables it (GDELT, MeteoAlarm)."""
+    coverage: str | None = None
+    description: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
             "connector_id": self.connector_id, "adapter": self.adapter, "name": self.name, "license": self.license,
             "authority_bp": self.authority_bp, "host": self.host, "default_cadence_s": self.default_cadence_s,
             "min_cadence_s": self.min_cadence_s, "max_cadence_s": self.max_cadence_s, "polled": self.polled,
+            "kind": self.kind, "provenance": self.provenance, "licence_class": self.licence_class,
+            "attribution": self.attribution, "terms_url": self.terms_url, "opt_in": self.opt_in,
+            "coverage": self.coverage, "description": self.description,
         }
 
 
-def _info(settings: Settings, adapter: str, cid: str, name: str, license_: str, url: str, default: int) -> SourceInfo:
-    lo, hi = CADENCE_LIMITS[adapter]
+def _info(settings: Settings, spec: sources.SourceSpec) -> SourceInfo:
+    lo, hi = CADENCE_LIMITS[spec.adapter]
+    default = spec.default_cadence_s
     # a deployment may configure a faster default than the floor; the default itself always stays valid,
     # but a stored override never leaves the table's CHECK range (source_subscription.cadence_s)
     lo = max(CADENCE_DB_RANGE[0], min(lo, default))
     hi = min(CADENCE_DB_RANGE[1], max(hi, default))
-    return SourceInfo(cid, adapter, name, license_, scoring.AUTHORITY[adapter], urlsplit(url).hostname or "",
-                      default, lo, hi, adapter in settings.enabled_adapters)
+    info = spec.info
+    return SourceInfo(spec.connector_id, spec.adapter, spec.name, info.license, info.authority_bp, spec.host,
+                      default, lo, hi, spec.adapter in settings.enabled_adapters, kind=info.kind,
+                      provenance=info.provenance, licence_class=info.licence_class, attribution=info.attribution,
+                      terms_url=info.terms_url, opt_in=info.opt_in, coverage=spec.coverage,
+                      description=info.description)
 
 
 def source_catalogue(settings: Settings) -> list[SourceInfo]:
-    out = [
-        _info(settings, "gdacs", gdacs.CONNECTOR_ID, "GDACS (Global Disaster Alert and Coordination System)",
-              gdacs.LICENSE, settings.gdacs_url, settings.cadence_gdacs_s),
-        _info(settings, "usgs", usgs.CONNECTOR_ID, "USGS earthquakes (M4.5+, past day)", usgs.LICENSE,
-              settings.usgs_url, settings.cadence_usgs_s),
-    ]
-    out += [_info(settings, "rss", f.connector_id, f.name, rss.LICENSE, f.url, settings.cadence_rss_s)
-            for f in settings.rss_feeds]
-    return out
+    """The configured sources (:func:`signal_hub.sources.catalogue`) with their admin facts."""
+    return [_info(settings, spec) for spec in sources.catalogue(settings)]
 
 
 def _catalogue_map(settings: Settings) -> dict[str, SourceInfo]:
@@ -218,7 +226,7 @@ async def recompute_schedule(pool: asyncpg.Pool, settings: Settings) -> dict[str
             disabled = 0
             for tenant in tenants:
                 row = subs[tenant].get(cid)
-                if row is not None and not row["enabled"]:
+                if (row is not None and not row["enabled"]) or (row is None and info.opt_in):
                     disabled += 1
                     continue
                 wanted.append(_clamp(info, row["cadence_s"] if row is not None else None))
@@ -230,7 +238,8 @@ async def recompute_schedule(pool: asyncpg.Pool, settings: Settings) -> dict[str
                      enabled_tenants = EXCLUDED.enabled_tenants, disabled_tenants = EXCLUDED.disabled_tenants,
                      updated_at = now()""",
                 cid, cadence, len(wanted), disabled)
-            out[cid] = Schedule(cadence or info.default_cadence_s, bool(tenants) and not wanted, len(wanted), disabled)
+            paused = not wanted if info.opt_in else bool(tenants) and not wanted
+            out[cid] = Schedule(cadence or info.default_cadence_s, paused, len(wanted), disabled)
     return out
 
 
@@ -238,7 +247,8 @@ async def load_schedule(pool: asyncpg.Pool, settings: Settings) -> dict[str, Sch
     """The poll schedule per catalogue source (poller; system context, global rows only).
 
     A source is paused only when every registered tenant disabled it (a tenant registered after the
-    last recompute counts as subscribed); cadences are re-clamped to the current limits."""
+    last recompute counts as subscribed); an opt-in source is paused until a tenant enabled it (a
+    tenant registered later counts as not subscribed). Cadences are re-clamped to the current limits."""
     catalogue = _catalogue_map(settings)
     async with tx(pool, None) as conn:
         rows = {r["connector_id"]: r for r in await conn.fetch("SELECT * FROM source_schedule")}
@@ -247,14 +257,19 @@ async def load_schedule(pool: asyncpg.Pool, settings: Settings) -> dict[str, Sch
     for cid, info in catalogue.items():
         row = rows.get(cid)
         if row is None:
-            out[cid] = Schedule(info.default_cadence_s, False, registered, 0)
+            out[cid] = (Schedule(info.default_cadence_s, True, 0, registered) if info.opt_in
+                        else Schedule(info.default_cadence_s, False, registered, 0))
             continue
         disabled = int(row["disabled_tenants"])
-        paused = registered > 0 and disabled >= registered
+        enabled = int(row["enabled_tenants"])
         cadence = _clamp(info, row["cadence_s"]) if row["cadence_s"] is not None else info.default_cadence_s
-        if registered > int(row["enabled_tenants"]) + disabled:
+        if info.opt_in:
+            out[cid] = Schedule(cadence, enabled == 0, enabled, max(disabled, registered - enabled))
+            continue
+        paused = registered > 0 and disabled >= registered
+        if registered > enabled + disabled:
             cadence = min(cadence, info.default_cadence_s)  # new tenants poll at the default until recomputed
-        out[cid] = Schedule(cadence, paused, int(row["enabled_tenants"]), disabled)
+        out[cid] = Schedule(cadence, paused, enabled, disabled)
     return out
 
 
@@ -280,7 +295,7 @@ async def list_sources(pool: asyncpg.Pool, settings: Settings, tenant: str) -> l
         cur = state.get(info.connector_id)
         out.append({
             **info.as_dict(),
-            "enabled": bool(sub["enabled"]) if sub is not None else True,
+            "enabled": bool(sub["enabled"]) if sub is not None else not info.opt_in,
             "cadence_s": sub["cadence_s"] if sub is not None else None,
             "updated_at": _iso(sub["updated_at"]) if sub is not None else None,
             "updated_by": sub["updated_by"] if sub is not None else None,
@@ -328,7 +343,8 @@ class SubscriptionSetItem(BaseModel):
 class SubscriptionSet(BaseModel):
     """``PUT /v1/tenants/{t}/subscriptions``: the tenant's complete subscription map (the engine's
     sync, ``{sources: [{connector_id, enabled}]}``). A catalogue source that is not listed goes back
-    to subscribed (its cadence wish is kept); ids the hub does not configure are ignored."""
+    to its default — subscribed, or not subscribed for an opt-in source — (its cadence wish is
+    kept); ids the hub does not configure are ignored."""
 
     model_config = ConfigDict(extra="forbid")
     sources: Annotated[list[SubscriptionSetItem], Field(max_length=200)]
@@ -367,10 +383,18 @@ async def put_subscription_set(pool: asyncpg.Pool, settings: Settings, tenant: s
         await conn.execute("INSERT INTO tenant_registry (tenant) VALUES ($1) ON CONFLICT DO NOTHING", tenant)
     async with tx(pool, tenant) as conn:
         await conn.execute("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", f"subscriptions:{tenant}")
+        listed = [x.connector_id for x in known]
+        opt_in = sorted(cid for cid, info in catalogue.items() if info.opt_in)
         await conn.execute(
             """UPDATE source_subscription SET enabled = true, updated_at = now(), updated_by = $2
-               WHERE tenant = $1 AND NOT enabled AND NOT (connector_id = ANY($3::text[]))""",
-            tenant, actor, [x.connector_id for x in known])
+               WHERE tenant = $1 AND NOT enabled AND NOT (connector_id = ANY($3::text[]))
+                 AND NOT (connector_id = ANY($4::text[]))""",
+            tenant, actor, listed, opt_in)
+        await conn.execute(  # an unlisted opt-in source goes back to not subscribed (124 §1)
+            """UPDATE source_subscription SET enabled = false, updated_at = now(), updated_by = $2
+               WHERE tenant = $1 AND enabled AND connector_id = ANY($4::text[])
+                 AND NOT (connector_id = ANY($3::text[]))""",
+            tenant, actor, listed, opt_in)
         for x in known:
             keep_cadence = "cadence_s" not in x.model_fields_set
             await conn.execute(
@@ -388,15 +412,20 @@ async def put_subscription_set(pool: asyncpg.Pool, settings: Settings, tenant: s
 
 async def event_subscribed(conn: asyncpg.Connection, tenant: str, event_id: str) -> bool:
     """Whether ``event_id`` counts for ``tenant`` (``conn`` in that tenant's context): it has a
-    current visible member that is the tenant's own or comes from a source the tenant did not
-    disable. An event without visible current members keeps counting (nothing to filter on)."""
+    current visible member that is the tenant's own, comes from a source the tenant did not
+    disable, or comes from an opt-in source (:data:`signal_hub.sources.OPT_IN_ADAPTERS`) the tenant
+    explicitly enabled. An event without visible current members keeps counting (nothing to filter on)."""
     row = await conn.fetchrow(
         """SELECT count(*) AS members,
-                  count(*) FILTER (WHERE s.tenant IS NOT NULL OR NOT EXISTS (
-                      SELECT 1 FROM source_subscription ss
-                      WHERE ss.tenant = $2 AND ss.connector_id = s.connector_id AND NOT ss.enabled)) AS wanted
+                  count(*) FILTER (WHERE s.tenant IS NOT NULL
+                      OR (NOT (split_part(s.connector_id, '.', 1) = ANY($3::text[])) AND NOT EXISTS (
+                          SELECT 1 FROM source_subscription ss
+                          WHERE ss.tenant = $2 AND ss.connector_id = s.connector_id AND NOT ss.enabled))
+                      OR (split_part(s.connector_id, '.', 1) = ANY($3::text[]) AND EXISTS (
+                          SELECT 1 FROM source_subscription ss
+                          WHERE ss.tenant = $2 AND ss.connector_id = s.connector_id AND ss.enabled))) AS wanted
            FROM signal s WHERE s.event_id = $1 AND s.is_current""",
-        event_id, tenant)
+        event_id, tenant, sorted(sources.OPT_IN_ADAPTERS))
     return row is None or int(row["members"]) == 0 or int(row["wanted"]) > 0
 
 

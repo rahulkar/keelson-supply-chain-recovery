@@ -113,6 +113,7 @@ ENV_SPEC: tuple[EnvVar, ...] = (
     EnvVar("MERXA_SNAPSHOT_SECRET", _token(48), "HMAC secret for Merxa signed snapshot download URLs"),
     EnvVar("SIGNAL_HUB_SHARED_SECRET", _token(48), "engine -> signal-hub service JWT secret (HS256)"),
     EnvVar("SIGNALS_DB_PASSWORD", _token(32), "pg-core role signals (signal-hub database)"),
+    EnvVar("EVALS_RUNNER_TOKEN", _token(48), "engine <-> evals-runner job API bearer token (M8 Evals UI, profile evals)"),
 )
 
 #: Never written to .env (taken from the host environment by compose).

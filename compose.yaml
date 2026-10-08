@@ -354,6 +354,11 @@ services:
       <<: *engine-env
       # M7 (110 §6): GET /api/admin/evals lists the latest CLI eval runs (evals/run_live.py)
       EVALS_RESULTS_DIR: /app/evals/results
+      # M8 (128): in-app eval runner API (empty token = off); live (model-calling) runs are opt-in and capped
+      EVALS_RUNNER_TOKEN: ${EVALS_RUNNER_TOKEN:-}
+      EVALS_LIVE_ENABLED: ${EVALS_LIVE_ENABLED:-0}
+      EVALS_LIVE_MAX_TOKENS: ${EVALS_LIVE_MAX_TOKENS:-3000000}
+      EVALS_LIVE_MAX_COST_MICROUSD: ${EVALS_LIVE_MAX_COST_MICROUSD:-5000000}
     volumes:
       - ./models.lock:/app/models.lock:ro
       - ./data/packs:/app/packs:ro
@@ -491,6 +496,30 @@ services:
       egress: { condition: service_started }
     networks: [app]
     mem_limit: 256m
+
+  # ─────────────────────────── in-app eval runner (M8, docs/contracts/128; profile evals) ───────────────────────────
+  # Black box over HTTP like evals/run_live.py: it signs in as the demo personas (DEMO_MODE stacks only) and
+  # resets Merxa's demo data per case, so never run it next to a live demo. No egress, fixed URLs (a job never
+  # names one). Start: docker compose --profile evals up -d evals-runner
+  evals-runner:
+    <<: *py-service
+    build:
+      context: .
+      dockerfile: evals/Dockerfile
+    profiles: [evals]
+    environment:
+      KEELSON_URL: http://keelson.localhost
+      MERXA_URL: http://merxa.localhost
+      EVALS_RUNNER_TOKEN: ${EVALS_RUNNER_TOKEN:-}
+      EVALS_RUNNER_POLL_S: "5"
+      KEELSON_E2E_DIR: /app/e2e
+    read_only: true
+    tmpfs: [/tmp]
+    depends_on:
+      engine-api: { condition: service_healthy }
+    networks: [edge]
+    mem_limit: 256m
+    cpus: 0.5
 
   # ─────────────────────────── observability (profile obs) ───────────────────────────
   phoenix:

@@ -43,7 +43,8 @@ from pydantic import ValidationError
 from ..public_errors import GENERIC_RUN_FAILURE, INTERNAL_ERROR, report_exception, user_message
 from .context import AbortController, RunContext, bind_run
 from .deps import RuntimeDeps, field_of, get_deps
-from .errors import ConnectRequiredError
+from .errors import ConnectRequiredError, RuntimeConfigError
+from .replay import ReplayMiss, effective_mode, replay_mode, replay_stats
 from .runner_cache import RunnerLease, get_runner
 from .spec import KB_CONNECTOR, SIGNAL_HUB_CONNECTOR, AgentSpec
 from .translator import Translator, seen_output_keys, unresolved_request_inputs
@@ -204,7 +205,89 @@ def _public_failure(exc: BaseException) -> tuple[str, str]:
             "The approver's account for the target system is not connected (or the connection expired), "
             "so the changes were not applied. Connect it and approve again."
         )
+    miss = next((e for e in chain if isinstance(e, ReplayMiss)), None)
+    if miss is not None:
+        # M8: replay-only installations and replay eval cases fail closed; the agent name is no secret
+        return "LLM_REPLAY_MISS", (
+            f"No recorded model answer matched (agent {_agent_label(miss.agent)}); "
+            "this run only replays recorded answers, so it stopped without calling the model."
+        )
     return INTERNAL_ERROR, GENERIC_RUN_FAILURE
+
+
+def _agent_label(agent: str) -> str:
+    """The ADK agent name of a replay miss as plain text (``[A-Za-z0-9_.-]``, ≤ 80 characters)."""
+    cleaned = "".join(ch for ch in agent if ch.isalnum() or ch in "_.-")[:80]
+    return cleaned or "unknown"
+
+
+# ───────────────────────────── M8 eval cases ─────────────────────────────
+
+
+def _eval_stop(link: Any) -> tuple[str, str, str] | None:
+    """``(final status, code, message)`` when a run of an eval-linked case must not start: its eval
+    run was cancelled, or a live eval run's budget is used up. Neither path calls a model."""
+    if field_of(link, "cancel_requested") or field_of(link, "status") == "cancelled":
+        return "cancelled", "EVAL_CANCELLED", "The eval run was cancelled, so this run did not start."
+    max_tokens = field_of(link, "budget_max_tokens")
+    max_cost = field_of(link, "budget_max_cost_microusd")
+    if str(field_of(link, "llm_mode")) != "replay" and max_tokens is not None and max_cost is not None and (
+        int(field_of(link, "tokens_live") or 0) >= int(max_tokens)
+        or int(field_of(link, "cost_microusd") or 0) >= int(max_cost)
+    ):
+        return "failed", "EVAL_BUDGET_EXHAUSTED", "The eval run used up its budget, so this run did not start."
+    return None
+
+
+async def _stop_eval_run(
+    deps: RuntimeDeps, tenant: str, case_id: str, run_id: str, *, status: str, code: str, message: str,
+    worker_id: str | None,
+) -> None:
+    from keelson_contracts.agui import ScMetadata, Stage, run_error  # noqa: PLC0415
+
+    log.warning("eval case run not started", code=code)
+    try:
+        sc = ScMetadata(tenant_id=tenant, case_id=case_id, run_id=run_id, stage=Stage.UNDERSTANDING,
+                        prov="decision", label=message)
+        await deps.bus.append(tenant=tenant, case_id=case_id, run_id=run_id,
+                              event=run_error(sc, message=message, code=code))
+    except Exception as exc:  # the run outcome is what matters; the event is informative
+        log.warning("could not emit RUN_ERROR", error=type(exc).__name__)
+    await deps.runs.finish_run(run_id, status, error=message, worker_id=worker_id)
+
+
+def _apply_eval_link(ctx: RunContext, link: Any) -> None:
+    """Force the eval run's LLM mode on the run and, for live runs, what is left of its budget."""
+    ctx.eval_run_id = str(field_of(link, "run_id"))
+    ctx.llm_replay_override = str(field_of(link, "llm_mode"))
+    max_tokens = field_of(link, "budget_max_tokens")
+    max_cost = field_of(link, "budget_max_cost_microusd")
+    if ctx.llm_replay_override != "replay" and max_tokens is not None and max_cost is not None:
+        ctx.eval_token_cap = max(0, int(max_tokens) - int(field_of(link, "tokens_live") or 0))
+        ctx.eval_cost_cap_microusd = max(0, int(max_cost) - int(field_of(link, "cost_microusd") or 0))
+
+
+async def _account_eval_usage(ctx: RunContext) -> None:
+    """Add the run's metered usage to its eval link and eval run (once per run; never fails the run)."""
+    evals_port = getattr(ctx.deps, "evals", None)
+    if ctx.eval_run_id is None or evals_port is None:
+        return
+    total = ctx.usage.total()
+    stats = replay_stats(ctx.run_id)
+    cost = 0 if total.cost_usd is None else int(round(total.cost_usd * 1_000_000))
+    try:
+        # a store miss only stops a run in replay mode (record_or_replay calls live on a miss)
+        replay_only = effective_mode(replay_mode(), ctx.llm_replay_override) == "replay"
+    except RuntimeConfigError:
+        replay_only = False
+    try:
+        await evals_port.add_usage(
+            tenant=ctx.tenant, case_id=ctx.case_id, run_id=ctx.eval_run_id, calls_live=total.calls - total.replayed,
+            calls_replayed=total.replayed, tokens_live=total.total_tokens, tokens_replayed=stats.replayed_tokens,
+            misses=stats.misses if replay_only else 0, cost_microusd=cost,
+        )
+    except Exception as exc:  # accounting is best effort; the run's own outcome stands
+        log.warning("eval usage not recorded", eval_run_id=ctx.eval_run_id, error=type(exc).__name__)
 
 
 async def specialist_vendors(deps: RuntimeDeps, tenant: str, spec: AgentSpec) -> dict[str, str]:
@@ -280,6 +363,25 @@ async def run_case(
         session_id = str(field_of(run, "session_id") or run_id)
         invocation_id = str(field_of(run, "invocation_id") or invocation_id_for(session_id))
 
+    # M8 (128 §3): an eval-linked case runs in its eval run's LLM mode under its budget, and does not
+    # start once the eval run is cancelled or its live budget is used up (no model call either way)
+    link: Any = None
+    evals_port = getattr(deps, "evals", None)
+    if evals_port is not None:
+        try:
+            link = await evals_port.get_link(tenant=tenant, case_id=case_id)
+        except Exception as exc:  # fail closed: a replay eval case must never run in the process's mode
+            await _fail(deps, tenant, case_id, run_id, "eval link unavailable", code="RUNTIME_UNAVAILABLE", exc=exc,
+                        worker_id=worker_id)
+            return "failed"
+    if link is not None:
+        stop = _eval_stop(link)
+        if stop is not None:
+            final, code, message = stop
+            await _stop_eval_run(deps, tenant, case_id, run_id, status=final, code=code, message=message,
+                                 worker_id=worker_id)
+            return final
+
     own_lease = lease is None
     if lease is None:
         try:
@@ -297,6 +399,8 @@ async def run_case(
             case_title=title, case_mode=mode, history=history, controller=controller or AbortController(),
             worker_id=worker_id,
         )
+        if link is not None:
+            _apply_eval_link(ctx, link)
         install_cost_tracking()
         status = "failed"
         try:
@@ -304,6 +408,7 @@ async def run_case(
         finally:
             # token diet: per-run LLM usage (also on the final event as metadata.usage)
             log.info("run.usage", status=status, **ctx.usage.summary(ctx.trace_id or ctx.run_id))
+            await _account_eval_usage(ctx)
         return status
     finally:
         if own_lease:

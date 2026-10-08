@@ -27,6 +27,8 @@ TENANT_TABLES = {
     "kb", "kb_document", "kb_chunk", "kb_reembed_job",
     # M6 Signal Hub integration (0009_m6_signals)
     "alert_case",
+    # M8 Evals UI (0012_m8_evals)
+    "eval_run", "eval_case_result", "eval_run_event", "eval_case_link",
 }
 
 

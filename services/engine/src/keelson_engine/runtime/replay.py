@@ -90,6 +90,7 @@ __all__ = [
     "ReplayStore",
     "default_store",
     "alias_fingerprint",
+    "effective_mode",
     "generate_with_replay",
     "prepare_call",
     "replay_max_bytes",
@@ -133,6 +134,18 @@ def replay_mode(value: str | None = None) -> ReplayMode:
 
         raise RuntimeConfigError(f"LLM_REPLAY_MODE must be one of {', '.join(REPLAY_MODES)} (got {raw!r})")
     return raw  # type: ignore[return-value]
+
+
+def effective_mode(process: ReplayMode, override: str | None) -> ReplayMode:
+    """(M8) The mode one run uses when its case forces one (an eval run's mode,
+    ``RunContext.llm_replay_override``): no override → the process mode; a ``replay``-only process
+    stays ``replay`` whatever the override (an offline installation never escalates to live calls);
+    otherwise the override (an unknown value is a configuration error, as in :func:`replay_mode`)."""
+    if override is None:
+        return process
+    if process == "replay":
+        return "replay"
+    return replay_mode(override)
 
 
 def replay_max_bytes() -> int:
@@ -654,9 +667,12 @@ async def generate_with_replay(
     mode: ReplayMode | None = None,
     store: ReplayStore | None = None,
 ) -> AsyncGenerator[LlmResponse]:
-    """Serve one model call according to ``mode`` (default: ``LLM_REPLAY_MODE``)."""
+    """Serve one model call according to ``mode`` (default: ``LLM_REPLAY_MODE``), or to the mode
+    the bound run's case forces (M8 eval cases: :func:`effective_mode`)."""
     mode = replay_mode() if mode is None else replay_mode(mode)
     run = maybe_current_run()
+    if run is not None:
+        mode = effective_mode(mode, getattr(run, "llm_replay_override", None))
     if mode == "off" or run is None:
         async with aclosing(live()) as stream_:
             async for response in stream_:

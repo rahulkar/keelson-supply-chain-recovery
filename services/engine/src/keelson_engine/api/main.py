@@ -24,6 +24,7 @@ from keelson_engine.api import (
     routes_webhooks,
     shutdown,
 )
+from keelson_engine.api import routes_admin_evals, routes_internal_evals  # M8 Evals UI (128)
 from keelson_engine.api.errors import install_error_handlers
 from keelson_engine.api.middleware import SecurityMiddleware
 from keelson_engine.config import get_settings
@@ -116,6 +117,8 @@ def create_app(*, manage_resources: bool = True) -> FastAPI:
         routes_admin_m7.router,
         routes_admin_playground.router,
         routes_webhooks.router,
+        routes_admin_evals.router,
+        routes_internal_evals.router,
     ):
         application.include_router(router)
     return application

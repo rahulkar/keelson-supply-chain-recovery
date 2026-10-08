@@ -1265,11 +1265,12 @@ def results_doc_to_case_results(doc: Any) -> tuple[EvalDocHeader, list[EvalCaseR
 def results_doc_sha256(header: EvalDocHeader, results: Sequence[EvalCaseResult]) -> str:
     """Identity of a results document: sha256 of the canonical JSON of its normalised content
     (start/finish second, mode, suite hash, converted cases). The file's schema version, target
-    label and byte layout do not count, so a file and the export of its import are one run."""
+    label and byte layout do not count, so a file and the export of its import are one run. A
+    missing ``finished_at`` counts as the start (an imported run stores it that way)."""
+    finished = header.finished_at or header.started_at
     payload = {
         "started_at": header.started_at.astimezone(dt.UTC).replace(microsecond=0).isoformat(),
-        "finished_at": None if header.finished_at is None
-        else header.finished_at.astimezone(dt.UTC).replace(microsecond=0).isoformat(),
+        "finished_at": finished.astimezone(dt.UTC).replace(microsecond=0).isoformat(),
         "mode": header.mode,
         "suite_hash": header.suite_hash,
         "cases": [r.model_dump(mode="json") for r in results],

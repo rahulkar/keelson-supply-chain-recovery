@@ -8,6 +8,8 @@ run contextvar).
   through ``abort_signal`` (the run ends ``RUN_ERROR{code: BUDGET_EXCEEDED}``). It also caps the
   model turns of each investigator task (``investigation.max_investigator_turns``): the last
   allowed turn runs with tool calling off, so the analyst writes its notes instead of reading on.
+  (M8) A run of a live eval case also stops at what is left of the eval run's token / cost budget
+  (``RunContext.eval_token_cap`` / ``eval_cost_cap_microusd``, set at run start).
 * :class:`UsagePlugin` — meters every model call per agent (tokens, reasoning, latency) into
   ``RunContext.usage`` (``runtime.usage``; cost via the LiteLLM callback).
 * :class:`EvidencePlugin` — every tool result becomes an ``evidence`` row (``prov: fact``) and
@@ -332,6 +334,20 @@ def _investigator_turn_cap(run: RunContext, agent: str, llm_request: LlmRequest)
     return None
 
 
+def _eval_budget_breach(run: RunContext) -> str | None:
+    """(M8) The live eval run's remaining budget, set on the run at its start: tokens (metered
+    after each response) and cost (the LiteLLM callback may report it after the response, so
+    it is also checked before the next call)."""
+    if run.eval_token_cap is not None and run.total_tokens >= run.eval_token_cap:
+        return f"eval run token budget exhausted ({run.total_tokens} of {run.eval_token_cap} tokens left at run start)"
+    if run.eval_cost_cap_microusd is not None:
+        cost = run.usage.total().cost_usd
+        spent = round((cost or 0.0) * 1_000_000)
+        if spent >= run.eval_cost_cap_microusd:
+            return f"eval run cost budget exhausted ({spent} of {run.eval_cost_cap_microusd} micro-USD left at run start)"
+    return None
+
+
 class BudgetPlugin(BasePlugin):
     def __init__(self) -> None:
         super().__init__(name="keelson_budget")
@@ -344,11 +360,15 @@ class BudgetPlugin(BasePlugin):
             return None
         run.llm_calls += 1
         budgets = run.spec.budgets
+        message: str | None = None
         if run.llm_calls > budgets.max_llm_calls or run.total_tokens > budgets.max_total_tokens:
             message = (
                 f"LLM budget exhausted ({run.llm_calls - 1} calls, {run.total_tokens} tokens; "
                 f"caps {budgets.max_llm_calls} calls / {budgets.max_total_tokens} tokens)"
             )
+        else:
+            message = _eval_budget_breach(run)
+        if message is not None:
             log.warning("llm budget exceeded", agent=callback_context.agent_name, message=message)
             run.abort("budget", message)
             return LlmResponse(error_code="BUDGET_EXCEEDED", error_message=message)
@@ -368,6 +388,8 @@ class BudgetPlugin(BasePlugin):
                 "budget",
                 f"LLM token budget exhausted ({run.total_tokens} > {run.spec.budgets.max_total_tokens})",
             )
+        elif run.eval_token_cap is not None and run.total_tokens > run.eval_token_cap:
+            run.abort("budget", f"eval run token budget exhausted ({run.total_tokens} > {run.eval_token_cap})")
         return None
 
 

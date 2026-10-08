@@ -31,6 +31,7 @@ __all__ = [
     "ConnectorsPort",
     "CoreAdapter",
     "CryptoPort",
+    "EvalsPort",
     "HEADER_AUTH_KINDS",
     "INACTIVE_CONNECTOR_STATUSES",
     "InterruptsPort",
@@ -456,6 +457,22 @@ class PlansPort(Protocol):
         ...
 
 
+class EvalsPort(Protocol):
+    """(M8, ``128`` §3) Eval links of Keelson cases (``core.evals``). A linked case runs every run in
+    its eval run's LLM mode (``replay`` = recorded answers only) under its live budget, and each
+    run's usage is added to the link and the eval run."""
+
+    async def get_link(self, *, tenant: str, case_id: str) -> Any | None:
+        """``core.evals.EvalLink`` (``run_id, eval_case_id, llm_mode, status, cancel_requested,
+        budget_max_tokens, budget_max_cost_microusd, tokens_live, cost_microusd``) or ``None``."""
+        ...
+
+    async def add_usage(
+        self, *, tenant: str, case_id: str, run_id: str, calls_live: int, calls_replayed: int, tokens_live: int,
+        tokens_replayed: int, misses: int, cost_microusd: int,
+    ) -> None: ...
+
+
 @dataclass
 class RuntimeDeps:
     repo: RepoPort
@@ -480,6 +497,8 @@ class RuntimeDeps:
     """Plan versions + dependency index (M5); ``None`` = only ``plan.kpis.dependencies``."""
     hub: SignalHubPort | None = None
     """Signal Hub reads (M6); ``None`` = signal runs ``{event_id}`` fail visibly (nothing framed)."""
+    evals: EvalsPort | None = None
+    """Eval case links (M8); ``None`` = no evals (every case runs in the process's LLM mode)."""
 
 
 # ───────────────────────────── E1 core adapter ──────────────────────────────
@@ -562,6 +581,7 @@ class CoreAdapter:
             signals=_SignalsAdapter(),
             plans=_PlansAdapter(self._repo),
             hub=_SignalHubAdapter(),
+            evals=_EvalsAdapter(),
         )
 
 
@@ -669,6 +689,25 @@ class _SignalsAdapter:
             )
             value = res.scalar_one_or_none()
         return None if value is None else int(value)
+
+
+class _EvalsAdapter:
+    """``core.evals`` (M8 platform): the eval link of a case and the per-run usage accounting."""
+
+    async def get_link(self, *, tenant: str, case_id: str) -> Any | None:
+        from keelson_engine.core import evals  # noqa: PLC0415 - lazy: platform module
+
+        return await evals.get_eval_link(tenant, case_id)
+
+    async def add_usage(
+        self, *, tenant: str, case_id: str, run_id: str, calls_live: int, calls_replayed: int, tokens_live: int,
+        tokens_replayed: int, misses: int, cost_microusd: int,
+    ) -> None:
+        from keelson_engine.core import evals  # noqa: PLC0415
+
+        await evals.add_eval_usage(tenant, case_id, run_id, calls_live=calls_live, calls_replayed=calls_replayed,
+                                   tokens_live=tokens_live, tokens_replayed=tokens_replayed, misses=misses,
+                                   cost_microusd=cost_microusd)
 
 
 class _SignalHubAdapter:

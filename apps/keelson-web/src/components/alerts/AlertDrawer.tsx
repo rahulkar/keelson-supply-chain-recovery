@@ -22,6 +22,7 @@ import {
 } from "@/lib/alerts/format";
 import type { Alert, AlertDetailView } from "@/lib/alerts/types";
 import { uuid } from "@/lib/ids";
+import { GroupingExplainer } from "./GroupingExplainer";
 
 type Load = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; detail: AlertDetailView };
 type Settled = { key: string; alertId: string } & ({ status: "error"; message: string } | { status: "ready"; detail: AlertDetailView });
@@ -122,6 +123,8 @@ function DetailBody({ detail }: { detail: AlertDetailView }) {
           <p className="text-caption text-fg-muted">News-based details are unconfirmed until an official source reports them.</p>
         ) : null}
       </Section>
+
+      <GroupingExplainer detail={detail} />
 
       <Section title="Updates">
         <ol aria-label="Updates" className="flex flex-col gap-2 border-l border-border pl-4">

@@ -305,6 +305,15 @@ second run took the key-rotation path (northwind-test plans on merxa-lite after
 `api_m7_foreign_erp.py --prepare-only`). `m7-offline` (6 tests) ~1.5 min; with `dev-blocks`,
 `admin-smoke`, `auth`, `m5-offline` under `E2E_NO_MODEL=1`: 15 passed, 1 skipped.
 
+## M8 signal clustering (`docs/contracts/123`): `api_m8_clustering_offline.py`
+
+Runs **inside the engine image** like the M6/M7 offline scripts (`docker compose run --rm --no-deps -T
+-e LOG_LEVEL=warning -v <repo>/e2e:/e2e:ro engine-api python -u /e2e/api_m8_clustering_offline.py`).
+
+| script | model calls | what it proves |
+|---|---|---|
+| `api_m8_clustering_offline.py` | **none** | Demo reset (every step ok, `signal_hub` included). Clustering settings: ava (platform admin) reads them `editable`, sam (tenant admin) read-only; version >= 1, local profile `local-terms-v1`, pgvector available on pg-core. Presenter ava replays `port-strike-syndication` to the end: exactly one simulated alert (the Hamburg strike, DEHAM exposed) whose detail carries memberships `{founded, near_duplicate, attach_vector}` — the near-duplicate within 6 SimHash bits names the first report, the vector member's similarity reaches the local strict threshold — and the event is `confirmed` with the confidence of **two** independent sources (5600 bp: the syndicated copy is not counted); no explanation repeats a headline. sam's settings PUT → 403 `platform_admin_required`; ava's PUT on a stale `base_version` → 409 `stale_version`, version unchanged. The 7-day counts show the near-duplicate and the vector attach. A final demo reset (unless `--skip-final-reset`) leaves no simulated alert and the strike event gone from the hub. |
+
 ## `api_m3_levers.py` — M3 levers through the API
 
 Same container, command shape and options as `api_thin_slice.py` (it imports that script's

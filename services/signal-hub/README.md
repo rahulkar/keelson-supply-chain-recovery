@@ -14,13 +14,13 @@ case.
 
 | compose service | command | networks | role |
 |---|---|---|---|
-| `signal-hub-bootstrap` | `python -m signal_hub.bootstrap` | app, ai | idempotent: role + database `signals` + PostGIS (pg-core superuser), then migrations as role `signals`, then the extraction key (see "LiteLLM extraction key") |
-| `signal-hub-api` | `signal-hub-api` (uvicorn :8300) | app, ai | REST `/v1`, MCP `/mcp`, `/demo-feeds`, health. Background: pending-extraction retries (every 30 s), expiry sweep (60 s), demo auto-advance |
+| `signal-hub-bootstrap` | `python -m signal_hub.bootstrap` | app, ai | idempotent: role + database `signals` + PostGIS (+ pgvector when the server offers it; pg-core superuser), then migrations as role `signals`, the active remote embedding profile (`SIGNALS_EMBED_PROVIDER=litellm` only), then the extraction key (see "LiteLLM extraction key") |
+| `signal-hub-api` | `signal-hub-api` (uvicorn :8300) | app, ai | REST `/v1`, MCP `/mcp`, `/demo-feeds`, health. Background: pending-extraction retries (every 30 s), expiry sweep (60 s), demo auto-advance, cluster maintenance (`SIGNALS_CLUSTER_MAINTENANCE_S`, 60 s: merge pass + opt-in embedding jobs) |
 | `signal-hub-poller` | `python -m signal_hub.poller` | app | feed adapters on schedules; one leader (Postgres advisory lock); outbound **only** via `HTTP(S)_PROXY=http://egress:3128` |
 
-`python -m signal_hub.poller --once --adapter gdacs|usgs|rss|extraction|sweep [--connector rss.x]` runs
-one adapter and exits (exit 1 when a fetch failed). Cloud Run Jobs use this form; see "Cloud Run"
-below.
+`python -m signal_hub.poller --once --adapter gdacs|usgs|rss|extraction|sweep|cluster [--connector rss.x]`
+runs one adapter and exits (exit 1 when a fetch failed). Cloud Run Jobs use this form; see "Cloud Run"
+below. `cluster` runs one cluster maintenance round (only needed where the API's loop does not run).
 
 The API has no Caddy route (internal only). Every `/v1` and `/mcp` call needs an engine **service
 JWT**: HS256 with `SIGNAL_HUB_SHARED_SECRET`, claims `iss=keelson-engine`, `aud=signal-hub`,
@@ -49,6 +49,11 @@ sets `app.tenant_id` for each transaction:
 * `tenant_registry` (slugs), `source_cursor` (poll state) and `source_schedule` (the subscription
   counts and fastest wanted cadence per source) are global metadata without tenant data.
 * `hub_secret` (the encrypted extraction key) is readable only in the system context.
+* M8 clustering (`0004_m8_clustering.sql`): `signal_membership` and `embedding_job` are mixed like
+  `signal` (rows follow their signal's scope; deleting a signal removes them); `cluster_config`
+  (the platform clustering settings) and `embedding_profile` are readable by everyone and writable
+  only in the system context; `signal_vec_<profile id>` tables (created at runtime, only with
+  pgvector + the litellm provider) are mixed like `signal`.
 
 A tenant's connector signal may attach to a **global** event. It then counts only for that tenant's
 member list and exposure: global aggregates are computed in the system context from global members
@@ -146,6 +151,29 @@ Severity is a subtype prior, never an LLM number. Untrusted text is only ever st
 `raw_text`/`title`, and MCP results mark it `content_trust: untrusted_text`. Demo packs ship
 pre-baked extractions (`extracted_by: prebaked`); only the pattern screen runs on them.
 
+### Near-duplicates (M8, `simhash.py`, `neardup.py`)
+
+Trade-press items (`origin news` or an `rss.*` / `demo.rss.*` connector; never connected-system free
+text) get a 64-bit **SimHash** of headline + snippet at queue time (NFKC + casefold, URLs and a small
+stopword set dropped, digits kept; unigrams + bigrams hashed with keyed BLAKE2b; fewer than 6 tokens →
+no fingerprint), stored with eight 8-bit bands (GIN index: exact for `max_hamming_bits` <= 7). In the
+item's own scope (global → global only; tenant → global + own; pack → same tenant + pack) and within
+`window_hours`:
+
+* the **same source** with an **identical** fingerprint → `duplicate` (a re-post under a new id: never
+  extracted, never a signal); the same source with a few bits is an edited update and stays normal;
+* **another source** within `max_hamming_bits` (default 6) → a **near-duplicate** (`near_duplicate_of`,
+  `near_duplicate_bits`). Measured on 20–30 token items: one changed word ≈ 3 bits, a number 5, a cut
+  snippet or an outlet prefix ≈ 6; unrelated items 24–39.
+
+A near-duplicate without a pre-baked extraction first runs the **pattern screen on its own text**;
+then, with `reuse_extraction`: original `extracted` **and** every place / port / chokepoint / company
+it names also appears in the copy → the original's re-validated extraction is reused
+(`extracted_by: simhash:<alias>`, no guard or extractor call); original pending → the copy waits (no
+attempt counted); original `flagged` → flagged too; rejected/failed (or a copy naming other
+entities, e.g. a templated story about another port) → its own quarantine. Pre-baked extractions
+always win.
+
 ## Gazetteer (`data/geo`)
 
 * `ports.json` (new): a UN/LOCODE subset with float WGS84 coordinates and aliases. It covers every
@@ -187,7 +215,53 @@ Event fields (`aggregate_event`, current versions only):
 
 Known v1 limitation: when a candidate event is absorbed, only members of the same scope move. A
 tenant's connector signal attached to an absorbed **global** candidate keeps pointing at the merged
-(resolved) event and stops counting for that tenant's exposure.
+(resolved) event and stops counting for that tenant's exposure. (The same holds for vector merges.)
+
+## Clustering v2 (M8, `cluster.decide`, `embeddings.py`, `maintenance.py`, `docs/contracts/123`)
+
+v2 only adds evidence v1 cannot see. Per new signal (`cluster.decide`, first rule wins):
+
+1. authoritative: the v1 same-hazard rule (`same_hazard`), else it founds (`anchor`);
+2. a **near-duplicate** joins its original's event when that event is an open in-scope candidate of a
+   compatible kind and the copy names no other place (`near_duplicate`);
+3. the v1 attach rule, unchanged ranking (`attach_ref` with the shared refs, else `attach_geo`);
+4. **vector attach** (`attach_vector`): compatible kind, windows within `vector.window_hours`,
+   similarity >= `attach_bp`, and a geography gate — both located: within `max_distance_km`;
+   otherwise a shared country, or (the signal has no ref at all) similarity >= `strict_bp`;
+5. otherwise it founds a candidate (`founded`).
+
+**Cluster terms** (`signal.cluster_terms`, not part of `content_hash`): `k:` kind, `s:` subtype,
+`t:` taxonomy key, `p:` place words of the extracted mentions (resolved or not; a signal without
+mentions uses the curated names of its port/chokepoint refs), `o:` company words. The **local profile
+`local-terms-v1`**: weights `p:` 2, others 1; an event = the sum of its current members' vectors;
+similarity = integer cosine in bp (half-up), **0 unless a place or company word is shared**. Signal →
+event similarity is the maximum over the event's current members. Thresholds are calibrated on
+`tests/fixtures/m8_cluster_pairs.yaml` (every labelled pair right with >= 300 bp margin): local
+attach 7000, merge 7500, strict 7500.
+
+**Merge pass** (`maintenance.merge_pass`, API loop + replay after every pack step): an open
+un-anchored event merges into an open event of the same scope (anchored first, else the older one;
+never both ways, no chains in one pass, never an event with an opened case) when kinds are
+compatible, windows overlap, similarity >= `merge_bp` and the geography gate holds — the remote
+centroid cosine (pgvector) when a remote profile has vectors for every member of both, else the
+local centroid. Members move with `merged_vector`, the source is resolved (`merged_into`) and both
+events' alerts re-evaluate (the source's alert resolves).
+
+**Memberships** (`signal_membership`, `membership.py`): one row per signal version — method,
+evidence (distance, shared refs, similarity + profile, Hamming bits + original), `config_version`,
+`decided_at` and a deterministic explanation (`explain.py`: method, integers, place codes and curated
+gazetteer names only — never a headline or mention). A new version copies its predecessor's row;
+an absorb relabels moved members `absorbed` (original method kept as `prior_method`).
+
+**Remote embeddings** (opt-in `SIGNALS_EMBED_PROVIDER=litellm`, `vectors.py`): the bootstrap keeps one
+active `embedding_profile` (alias, dims; a change retires and drops the old table) and creates
+`signal_vec_<id>` (`vector(d)` up to 2000 dims, else `halfvec(d)`, HNSW cosine, RLS). The maintenance
+pass enqueues current non-simulated signals of the last 14 days and the API embeds the structured
+`cluster_text` (headline only with `SIGNALS_EMBED_INCLUDE_HEADLINE=1`) with the hub key through
+`/v1/embeddings` (402/429/5xx → pending with backoff; invalid output counts towards
+`SIGNALS_EXTRACTION_MAX_ATTEMPTS`). Ingest never waits for it. Without pgvector the status says
+`pgvector_missing` and local clustering is unaffected. The provisioned key gets the embedding alias
+only with this provider.
 
 Event titles and summaries are never written by an LLM. This optional step of the contract is
 skipped. A news-only event's title is its first headline, which is untrusted.
@@ -207,7 +281,9 @@ skipped. A news-only event's title is its first headline, which is untrusted.
   `10000 − factor_bp`.
 * **Confidence** = `authority × corroboration × recency` (`combine_confidence_bp`):
   * authority: GDACS/USGS 9500, connector 8500, trade press 7000, free text 6000;
-  * corroboration: anchored 10000, else 1/2/>=3 sources → 6000/8000/10000;
+  * corroboration: anchored 10000, else 1/2/>=3 **independent** sources → 6000/8000/10000 (M8: a SimHash
+    near-duplicate whose original is a member of the same event adds no source; an event of a story
+    and its syndicated copy stays a 1-source `candidate`);
   * recency: 10000 up to 24 h, linear down to 5000 at 7 days.
 * **Event severity**: the maximum over current anchors, else the p75 (nearest rank) of current members.
 
@@ -309,9 +385,9 @@ should also refuse to store a set the hub would answer with 422.
 |---|---|
 | `GET /v1/alerts?status=a,b&severity=&limit=&updated_since=` | `{items: [Alert], new_count}` |
 | `GET /v1/alerts/changes?after=<seq>&limit=` | `{items: [{seq, change: raised\|renotified\|updated\|resolved\|status, action, at, alert}], next_after}`. The engine polls this for toasts/SSE and `alert_and_draft_case` |
-| `GET /v1/alerts/{id}` | `AlertDetail` (alert, event, member signals with attribution, exposures) |
+| `GET /v1/alerts/{id}` | `AlertDetail` (alert, event, member signals with attribution, exposures, M8 `memberships`) |
 | `POST /v1/alerts/{id}/status` | `AlertStatusUpdate`. `opened` + `case_id` is idempotent; a different case gives 409; an opened alert can only be resolved |
-| `GET /v1/events/{id}` | `{event, signals, exposures, exposure_summary}` |
+| `GET /v1/events/{id}` | `{event, signals, exposures, exposure_summary, memberships}` |
 | `GET /v1/signals?query=&kind=&since=&limit=` | current signals (untrusted text) |
 | `PUT` (or `POST`) `/v1/tenants/{tenant}/network` | `TenantNetwork`; replaces the snapshot and re-evaluates open events → `{network_version, alerts}` |
 | `GET` / `PUT /v1/tenants/{tenant}/alert-rules` | tenant rules. GET: `{custom, rules, defaults, updated_at, updated_by}`. PUT `{rules}` replaces the set (empty = defaults), validated → `{rules, alerts_changed}` |
@@ -329,6 +405,9 @@ should also refuse to store a set the hub would answer with 422.
 | `GET /v1/demo/packs`, `GET /v1/demo/packs/{pack}`, `POST …/start {speed?}`, `POST …/advance {seconds?\|to_step?}`, `POST …/reset` | demo replay (`DEMO_MODE`; `DEMO_TENANTS` allow-list) |
 | `POST /v1/demo/reset` | resets every pack of the caller's tenant **and** the rest of its hub state (connector-event signals / events / free text, every remaining alert + change rows, its exposures; the network, alert rules and global feed data stay) → `{tenant, packs, counts}` (the engine's demo reset calls it first; its scn resync then re-pushes the network, which re-raises alerts on open global events that still apply) |
 | `GET /demo-feeds/{pack}/{file}` | pack fixture files for the real adapters (`DEMO_MODE` only, no auth, static repo data) |
+| `GET /v1/clustering` | M8 `ClusteringStatus`: platform settings, similarity backends (`pgvector`, `local-terms-v1`, remote profile or `remote_reason`), counts of the last 7 days (global + the token tenant's rows) |
+| `PUT /v1/clustering/config` | M8 `ClusteringConfigUpdate {base_version, simhash, vector, updated_by?}` → `ClusteringConfig` (version + 1). **Platform-scoped token only** (`scope: "platform"`, else 403); stale base → 409 `{detail: {current_version}}`; bounds → 422 |
+| `POST /v1/clustering/run` | M8 one maintenance round now (platform-scoped token only) → `{merged: [{source_event_id, target_event_id}], embedded, embedding_failed}` |
 
 ## MCP (`/mcp`, FastMCP 4, stateless, service JWT)
 
@@ -340,7 +419,8 @@ All tools are read-only and return structured results:
 * `assess_exposure(event_id)` (computed, not stored)
 
 Results that carry news-derived text include `content_trust: "untrusted_text"` and
-`untrusted_fields`. The engine classifies these tools `untrusted_text`.
+`untrusted_fields`. The engine classifies these tools `untrusted_text`. `get_event` also returns the
+event's `memberships` (deterministic explanations, no untrusted text).
 
 ## Demo packs (`replay.py`)
 
@@ -378,14 +458,25 @@ alerts are `simulated: true`. Ids are uuid5 of content, so reset + replay is ide
 | `CADENCE_GDACS_S` / `_USGS_S` / `_RSS_S`, `SIGNALS_MIN_INTERVAL_S` | 600 / 300 / 900, 5 | schedules and rate limit |
 | `DEMO_MODE`, `DEMO_TENANTS`, `SCENARIOS_DIR`, `DEMO_FEEDS_BASE_URL` | off, any, `/app/scenarios`, `http://127.0.0.1:8300/demo-feeds` | demo replay |
 | `GEO_DIR` | `/app/geo` | gazetteer data |
+| `SIGNALS_EMBED_PROVIDER` | `local` | M8: `local` (term vectors only) or `litellm` (opt-in remote embeddings for the merge pass; adds the embed alias to the hub key) |
+| `SIGNALS_EMBED_ALIAS`, `SIGNALS_EMBED_DIMS` | `embed-default`, 1536 | the remote profile (`models.lock`); dims <= 2000 → `vector`, <= 4000 → `halfvec` |
+| `SIGNALS_EMBED_INCLUDE_HEADLINE`, `SIGNALS_EMBED_BATCH` | 0, 16 | append the untrusted headline to the embedded text (off); jobs per batch |
+| `SIGNALS_CLUSTER_MAINTENANCE_S` | 60 | API loop: merge pass + embedding jobs (0 = off) |
+| `SIGNALS_VECTOR_VERSION` | unset | bootstrap only: pgvector version pin (Cloud SQL `PIN_VECTOR`) |
+
+Clustering thresholds are **not** env: they are the platform settings in `cluster_config`
+(`PUT /v1/clustering/config`, the engine's Signals admin for platform admins).
 
 ## Tests
 
 Offline (parsers on recorded-shape fixtures marked `TEST FIXTURE`, quarantine with fakes, gazetteer,
 formulas, clustering, auth, M7 rule/region validation, the secret box and key provisioning against a
-mock LiteLLM in `tests/fakes.py`) plus PostGIS tests (`-m postgis`; they need `SIGNAL_HUB_TEST_ADMIN_DSN`
-for a throwaway `postgis/postgis:18-3.6` and are skipped otherwise). No test calls an LLM or the
-internet.
+mock LiteLLM in `tests/fakes.py`; M8: SimHash goldens and the band index, cluster terms, `decide` /
+`choose_merge`, explanations, the calibration fixture, near-duplicate reuse, the embedder against
+`httpx.MockTransport`) plus PostGIS tests (`-m postgis`; they need `SIGNAL_HUB_TEST_ADMIN_DSN`
+for a throwaway server and are skipped otherwise). The M8 remote-embedding tests (`-m pgvector`) also
+need the `vector` extension: use the pg-core image (`docker build -t keelson-pg-core infra/postgres/core`)
+instead of `postgis/postgis:18-3.6` (they skip there). No test calls an LLM or the internet.
 
 ```bash
 docker network create keelson_m6_sh_net

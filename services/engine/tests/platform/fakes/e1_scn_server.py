@@ -205,6 +205,8 @@ class ScnState:
     changes_calls: list[str] = field(default_factory=list)
     snapshots: dict[str, Snapshot] = field(default_factory=dict)
     seq: int = 0
+    manifest_extra: dict[str, Any] = field(default_factory=dict)
+    """M8: extra manifest keys (e.g. ``consistency: crawled`` + ``as_of_range`` of an adapter sidecar)."""
 
     def build(self) -> Snapshot:
         data = {e: [dict(r) for r in rows] for e, rows in self.dataset.items()}
@@ -245,7 +247,7 @@ def build_mcp(state: ScnState, base_url: Callable[[], str]) -> FastMCP:
                            "sha256": [hashlib.sha256(b).hexdigest() for b, _ in ps]}
         return {"snapshot_id": snap.id, "as_of": now.isoformat(), "watermark": snap.watermark,
                 "canonical_model": "scn/1.0", "expires_at": (now + dt.timedelta(hours=2)).isoformat(),
-                "entities": manifest}
+                "entities": manifest, **state.manifest_extra}
 
     @mcp.tool(name="scn.snapshot_export", description="Signed part URLs of one entity.", annotations=READ)
     def snapshot_export(snapshot_id: str, entity: str) -> dict[str, Any]:

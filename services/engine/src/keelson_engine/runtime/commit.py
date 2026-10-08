@@ -249,8 +249,18 @@ def mint_receipt(
     initiated_by: str,
     policy_version: str,
     co_approved_by: Sequence[str] = (),
+    audience: str | None = None,
+    ext_iss: str | None = None,
 ) -> tuple[str, ApprovalReceiptClaims]:
-    """Sign the approval receipt (``co_approved_by``: the other quorum members, M5 four-eyes)."""
+    """Sign the approval receipt (``co_approved_by``: the other quorum members, M5 four-eyes).
+
+    ``audience`` / ``ext_iss`` (M8): the receiving system; ``None`` keeps Merxa's (platform
+    receipts unchanged), a non-platform connector passes its MCP URL and issuer."""
+    target: dict[str, str] = {}
+    if audience is not None:
+        target["aud"] = audience
+    if ext_iss is not None:
+        target["ext_iss"] = ext_iss
     claims = ApprovalReceiptClaims.issue(
         approval_id=approval_id_for(change_set),
         change_set_ref=ext_change_set_id,
@@ -263,6 +273,7 @@ def mint_receipt(
         initiated_by=initiated_by,
         policy_version=policy_version,
         co_approved_by=list(co_approved_by),
+        **target,
     )
     return crypto.sign_approval_receipt(claims), claims
 

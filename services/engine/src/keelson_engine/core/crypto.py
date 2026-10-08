@@ -244,12 +244,16 @@ def quorum_receipt_claims(
     ttl_s: int = DEFAULT_RECEIPT_TTL_S,
     now: int | None = None,
     jti: str | None = None,
+    aud: str | None = None,
+    ext_iss: str | None = None,
 ) -> ApprovalReceiptClaims:
     """Receipt claims for a (four-eyes) quorum approval: the executor (see :func:`split_quorum`)
     is ``approved_by``/``approver_name``/``keelson_sub`` (``ext_sub`` must be the executor's
     linked Merxa subject); the other members become ``co_approved_by``. A single approver yields
-    exactly the M1 claim set (``co_approved_by`` omitted)."""
+    exactly the M1 claim set (``co_approved_by`` omitted). ``aud`` / ``ext_iss`` (M8): a
+    non-platform target system (``None`` = Merxa's)."""
     executor, others = split_quorum(decided_by, executor_role=executor_role)
+    target = {k: v for k, v in (("aud", aud), ("ext_iss", ext_iss)) if v is not None}
     return ApprovalReceiptClaims.issue(
         approval_id=approval_id,
         change_set_ref=change_set_ref,
@@ -265,6 +269,7 @@ def quorum_receipt_claims(
         now=now,
         jti=jti,
         co_approved_by=[approved_by_user(m["username"]) for m in others],
+        **target,
     )
 
 

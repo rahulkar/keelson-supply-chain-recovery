@@ -10,6 +10,7 @@ import datetime as dt
 import logging
 from collections import defaultdict
 from importlib.metadata import version
+from typing import Any
 
 from keelson_contracts.changeset import MAX_PO_CREATE_LINES
 from keelson_contracts.optimizer import (
@@ -17,6 +18,7 @@ from keelson_contracts.optimizer import (
     AltSupplierDecision,
     CostBreakdown,
     Decision,
+    EmissionsSummary,
     EtaChange,
     ExpediteDecision,
     Explain,
@@ -28,6 +30,7 @@ from keelson_contracts.optimizer import (
     OptimizeRequest,
     Provenance,
     ResequenceDecision,
+    RobustnessResult,
     Scorecard,
     SolverInfo,
     TransferOrderCreatePayload,
@@ -35,12 +38,14 @@ from keelson_contracts.optimizer import (
 )
 
 from keelson_opt import ENGINE_NAME, __version__
-from keelson_opt.canonical import model_hash
+from keelson_opt.canonical import model_hash, sha256_hex
+from keelson_opt.emissions import plan_emissions
 from keelson_opt.graph import build_graph
 from keelson_opt.impact import SimResult, Transfer, by_dc, kpis, simulate, timeline
 from keelson_opt.levers import REALLOCATE_INVENTORY
 from keelson_opt.plan import Plan, base_lines, plan_lines, receipt_series
 from keelson_opt.planner import make_plan
+from keelson_opt.robust import evaluate as evaluate_robustness
 from keelson_opt.scn import Scenario, build_scenario
 from keelson_opt.tts import network_tts, tts_by_dc, tts_report
 from keelson_opt.wire_m5 import CANCEL_OP, ActionM5, OptimizeResponseM5
@@ -90,8 +95,10 @@ def run_impact(req: ImpactRequest) -> ImpactResponse:
 def run_optimize(req: OptimizeRequest) -> OptimizeResponseM5:
     """``req`` may be the shared model or :class:`keelson_opt.wire_m5.OptimizeRequestM5`
     (with ``data.capacity_bookings``); the response model is the shared one plus the M5
-    ``capacity_booking.cancel`` op."""
-    inputs_hash = model_hash(req)
+    ``capacity_booking.cancel`` op. M8: ``emissions`` / ``robustness`` add CO₂e and bands to
+    the scorecard (:func:`m8_results`)."""
+    dumped = req.model_dump(mode="json")
+    inputs_hash = sha256_hex(dumped)
     spec = req.plan_spec
     codes = [lv.code for lv in spec.levers]
     if len(codes) != len(set(codes)):
@@ -112,6 +119,10 @@ def run_optimize(req: OptimizeRequest) -> OptimizeResponseM5:
     margin_recovered = before.margin_at_risk_cents - after.margin_at_risk_cents
     incremental = plan.incremental_cost
     n_transfers = sum(1 for a in actions if a.op == "transfer_order.create")
+    card, emissions, robustness = m8_results(
+        req, dumped, scn, plan,
+        scorecard(scn, plan, res_before, res_after, before, after, len(actions), seed=req.solver.seed),
+    )
     resp = OptimizeResponseM5(
         status=outcome.status,
         plan_spec_id=spec.id,
@@ -137,7 +148,9 @@ def run_optimize(req: OptimizeRequest) -> OptimizeResponseM5:
             status_detail=outcome.status_detail,
         ),
         warnings=warnings,
-        scorecard=scorecard(scn, plan, res_before, res_after, before, after, len(actions), seed=req.solver.seed),
+        scorecard=card,
+        emissions=emissions,
+        robustness=robustness,
     )
     log.info(
         "optimize done",
@@ -151,6 +164,31 @@ def run_optimize(req: OptimizeRequest) -> OptimizeResponseM5:
         },
     )
     return resp
+
+
+def m8_results(
+    req: OptimizeRequest, dumped: dict[str, Any], scn: Scenario, plan: Plan, card: Scorecard
+) -> tuple[Scorecard, EmissionsSummary | None, RobustnessResult | None]:
+    """M8 (``126``): the scorecard with ``incremental_co2e_kg`` / ``co2e_breakdown`` (request
+    ``emissions``) and ``bands`` (request ``robustness``), plus the response summaries. Without
+    either block the scorecard is returned unchanged."""
+    update: dict[str, Any] = {}
+    emissions = robustness = None
+    if req.emissions is not None:
+        co2 = plan_emissions(scn, plan, req.emissions)
+        update["incremental_co2e_kg"] = co2.incremental_kg
+        update["co2e_breakdown"] = co2.breakdown.model_dump(mode="json")
+        emissions = co2.summary
+    if req.robustness is not None:
+        crn_key = sha256_hex({k: dumped.get(k) for k in ("data", "perturbations", "robustness")})
+        rob = evaluate_robustness(
+            scn, plan, req.robustness, req.perturbations, incremental_cost=plan.incremental_cost, crn_key=crn_key
+        )
+        update["bands"] = rob.bands.model_dump(mode="json")
+        robustness = rob.result
+    if update:
+        card = Scorecard.model_validate({**card.model_dump(mode="json"), **update})
+    return card, emissions, robustness
 
 
 def _simulate_plan(scn: Scenario, plan: Plan) -> SimResult:

@@ -28,6 +28,10 @@ opened from a Signal Hub alert).
 M7 (``110-m7-backoffice-generic.md`` §4) adds an ``advisory`` label (omitted while unset) to
 ``recommended_option@1``, ``scenario_compare@1`` and ``narrative@1``: plans built on a crawled
 (tier-A) snapshot say "Data gathered by paging, not a consistent snapshot" (:func:`advisory_for`).
+
+M8 (``126-m8-co2-robustness.md``) adds, all omitted while unset: the KPI unit ``kg_co2e``, a
+p10–p90 ``band`` on :class:`KpiItem`, and on ``scenario_compare@1`` the weight ``profiles``, each
+option's ``scores`` and ``win_rate_bp``, an ``uncertainty`` note and an ``emissions`` note.
 """
 
 from __future__ import annotations
@@ -106,6 +110,12 @@ __all__ = [
     "BLOCK_KEYS",
     "CompareAxes",
     "CompareOption",
+    "CompareProfile",
+    "EmissionsNote",
+    "KpiBand",
+    "ProfileScore",
+    "SampledInput",
+    "UncertaintyNote",
     "DATA_REF_REQUIRED_KINDS",
     "Footprint",
     "FootprintFeature",
@@ -189,7 +199,8 @@ __all__ = [
 ]
 
 Placement = Literal["inline", "canvas"]
-KpiUnit = Literal["units", "eur_cents", "days", "pct_bp", "count"]
+KpiUnit = Literal["units", "eur_cents", "days", "pct_bp", "count", "kg_co2e"]
+"""M8 adds ``kg_co2e`` (kilograms of CO₂-equivalent)."""
 KpiKey = Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]*$")]
 NonEmptyStr = Annotated[str, Field(min_length=1)]
 
@@ -225,8 +236,31 @@ def _m5_optional() -> Any:
 _m7_optional = _m5_optional
 """An additive (M7) object field (same rule: ``None`` by default, omitted while unset)."""
 
+_m8_optional = _m5_optional
+"""An additive (M8) object field (same rule: ``None`` by default, omitted while unset)."""
+_m8_list = _m4_list
+"""An additive (M8) list field (same rule: ``[]`` by default, omitted while empty)."""
+
+ShareBp = Annotated[StrictInt, Field(ge=0, le=10_000)]
+ProfileId = Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]{0,31}$")]
+
 
 # ─────────────────────────────── shared parts ──────────────────────────────
+
+
+class KpiBand(ContractModel):
+    """M8: the likely range of a KPI — p10 and p90 over ``samples`` sampled futures (same unit
+    as the KPI's ``value``)."""
+
+    p10: StrictInt
+    p90: StrictInt
+    samples: PositiveInt
+
+    @model_validator(mode="after")
+    def _ordered(self) -> KpiBand:
+        if self.p10 > self.p90:
+            raise ValueError("band p10 must be <= p90")
+        return self
 
 
 class KpiItem(ContractModel):
@@ -239,6 +273,8 @@ class KpiItem(ContractModel):
     delta: StrictInt | None = None
     prov: Provenance
     preliminary: StrictBool
+    band: KpiBand | None = _m8_optional()
+    """M8: p10–p90 range of the value (robustness ``mc/1``)."""
 
 
 class ChangeTotals(ContractModel):
@@ -1118,6 +1154,14 @@ class StockoutTimelineData(ContractModel):
         return self
 
 
+class ProfileScore(ContractModel):
+    """M8: an option's score (cents, higher is better) and rank (1 = best) under one profile."""
+
+    profile_id: ProfileId
+    score_cents: StrictInt
+    rank: PositiveInt
+
+
 class CompareOption(ContractModel):
     """A plan option on the Pareto view; guided-only options must say why."""
 
@@ -1129,6 +1173,11 @@ class CompareOption(ContractModel):
     guided_only: StrictBool
     guided_reason: str | None = None
     pareto: StrictBool
+    win_rate_bp: ShareBp | None = _m8_optional()
+    """M8: share of the sampled futures in which this option has the highest net benefit ("Do
+    nothing" wins a future in which no option gains). Set on every option or on none."""
+    scores: list[ProfileScore] = _m8_list()
+    """M8: the option's score and rank under each weight profile (computed by the engine)."""
 
     @model_validator(mode="after")
     def _reason_iff_guided(self) -> CompareOption:
@@ -1137,7 +1186,49 @@ class CompareOption(ContractModel):
         if not self.guided_only and self.guided_reason is not None:
             raise ValueError("guided_reason is only allowed for guided_only options")
         _require_unique(self.levers, "levers")
+        _require_unique([s.profile_id for s in self.scores], "score profile ids")
         return self
+
+
+class CompareProfile(ContractModel):
+    """M8: a weight profile the options are ranked by (``keelson_contracts.scoring``)."""
+
+    id: ProfileId
+    label: Annotated[str, Field(min_length=1, max_length=40)]
+    default: StrictBool
+    """The tenant's default profile: the recommendation and the LP weights follow it."""
+    lost_margin_bp: Annotated[StrictInt, Field(ge=0, le=50_000)]
+    cost_bp: Annotated[StrictInt, Field(ge=0, le=50_000)]
+    carbon_price_cents_per_t: Annotated[StrictInt, Field(ge=0, le=1_000_000)]
+    risk_aversion_bp: ShareBp
+
+
+SampledInput = Literal["disruption_duration", "disruption_severity", "lead_time", "demand"]
+
+
+class UncertaintyNote(ContractModel):
+    """M8: how the bands were computed (``mc/1``: sampled futures of the same plan)."""
+
+    method: Literal["mc/1"]
+    samples: PositiveInt
+    sampled: Annotated[list[SampledInput], Field(min_length=1)]
+
+    @model_validator(mode="after")
+    def _unique(self) -> UncertaintyNote:
+        _require_unique(list(self.sampled), "sampled inputs")
+        return self
+
+
+class EmissionsNote(ContractModel):
+    """M8: where the CO₂e figures come from (transport only)."""
+
+    source_label: Annotated[str, Field(min_length=1, max_length=160)]
+    basis: Literal["WTW", "TTW"]
+    indicative: StrictBool
+    """The factor set is not verified against its published source: show the figures as
+    indicative."""
+    coverage_bp: ShareBp
+    """Share of the moved units the figures cover (lanes and unit weights known)."""
 
 
 class CompareAxes(ContractModel):
@@ -1154,17 +1245,40 @@ class CompareAxes(ContractModel):
 class ScenarioCompareProps(ContractModel):
     """``scenario_compare@1`` (canvas): every candidate option with its scorecard.
 
-    M7 (omitted while unset): ``advisory`` — the options were computed on crawled data."""
+    M7 (omitted while unset): ``advisory`` — the options were computed on crawled data.
+
+    M8 (omitted while unset): ``profiles`` (options' ``scores`` reference them), ``uncertainty``
+    and ``emissions`` notes. An axis on ``incremental_co2e_kg`` needs it on every option."""
 
     options: Annotated[list[CompareOption], Field(min_length=1)]
     axes: CompareAxes = Field(default_factory=CompareAxes)
     advisory: Advisory | None = _m7_optional()
+    profiles: Annotated[list[CompareProfile], Field(max_length=8)] = _m8_list()
+    uncertainty: UncertaintyNote | None = _m8_optional()
+    emissions: EmissionsNote | None = _m8_optional()
 
     @model_validator(mode="after")
     def _check(self) -> ScenarioCompareProps:
         _require_unique([o.id for o in self.options], "option ids")
         if sum(o.recommended for o in self.options) > 1:
             raise ValueError("at most one option can be recommended")
+        _require_unique([p.id for p in self.profiles], "profile ids")
+        if sum(p.default for p in self.profiles) > 1:
+            raise ValueError("at most one profile can be the default")
+        known = {p.id for p in self.profiles}
+        unknown = sorted({s.profile_id for o in self.options for s in o.scores} - known)
+        if unknown:
+            raise ValueError(f"scores reference unknown profiles: {unknown}")
+        rates = [o.win_rate_bp for o in self.options]
+        if any(r is not None for r in rates):
+            if any(r is None for r in rates):
+                raise ValueError("win_rate_bp must be set on every option or on none")
+            if sum(r for r in rates if r is not None) != 10_000:
+                raise ValueError("win rates must sum to 10000 bp")
+        if "incremental_co2e_kg" in (self.axes.x, self.axes.y):
+            missing = [o.id for o in self.options if o.scorecard.incremental_co2e_kg is None]
+            if missing:
+                raise ValueError(f"the incremental_co2e_kg axis needs CO2e on every option (missing: {missing})")
         return self
 
 

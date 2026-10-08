@@ -9,6 +9,13 @@ coordinates are integer degrees x 1e6 (``lat_e6`` / ``lon_e6``).
 Integer fields are *strict*: floats, booleans and numeric strings are rejected so that
 no float can ever leak into a hashed payload.
 
+M8 additions (``docs/contracts/126-m8-co2-robustness.md``) are optional and omitted from dumps
+while unset, so every pre-M8 payload and ``inputs_hash`` is unchanged: transport data for
+CO₂e (``Sku.unit_weight_g``, ``Lane.distance_km``, ``InboundLane.legs``), the request blocks
+``OptimizeRequest.emissions`` (:class:`EmissionsSpec`) and ``OptimizeRequest.robustness``
+(:class:`RobustnessSpec`, method ``mc/1``), and the results ``Scorecard.incremental_co2e_kg`` /
+``co2e_breakdown`` / ``bands`` plus ``OptimizeResponse.emissions`` / ``robustness``.
+
 M3 additions are all optional and backward compatible: ``ProblemData`` v2 lists
 (``locations``, ``po_lines``, ``bom``, ``inbound_lanes``, ``alt_sources``,
 ``production``, ``allocations``), ``ImpactRequest.include_graph`` with
@@ -67,17 +74,23 @@ __all__ = [
     "AltSource",
     "AltSupplierDecision",
     "Allocation",
+    "Band",
     "BindingConstraint",
     "BomLine",
     "Bottleneck",
     "CapacityScale",
     "Cluster",
     "ClusterInventory",
+    "Co2eBreakdown",
     "CostBreakdown",
     "DcRisk",
     "Decision",
     "DemandRow",
     "DemandScale",
+    "EmissionFactor",
+    "EmissionsBasis",
+    "EmissionsSpec",
+    "EmissionsSummary",
     "EtaChange",
     "ExpediteDecision",
     "ExpediteModeShiftLever",
@@ -98,7 +111,9 @@ __all__ = [
     "InventoryPosition",
     "KpiDelta",
     "Lane",
+    "LaneLeg",
     "LatE6",
+    "LeadTimeNoise",
     "LeadTimeShift",
     "LeverCode",
     "LeverDecision",
@@ -136,7 +151,13 @@ __all__ = [
     "ResequenceProductionParams",
     "ResourceAltSupplierLever",
     "ResourceAltSupplierParams",
+    "ROBUSTNESS_MAX_SAMPLES",
+    "ROBUSTNESS_MIN_SAMPLES",
+    "RobustnessResult",
+    "RobustnessSpec",
+    "SampledStream",
     "Scorecard",
+    "ScorecardBands",
     "ScorecardMetric",
     "Sku",
     "SolverInfo",
@@ -145,8 +166,10 @@ __all__ = [
     "TimelinePoint",
     "TransferOrderCreatePayload",
     "TransferOrderLine",
+    "TransportMode",
     "TtsRow",
     "TtsVerdict",
+    "WindowBand",
     "lane_code",
     "lever_catalogue",
     "lever_params_schema",
@@ -235,6 +258,202 @@ class _Model(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
 
+def _m8_optional() -> Any:
+    """An additive (M8) optional field: ``None`` by default and omitted from dumps while unset,
+    so pre-M8 payloads (and their ``inputs_hash``) serialize exactly as before."""
+    return Field(default=None, exclude_if=_is_none)
+
+
+def _m8_list() -> Any:
+    """An additive (M8) list field: ``[]`` by default and omitted from dumps while empty."""
+    return Field(default_factory=list, exclude_if=_is_empty)
+
+
+# ───────────────────────── M8: CO₂e and robustness (126) ─────────────────────────
+
+TransportMode = Literal["sea", "air", "road", "rail"]
+"""Transport mode of one lane leg (an emission factor applies per mode)."""
+EmissionsBasis = Literal["WTW", "TTW"]
+"""Well-to-wheel (ISO 14083 / GLEC default) or tank-to-wheel emission factors."""
+
+ROBUSTNESS_MIN_SAMPLES: Final = 8
+ROBUSTNESS_MAX_SAMPLES: Final = 256
+"""Sample-count bounds of :class:`RobustnessSpec` (a DoS cap: the optimizer may use fewer, see
+:attr:`RobustnessResult.samples`, never more)."""
+
+SampledStream = Literal["disruption_severity", "disruption_duration", "lead_time", "demand"]
+"""Which uncertain inputs a robustness run sampled (``RobustnessResult.sampled``)."""
+
+
+class LaneLeg(_Model):
+    """One leg of an inbound lane (great-circle or catalogued-route distance, integer km)."""
+
+    mode: TransportMode
+    distance_km: PosInt
+
+
+class Band(_Model):
+    """A p10 / p50 / p90 triple in the unit of the value it describes (``p10 <= p50 <= p90``)."""
+
+    p10: Int
+    p50: Int
+    p90: Int
+
+    @model_validator(mode="after")
+    def _ordered(self) -> Band:
+        if not self.p10 <= self.p50 <= self.p90:
+            raise ValueError(f"band must satisfy p10 <= p50 <= p90 (got {self.p10}/{self.p50}/{self.p90})")
+        return self
+
+
+class EmissionFactor(_Model):
+    """Transport emission intensity of one mode in grams CO₂e per tonne-kilometre."""
+
+    mode: TransportMode
+    g_co2e_per_tkm: Annotated[int, Strict(), Field(ge=1, le=100_000)]
+
+
+class EmissionsSpec(_Model):
+    """``OptimizeRequest.emissions``: compute the plan's transport CO₂e with these factors (the
+    distances and unit weights travel in ``ProblemData``)."""
+
+    factors: Annotated[list[EmissionFactor], Field(min_length=1, max_length=8)]
+    basis: EmissionsBasis = "WTW"
+    source_id: Code
+    """Identifier of the factor set (e.g. ``glec-v3-indicative``), echoed in the response."""
+
+    @model_validator(mode="after")
+    def _unique_modes(self) -> EmissionsSpec:
+        if d := _dupes([f.mode for f in self.factors]):
+            raise ValueError(f"emission factors: duplicate modes {d}")
+        return self
+
+
+LeadTimeNoiseMode = Literal["sea", "sea_air", "air", "road", "default"]
+
+
+class LeadTimeNoise(_Model):
+    """Transit-time noise of arrivals by lane mode (days; ``default`` = lines without a lane)."""
+
+    mode: LeadTimeNoiseMode
+    days: Band
+
+    @model_validator(mode="after")
+    def _bounded(self) -> LeadTimeNoise:
+        if self.days.p10 < -60 or self.days.p90 > 60:
+            raise ValueError("lead_time_noise days must stay within -60..60")
+        return self
+
+
+class WindowBand(_Model):
+    """Uncertain duration of a windowed perturbation (``perturbations[perturbation]``): its
+    window keeps its start and lasts a sampled number of days. ``duration_days.p50`` must equal
+    the window's length (the optimizer answers 422 otherwise)."""
+
+    perturbation: NonNegInt
+    duration_days: Band
+
+    @model_validator(mode="after")
+    def _bounded(self) -> WindowBand:
+        if self.duration_days.p10 < 1 or self.duration_days.p90 > 366:
+            raise ValueError("window duration_days must stay within 1..366")
+        return self
+
+
+class RobustnessSpec(_Model):
+    """``OptimizeRequest.robustness`` (method ``mc/1``): re-simulate the request's own rounded
+    plan (never re-optimise) under ``samples`` sampled futures and report p10 / p50 / p90 bands.
+
+    Sampled: the perturbations' own ``p10``/``p90`` (``value_bands``), the ``window_bands``,
+    per-line transit noise by lane mode (``lead_time_noise``) and a per (cluster, style) demand
+    factor (``demand_noise_bp``). Draws are keyed hashes of ``seed`` (common random numbers: the
+    same seed gives every option of a plan the same futures)."""
+
+    method: Literal["mc/1"] = "mc/1"
+    samples: Annotated[int, Strict(), Field(ge=ROBUSTNESS_MIN_SAMPLES, le=ROBUSTNESS_MAX_SAMPLES)] = 64
+    seed: NonNegInt = 0
+    value_bands: StrictBool = True
+    window_bands: Annotated[list[WindowBand], Field(max_length=64)] = Field(default_factory=list)
+    lead_time_noise: Annotated[list[LeadTimeNoise], Field(max_length=5)] = Field(default_factory=list)
+    demand_noise_bp: Band | None = None
+    """Demand factor per (cluster, style), basis points (e.g. 9000 / 10000 / 11000)."""
+
+    @model_validator(mode="after")
+    def _unique(self) -> RobustnessSpec:
+        if d := _dupes([w.perturbation for w in self.window_bands]):
+            raise ValueError(f"window_bands: duplicate perturbation indexes {d}")
+        if d := _dupes([n.mode for n in self.lead_time_noise]):
+            raise ValueError(f"lead_time_noise: duplicate modes {d}")
+        b = self.demand_noise_bp
+        if b is not None and (b.p10 < 0 or b.p90 > 100_000):
+            raise ValueError("demand_noise_bp must stay within 0..100000")
+        return self
+
+
+class Co2eBreakdown(_Model):
+    """Incremental transport CO₂e by component, in kg (negative = the plan saves CO₂e)."""
+
+    transfer_kg: Int
+    expedite_kg: Int
+    nearshore_kg: Int
+    rebook_kg: Int
+
+
+class ScorecardBands(_Model):
+    """Robustness bands of the plan's KPIs over ``samples`` sampled futures (nearest-rank p10 /
+    p50 / p90; the nominal scorecard values stay the deterministic run)."""
+
+    samples: PosInt
+    fill_rate_bp: Band
+    lost_units: Band
+    lost_margin_cents: Band
+    net_benefit_cents: Band
+    shortage_days: Band
+    stockout_chance_bp: ShareBp
+    """Share of the sampled futures in which some demand is lost with the plan."""
+
+
+class EmissionsSummary(_Model):
+    """``OptimizeResponse.emissions``: factor set used and how much of the plan it covers."""
+
+    source_id: Code
+    basis: EmissionsBasis
+    coverage_bp: ShareBp
+    """Units moved by the plan whose lanes (legs / distance) and unit weight are known."""
+    baseline_inbound_kg: NonNegInt
+    """Transport CO₂e of every open PO line on its booked lane (context, not incremental)."""
+    uncovered: Annotated[list[Code], Field(max_length=20)] = Field(default_factory=list)
+    """Up to 20 lanes / SKUs the computation had no distance or weight for."""
+
+
+class RobustnessResult(_Model):
+    """``OptimizeResponse.robustness``: what was sampled and the per-sample vectors (common
+    random numbers: options of one plan with the same ``crn_key`` saw the same futures)."""
+
+    method: Literal["mc/1"]
+    seed: NonNegInt
+    samples: PosInt
+    """Samples evaluated (``requested_samples`` capped by the deterministic cell budget)."""
+    requested_samples: PosInt
+    sampled: list[SampledStream]
+    crn_key: Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
+    """Hash of everything the futures depend on (data, perturbations, robustness spec; not the
+    plan spec): equal keys = comparable per-sample vectors."""
+    per_sample_net_benefit_cents: list[Int]
+    per_sample_lost_margin_cents: list[Int]
+
+    @model_validator(mode="after")
+    def _lengths(self) -> RobustnessResult:
+        if self.samples > self.requested_samples:
+            raise ValueError("samples must not exceed requested_samples")
+        for name in ("per_sample_net_benefit_cents", "per_sample_lost_margin_cents"):
+            if len(getattr(self, name)) != self.samples:
+                raise ValueError(f"{name} must have one value per sample")
+        if d := _dupes(list(self.sampled)):
+            raise ValueError(f"sampled: duplicates {d}")
+        return self
+
+
 # ───────────────────────────── ProblemData ─────────────────────────────
 
 
@@ -258,6 +477,8 @@ class Sku(_Model):
     style_code: Code
     retail_price_cents: NonNegInt
     unit_cost_cents: NonNegInt
+    unit_weight_g: PosInt | None = _m8_optional()
+    """M8: shipped weight of one unit in grams (CO₂e per tonne-km); ``None`` = unknown."""
 
 
 class InventoryPosition(_Model):
@@ -302,6 +523,8 @@ class Lane(_Model):
     transit_days: NonNegInt
     cost_per_unit_cents: NonNegInt
     max_units_wk: NonNegInt
+    distance_km: NonNegInt | None = _m8_optional()
+    """M8: road distance of the DC-to-DC transfer lane (km); ``None`` = unknown."""
 
     @property
     def code(self) -> str:
@@ -380,6 +603,9 @@ class InboundLane(_Model):
     weekly_capacity_units: NonNegInt
     via: list[Code] = Field(default_factory=list)
     alt_lane_code: Code | None = None
+    legs: Annotated[list[LaneLeg], Field(max_length=16)] = _m8_list()
+    """M8: the lane's legs from origin to the DC (e.g. sea to the hub + air for sea-air);
+    ``[]`` = unknown (its CO₂e is not covered)."""
 
 
 class AltSource(_Model):
@@ -1059,6 +1285,19 @@ class OptimizeRequest(_Model):
     perturbations: list[Perturbation] = Field(default_factory=list)
     plan_spec: PlanSpec
     solver: SolverOptions = Field(default_factory=SolverOptions)
+    emissions: EmissionsSpec | None = _m8_optional()
+    """M8: add the plan's incremental transport CO₂e to the scorecard."""
+    robustness: RobustnessSpec | None = _m8_optional()
+    """M8: add p10 / p50 / p90 bands to the scorecard (``mc/1``)."""
+
+    @model_validator(mode="after")
+    def _window_bands_in_range(self) -> OptimizeRequest:
+        if self.robustness is not None:
+            n = len(self.perturbations)
+            bad = [w.perturbation for w in self.robustness.window_bands if w.perturbation >= n]
+            if bad:
+                raise ValueError(f"robustness.window_bands: perturbation indexes {bad} out of range ({n} perturbations)")
+        return self
 
 
 OptimizeStatus = Literal["OPTIMAL", "FEASIBLE", "INFEASIBLE"]
@@ -1096,6 +1335,12 @@ class Scorecard(_Model):
     tts_gain_days: Int
     changes: NonNegInt
     """Number of change-set actions."""
+    incremental_co2e_kg: Int | None = _m8_optional()
+    """M8: transport CO₂e the plan adds (negative = saves) versus doing nothing, kg."""
+    co2e_breakdown: Co2eBreakdown | None = _m8_optional()
+    """M8: present exactly when ``incremental_co2e_kg`` is; its components sum to it."""
+    bands: ScorecardBands | None = _m8_optional()
+    """M8: robustness bands (``OptimizeRequest.robustness``)."""
 
     @model_validator(mode="after")
     def _breakdown_adds_up(self) -> Scorecard:
@@ -1105,6 +1350,13 @@ class Scorecard(_Model):
             raise ValueError(
                 f"cost_breakdown sums to {total}, incremental_cost_cents is {self.incremental_cost_cents}"
             )
+        if (self.incremental_co2e_kg is None) != (self.co2e_breakdown is None):
+            raise ValueError("co2e_breakdown must be present exactly when incremental_co2e_kg is")
+        c = self.co2e_breakdown
+        if c is not None:
+            co2 = c.transfer_kg + c.expedite_kg + c.nearshore_kg + c.rebook_kg
+            if co2 != self.incremental_co2e_kg:
+                raise ValueError(f"co2e_breakdown sums to {co2}, incremental_co2e_kg is {self.incremental_co2e_kg}")
         return self
 
 
@@ -1118,9 +1370,12 @@ ScorecardMetric = Literal[
     "first_breach_shift_days",
     "tts_gain_days",
     "changes",
+    "incremental_co2e_kg",
 ]
 SCORECARD_METRICS: Final[tuple[str, ...]] = tuple(ScorecardMetric.__args__)  # type: ignore[attr-defined]
-"""Integer scorecard metrics usable as chart axes (``scenario_compare@1``)."""
+"""Integer scorecard metrics usable as chart axes (``scenario_compare@1``). M8:
+``incremental_co2e_kg`` is optional on a scorecard (an axis may only use it when every option
+carries it)."""
 
 
 class Decision(_Model):
@@ -1331,6 +1586,10 @@ class OptimizeResponse(_Model):
     warnings: list[str] = Field(default_factory=list)
     scorecard: Scorecard | None = _m3_optional()
     """M3: KPIs of the plan recomputed from the rounded solution."""
+    emissions: EmissionsSummary | None = _m8_optional()
+    """M8: present when the request set ``emissions``."""
+    robustness: RobustnessResult | None = _m8_optional()
+    """M8: present when the request set ``robustness``."""
 
     @model_validator(mode="after")
     def _actions_ordered(self) -> OptimizeResponse:

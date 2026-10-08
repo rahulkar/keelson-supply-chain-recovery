@@ -176,6 +176,7 @@ source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "keelson-contracts" },
+    { name = "numpy" },
     { name = "ortools" },
     { name = "pydantic" },
     { name = "pyjwt" },
@@ -192,6 +193,7 @@ dev = [
 requires-dist = [
     { name = "fastapi", specifier = "==0.142.2" },
     { name = "keelson-contracts", editable = "../../packages/contracts-py" },
+    { name = "numpy", specifier = "==2.5.3" },
     { name = "ortools", specifier = "==9.15.6755" },
     { name = "pydantic", specifier = "==2.13.5" },
     { name = "pyjwt", specifier = "==2.15.1" },

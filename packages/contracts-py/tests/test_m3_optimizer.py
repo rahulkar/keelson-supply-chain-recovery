@@ -586,7 +586,8 @@ def test_bad_decisions(bad: dict[str, Any]) -> None:
 def test_scorecard() -> None:
     sc = opt.Scorecard.model_validate(SCORECARD)
     assert sc.cost_breakdown.expedite_premium == 120_000
-    assert set(opt.SCORECARD_METRICS) == set(SCORECARD) - {"cost_breakdown"}
+    # M8: incremental_co2e_kg is an optional metric (co2e_breakdown and bands are not axes)
+    assert set(opt.SCORECARD_METRICS) == set(SCORECARD) - {"cost_breakdown"} | {"incremental_co2e_kg"}
     for key, value in [("incremental_cost_cents", 1), ("fill_rate_bp", 10_001), ("lost_units", -1),
                        ("lost_margin_cents", 1.5), ("net_benefit_cents", "1"), ("changes", True)]:
         with pytest.raises(ValidationError):

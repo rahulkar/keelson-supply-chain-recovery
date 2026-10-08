@@ -1,0 +1,43 @@
+# Transport emission factor sets (docs/contracts/126-m8-co2-robustness.md §2).
+#
+# Platform data, not tenant-editable (a tenant admin cannot zero out CO2e): the engine loads this file
+# (runtime/emissions.py; $EMISSIONS_DIR, /app/emissions, then the source tree's data/emissions),
+# validates it and sends the factors of AgentSpec.planning.emissions.factors_id in every optimize
+# request. The optimizer multiplies them with the lane legs (km) and the unit weights (g).
+#
+# Per set:
+#   id         slug referenced by AgentSpec.planning.emissions.factors_id
+#   label      shown on the compare block ("CO2e: <label>")
+#   basis      WTW (well-to-wheel, ISO 14083 / GLEC default) | TTW (tank-to-wheel)
+#   unit       always "g CO2e/tkm" (grams of CO2-equivalent per tonne-kilometre)
+#   verified   false until every factor was checked against the cited table; while false the UI labels
+#              the figures "indicative"
+#   source     citation (title, publisher, url, table, retrieved)
+#   factors    one positive integer per mode: sea | air | road | rail
+#   distance   GLEC distance rules: road legs = great-circle x road_circuity_bp / 10000; air legs =
+#              great-circle + air_uplift_km (GLEC: GCD + 95 km)
+#
+# The values below are mid-points of the published GLEC default ranges for an average container ship,
+# a long-haul freighter, an average articulated truck and an average freight train. They were NOT checked
+# against the official GLEC v3 tables (see data/emissions/README.md), hence verified: false.
+version: 1
+sets:
+  - id: glec-v3-indicative
+    label: GLEC Framework v3 default intensities (indicative)
+    basis: WTW
+    unit: g CO2e/tkm
+    verified: false
+    source:
+      title: Global Logistics Emissions Council Framework for Logistics Emissions Accounting and Reporting, version 3
+      publisher: Smart Freight Centre
+      url: https://www.smartfreightcentre.org/en/our-programs/emissions-accounting/global-logistics-emissions-council/
+      table: Module 2 default emission intensity values, well-to-wheel (ranges as summarised by secondary sources)
+      retrieved: 2026-10-08
+    factors:
+      sea: 16
+      air: 850
+      road: 100
+      rail: 25
+    distance:
+      road_circuity_bp: 12000
+      air_uplift_km: 95

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "``scenario_compare@1`` (canvas): every candidate option with its scorecard.\n\nM7 (omitted while unset): ``advisory`` — the options were computed on crawled data.",
+  "description": "``scenario_compare@1`` (canvas): every candidate option with its scorecard.\n\nM7 (omitted while unset): ``advisory`` — the options were computed on crawled data.\n\nM8 (omitted while unset): ``profiles`` (options' ``scores`` reference them), ``uncertainty``\nand ``emissions`` notes. An axis on ``incremental_co2e_kg`` needs it on every option.",
   "properties": {
     "advisory": {
       "anyOf": [
@@ -70,7 +70,8 @@
             "shortage_days",
             "first_breach_shift_days",
             "tts_gain_days",
-            "changes"
+            "changes",
+            "incremental_co2e_kg"
           ],
           "title": "X",
           "type": "string"
@@ -86,7 +87,8 @@
             "shortage_days",
             "first_breach_shift_days",
             "tts_gain_days",
-            "changes"
+            "changes",
+            "incremental_co2e_kg"
           ],
           "title": "Y",
           "type": "string"
@@ -94,6 +96,52 @@
       },
       "title": "CompareAxes",
       "type": "object"
+    },
+    "emissions": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "description": "M8: where the CO₂e figures come from (transport only).",
+          "properties": {
+            "basis": {
+              "enum": [
+                "WTW",
+                "TTW"
+              ],
+              "title": "Basis",
+              "type": "string"
+            },
+            "coverage_bp": {
+              "maximum": 10000,
+              "minimum": 0,
+              "title": "Coverage Bp",
+              "type": "integer"
+            },
+            "indicative": {
+              "title": "Indicative",
+              "type": "boolean"
+            },
+            "source_label": {
+              "maxLength": 160,
+              "minLength": 1,
+              "title": "Source Label",
+              "type": "string"
+            }
+          },
+          "required": [
+            "source_label",
+            "basis",
+            "indicative",
+            "coverage_bp"
+          ],
+          "title": "EmissionsNote",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "options": {
       "items": {
@@ -141,10 +189,209 @@
             "additionalProperties": false,
             "description": "Plan KPIs recomputed from the rounded plan (never from the objective).",
             "properties": {
+              "bands": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "description": "Robustness bands of the plan's KPIs over ``samples`` sampled futures (nearest-rank p10 /\np50 / p90; the nominal scorecard values stay the deterministic run).",
+                    "properties": {
+                      "fill_rate_bp": {
+                        "additionalProperties": false,
+                        "description": "A p10 / p50 / p90 triple in the unit of the value it describes (``p10 <= p50 <= p90``).",
+                        "properties": {
+                          "p10": {
+                            "title": "P10",
+                            "type": "integer"
+                          },
+                          "p50": {
+                            "title": "P50",
+                            "type": "integer"
+                          },
+                          "p90": {
+                            "title": "P90",
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "p10",
+                          "p50",
+                          "p90"
+                        ],
+                        "title": "Band",
+                        "type": "object"
+                      },
+                      "lost_margin_cents": {
+                        "additionalProperties": false,
+                        "description": "A p10 / p50 / p90 triple in the unit of the value it describes (``p10 <= p50 <= p90``).",
+                        "properties": {
+                          "p10": {
+                            "title": "P10",
+                            "type": "integer"
+                          },
+                          "p50": {
+                            "title": "P50",
+                            "type": "integer"
+                          },
+                          "p90": {
+                            "title": "P90",
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "p10",
+                          "p50",
+                          "p90"
+                        ],
+                        "title": "Band",
+                        "type": "object"
+                      },
+                      "lost_units": {
+                        "additionalProperties": false,
+                        "description": "A p10 / p50 / p90 triple in the unit of the value it describes (``p10 <= p50 <= p90``).",
+                        "properties": {
+                          "p10": {
+                            "title": "P10",
+                            "type": "integer"
+                          },
+                          "p50": {
+                            "title": "P50",
+                            "type": "integer"
+                          },
+                          "p90": {
+                            "title": "P90",
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "p10",
+                          "p50",
+                          "p90"
+                        ],
+                        "title": "Band",
+                        "type": "object"
+                      },
+                      "net_benefit_cents": {
+                        "additionalProperties": false,
+                        "description": "A p10 / p50 / p90 triple in the unit of the value it describes (``p10 <= p50 <= p90``).",
+                        "properties": {
+                          "p10": {
+                            "title": "P10",
+                            "type": "integer"
+                          },
+                          "p50": {
+                            "title": "P50",
+                            "type": "integer"
+                          },
+                          "p90": {
+                            "title": "P90",
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "p10",
+                          "p50",
+                          "p90"
+                        ],
+                        "title": "Band",
+                        "type": "object"
+                      },
+                      "samples": {
+                        "minimum": 1,
+                        "title": "Samples",
+                        "type": "integer"
+                      },
+                      "shortage_days": {
+                        "additionalProperties": false,
+                        "description": "A p10 / p50 / p90 triple in the unit of the value it describes (``p10 <= p50 <= p90``).",
+                        "properties": {
+                          "p10": {
+                            "title": "P10",
+                            "type": "integer"
+                          },
+                          "p50": {
+                            "title": "P50",
+                            "type": "integer"
+                          },
+                          "p90": {
+                            "title": "P90",
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "p10",
+                          "p50",
+                          "p90"
+                        ],
+                        "title": "Band",
+                        "type": "object"
+                      },
+                      "stockout_chance_bp": {
+                        "maximum": 10000,
+                        "minimum": 0,
+                        "title": "Stockout Chance Bp",
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "samples",
+                      "fill_rate_bp",
+                      "lost_units",
+                      "lost_margin_cents",
+                      "net_benefit_cents",
+                      "shortage_days",
+                      "stockout_chance_bp"
+                    ],
+                    "title": "ScorecardBands",
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              },
               "changes": {
                 "minimum": 0,
                 "title": "Changes",
                 "type": "integer"
+              },
+              "co2e_breakdown": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "description": "Incremental transport CO₂e by component, in kg (negative = the plan saves CO₂e).",
+                    "properties": {
+                      "expedite_kg": {
+                        "title": "Expedite Kg",
+                        "type": "integer"
+                      },
+                      "nearshore_kg": {
+                        "title": "Nearshore Kg",
+                        "type": "integer"
+                      },
+                      "rebook_kg": {
+                        "title": "Rebook Kg",
+                        "type": "integer"
+                      },
+                      "transfer_kg": {
+                        "title": "Transfer Kg",
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "transfer_kg",
+                      "expedite_kg",
+                      "nearshore_kg",
+                      "rebook_kg"
+                    ],
+                    "title": "Co2eBreakdown",
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
               },
               "cost_breakdown": {
                 "additionalProperties": false,
@@ -183,6 +430,18 @@
               "first_breach_shift_days": {
                 "title": "First Breach Shift Days",
                 "type": "integer"
+              },
+              "incremental_co2e_kg": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Incremental Co2E Kg"
               },
               "incremental_cost_cents": {
                 "minimum": 0,
@@ -227,10 +486,56 @@
             "title": "Scorecard",
             "type": "object"
           },
+          "scores": {
+            "default": [],
+            "items": {
+              "additionalProperties": false,
+              "description": "M8: an option's score (cents, higher is better) and rank (1 = best) under one profile.",
+              "properties": {
+                "profile_id": {
+                  "pattern": "^[a-z][a-z0-9-]{0,31}$",
+                  "title": "Profile Id",
+                  "type": "string"
+                },
+                "rank": {
+                  "minimum": 1,
+                  "title": "Rank",
+                  "type": "integer"
+                },
+                "score_cents": {
+                  "title": "Score Cents",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "profile_id",
+                "score_cents",
+                "rank"
+              ],
+              "title": "ProfileScore",
+              "type": "object"
+            },
+            "title": "Scores",
+            "type": "array"
+          },
           "title": {
             "minLength": 1,
             "title": "Title",
             "type": "string"
+          },
+          "win_rate_bp": {
+            "anyOf": [
+              {
+                "maximum": 10000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Win Rate Bp"
           }
         },
         "required": [
@@ -248,6 +553,113 @@
       "minItems": 1,
       "title": "Options",
       "type": "array"
+    },
+    "profiles": {
+      "default": [],
+      "items": {
+        "additionalProperties": false,
+        "description": "M8: a weight profile the options are ranked by (``keelson_contracts.scoring``).",
+        "properties": {
+          "carbon_price_cents_per_t": {
+            "maximum": 1000000,
+            "minimum": 0,
+            "title": "Carbon Price Cents Per T",
+            "type": "integer"
+          },
+          "cost_bp": {
+            "maximum": 50000,
+            "minimum": 0,
+            "title": "Cost Bp",
+            "type": "integer"
+          },
+          "default": {
+            "title": "Default",
+            "type": "boolean"
+          },
+          "id": {
+            "pattern": "^[a-z][a-z0-9-]{0,31}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "lost_margin_bp": {
+            "maximum": 50000,
+            "minimum": 0,
+            "title": "Lost Margin Bp",
+            "type": "integer"
+          },
+          "risk_aversion_bp": {
+            "maximum": 10000,
+            "minimum": 0,
+            "title": "Risk Aversion Bp",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "default",
+          "lost_margin_bp",
+          "cost_bp",
+          "carbon_price_cents_per_t",
+          "risk_aversion_bp"
+        ],
+        "title": "CompareProfile",
+        "type": "object"
+      },
+      "maxItems": 8,
+      "title": "Profiles",
+      "type": "array"
+    },
+    "uncertainty": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "description": "M8: how the bands were computed (``mc/1``: sampled futures of the same plan).",
+          "properties": {
+            "method": {
+              "const": "mc/1",
+              "title": "Method",
+              "type": "string"
+            },
+            "sampled": {
+              "items": {
+                "enum": [
+                  "disruption_duration",
+                  "disruption_severity",
+                  "lead_time",
+                  "demand"
+                ],
+                "type": "string"
+              },
+              "minItems": 1,
+              "title": "Sampled",
+              "type": "array"
+            },
+            "samples": {
+              "minimum": 1,
+              "title": "Samples",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "method",
+            "samples",
+            "sampled"
+          ],
+          "title": "UncertaintyNote",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     }
   },
   "required": [

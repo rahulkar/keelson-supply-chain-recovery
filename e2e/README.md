@@ -305,6 +305,26 @@ second run took the key-rotation path (northwind-test plans on merxa-lite after
 `api_m7_foreign_erp.py --prepare-only`). `m7-offline` (6 tests) ~1.5 min; with `dev-blocks`,
 `admin-smoke`, `auth`, `m5-offline` under `E2E_NO_MODEL=1`: 15 passed, 1 skipped.
 
+## M8 CO₂e + robustness (`docs/contracts/126`): `api_m8_robustness_offline.py`, Playwright `m8-co2-robustness`
+
+The API script runs **inside the engine image** like the M5–M7 offline ones (`docker compose run --rm
+--no-deps -T -e LOG_LEVEL=warning -v D:/primark/e2e:/e2e:ro engine-api python -u
+/e2e/api_m8_robustness_offline.py`): the engine core builds ProblemData from demo-retail's current
+`scn/1.0` snapshot and calls the real optimizer through the engine's own `OptimizerClient`, exactly as
+`simulate` does (`runtime.robustness.OptimizeInputs`). No chat, no queued run, no model call.
+
+| script | model calls | what it proves |
+|---|---|---|
+| `api_m8_robustness_offline.py` | **none** | Demo reset (`--skip-reset` keeps the data). ProblemData from the current snapshot; the trims-delay scenario compiled from the taxonomy (`SUP.delay`, TRIM-BD-01, prior 5 / 7 / 14 days as the value band, an assumption). `/v1/optimize` for the tenant's candidates A–D + "Do nothing" with CO₂e and robustness, **twice**: identical scorecards, bands, CO₂e and per-sample vectors; every call < 5 s; the request carries unit weights, lane legs (map catalogue) and one seed (`solver_seed`) for every option. p10 ≤ p50 ≤ p90 everywhere; "Do nothing" adds 0 kg and has the lowest pessimistic fill rate; an option that splits to sea-air adds more CO₂e than the rebalance; one `crn_key` for all options and win rates summing to 100 %; the `scenario_compare@1` props built by the engine (profiles, scores, win rates, uncertainty + emissions notes) validate, also with the CO₂e x axis; the default profile keeps the M3 recommendation. **Option scoring admin** (sam): a new default profile + 96 samples → 201 new spec version (not a guarded change); an out-of-range profile → 422 `spec_invalid`; a stale base → 409; the earlier version restored. |
+
+**Playwright** (`e2e/playwright/run.sh m8-co2-robustness`, no model): the `scenario_compare.robust`
+block fixture on `/dev/blocks` (likely-range captions, the Extra CO₂e column, "Top under Net benefit",
+`41-robust-compare`; the cost ⇄ CO₂e axis switch; "How sure are we?" as a table with "Best in % of
+futures", `42-robust-table`) and `kpi_strip.robust` (likely ranges, the CO₂e tile); the admin Policies
+page's **Option scoring** section (four profiles, the read-only factor set, `43-scoring-admin`; samples 8
+refused inline; cost-first + 96 samples saved by sam). Axe clean (serious/critical). The spec restores the
+demo-retail agent spec version it found.
+
 ## `api_m3_levers.py` — M3 levers through the API
 
 Same container, command shape and options as `api_thin_slice.py` (it imports that script's

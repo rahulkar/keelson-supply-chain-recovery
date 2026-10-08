@@ -1,0 +1,42 @@
+# Expected replay outcome of hurricane-cape-route for a value-fashion-eu tenant on the Merxa `full` seed
+# (reference network: ../network-value-fashion-eu.yaml). Checked exactly by data/scenarios/validate.py
+# (the real NHC adapter + KML reader, hub exposure rules and DEFAULT_ALERT_RULES).
+# Members are signal keys (native ids without the tenant/pack prefix); the first one is the event lead.
+# An NHC storm is one signal (native key = storm id); each advisory is a new version of it.
+# Exposure: the forecast cone + track cross the CAPE-routed lanes; nothing else is within the 300 km
+# tropical-cyclone radius, so the default draft-case rule (supplier / factory / port) never matches.
+pack: hurricane-cape-route
+network: network-value-fashion-eu.yaml
+checkpoints:
+  - after_step: 0   # advisory 7: 70 kt, category 1
+    signals: 1
+    events:
+      - label: hurricane
+        members: ["al992026"]
+        kind: natural_hazard
+        subtype: tropical_cyclone
+        severity_bp: 6500
+        radius_km: 300
+        alert: {action: alert, severity: medium}
+        exposures: &exp_cape
+          lane: {CGP-FXT-SEA: lane_crosses, CGP-RTM-SEA: lane_crosses, SGN-HAM-CAPE: lane_crosses,
+                 SGN-GDN-CAPE: lane_crosses}
+  - after_step: 1   # advisory 8: 100 kt, category 3 (+2000 bp: re-notifies; still lanes only → alert)
+    signals: 1
+    events:
+      - label: hurricane
+        members: ["al992026"]
+        severity_bp: 8500
+        alert: {action: alert, severity: critical}
+        exposures: *exp_cape
+  - after_step: 2   # advisory 9: 110 kt, still category 3 (edits the alert)
+    signals: 1
+    events:
+      - label: hurricane
+        members: ["al992026"]
+        kind: natural_hazard
+        subtype: tropical_cyclone
+        severity_bp: 8500
+        radius_km: 300
+        alert: {action: alert, severity: critical}
+        exposures: *exp_cape

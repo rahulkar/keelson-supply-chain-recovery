@@ -138,3 +138,22 @@ async def test_suez_closure(client: httpx.AsyncClient) -> None:
     event = detail["event"]
     assert event["anchor_signal_id"] is None and event["taxonomy_key"] == "LOG.chokepoint_closure"
     assert event["status"] == "confirmed" and len(detail["signals"]) == 3  # 2 outlets corroborate; duplicate dropped
+
+
+async def test_hurricane_cape_route(client: httpx.AsyncClient, pool: asyncpg.Pool) -> None:
+    """M8 NHC pack (124 §5): a lane-only exposure, 6500 → 8500 with a re-notify, never a draft case."""
+    (detail,) = await _replay(client, "hurricane-cape-route")
+    alert, exposed = detail["alert"], _exposed(detail)
+    assert exposed == {("lane", code): "lane_crosses"
+                       for code in ("CGP-FXT-SEA", "CGP-RTM-SEA", "SGN-HAM-CAPE", "SGN-GDN-CAPE")}
+    assert alert["simulated"] is True and alert["severity"] == "critical" and alert["status"] == "new"
+    assert detail["event"]["taxonomy_key"] == "NAT.storm" and detail["event"]["anchor_signal_id"]
+    assert detail["event"]["severity_bp"] == 8500
+    assert detail["signals"]
+    for sig in detail["signals"]:  # the storm's advisories (versions of one signal)
+        assert sig["source"]["connector_id"] == "demo.nhc" and sig["provenance"] == "simulated"
+        assert sig["source"]["name"] == "NOAA National Hurricane Center (demo replay)"
+    async with tx(pool, TENANT) as conn:
+        changes = [(r["change"], r["action"]) for r in await conn.fetch("SELECT change, action FROM alert_change ORDER BY seq")]
+    assert changes[:2] == [("raised", "alert"), ("renotified", "alert")]
+    assert all(action != "alert_and_draft_case" for _, action in changes)

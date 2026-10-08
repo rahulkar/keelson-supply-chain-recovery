@@ -22,7 +22,7 @@ import yaml
 
 HERE = Path(__file__).resolve().parent
 SCENARIOS = HERE.parent
-PACKS = ("typhoon-hcmc", "a-outerwear-trim-delay", "suez-closure")
+PACKS = ("typhoon-hcmc", "a-outerwear-trim-delay", "suez-closure", "hurricane-cape-route")
 
 
 def _load(name: str, path: Path) -> Any:
@@ -36,6 +36,7 @@ def _load(name: str, path: Path) -> Any:
 
 V = _load("scenario_validate", SCENARIOS / "validate.py")
 GEN = _load("scenario_gen_typhoon", SCENARIOS / "tools" / "gen_typhoon_hcmc.py")
+GEN_NHC = _load("scenario_gen_hurricane", SCENARIOS / "tools" / "gen_hurricane_cape_route.py")
 MODS = V._try_imports()
 HAS_REPLAY = "hub" in MODS
 replay_only = pytest.mark.skipif(not HAS_REPLAY, reason=f"signal_hub not importable: {MODS.get('hub_error')}")
@@ -129,6 +130,53 @@ def test_generated_advisories_have_the_real_gdacs_shape() -> None:
             ring = [tuple(p) for p in f["geometry"]["coordinates"][0]]
             assert ring[0] == ring[-1] and V.ring_area2(ring) > 0 and V.ring_self_intersections(ring) == []
             assert all(cone.contains(p) for p in ring)  # inside the cone: no exposure change
+
+
+def test_hurricane_fixtures_match_the_generator() -> None:
+    assert GEN_NHC.main(["--check"]) == 0
+
+
+def test_generated_hurricane_cone_is_a_valid_ccw_ring_on_the_cape_route() -> None:
+    """M8 (124 §5): each advisory's cone is a simple counter-clockwise ring around the forecast, the
+    storm moves north-west and intensifies from category 1 to 3."""
+    positions, winds = [], []
+    for i in range(3):
+        doc = GEN_NHC.storms_doc(i)
+        (storm,) = doc["activeStorms"]
+        positions.append((storm["longitudeNumeric"], storm["latitudeNumeric"]))
+        winds.append(int(storm["intensity"]))
+        assert storm["publicAdvisory"]["advNum"] == f"{7 + i:03d}" and V.fictional_url(storm["publicAdvisory"]["url"])
+        ring = GEN_NHC.cone(GEN_NHC.forecast(GEN_NHC.ADVISORIES[i][1]))
+        assert ring[0] == ring[-1] and V.ring_area2(ring) > 0 and V.ring_self_intersections(ring) == []
+        cone = V.Shape.of({"type": "Polygon", "coordinates": [[list(p) for p in ring]]})
+        assert cone.contains(positions[-1])
+    assert [p[0] for p in positions] == sorted((p[0] for p in positions), reverse=True)  # moving west
+    assert [p[1] for p in positions] == sorted(p[1] for p in positions)  # and north
+    assert winds == [70, 100, 110]
+
+
+def test_real_host_in_nhc_fixture_is_rejected(tree: Path) -> None:
+    edit_json(tree / "hurricane-cape-route" / "nhc-adv1.json",
+              lambda d: d["activeStorms"][0]["publicAdvisory"].update(url="https://www.nhc.noaa.gov/text/MIATCPAT5.shtml"))
+    assert has(run("hurricane-cape-route"), "must be on a reserved .example host")
+
+
+def test_nhc_advisory_after_the_step_is_rejected(tree: Path) -> None:
+    edit_json(tree / "hurricane-cape-route" / "nhc-adv1.json",
+              lambda d: d["activeStorms"][0]["publicAdvisory"].update(issuance="2026-10-12T03:00:00.000Z"))
+    assert has(run("hurricane-cape-route"), "is after the step's sim time")
+
+
+def test_nhc_shape_and_gis_files_are_checked(tree: Path) -> None:
+    edit_json(tree / "hurricane-cape-route" / "nhc-adv2.json",
+              lambda d: d["activeStorms"][0].update(id="storm-1", intensity=100))
+    edit_yaml(tree / "hurricane-cape-route" / "pack.yaml",
+              lambda d: d["steps"][2]["payload"]["gis"].update(al992026=["missing-cone.kml"]))
+    rep = run("hurricane-cape-route")
+    assert has(rep, "id must look like al092026")
+    assert has(rep, "payload.gis file 'missing-cone.kml'")
+    assert has(rep, "nhc-adv3-cone.kml is not referenced") or any(
+        "nhc-adv3-cone.kml is not referenced" in w for w in rep.warnings)
 
 
 def test_fractional_gdacs_alertscore_is_rejected(tree: Path) -> None:

@@ -18,6 +18,7 @@ No pack needs an LLM. Every news item and free-text item ships a pre-baked extra
 | [`typhoon-hcmc`](typhoon-hcmc/README.md) | Act 1: four GDACS TC advisories (Orange → Red) for the fictional Typhoon KESTREL-26 tracking onto Ho Chi Minh City, plus one Demo Freight Daily item (Cat Lai suspends operations) | VNSGN, F-VN-01, SUP-VN-01 (intersects); SGN-* + PNH-SGN-RIV lanes; Cambodian nodes (dwithin) |
 | [`a-outerwear-trim-delay`](a-outerwear-trim-delay/README.md) | Merxa `supplier_message.received` (trims delayed 7 days at TRIM-BD-01), plus a cold-weather demand advisory | TRIM-BD-01 (entity_match); the advisory is context only |
 | [`suez-closure`](suez-closure/README.md) | Three news items from two fictional outlets (RSS 2.0 + Atom) about a Red Sea / Suez closure | SGN-HAM-SEA, SGN-GDN-SEA (lane_crosses) |
+| [`hurricane-cape-route`](hurricane-cape-route/README.md) | M8: three NHC advisories (category 1 → 3) for the fictional Hurricane ALBATROSS tracking north-west along the West African coast, with cone and track KML | CGP-FXT-SEA, CGP-RTM-SEA, SGN-HAM-CAPE, SGN-GDN-CAPE (lane_crosses); no site, so no case is drafted |
 
 ## Layout
 
@@ -28,6 +29,7 @@ No pack needs an LLM. Every news item and free-text item ships a pre-baked extra
 - `network-value-fashion-eu.yaml`: the reference tenant network the expectations are computed against. It mirrors what the engine pushes for a `value-fashion-eu` tenant on the Merxa `full` seed. This is not a pack.
 - `validate.py`: the offline validator (see below).
 - `tools/gen_typhoon_hcmc.py`: generates the typhoon advisories. Use `--check` to detect drift.
+- `tools/gen_hurricane_cape_route.py`: generates the NHC advisories, cones and tracks of `hurricane-cape-route` (`--check` too).
 - `tests/test_packs.py`: regression tests for the packs and the validator.
 
 ## Step payloads per adapter (as `signal_hub.replay` reads them)
@@ -38,6 +40,12 @@ No pack needs an LLM. Every news item and free-text item ships a pre-baked extra
 | `rss` | `{fixture: <file>.xml, connector_id: rss.<slug>, source_name, extractions: {<guid or Atom id or link or title>: NewsExtraction}}` (or a single `extraction` that applies to every item). |
 | `merxa_inject` | `{fixture: <file>.json \| event: {type, id, timestamp, data}, extraction}`. The body is a Merxa Standard Webhooks payload, as the engine forwards it. |
 | `chat_hint` | `{text}`. A presenter hint. It is only logged. |
+| `nhc` (M8) | `{fixture: <file>.json, gis: {<storm id>: [<file>.kml \| <file>.kmz, …]}}`. A `CurrentStorms.json`-shaped document plus the cone / track products per storm. |
+| `copernicus_ems` (M8) | `{fixture: <file>.json}`. A Copernicus EMS `public-activations-info` answer. |
+| `meteoalarm` (M8) | `{fixture: <file>.atom, connector_id: meteoalarm.<country>, details: {<CAP identifier>: <file>.xml}}`. A MeteoAlarm legacy Atom feed plus the CAP documents with the area polygons. |
+| `gdelt` (M8) | `{fixture: <file>.CSV \| <file>.zip}`. One GDELT 2.0 15-minute event export. |
+
+There is no `ofac` step on purpose: a simulated sanctions designation that matches seed supplier names, which could belong to real companies, is not acceptable demo data. The M8 steps are parsed by `signal_hub.replay_feeds` (the same code as the live pollers' parsers), always with the code defaults of the GDELT filter and the MeteoAlarm level, so a pack replays identically on every deployment.
 
 ## Authoring rules (enforced by `validate.py`)
 
@@ -61,6 +69,8 @@ No pack needs an LLM. Every news item and free-text item ships a pre-baked extra
     - a subject of at most 300 characters (the hub's title);
     - uuidv7 ids whose embedded time matches `timestamp` / `received_at`.
   - GeoJSON is 2D WGS84 with closed, simple, counter-clockwise exterior rings.
+  - NHC (M8, checked against the live feed 2026-10-08): `{activeStorms: [...]}` with storm ids like `al092026`, digit-string `intensity` / `pressure`, numeric positions, `publicAdvisory.advNum` like `007`, ISO issuance times; cone / track files are KML (`<kml>` root, any KML namespace).
+  - Copernicus EMS, MeteoAlarm and GDELT fixtures (M8) carry a SIMULATED note and only `*.example` links; their shapes are checked by parsing them with the real adapters at the replay level.
 - **No time travel.** No item, channel or feed is published, built, modified or received after its step's sim time.
 - **Repeated news items are identical.** The hub stores a news item once per connector and guid (`ON CONFLICT DO NOTHING`) and never re-reads it. A cumulative feed may repeat an earlier item, but only with the same text and the same pre-baked extraction. Publish an update under a new guid.
 - **Pre-baked extractions.**

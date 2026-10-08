@@ -15,7 +15,7 @@ session's CSRF token and pass the Origin check like every admin mutation.
 ``POST /runs/{id}/cancel``                       cancel → ``202`` ``EvalRun``
 ``GET  /runs/{id}/export``                       ``keelson-evals/2`` JSON attachment (re-imports as the run)
 ``POST /import?file_name=`` (results JSON)       ``201 {run_id, duplicate: false}`` | ``200 {…, duplicate: true}``
-``POST /import/folder``                          import every new file of the mounted results folder
+``POST /import/folder?file=``                    import every new file of the mounted results folder (or one)
 ``GET  /files``                                  the M7 file listing + ``imported_run_id``
 ``GET  /compare?base=&head=``                    ``EvalCompare``
 ``GET  /trends?limit=&mode=``                    ``EvalTrends`` (``mode`` = ``replay`` | ``live``)
@@ -213,9 +213,10 @@ async def import_document(request: Request, ctx: AdminWrite,
 
 
 @router.post("/import/folder")
-async def import_results_folder(ctx: AdminWrite) -> dict[str, Any]:
+async def import_results_folder(ctx: AdminWrite, file: str | None = Query(None, max_length=40)) -> dict[str, Any]:
+    """Every new file of the mounted results folder, or only ``?file=<UTC stamp>.json``."""
     _platform(ctx)
-    return await evals.import_folder(tenant=ctx.tenant, actor=ctx.actor())
+    return await evals.import_folder(tenant=ctx.tenant, actor=ctx.actor(), only=file)
 
 
 @router.get("/files")

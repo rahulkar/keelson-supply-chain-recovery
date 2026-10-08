@@ -229,17 +229,22 @@ async def test_import_folder_and_file_listing(people: dict[str, Browser], settin
     (tmp_path / "20261008T000000Z.json").write_text("{broken", encoding="utf-8")
     (tmp_path / "20261008T010000Z.json").write_text(json.dumps({"schema": "nope"}), encoding="utf-8")
     (tmp_path / "notes.json").write_text("{}", encoding="utf-8")
+    one = (await ava.post("/api/admin/evals/import/folder?file=20261007T085022Z.json")).json()
+    assert [i["file"] for i in one["imported"]] == ["20261007T085022Z.json"] and one["errors"] == []
+    assert (await ava.post("/api/admin/evals/import/folder?file=notes.json")).json()["code"] == "invalid_file_name"
+    assert (await ava.post("/api/admin/evals/import/folder?file=../x.json")).status_code == 422
+    assert (await ava.post("/api/admin/evals/import/folder?file=20991231T000000Z.json")).status_code == 404
     out = (await ava.post("/api/admin/evals/import/folder")).json()
-    assert sorted(i["file"] for i in out["imported"]) == ["20261007T080848Z.json", "20261007T085022Z.json"]
-    assert out["duplicates"] == 0
+    assert [i["file"] for i in out["imported"]] == ["20261007T080848Z.json"]
+    assert out["duplicates"] == 1
     assert {e["file"]: e["error"].split(":")[0] for e in out["errors"]} == {
         "20261008T000000Z.json": "unreadable", "20261008T010000Z.json": "invalid_results"}
     again = (await ava.post("/api/admin/evals/import/folder")).json()
     assert again["imported"] == [] and again["duplicates"] == 2
     files = (await ava.get("/api/admin/evals/files")).json()
     by_file = {f["file"]: f for f in files["items"]}
-    imported = {i["file"]: i["run_id"] for i in out["imported"]}
-    assert by_file["20261007T085022Z.json"]["imported_run_id"] == imported["20261007T085022Z.json"]
+    assert by_file["20261007T085022Z.json"]["imported_run_id"] == one["imported"][0]["run_id"]
+    assert by_file["20261007T080848Z.json"]["imported_run_id"] == out["imported"][0]["run_id"]
     assert by_file["20261008T000000Z.json"]["imported_run_id"] is None
     # the M7 listing is unchanged
     m7 = (await ava.get("/api/admin/evals")).json()

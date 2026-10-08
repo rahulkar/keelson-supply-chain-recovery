@@ -88,6 +88,7 @@ export {
 export { DecidedNote, decidedText, decisionLabel, formatDeciders } from "./blocks/DecidedNote";
 export { CODE_PATTERN, NoBreakCodes, splitCodes } from "./lib/noBreak";
 export { BarChart, type BarChartProps, type BarDatum } from "./charts/BarChart";
+export { TrendChart, type TrendChartProps, type TrendPoint } from "./charts/TrendChart";
 
 // M3 canvas visuals: helpers that do not pull in the heavy libraries (those load on demand).
 export { BlockSkeleton, lazyBlock } from "./lib/lazyBlock";

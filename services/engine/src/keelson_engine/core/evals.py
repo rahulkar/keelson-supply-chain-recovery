@@ -791,15 +791,21 @@ def _read_results_file(path: Path, limit: int) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-async def import_folder(*, tenant: str, actor: Mapping[str, Any]) -> dict[str, Any]:
-    """Import every ``<UTC stamp>.json`` in the mounted results folder not imported yet."""
+async def import_folder(*, tenant: str, actor: Mapping[str, Any], only: str | None = None) -> dict[str, Any]:
+    """Import every ``<UTC stamp>.json`` in the mounted results folder not imported yet (or only
+    the file named ``only``; never a path: the name must be a results file name)."""
     from keelson_engine.core.audit import evals_dir
 
     directory = evals_dir()
     if not directory.is_dir():
         raise AdminError(409, "results_folder_unavailable", "the results folder is not mounted")
+    if only is not None and not _EVAL_FILE_RE.fullmatch(only):
+        raise AdminError(422, "invalid_file_name", "not a results file name (<UTC stamp>.json)")
     limit = get_settings().evals_max_import_bytes
-    files = sorted(p for p in directory.iterdir() if p.is_file() and _EVAL_FILE_RE.fullmatch(p.name))[-500:]
+    files = sorted(p for p in directory.iterdir() if p.is_file() and _EVAL_FILE_RE.fullmatch(p.name)
+                   and (only is None or p.name == only))[-500:]
+    if only is not None and not files:
+        raise AdminError(404, "not_found", "no such results file")
     imported: list[dict[str, str]] = []
     duplicates = 0
     errors: list[dict[str, str]] = []

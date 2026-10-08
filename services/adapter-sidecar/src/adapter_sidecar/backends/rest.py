@@ -37,7 +37,7 @@ from adapter_sidecar.backends import Backend
 from adapter_sidecar.backends import staging
 from adapter_sidecar.config import Endpoint, RestBackend as RestOpts, TableSpec
 from adapter_sidecar.db import begin_write
-from adapter_sidecar.errors import ConfigError, SourceDataError
+from adapter_sidecar.errors import ConfigError, Problem, SourceDataError
 from adapter_sidecar.logs import get_logger
 
 log = get_logger(__name__)
@@ -57,13 +57,11 @@ def eval_path(path: str, node: Any) -> Any:
     return node
 
 
-class RestError(Exception):
-    """A crawl failed (``code`` is client-safe; URLs carry no secrets: auth is in headers)."""
+class RestError(Problem):
+    """A crawl failed: 502 with a client-safe ``code`` (URLs carry no secrets: auth is in headers)."""
 
     def __init__(self, code: str, detail: str) -> None:
-        super().__init__(f"{code}: {detail}")
-        self.code = code
-        self.detail = detail
+        super().__init__(502, code, detail)
 
 
 class RestBackend(Backend):
@@ -151,7 +149,8 @@ class RestBackend(Backend):
             raise RestError("foreign_host", f"{url.split('?')[0][:120]} is not on the base_url origin")
         cap = self.opts.max_response_bytes
         try:
-            async with self._http().stream("GET", url, params=params, headers=await self._headers()) as resp:
+            # params=None keeps a next-page URL's own query (httpx replaces it with an empty mapping)
+            async with self._http().stream("GET", url, params=params or None, headers=await self._headers()) as resp:
                 if resp.status_code != 200:
                     raise RestError("http_error", f"HTTP {resp.status_code} from {resp.url.path}")
                 chunks: list[bytes] = []

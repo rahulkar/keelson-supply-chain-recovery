@@ -5,7 +5,9 @@
 from __future__ import annotations
 
 import asyncio
+import csv
 import json
+import os
 import shutil
 import sys
 import uuid
@@ -183,6 +185,110 @@ async def fernhill(tmp_path: Path, data_dir: Path, keelson: FakeKeelson) -> Asyn
 
 def key() -> str:
     return f"test-{uuid.uuid4().hex}"
+
+
+# ───────────────────────────── SQL backends ─────────────────────────────
+
+SQL_CONFIG = SERVICE / "examples" / "sql-postgres.yaml"
+SQL_SCHEMA = SERVICE / "examples" / "sql-schema.sql"
+PG_ADMIN_DSN = os.environ.get("SIDECAR_TEST_PG_DSN")
+PG_DB = os.environ.get("SIDECAR_TEST_PG_DB", "sidecar_test")
+
+
+async def load_sql_fixture(url: str) -> None:
+    """Create ``examples/sql-schema.sql`` and load the Fernhill golden rows into ``url``."""
+    import datetime as dt
+
+    from sqlalchemy import text as sql_text
+
+    from adapter_sidecar.backends.staging import parse_cell
+    from adapter_sidecar.config import load_config
+    from adapter_sidecar.db import create_engine, quote_ident
+
+    cfg = load_config(FERNHILL / "sidecar.yaml")
+    engine = create_engine(url)
+    pg = engine.dialect.name == "postgresql"
+    try:
+        async with engine.begin() as conn:
+            ddl = "\n".join(ln for ln in SQL_SCHEMA.read_text(encoding="utf-8").splitlines()
+                            if not ln.strip().startswith("--"))
+            for stmt in ddl.split(";"):
+                if stmt.strip():
+                    await conn.exec_driver_sql(stmt.strip())
+            for name, table in cfg.tables.items():
+                types = table.column_types
+                with (GOLDEN / str(table.file)).open(encoding="utf-8", newline="") as fh:
+                    rows = list(csv.DictReader(fh))
+                params = []
+                for r in rows:
+                    values = {}
+                    for col, kind in types.items():
+                        v = parse_cell(kind, r[col])
+                        if pg and kind == "date" and v is not None:
+                            v = dt.date.fromisoformat(v)
+                        values[col] = v
+                    params.append(values)
+                cols = list(types)
+                stmt_text = (f"INSERT INTO {quote_ident(conn, name)} ({', '.join(quote_ident(conn, c) for c in cols)}) "
+                             f"VALUES ({', '.join(':' + c for c in cols)})")
+                if params:
+                    await conn.execute(sql_text(stmt_text), params)
+    finally:
+        await engine.dispose()
+
+
+async def fresh_pg_database() -> str | None:
+    """Drop + create ``SIDECAR_TEST_PG_DB`` on ``SIDECAR_TEST_PG_DSN``; its asyncpg URL (``None`` = skip)."""
+    if not PG_ADMIN_DSN:
+        return None
+    import asyncpg
+
+    try:
+        conn = await asyncpg.connect(PG_ADMIN_DSN, timeout=5)
+    except (OSError, asyncpg.PostgresError):
+        return None
+    try:
+        await conn.execute(f'DROP DATABASE IF EXISTS "{PG_DB}" WITH (FORCE)')
+        await conn.execute(f'CREATE DATABASE "{PG_DB}"')
+    finally:
+        await conn.close()
+    base = PG_ADMIN_DSN.rsplit("/", 1)[0].replace("postgresql://", "postgresql+asyncpg://", 1)
+    return f"{base}/{PG_DB}"
+
+
+@pytest.fixture(params=["csv", "sql-sqlite", "sql-postgres"])
+async def any_backend(request: pytest.FixtureRequest, tmp_path: Path, keelson: FakeKeelson) -> AsyncIterator[Running]:
+    """The Fernhill data behind each writable backend: CSV files, a SQLite database, Postgres."""
+    from adapter_sidecar.service import Sidecar
+    from adapter_sidecar.settings import Settings
+
+    kind = request.param
+    data: Path | None = None
+    extra: dict[str, str] = {}
+    config: Path | None = None
+    if kind == "csv":
+        data = tmp_path / "data"
+        data.mkdir()
+        for f in GOLDEN.glob("*.csv"):
+            shutil.copyfile(f, data / f.name)
+    else:
+        if kind == "sql-sqlite":
+            url = f"sqlite+aiosqlite:///{tmp_path / 'erp.db'}"
+        else:
+            maybe = await fresh_pg_database()
+            if maybe is None:
+                pytest.skip("SIDECAR_TEST_PG_DSN is not set / reachable")
+            url = maybe
+        await load_sql_fixture(url)
+        extra["ERP_DATABASE_URL"] = url
+        config = SQL_CONFIG
+    settings = Settings.from_env(sidecar_env(tmp_path, data, config, **extra))
+    sidecar = Sidecar(settings, http_client=keelson.client())
+    app, shutdown = await start_app(settings, sidecar)
+    try:
+        yield Running(app, sidecar, data, tmp_path)
+    finally:
+        await shutdown()
 
 
 @pytest.fixture

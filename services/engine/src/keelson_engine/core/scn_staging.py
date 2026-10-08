@@ -92,7 +92,7 @@ class StagingWriter:
     async def flush(self) -> None:
         if not self._buffer:
             return
-        from sqlalchemy.exc import DBAPIError
+        from sqlalchemy.exc import DataError
 
         from keelson_engine.core.scn_crawl import CrawlError
 
@@ -102,7 +102,7 @@ class StagingWriter:
                 await s.execute(text(
                     "INSERT INTO scn_raw_page (tenant, snapshot_id, source_key, page_no, item_count, bytes, items) "
                     "VALUES (:t, :s, :k, :p, :n, :b, CAST(:i AS jsonb))"), rows)
-        except DBAPIError as exc:  # e.g. NaN / NUL in a vendor value: not storable as Postgres JSON
+        except DataError as exc:  # e.g. NaN / NUL in a vendor value: not storable as Postgres JSON
             raise CrawlError("items_invalid", f"a fetched page cannot be stored as JSON ({type(exc.orig).__name__})") from None
 
     async def finish(self, status: str, *, sources: Sequence[dict[str, Any]], fetched_from: dt.datetime | None,
@@ -154,11 +154,11 @@ async def drop_sets(tenant: str, snapshot_ids: Sequence[Any]) -> None:
 
 
 async def drop_noncurrent(tenant: str) -> int:
-    """Demo reset: delete every set that is not a current snapshot's."""
+    """Demo reset: delete every finished set that is not a current snapshot's (a running crawl's set stays)."""
     async with tenant_session(tenant) as s:
         res = await s.execute(text(
             "DELETE FROM scn_raw_set r WHERE r.tenant = :t AND NOT EXISTS (SELECT 1 FROM scn_current c "
-            "WHERE c.tenant = r.tenant AND c.snapshot_id = r.snapshot_id)"), {"t": tenant})
+            "WHERE c.tenant = r.tenant AND c.snapshot_id = r.snapshot_id) AND r.status <> 'staging'"), {"t": tenant})
     return int(res.rowcount or 0)
 
 

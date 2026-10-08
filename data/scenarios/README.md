@@ -18,13 +18,14 @@ No pack needs an LLM. Every news item and free-text item ships a pre-baked extra
 | [`typhoon-hcmc`](typhoon-hcmc/README.md) | Act 1: four GDACS TC advisories (Orange → Red) for the fictional Typhoon KESTREL-26 tracking onto Ho Chi Minh City, plus one Demo Freight Daily item (Cat Lai suspends operations) | VNSGN, F-VN-01, SUP-VN-01 (intersects); SGN-* + PNH-SGN-RIV lanes; Cambodian nodes (dwithin) |
 | [`a-outerwear-trim-delay`](a-outerwear-trim-delay/README.md) | Merxa `supplier_message.received` (trims delayed 7 days at TRIM-BD-01), plus a cold-weather demand advisory | TRIM-BD-01 (entity_match); the advisory is context only |
 | [`suez-closure`](suez-closure/README.md) | Three news items from two fictional outlets (RSS 2.0 + Atom) about a Red Sea / Suez closure | SGN-HAM-SEA, SGN-GDN-SEA (lane_crosses) |
+| [`port-strike-syndication`](port-strike-syndication/README.md) | M8 clustering v2: a Hamburg dock strike from three fictional outlets — the story, a syndicated near-duplicate (SimHash, not counted twice) and a report naming an unknown terminal (joins by similar cluster terms) | DEHAM (intersects); SGN-HAM-*, HAM-DE1-RD, HAM-PL1-RD (lane_crosses) |
 
 ## Layout
 
 - `<pack>/pack.yaml`: the `ScenarioPack` contract (`id`, `title`, `description`, `start_at`, `steps[{t_offset_s, adapter, payload, note}]`).
 - `<pack>/*.geojson|*.json|*.xml`: fixtures named by `payload.fixture`. They must be flat files in the pack directory.
 - `<pack>/README.md`: the narrative and timeline, the labelling, and notes.
-- `<pack>/expected.yaml`: the expected events, members, severities, alerts and exact exposures at each checkpoint.
+- `<pack>/expected.yaml`: the expected events, members, severities, alerts and exact exposures at each checkpoint. Optional per event (clustering v2, `docs/contracts/123`): `memberships` (member → `founded` / `near_duplicate` / `attach_vector` …) and `sources` (independent corroborating sources; a near-duplicate never counts).
 - `network-value-fashion-eu.yaml`: the reference tenant network the expectations are computed against. It mirrors what the engine pushes for a `value-fashion-eu` tenant on the Merxa `full` seed. This is not a pack.
 - `validate.py`: the offline validator (see below).
 - `tools/gen_typhoon_hcmc.py`: generates the typhoon advisories. Use `--check` to detect drift.
@@ -69,7 +70,7 @@ No pack needs an LLM. Every news item and free-text item ships a pre-baked extra
   - `injection_suspected: false`.
   - Every mention is copied verbatim from the headline or snippet.
   - Each one passes the hub's real quarantine screen.
-- **Exact expectations.** At each checkpoint, the replayed events, members (with the cluster v1 attach rules), severity, kind radius, alert action (`DEFAULT_ALERT_RULES`) and exposures must match `expected.yaml` exactly. Geometric decisions within 5 km of a threshold fail as fragile.
+- **Exact expectations.** At each checkpoint, the replayed events, members, severity, kind radius, alert action (`DEFAULT_ALERT_RULES`) and exposures must match `expected.yaml` exactly. Members are placed with the Signal Hub's own clustering (`cluster.decide`: v1 attach rules, SimHash near-duplicates, vector attach with the local term vectors and `DEFAULT_CLUSTERING_CONFIG`), and separate events must neither attach nor vector-merge. Geometric decisions within 5 km of a threshold fail as fragile.
 
 ## Checking
 

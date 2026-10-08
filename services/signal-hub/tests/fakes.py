@@ -1,8 +1,12 @@
-"""Test doubles: a scripted LLM (no network, no Gemini) and a static clock."""
+"""Test doubles: a scripted LLM (no network, no Gemini), a static clock, a LiteLLM proxy double and
+deterministic embeddings (``vector_for``, as the engine's ``fakes/e1_embeddings.py``)."""
 
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
+import math
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -45,6 +49,27 @@ class FakeLlm:
         return NewsExtraction.model_validate({**base, **data})
 
 
+_WORD = re.compile(r"[a-z0-9]+")
+_STOP = frozenset({"the", "a", "an", "of", "to", "and", "or", "in", "on", "for", "is", "are", "be", "by", "with",
+                   "at", "it", "this", "that", "from", "as"})
+
+
+def vector_for(text: str, dims: int) -> list[float]:
+    """Hashed bag of words (±1 at ``sha256(word) % dims``), L2-normalised: texts sharing words are
+    more similar, so similarity is testable without a model."""
+    vec = [0.0] * dims
+    for word in _WORD.findall(text.lower()):
+        if word in _STOP:
+            continue
+        digest = hashlib.sha256(word.encode()).digest()
+        vec[int.from_bytes(digest[:4], "big") % dims] += 1.0 if digest[4] & 1 else -1.0
+    norm = math.sqrt(sum(x * x for x in vec))
+    if norm == 0:
+        vec[0] = 1.0
+        return vec
+    return [x / norm for x in vec]
+
+
 class Clock:
     def __init__(self, now: dt.datetime) -> None:
         self.now = now
@@ -61,13 +86,17 @@ class MockLiteLlm:
     (master key only) and ``/v1/chat/completions`` that answers ``chat_status`` (402 = credits
     depleted) for a valid virtual key restricted to the requested model. No network, no model."""
 
-    def __init__(self, master_key: str = "sk-master-test", *, ready: bool = True, chat_status: int = 402) -> None:
+    def __init__(self, master_key: str = "sk-master-test", *, ready: bool = True, chat_status: int = 402,
+                 embed_status: int = 200, embed_wrong_dims: int | None = None) -> None:
         import hashlib
 
         self._sha = lambda k: hashlib.sha256(k.encode()).hexdigest()
         self.master_key = master_key
         self.ready = ready
         self.chat_status = chat_status
+        self.embed_status = embed_status
+        self.embed_wrong_dims = embed_wrong_dims
+        self.embed_inputs: list[str] = []
         self.keys: dict[str, dict[str, Any]] = {}  # sha256 → info
         self.raw: dict[str, str] = {}  # sha256 → raw key (to answer chat calls)
         self.calls: list[tuple[str, str]] = []
@@ -102,6 +131,20 @@ class MockLiteLlm:
             if body.get("model") not in info["models"]:
                 return httpx.Response(401, json={"error": {"message": "model not allowed"}})
             return httpx.Response(self.chat_status, json={"error": {"message": "budget exceeded / credits depleted"}})
+        if path == "/v1/embeddings":
+            key = auth.removeprefix("Bearer ")
+            info = self.keys.get(self._sha(key))
+            body = self._json(request)
+            if info is None or info.get("status") != "active" or body.get("model") not in info["models"]:
+                return httpx.Response(401, json={"error": {"message": "invalid key or model not allowed"}})
+            if self.embed_status != 200:
+                return httpx.Response(self.embed_status, json={"error": {"message": "budget exceeded / credits depleted"}})
+            inputs = body["input"] if isinstance(body["input"], list) else [body["input"]]
+            self.embed_inputs += inputs
+            dims = self.embed_wrong_dims or int(body.get("dimensions") or 8)
+            data = [{"object": "embedding", "index": i, "embedding": vector_for(t, dims)} for i, t in enumerate(inputs)]
+            data.reverse()  # LiteLLM does not promise order; the client sorts by index
+            return httpx.Response(200, json={"object": "list", "data": data, "model": body["model"]})
         if auth != f"Bearer {self.master_key}":
             return httpx.Response(401, json={"error": {"message": "not a master key"}})
         if path == "/key/info":

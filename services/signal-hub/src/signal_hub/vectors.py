@@ -268,9 +268,9 @@ async def enqueue(pool: asyncpg.Pool, profile: ActiveProfile, *, tenant: str | N
         return int(await conn.fetchval(
             """WITH n AS (
                  INSERT INTO embedding_job (signal_id, profile_id, tenant, status, created_at, updated_at)
-                 SELECT s.id, $1, s.tenant, 'pending', $2, $2 FROM signal s
+                 SELECT s.id, $1, s.tenant, 'pending', $2::timestamptz, $2::timestamptz FROM signal s
                  WHERE s.is_current AND s.tenant IS NOT DISTINCT FROM $3::text AND s.pack_id IS NULL
-                   AND s.provenance <> 'simulated' AND s.observed_at >= $2 - $4::interval
+                   AND s.provenance <> 'simulated' AND s.observed_at >= $2::timestamptz - $4::interval
                    AND NOT EXISTS (SELECT 1 FROM embedding_job j WHERE j.signal_id = s.id AND j.profile_id = $1)
                  ORDER BY s.observed_at DESC, s.id
                  LIMIT $5

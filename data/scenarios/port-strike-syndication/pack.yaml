@@ -1,0 +1,74 @@
+# Demo pack (docs/contracts/123-m8-signal-clustering.md, clustering v2). SIMULATED: a fictional dock strike in
+# the Port of Hamburg reported by three fictional outlets ("Demo Freight Daily" RSS 2.0, "Simulated Shipping
+# Wire" Atom, "Demo Port Bulletin" RSS 2.0). Replayed through the real RSS adapter (fixtures served at
+# /demo-feeds/port-strike-syndication/<file>); every item ships a pre-baked extraction (no LLM needed).
+# Everything it produces is origin demo / provenance simulated; alerts carry simulated: true (DEMO badge).
+# It shows the two new grouping reasons: a syndicated near-duplicate (SimHash) that adds no corroboration,
+# and a report naming an unresolved terminal that joins by similar cluster terms (attach_vector).
+# Check with: python data/scenarios/validate.py port-strike-syndication   (expected.yaml)
+id: port-strike-syndication
+title: Hamburg dock strike, one story syndicated (simulated)
+description: >-
+  SIMULATED. Three trade-press items over 6 hours from three fictional outlets about a dock strike in the
+  Port of Hamburg: Demo Freight Daily breaks the story, Simulated Shipping Wire runs a syndicated copy of it
+  (a near-duplicate: same story, one word changed; it is counted once for corroboration), and Demo Port
+  Bulletin reports that workers at the Hamburg-Waltershof terminal join the strike (a terminal name the
+  gazetteer does not know: it joins by similar cluster terms). One event; expected exposure: port DEHAM
+  (entity match) and the lanes ending at Hamburg.
+start_at: "2026-10-06T08:00:00Z"
+steps:
+  - t_offset_s: 0
+    adapter: rss
+    payload:
+      fixture: news-demo-freight-daily.xml
+      connector_id: rss.demo-freight-daily
+      source_name: Demo Freight Daily
+      extractions:
+        "https://demo-freight-daily.example/?p=26311":
+          kind: labor
+          subtype: strike
+          places: []
+          companies: []
+          ports: ["Port of Hamburg"]
+          chokepoints: []
+          dates_text: ["at least 48 hours"]
+          injection_suspected: false
+    note: "Demo Freight Daily (fictional): dockworkers strike halts container handling at the Port of Hamburg"
+  - t_offset_s: 7200
+    adapter: rss
+    payload:
+      fixture: news-simulated-shipping-wire.xml
+      connector_id: rss.simulated-shipping-wire
+      source_name: Simulated Shipping Wire
+      extractions:
+        "tag:simulated-shipping-wire.example,2026-10-06:hamburg-dock-strike":
+          kind: labor
+          subtype: strike
+          places: []
+          companies: []
+          ports: ["Port of Hamburg"]
+          chokepoints: []
+          dates_text: ["at least 48 hours"]
+          injection_suspected: false
+    note: "Simulated Shipping Wire (fictional, Atom): a syndicated copy of the same story (near-duplicate, not counted twice)"
+  - t_offset_s: 21600
+    adapter: rss
+    payload:
+      fixture: news-demo-port-bulletin.xml
+      connector_id: rss.demo-port-bulletin
+      source_name: Demo Port Bulletin
+      extractions:
+        "https://demo-port-bulletin.example/news/waltershof-joins-strike":
+          kind: labor
+          subtype: strike
+          places: []
+          companies: []
+          ports: ["Hamburg-Waltershof terminal"]
+          chokepoints: []
+          dates_text: []
+          injection_suspected: false
+    note: "Demo Port Bulletin (fictional): Hamburg-Waltershof terminal workers join (unknown terminal name: similar description)"
+  - t_offset_s: 21600
+    adapter: chat_hint
+    payload: {text: "Open the Hamburg strike alert and read 'Why these reports are grouped'."}
+    note: "Presenter hint"

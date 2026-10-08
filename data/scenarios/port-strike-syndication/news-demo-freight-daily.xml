@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SIMULATED demo data (Keelson pack port-strike-syndication). "Demo Freight Daily" is a fictional outlet and
+     the strike described here is invented for the demo; the .example domain is reserved and never resolves.
+     Shaped like a WordPress RSS 2.0 trade-press feed (headline + <= 300 character snippet + link only). -->
+<rss version="2.0"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:atom="http://www.w3.org/2005/Atom"
+	xmlns:sy="http://purl.org/rss/1.0/modules/syndication/">
+<channel>
+	<title>Demo Freight Daily</title>
+	<atom:link href="https://demo-freight-daily.example/feed/" rel="self" type="application/rss+xml" />
+	<link>https://demo-freight-daily.example</link>
+	<description>Fictional trade-press outlet for Keelson demo packs. Simulated news, not real events.</description>
+	<lastBuildDate>Tue, 06 Oct 2026 08:00:00 +0000</lastBuildDate>
+	<language>en-GB</language>
+	<sy:updatePeriod>hourly</sy:updatePeriod>
+	<sy:updateFrequency>1</sy:updateFrequency>
+	<item>
+		<title>Dockworkers strike halts container handling at the Port of Hamburg</title>
+		<link>https://demo-freight-daily.example/2026/10/06/hamburg-dockworkers-strike/</link>
+		<dc:creator><![CDATA[Demo Desk]]></dc:creator>
+		<pubDate>Tue, 06 Oct 2026 08:00:00 +0000</pubDate>
+		<category><![CDATA[Ports]]></category>
+		<category><![CDATA[Labour]]></category>
+		<guid isPermaLink="false">https://demo-freight-daily.example/?p=26311</guid>
+		<description><![CDATA[<p>The dockworkers&#8217; union says the walkout at all four container terminals will last at least 48 hours; vessels are waiting at anchor in the Elbe estuary.</p>]]></description>
+		<content:encoded><![CDATA[<p>Simulated article body (never stored by the Signal Hub).</p>]]></content:encoded>
+	</item>
+</channel>
+</rss>

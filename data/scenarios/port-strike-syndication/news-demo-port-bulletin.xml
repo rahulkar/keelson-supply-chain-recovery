@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SIMULATED demo data (Keelson pack port-strike-syndication). "Demo Port Bulletin" is a fictional outlet and
+     the strike described here is invented for the demo; the .example domain is reserved and never resolves.
+     Shaped like an RSS 2.0 trade-press feed (headline + <= 300 character snippet + link only). The terminal
+     name is not in the Signal Hub gazetteer, so the item has no location of its own. -->
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+	<title>Demo Port Bulletin</title>
+	<atom:link href="https://demo-port-bulletin.example/rss.xml" rel="self" type="application/rss+xml" />
+	<link>https://demo-port-bulletin.example</link>
+	<description>Fictional port news bulletin for Keelson demo packs. Simulated news, not real events.</description>
+	<lastBuildDate>Tue, 06 Oct 2026 14:00:00 +0000</lastBuildDate>
+	<language>en-GB</language>
+	<item>
+		<title>Hamburg-Waltershof terminal workers join the dock strike</title>
+		<link>https://demo-port-bulletin.example/news/waltershof-joins-strike</link>
+		<pubDate>Tue, 06 Oct 2026 14:00:00 +0000</pubDate>
+		<guid isPermaLink="true">https://demo-port-bulletin.example/news/waltershof-joins-strike</guid>
+		<description><![CDATA[Ships queue on the river as a second terminal operator stops work; talks between the union and the employers stall overnight.]]></description>
+	</item>
+</channel>
+</rss>

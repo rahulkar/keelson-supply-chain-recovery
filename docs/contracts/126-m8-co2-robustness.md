@@ -25,7 +25,7 @@ Everything here is deterministic and LLM-free: no model is called, no recorded r
 | Contracts-ts regeneration + `VALUE_UNITS` `kg_co2e` | done |
 | Viz: band captions, whiskers, cost ⇄ CO₂e axis with client Pareto, profile rank chips, "How sure are we?" range chart + table, KPI band line, `kg_co2e` formatting | done |
 | Admin "Option scoring" section on the Policies page via `PUT /api/admin/agents/spec` | done |
-| Offline e2e `e2e/api_m8_robustness_offline.py` + Playwright `m8-co2-robustness.spec.ts` (screenshots 41–43) | written, syntax/type-checked; run by the integrator |
+| Offline e2e `e2e/api_m8_robustness_offline.py` + Playwright `m8-co2-robustness.spec.ts` (screenshots 41–43); `dev-blocks.spec.ts` lists the two new fixtures | written, syntax/type-checked; run by the integrator |
 | Carbon price in the LP objective; TTR sampling; sensitivity drivers; CEL `cs.incremental_co2e_kg`; narrative citing bands / CO₂e; scn weight column, tenant factors, robustness on `/v1/impact`, cost uncertainty | **Deferred** (§12) |
 
 ## 2. CO₂e: data and engine inputs
@@ -315,8 +315,11 @@ off = M7 requests, replay safety), platform `test_m8_scoring_admin.py`; viz `tes
 9. The admin samples range is 16–256 (spec) while the contract allows 8–256 (tests use 8).
 10. Profile ids are editable in the admin form (validated); profiles are shown in the compare block only
     when there is more than one.
-11. Emission factors are **indicative, not verified** against the official GLEC v3 tables (no offline
-    access to the tables in this session): `verified: false`, every screen says "indicative".
+11. Emission factors are **indicative, not verified** against the official GLEC v3 tables, although the
+    brief asks for the exact defaults: the official default-value spreadsheet is only available on
+    request from Smart Freight Centre (a form this workstream did not submit) and the public framework
+    excerpts found are image-only. Secondary sources agree with the magnitudes used
+    (`data/emissions/README.md`). So `verified: false`, and every screen says "indicative".
 
 ## 12. Deferred
 
@@ -336,11 +339,15 @@ off = M7 requests, replay safety), platform `test_m8_scoring_admin.py`; viz `tes
 
 * Factor values are indicative mid-points; distances follow hand-made illustrative sea polylines; unit
   weights are assumptions — CO₂e compares options, it is not an emissions inventory.
-* Perf headroom: on the shared 9-builder harness a full suite run measured S4 + CO₂e + robustness at
-  4.8 s (budget 5 s) while the isolated perf run is 2.9–3.1 s; like the existing S4 tests it is sensitive
-  to CPU contention.
+* Perf headroom: on the shared 9-builder harness full suite runs measured S4 + CO₂e + robustness at
+  3.0 s in process / 3.9 s over HTTP (one earlier run 4.8 s; budget 5 s) while the isolated perf run is
+  2.9–3.1 s; like the existing S4 tests it is sensitive to CPU contention.
 * Nominal values can sit outside their p10–p90 (see §5); the UI shows both ("planned" ◆ vs the bar).
 * Merge overlap: workstream 5 edits `optimizer.py`, `service.py` (`run_optimize`), `planning.py`,
   `candidates.py`, `spec.py`, `pyproject.toml` / `uv.lock`, `README.md`, `test_perf.py`; workstreams 7 / 8
   edit `blocks.py`, the generated contracts-ts files, `fixtures.ts`, `e2e/README.md`. All edits here are
   additive; regenerate contracts-ts after merging (never hand-merge generated files).
+* `e2e/playwright/tests/dev-blocks.spec.ts` asserts that `/dev/blocks` shows exactly its `FIXTURES`
+  list, in the order of `packages/viz/src/fixtures.ts`. This branch appends `scenario_compare.robust` and
+  `kpi_strip.robust` to both. A workstream that also appends viz fixtures must keep the two lists in the
+  same merged order.

@@ -388,8 +388,8 @@ def _lp_pass(
     load = load or {}
     out = composed.solve_composed(scn, lines, lp_levers, spec.weights, options, locked=locked, load=load)
     if cp is not None and cp.on:
-        cp.stages.lp(stage, out.status, out.params, {"locked": sorted(locked), "load": _load_payload(load),
-                                                  "moves": _moves_payload(plan)})
+        payload = {"locked": sorted(locked), "load": _load_payload(load), "moves": _moves_payload(plan)}
+        cp.stages.lp(stage, out.status, out.params, payload)
     lp = _LpPass(
         out.status, out.status_detail, [], dict(out.params), list(out.warnings), out.solve_ms, lines, locked, load
     )

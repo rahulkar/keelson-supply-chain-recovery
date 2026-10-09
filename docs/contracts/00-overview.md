@@ -14,6 +14,7 @@ This file is the **source of truth for cross-service seams**. If you change a na
 | `http://auth.localhost` | `keycloak:8080` (`/admin*` and `/realms/master*` blocked unless `DEV_ALLOW_KC_ADMIN=1`) |
 | `http://gateway.localhost` | `litellm:4000` behind `forward_auth` → `engine-api /api/internal/forward-auth?role=platform-admin` |
 | `http://traces.localhost` | `phoenix:6006` (profile `obs`), same forward_auth |
+| `http://fernhill.localhost` | `fernhill-sidecar:8400` (profile `adapters`, M8): the adapter sidecar demo "Fernhill ERP" — `/mcp`, signed `/v1/snapshots/*`, `/v1/admin/*` (`122-m8-adapter-sidecar.md`) |
 
 Inside containers the **same hostnames** resolve to Caddy via network aliases, so OIDC issuers are identical everywhere:
 - issuer keelson realm: `http://auth.localhost/realms/keelson`
@@ -41,6 +42,7 @@ Networks: `edge` (caddy + anything that must resolve public hostnames), `app` (e
 | `KEELSON_BFF_CLIENT_SECRET`, `KEELSON_DEMO_CLIENT_SECRET`, `MERXA_WEB_CLIENT_SECRET`, `MERXA_DEMO_CLIENT_SECRET` | keycloak config + owners |
 | `DEMO_USER_PASSWORD` | seeded persona passwords (both realms) |
 | `SESSION_SECRET`, `DEMO_ACCESS_SECRET` | engine-api, merxa-api |
+| `FERNHILL_API_KEY`, `FERNHILL_ADMIN_KEY`, `FERNHILL_SNAPSHOT_SECRET` | fernhill-sidecar (profile `adapters`, M8 `122`): the static `X-Adapter-Key` Keelson stores when registering it, the sidecar's `/v1/admin/*` key (never given to Keelson), the HMAC secret of its signed Parquet URLs |
 
 Files in `secrets/` (gitignored, mounted as compose `secrets:` → `/run/secrets/<name>`):
 - `keelson_client_assertion_key.pem` (EC P-256, kid `ca-1`) — `private_key_jwt` to the merxa realm

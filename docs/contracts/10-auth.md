@@ -61,5 +61,11 @@ JWT ES256, header `{alg: ES256, kid: ar-1, typ: "approval-receipt+jwt"}`, claims
 ```
 Merxa `apply_change_set` verifies: signature via Keelson JWKS (kid `ar-1`), `typ`, `aud`, `exp`, `change_set_hash == preview_hash`, `change_set_ref` matches; if `approved_by` starts with `user:` then `ext_sub == access_token.sub` and token has scope `changes:apply` + role `ops-director`; if `policy:` then token `azp == keelson-autocommit` + scope `changes:apply:auto` + Merxa auto caps.
 
+M8 (`122-m8-adapter-sidecar.md` §8): receipts for a **non-platform** connector (static header / client
+credentials, e.g. an adapter sidecar) are bound to that system instead: `aud` = the connector's registered
+`mcp_url`, `ext_iss` = the connector's issuer (else the origin of `mcp_url`), `ext_sub` = `connector:<slug>`
+(no delegated users). A receipt minted for one system is refused by every other (audience binding). Platform
+(Merxa) receipts are unchanged — byte-identical claims (`ApprovalReceiptClaims.issue` defaults).
+
 ## Merxa UI auth (merxa-api BFF)
 `GET /v1/auth/login`, `GET /v1/auth/callback`, `POST /v1/auth/logout`, `GET /v1/auth/me`; demo `GET /v1/auth/demo/personas`, `POST /v1/auth/demo/login-as {username}` (password grant on `merxa-demo`, DEMO_MODE only). Cookie `merxa_session` on `merxa.localhost`.

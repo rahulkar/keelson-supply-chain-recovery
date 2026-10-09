@@ -107,7 +107,7 @@ environment, values never printed) and prints one JSON line per check:
 | public admin blocked | `auth.localhost/admin/*` and `/realms/master/*` → 403 |
 | admin consoles | `gateway.localhost`, `traces.localhost` → 401/403 (or 502 while engine-api is down) |
 | LiteLLM | `/health/readiness` 200; temporary model `infra-smoke` (`gemini/gemini-3.8-flash`) created via `/model/new`, one chat call, deleted via `/model/delete` |
-| egress | `merxa.localhost` (port 80 only) answered by Caddy, `merxa.localhost:443` denied; `auth.localhost/realms/merxa` allowed; `auth.localhost/realms/keelson`, `pg-core:5432`, `keycloak:8080`, `169.254.169.254`, `127.0.0.1` → 403 `ERR_ACCESS_DENIED`; `https://example.com` via CONNECT 200 |
+| egress | `merxa.localhost` and `fernhill.localhost` (port 80 only; M8 adapter sidecar demo, 502 from Caddy while profile `adapters` is off) answered by Caddy, `merxa.localhost:443` / `fernhill.localhost:443` / `fernhill-sidecar:8400` denied; `auth.localhost/realms/merxa` allowed; `auth.localhost/realms/keelson`, `pg-core:5432`, `keycloak:8080`, `169.254.169.254`, `127.0.0.1` → 403 `ERR_ACCESS_DENIED`; `https://example.com` via CONNECT 200 |
 | DNS per network | on `app` and `edge`, `auth.localhost` and `keelson.localhost` resolve to Caddy |
 
 Last run (2026-10-06, independent review): all checks green; Gemini smoke call ~2.1 s through the proxy.
@@ -121,6 +121,7 @@ Last run (2026-10-06, independent review): all checks green; Gemini smoke call ~
 | `http://auth.localhost` | `keycloak:8080` | `/admin*`, `/realms/master*` → 403 unless `DEV_ALLOW_KC_ADMIN=1` |
 | `http://gateway.localhost` | `litellm:4000` | `forward_auth` → `engine-api:8000/api/internal/forward-auth?role=platform-admin` |
 | `http://traces.localhost` | `phoenix:6006` | same forward_auth |
+| `http://fernhill.localhost` | `fernhill-sidecar:8400` (profile `adapters`) | M8 adapter sidecar demo (`docs/contracts/122`); unbuffered |
 | anything else on :80 | — | 404 |
 
 Caddy keeps the original `Host` header and sets `X-Forwarded-For/-Proto/-Host` (plus
@@ -174,8 +175,8 @@ format): see `10-auth.md`. Implementation notes:
   comment (an undefined variable aborts the import).
 
 **Squid** (`infra/squid/squid.conf`): see the header comment. Order: client must be on a
-private network → ports 80/443 only, CONNECT only to 443 → allow `merxa.localhost` and
-`auth.localhost/realms/merxa/*` (plain HTTP, port 80 only) → deny single-label names, compose service
+private network → ports 80/443 only, CONNECT only to 443 → allow `merxa.localhost`, `fernhill.localhost`
+(M8 adapter sidecar demo) and `auth.localhost/realms/merxa/*` (plain HTTP, port 80 only) → deny single-label names, compose service
 names, `.localhost/.local/.internal/...` → deny private/loopback/link-local/CGNAT/ULA
 destinations (on resolved IPs) → allow the rest. No caching; `max_filedescriptors 4096`.
 Logs: `docker compose logs egress`.

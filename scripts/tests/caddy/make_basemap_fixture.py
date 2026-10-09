@@ -8,7 +8,7 @@ Usage: ``python make_basemap_fixture.py <dir>``. Layout as written by scripts/ba
 * ``v4/test.pmtiles`` - 4096 bytes starting with the PMTiles v3 magic (``PMTiles\\x03``)
 * ``fonts/Noto Sans Regular/0-255.pbf`` - 2048 compressible bytes
 * ``sprites/v4/light.json`` / ``light.png``
-* ``.staging-1-2/partial.pmtiles`` and ``.hidden.json`` - must never be served
+* ``.staging-1-2/partial.pmtiles``, ``.hidden.json`` and ``v4/.keelson-partial.pmtiles`` - must never be served
 """
 
 from __future__ import annotations
@@ -29,6 +29,7 @@ def main(root: Path) -> None:
         "sprites/v4/light.png": b"\x89PNG\r\n\x1a\n" + b"\x00" * 56,
         ".staging-1-2/partial.pmtiles": b"PMTiles\x03partial",
         ".hidden.json": b'{"secret": true}',
+        "v4/.keelson-partial.pmtiles": b"PMTiles\x03partial",
     }
     for rel, data in files.items():
         p = root / rel

@@ -58,8 +58,9 @@ basemap_deploy() {
   # Archive, glyphs, sprites, licences first (dotfiles = staging never uploaded), manifest.json LAST,
   # then prune archives the new manifest no longer references.
   gc storage rsync "$dir/v4" "$gs/basemap/v4" --recursive --exclude='(^|/)\.' --cache-control="$BASEMAP_IMMUTABLE"
+  # glyph ranges only (typed as protobuf); fonts/OFL.txt is served from LICENSES/
   gc storage rsync "$dir/fonts" "$gs/basemap/fonts" --recursive --delete-unmatched-destination-objects \
-    --exclude='(^|/)\.' --cache-control="$BASEMAP_DAILY" --content-type=application/x-protobuf
+    --exclude='(^|/)\.|\.txt$' --cache-control="$BASEMAP_DAILY" --content-type=application/x-protobuf
   gc storage rsync "$dir/sprites" "$gs/basemap/sprites" --recursive --delete-unmatched-destination-objects \
     --exclude='(^|/)\.' --cache-control="$BASEMAP_DAILY"
   gc storage rsync "$dir/LICENSES" "$gs/basemap/LICENSES" --recursive --delete-unmatched-destination-objects \

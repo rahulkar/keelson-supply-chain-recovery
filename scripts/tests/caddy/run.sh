@@ -5,7 +5,8 @@
 # proxies to), Caddy with the real Caddyfile (upstreams overridden via the *_UPSTREAM env
 # vars) and a throwaway `basemap` volume holding a synthetic base map (make_basemap_fixture.py),
 # and a client container running check_routes.py. Then repeats the admin check with
-# DEV_ALLOW_KC_ADMIN=1 on a Caddy without a base map (the "nothing installed" answers).
+# DEV_ALLOW_KC_ADMIN=1 on a Caddy without a base map (the "nothing installed" answers), and
+# the base map checks on a Caddy whose BASEMAP_ROOT lies below a dot directory (native mode).
 # Cleans up everything it created. Exit status = failed checks.
 #
 # Usage (Git Bash or Linux): scripts/tests/caddy/run.sh
@@ -28,7 +29,7 @@ rc=0
 
 # shellcheck disable=SC2329  # invoked by the EXIT trap
 cleanup() {
-  docker rm -f "$ID-stub" "$ID-caddy" "$ID-caddy-admin" >/dev/null 2>&1 || true
+  docker rm -f "$ID-stub" "$ID-caddy" "$ID-caddy-admin" "$ID-caddy-native" >/dev/null 2>&1 || true
   docker network rm "$NET" >/dev/null 2>&1 || true
   docker volume rm "$BASEMAP_VOL" >/dev/null 2>&1 || true
 }
@@ -66,12 +67,16 @@ docker run --rm --memory 64m "${upstream_env[@]}" -v "$CADDYFILE:/etc/caddy/Cadd
 
 start_caddy "$ID-caddy" 0 -v "$BASEMAP_VOL:/srv/basemap:ro"
 start_caddy "$ID-caddy-admin" 1
+# Native mode's root sits below a dot directory (<repo>/.native/data/basemap).
+start_caddy "$ID-caddy-native" 0 -e BASEMAP_ROOT=/srv/.native/data/basemap -v "$BASEMAP_VOL:/srv/.native/data/basemap:ro"
 sleep 1  # stub threads
 
 docker run --rm --network "$NET" --memory 64m -v "$HERE:/t:ro" "$PY_IMAGE" \
   python /t/check_routes.py "$ID-caddy" default || rc=$((rc + $?))
 docker run --rm --network "$NET" --memory 64m -v "$HERE:/t:ro" "$PY_IMAGE" \
   python /t/check_routes.py "$ID-caddy-admin" kc-admin-allowed || rc=$((rc + $?))
+docker run --rm --network "$NET" --memory 64m -v "$HERE:/t:ro" "$PY_IMAGE" \
+  python /t/check_routes.py "$ID-caddy-native" basemap-dotted-root || rc=$((rc + $?))
 
 # Access-log redaction: the probe request (log_probe_sent) must be logged, its secrets not.
 logs="$(docker logs "$ID-caddy" 2>&1)"

@@ -90,27 +90,31 @@
  * MapLibre controls of the network map on tokens (docs/contracts/127-m8-basemap.md): the
  * attribution stays expanded, opaque and ≥ 4.5:1 (fg-muted on surface) over any base map, in
  * both themes; zoom buttons follow the surface / border tokens and show the app's focus ring.
+ * Scoped to `[data-map-canvas]` (one more attribute than MapLibre's own selectors):
+ * maplibre-gl.css loads later, with the lazy MapCanvas chunk, and would win every tie
+ * (tests/maplibre-controls-css.test.ts).
  */
-.maplibregl-ctrl.maplibregl-ctrl-attrib {
+[data-map-canvas] .maplibregl-ctrl.maplibregl-ctrl-attrib {
   background: var(--k-surface);
   color: var(--k-fg-muted);
 }
-.maplibregl-ctrl-attrib a {
+[data-map-canvas] .maplibregl-ctrl-attrib a {
   color: var(--k-fg-muted);
   text-decoration: underline;
 }
-.maplibregl-ctrl-group:not(:empty) {
+[data-map-canvas] .maplibregl-ctrl-group:not(:empty) {
   background: var(--k-surface);
   box-shadow: 0 0 0 1px var(--k-border);
 }
-.maplibregl-ctrl-group button + button {
+[data-map-canvas] .maplibregl-ctrl-group button + button {
   border-top-color: var(--k-border);
 }
-[data-theme="dark"] .maplibregl-ctrl-group .maplibregl-ctrl-icon {
+[data-theme="dark"] [data-map-canvas] .maplibregl-ctrl-group .maplibregl-ctrl-icon {
   filter: invert(1);
 }
-.maplibregl-ctrl button:focus-visible,
-.maplibregl-ctrl-attrib a:focus-visible {
+[data-map-canvas] .maplibregl-ctrl button:focus-visible,
+[data-map-canvas] .maplibregl-ctrl-group button:focus:focus-visible,
+[data-map-canvas] .maplibregl-ctrl-attrib a:focus-visible {
   outline: 2px solid var(--k-focus);
   outline-offset: 1px;
   box-shadow: none;

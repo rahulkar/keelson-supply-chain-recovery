@@ -551,6 +551,9 @@ def test_basemap_dry_run_uploads_manifest_last(fakebin: tuple[Path, Path], fake_
     assert manifest and "--cache-control=no-cache" in manifest.group(0)
     for prefix in ("v4", "fonts", "sprites", "LICENSES"):
         assert pos(f"{bucket}/basemap/{prefix} ") < manifest.start(), prefix
+    # only glyph ranges are typed as protobuf: fonts/OFL.txt (the copy in LICENSES/ is served) stays out
+    fonts = re.search(rf"^\+ gcloud storage rsync \S+/fonts {bucket}/basemap/fonts .*$", out, re.M)
+    assert fonts and "--content-type=application/x-protobuf" in fonts.group(0) and r"\.txt" in fonts.group(0)
     prune = re.search(rf"^\+ gcloud storage rsync \S+/v4 {bucket}/basemap/v4 .*--delete-unmatched-destination-objects.*$", out, re.M)
     assert prune and prune.start() > manifest.start()  # old archives go only after the new manifest
     bb = re.search(r"^\+ gcloud compute backend-buckets create keelson-basemap-bb .*$", out, re.M)

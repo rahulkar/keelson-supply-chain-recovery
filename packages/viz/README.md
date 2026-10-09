@@ -112,7 +112,7 @@ per page, HTTP Range on our origin), glyphs and sprite from the manifest's direc
 attribution (never the archive's or the manifest's); max zoom = archive max + 5. **Offline** — the
 committed Natural Earth 1:110m land (`src/map/assets/ne-110m-land.json`, ~76 KB, public domain,
 `scripts/basemap/build-land-fallback.mjs`) as inline GeoJSON, max zoom 8. MapLibre controls are
-themed on tokens in `styles.css` (opaque attribution, `fg-muted` on `surface`).
+themed on tokens in `styles.css` (opaque attribution, `fg-muted` on `surface`; scoped to `[data-map-canvas]` so they out-rank the later-loaded `maplibre-gl.css`).
 
 **Decided cards (M2, 70 §6).** `BlockRenderer` takes `decision?: BlockDecision`
 (`{status?: "decided" | "recorded" | "closed", decision?, by?: string | string[], at?}`): on
@@ -219,7 +219,7 @@ chain table, manifest schema (path safety, version, strictness) against the fixt
 `scripts/basemap` (`tests/fixtures/basemap-manifest.json`), loader (timeout, cache, redirect /
 credentials options, 404 / 204 / HTML / invalid → none), pinned style hash per theme, same-origin
 URLs, installed fonts only, token-only flavour, WCAG contrast of labels / land / water / overlay,
-the outline's size and precision, pmtiles registration, the block's notices per kind, settings
+the outline's size and precision, pmtiles registration, control CSS specificity vs `maplibre-gl.css`, the block's notices per kind, settings
 provider. `tests/setup.ts` answers every un-stubbed `fetch` with 404 (no test reaches the network).
 
 ## M5 (docs/contracts/95)

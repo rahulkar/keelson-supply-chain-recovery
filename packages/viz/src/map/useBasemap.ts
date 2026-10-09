@@ -22,7 +22,7 @@ export type BasemapState = {
 type Resolved = { key: string; installed: InstalledBasemap | null };
 
 /**
- * The base map fallback chain of one map (docs/contracts/127-m8-basemap.md §3). Resolves the
+ * The base map fallback chain of one map (docs/contracts/127-m8-basemap.md §2.1). Resolves the
  * manifest only for `auto` / `protomaps` and only when `enabled` (a map will actually be drawn);
  * each `fail(kind)` steps to the next kind; `plain` is final.
  */

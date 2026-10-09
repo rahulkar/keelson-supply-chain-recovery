@@ -1,5 +1,5 @@
 /**
- * The self-hosted Protomaps style (docs/contracts/127-m8-basemap.md §4): `@protomaps/basemaps`
+ * The self-hosted Protomaps style (docs/contracts/127-m8-basemap.md §2.3): `@protomaps/basemaps`
  * layers for tiles v4 with a Keelson flavour from tokens, every URL under the manifest's own
  * directory (archive via `pmtiles://`, glyphs, sprite), POI and house-number layers removed (calm
  * map; the overlay is the hero). Imported only by the lazy MapCanvas chunk.

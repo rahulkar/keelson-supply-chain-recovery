@@ -116,6 +116,12 @@ http://keelson.localhost {
 			not file
 		}
 		respond @no_manifest 204
+		# Dotfiles / dot directories (the fetch tool's .staging-*, temp files) are never served.
+		# Matched on the (decoded, cleaned) request path, not with `file_server { hide .* }`: hide
+		# compares every component of the absolute file path, so a root below a dot directory
+		# (native mode: .native/data/basemap) would hide the whole base map.
+		@hidden path_regexp /\.
+		respond @hidden 404
 		encode {
 			zstd
 			gzip
@@ -124,9 +130,7 @@ http://keelson.localhost {
 				header Content-Type application/x-protobuf*
 			}
 		}
-		file_server {
-			hide .*
-		}
+		file_server
 	}
 
 	handle {

@@ -179,8 +179,10 @@ the volume out for the Cloud Run upload).
 ### 2.6 Serving
 
 **Caddy** (`http://keelson.localhost`, between `/api` and the catch-all): `handle_path /basemap/*`,
-`root {$BASEMAP_ROOT:/srv/basemap}`, `file_server` with `hide .*` (no listing, staging and other
-dotfiles never served, paths cleaned):
+`root {$BASEMAP_ROOT:/srv/basemap}`, `file_server` (no listing, paths cleaned); any request path
+with a segment starting with `.` (staging directories, temp files; also percent-encoded) answers 404
+via a `path_regexp` matcher. Not `file_server { hide .* }`: `hide` compares every component of the
+absolute file path, so a root below a dot directory (native mode) would hide the whole base map.
 
 | Response | Headers |
 |---|---|
@@ -191,7 +193,8 @@ dotfiles never served, paths cleaned):
 
 Dot segments (also percent-encoded) are cleaned before matching, so such requests leave `/basemap/*`
 and are ordinary page requests for keelson-web — never a file outside the root (route test). The
-volume is mounted read-only on Caddy. Native mode sets `BASEMAP_ROOT=.native/data/basemap`.
+volume is mounted read-only on Caddy. Native mode sets `BASEMAP_ROOT=.native/data/basemap` (the
+route test also runs every base map check against a root below a dot directory).
 
 **Web app**: `/basemap/` is excluded from the session proxy; `src/app/basemap/manifest.json/route.ts`
 answers **204** when no Caddy / bucket route serves the base map (Cloud Run without the bucket), so
@@ -200,7 +203,7 @@ answers **204** when no Caddy / bucket route serves the base map (Cloud Run with
 
 **Cloud Run** (`--enable-basemap --basemap-dir DIR`): bucket `<project>-keelson-basemap` (region,
 uniform access, public access prevention off, `allUsers` `roles/storage.objectViewer` — it holds only
-OSM-derived tiles, fonts and sprites), `gcloud storage rsync` of `v4/` (immutable), `fonts/`,
+OSM-derived tiles, fonts and sprites), `gcloud storage rsync` of `v4/` (immutable), `fonts/` (glyph ranges only, `application/x-protobuf`),
 `sprites/`, `LICENSES/` (1 day), then `manifest.json` (`no-cache`), then a pruning rsync of `v4/`;
 backend bucket `keelson-basemap-bb` (`--enable-cdn --cache-mode=USE_ORIGIN_HEADERS`, custom response
 headers `nosniff` + CORP `same-origin`); URL-map rule `keelson.<domain>/basemap/*` →
@@ -269,7 +272,9 @@ unchanged).
   the manifest's own directory; the manifest fetch refuses redirects and sends no credentials beyond
   same-origin. Tile label text is drawn by MapLibre to canvas (no HTML).
 - Egress / SSRF: the fetch runs only on explicit operator action, non-root, on the `edge` network,
-  through Squid, with a 4-host allowlist and re-checked redirects. Integrity: git-blob-SHA-1 of
+  through Squid, with a 4-host allowlist and re-checked redirects (Node requests; go-pmtiles reads
+  the allowlisted archive URL itself and follows HTTPS redirects on its own, still only through
+  Squid). Integrity: git-blob-SHA-1 of
   every asset at pinned commits, `pmtiles verify` + header checks of the archive, sha256 in the
   manifest (re-verified by `--check`), pinned sha256 of the Natural Earth source.
 - Serving: read-only volume, no listing, dotfiles hidden, path cleaning, `nosniff`, CORP
@@ -284,7 +289,9 @@ unchanged).
 
 The MapLibre attribution stays expanded (`compact: false`), keyboard reachable, opaque `surface` with
 `fg-muted` text and underlined links (≥ 4.5:1 in both themes); zoom buttons use surface / border
-tokens, the icons are inverted in dark, focus rings use `--k-focus`. The base map is decorative; the
+tokens, the icons are inverted in dark, focus rings use `--k-focus`. These rules are scoped to
+`[data-map-canvas]` so they out-rank `maplibre-gl.css`, which loads later with the lazy map chunk
+and would otherwise win every equally specific rule (`tests/maplibre-controls-css.test.ts`). The base map is decorative; the
 data stays in "View as table" and the region's `aria-label`. Reduced motion keeps `fadeDuration` 0.
 Licences: map data © OpenStreetMap contributors (ODbL; credit "Protomaps © OpenStreetMap" whenever the
 tiles are drawn), Noto Sans glyphs (SIL OFL 1.1), sprites derived from tangrams/icons (MIT), outline
@@ -295,10 +302,10 @@ Software: `pmtiles` 4.5.0 and `@protomaps/basemaps` 5.7.2 (BSD-3-Clause), go-pmt
 
 | Suite | Command | Result |
 |---|---|---|
-| viz (vitest) | `m8-js.sh … 'pnpm --filter @keelson/viz typecheck && pnpm --filter @keelson/viz test'` | 13 files, 324 tests passed (new: `basemap`, `protomaps-style`, `networkmap-basemap`, extended `mapcanvas`) |
+| viz (vitest) | `m8-js.sh … 'pnpm --filter @keelson/viz typecheck && pnpm --filter @keelson/viz test'` | 14 files, 333 tests passed (new: `basemap`, `protomaps-style`, `networkmap-basemap`, `maplibre-controls-css`, extended `mapcanvas`) |
 | web (vitest + typecheck + lint) | `m8-js.sh … 'pnpm --filter @keelson/web typecheck && … lint && … test'` | 35 files, 492 tests passed (new: `lib/server/basemap`, manifest route; extended `next-config`, `proxy`) |
 | fetch tool (node --test) | `docker run … m8-node node --test "scripts/basemap/tests/*.test.mjs"` and `docker build -f infra/basemap/Dockerfile --target test .` | 34 tests passed (both) |
-| Caddy routes | `scripts/tests/caddy/run.sh` | all passed (new: byte ranges, headers, hidden / traversal, 204 when not installed) |
+| Caddy routes | `scripts/tests/caddy/run.sh` | all passed (new: byte ranges, headers, hidden / traversal, 204 when not installed; the same base map checks on a root below a dot directory, as in native mode) |
 | Cloud Run | `scripts/cloudrun/tests/run.sh` parts shellcheck + pytest | shellcheck clean; pytest 82 passed, 3 failed — the same 3 fail on the M8 base commit (see Known issues) |
 | e2e | `e2e/playwright/tests/m8-basemap.spec.ts` | type-checked (`tsc --noEmit`); run by the integrator on the full stack |
 

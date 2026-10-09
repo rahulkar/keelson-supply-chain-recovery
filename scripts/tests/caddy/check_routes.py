@@ -269,7 +269,9 @@ BASEMAP_NOT_SERVED = [
     "/basemap/",
     "/basemap/v4/",
     "/basemap/.staging-1-2/partial.pmtiles",
+    "/basemap/%2estaging-1-2/partial.pmtiles",
     "/basemap/.hidden.json",
+    "/basemap/v4/.keelson-partial.pmtiles",
     "/basemap/missing.json",
     "/basemap//etc/passwd",
 ]
@@ -329,6 +331,13 @@ def main() -> int:
     if MODE == "kc-admin-allowed":
         check("kc_admin_allowed_when_DEV_ALLOW_KC_ADMIN_1", kc_admin_allowed)
         check("basemap_not_installed", basemap_not_installed)
+        return failures
+    if MODE == "basemap-dotted-root":
+        # Native mode serves BASEMAP_ROOT=<repo>/.native/data/basemap: a dot directory above the
+        # root must not hide the base map (only dotfiles inside it are hidden).
+        check("basemap_dotted_root_byte_ranges", basemap_range)
+        check("basemap_dotted_root_files_headers", basemap_files)
+        check("basemap_dotted_root_hidden_and_no_traversal", basemap_hidden)
         return failures
     check("routes", routes)
     check("forwarded_headers_and_security_headers", forwarded_headers)

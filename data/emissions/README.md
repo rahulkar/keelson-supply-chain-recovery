@@ -25,8 +25,13 @@ hub).
   values (well-to-wheel). <https://www.smartfreightcentre.org/en/our-programs/emissions-accounting/global-logistics-emissions-council/>
 - Retrieved 2026-10-08 from secondary summaries of the framework; **the factors were not checked against
   the official tables**, so the set is `verified: false` and every screen labels the CO₂e figures
-  *indicative*. To verify: copy the exact default intensities of the cited tables, set `verified: true`
-  and record the table numbers in `source.table`.
+  *indicative*. A second attempt (2026-10-10) found the official default-value spreadsheet available
+  only on request from Smart Freight Centre and the public excerpts image-only; the secondary sources
+  consulted agree with the magnitudes above (generic sea 8–20, long-haul air ≈ 790, road ≈ 100, diesel
+  rail ≈ 31 g CO₂e/tkm WTW). Note that GLEC v3.2 (October 2025) updated several defaults and renumbered
+  tables, so pin the edition when verifying.
+- To verify: copy the exact default intensities of the cited tables, set `verified: true` and record
+  the edition and table numbers in `source.table` (the screens then drop the "indicative" label).
 
 ## Scope
 

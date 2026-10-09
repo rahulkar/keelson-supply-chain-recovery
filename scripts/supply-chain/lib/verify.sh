@@ -23,7 +23,7 @@ SC_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SC_REPO_ROOT="$(cd "$SC_LIB_DIR/../../.." && pwd)"
 SC_SIGNING_KEYS=(SIGNER_MODE SIGNER_OIDC_ISSUER SIGNER_IDENTITY_REGEXP SIGNER_REPOSITORY SIGNER_TRIGGER SIGNER_KEY
   RELEASE_REGISTRY REQUIRE_PROVENANCE COSIGN_IMAGE)
-SC_REF_RE='^[a-z0-9]([a-z0-9.-]*[a-z0-9])?(:[0-9]+)?(/[a-z0-9]([a-z0-9._-]*[a-z0-9])?)+(:[A-Za-z0-9_][A-Za-z0-9._-]{0,127})?@sha256:[a-f0-9]{64}$'
+SC_REF_RE='^[a-z0-9]([a-z0-9._-]*[a-z0-9])?(:[0-9]+)?(/[a-z0-9]([a-z0-9._-]*[a-z0-9])?)*(:[A-Za-z0-9_][A-Za-z0-9._-]{0,127})?@sha256:[a-f0-9]{64}$'
 # Release keys of the domain overlays (images.json domain_overlay: true; checked by the tests): their
 # signatures carry the public domain they were built for (annotation domain=<RELEASE_DOMAIN>).
 SC_DOMAIN_OVERLAYS=(ENGINE_CLOUDRUN KC_CONFIG_CLOUDRUN)

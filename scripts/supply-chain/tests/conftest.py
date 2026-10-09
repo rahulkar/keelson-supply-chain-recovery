@@ -78,6 +78,25 @@ GOOD_TREE: dict[str, str] = {
 }
 
 
+FAKE_COSIGN = r"""#!/bin/sh
+# Records argv (one call per line); fails when an argument contains $FAKE_COSIGN_FAIL.
+echo "$*" >> "$FAKE_COSIGN_LOG"
+if [ -n "${FAKE_COSIGN_FAIL:-}" ]; then
+  for a; do case "$a" in *"$FAKE_COSIGN_FAIL"*) echo "Error: no matching signatures: fake" >&2; exit 1 ;; esac; done
+fi
+exit 0
+"""
+
+
+def fake_cosign(d: Path) -> tuple[Path, Path]:
+    """A cosign stand-in: returns (binary, log of calls)."""
+    d.mkdir(parents=True, exist_ok=True)
+    binary, log = d / "cosign", d / "cosign.log"
+    binary.write_text(FAKE_COSIGN, encoding="utf-8")
+    binary.chmod(0o755)
+    return binary, log
+
+
 def write_tree(root: Path, files: dict[str, str]) -> Path:
     for rel, text in files.items():
         p = root / rel

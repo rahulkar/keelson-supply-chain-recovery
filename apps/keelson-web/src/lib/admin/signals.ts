@@ -32,6 +32,9 @@ export const signalSourceSchema = z
     /** The hub's default and the cadence it actually polls at (the fastest subscriber wins). */
     default_cadence_s: z.number().int().positive().nullable().optional(),
     effective_cadence_s: z.number().int().positive().nullable().optional(),
+    /** The source's own cadence limits (M8): the editor offers only cadences inside them. */
+    min_cadence_s: z.number().int().positive().nullable().optional(),
+    max_cadence_s: z.number().int().positive().nullable().optional(),
     licence: z.string().nullable().optional(),
     license: z.string().nullable().optional(),
     attribution: z.string().nullable().optional(),
@@ -110,10 +113,19 @@ export function cadenceLabel(seconds: number | null | undefined): string {
   return `every ${seconds} s`;
 }
 
-/** Select options for one source: "" = the source's default, then the allowed cadences. */
-export function cadenceOptions(s: Pick<SignalSource, "cadence_s" | "default_cadence_s">): { value: string; label: string }[] {
+/**
+ * Select options for one source: "" = the source's default, then the allowed cadences — only those
+ * inside the source's own limits when the hub reports them (`min_cadence_s` / `max_cadence_s`, M8;
+ * the hub would clamp any other wish). A stored value is always offered, so the select can show it.
+ */
+export function cadenceOptions(
+  s: Pick<SignalSource, "cadence_s" | "default_cadence_s"> & Partial<Pick<SignalSource, "min_cadence_s" | "max_cadence_s">>,
+): { value: string; label: string }[] {
   const def = s.default_cadence_s ? `Default (${cadenceLabel(s.default_cadence_s)})` : "Default";
-  const values = new Set(CADENCE_CHOICES);
+  const lo = s.min_cadence_s ?? CADENCE_RANGE.min;
+  const hi = s.max_cadence_s ?? CADENCE_RANGE.max;
+  const inLimits = CADENCE_CHOICES.filter((v) => v >= lo && v <= hi);
+  const values = new Set(inLimits.length > 0 ? inLimits : CADENCE_CHOICES);
   if (s.cadence_s && s.cadence_s >= CADENCE_RANGE.min && s.cadence_s <= CADENCE_RANGE.max) values.add(s.cadence_s);
   return [{ value: "", label: def }, ...[...values].sort((a, b) => a - b).map((v) => ({ value: String(v), label: cadenceLabel(v) }))];
 }

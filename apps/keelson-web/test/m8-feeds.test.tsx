@@ -8,7 +8,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SignalsPage } from "@/components/admin/SignalsPage";
-import { provenanceLabel, safeTermsUrl, signalSourceListSchema, sourceSwitchNote } from "@/lib/admin/signals";
+import { cadenceOptions, provenanceLabel, safeTermsUrl, signalSourceListSchema, sourceSwitchNote } from "@/lib/admin/signals";
 import { expectNoA11yViolations } from "./a11y";
 import * as F from "./fixtures/m8-feeds";
 import { fakeApi, jsonResponse, makeMe, withSession, type Route } from "./session";
@@ -84,6 +84,16 @@ describe("signal feeds (lib)", () => {
       expect(safeTermsUrl(bad)).toBeNull();
     }
   });
+
+  it("cadence choices stay inside the source's own limits; a stored value is still offered", () => {
+    const labels = (s: Parameters<typeof cadenceOptions>[0]) => cadenceOptions(s).map((o) => o.label);
+    const ofac = labels({ cadence_s: null, default_cadence_s: 3600, min_cadence_s: 1800, max_cadence_s: 86_400 });
+    expect(ofac[0]).toBe("Default (every 1 h)");
+    expect(ofac.slice(1)).toEqual(["every 30 min", "every 1 h", "every 6 h", "every 12 h", "every 24 h"]);
+    expect(labels({ cadence_s: 900, default_cadence_s: 3600, min_cadence_s: 1800, max_cadence_s: 86_400 })).toContain("every 15 min");
+    // no limits reported (an older engine or hub): every choice, as in M7
+    expect(labels({ cadence_s: null, default_cadence_s: 900 })).toContain("every 1 min");
+  });
 });
 
 describe("Sources table (M8)", () => {
@@ -102,6 +112,8 @@ describe("Sources table (M8)", () => {
     expect(terms).toHaveAttribute("rel", "noopener noreferrer");
     const ofac = row(table, /OFAC SDN list/);
     expect(within(ofac).getByText("Regulatory")).toBeInTheDocument();
+    const ofacCadences = [...within(ofac).getByLabelText("Polling cadence of U.S. Treasury OFAC SDN list").querySelectorAll("option")];
+    expect(ofacCadences.slice(1).map((o) => Number(o.getAttribute("value")))).toEqual([1800, 3600, 21_600, 43_200, 86_400]);
     expect(ofac).toHaveTextContent("not a sanctions-screening service");
     const gdelt = row(table, /GDELT Project/);
     expect(within(gdelt).getByText("Inference · low authority")).toBeInTheDocument();

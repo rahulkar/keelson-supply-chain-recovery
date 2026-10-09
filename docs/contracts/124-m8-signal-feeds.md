@@ -236,6 +236,8 @@ event absorbs them. Deployment **and** tenant opt-in.
   `safeTermsUrl`, never `javascript:`), the switch disabled with "Not enabled on this installation
   (platform admin: SIGNAL_ADAPTERS)" when `polled` is false, "Starts polling when a workspace
   subscribes" under an unsubscribed opt-in source, whose cadence select waits for the subscription.
+  The cadence select offers only the choices inside the source's own `min_cadence_s` /
+  `max_cadence_s` (a stored value is always shown; without reported limits every choice, as in M7).
 
 ## 5. Demo and offline behaviour
 New pack adapters (`PackAdapter`) `nhc`, `copernicus_ems`, `meteoalarm`, `gdelt`; `ofac` is not one on
@@ -370,8 +372,6 @@ of the existing `SIGNAL_ADAPTERS` changes (adds the four default-on M8 adapters)
   layers.
 * The optional Playwright spec `m8-feeds.spec.ts` (Sources rows, Opt-in badge, axe, screenshot); the
   same behaviour is covered by the vitest suite `m8-feeds.test.tsx` (axe included) and the API e2e.
-* Cadence choices filtered by each source's own limits in the web select (the engine now passes
-  `min_cadence_s`/`max_cadence_s`; the hub still clamps out-of-range wishes with a warning).
 
 ## 11. Tests
 * signal-hub offline: `test_m8_parsers.py` (NHC + KMZ, EMS, MeteoAlarm + CAP, OFAC CSV quirks + diff
@@ -395,7 +395,7 @@ of the existing `SIGNAL_ADAPTERS` changes (adds the four default-on M8 adapters)
   default, cadence-only change keeps an opt-in source off, hub-down fallback).
 * web `test/m8-feeds.test.tsx` (schema, badges, attribution, terms link rel/target, `javascript:`
   never rendered, opt-in switch PUTs `{enabled: true}`, not-polled switch disabled, OFAC disclaimer,
-  axe); m7 suite unchanged.
+  cadence choices inside the source's limits, axe); m7 suite unchanged.
 * e2e `e2e/api_m8_feeds_offline.py` (written, compiled; run by the integrator on the full stack).
 
 ## 12. Known issues

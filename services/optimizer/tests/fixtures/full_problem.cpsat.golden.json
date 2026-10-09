@@ -102,7 +102,7 @@
   ],
   "net_benefit_cents": 27356798,
   "resequence": "FL-VN01-A:cpsat_v2_feasible",
-  "response_sha256": "c07269ac9d1c9c3600cef55d3a9931c6559dc1669f5442eaf9af772581209c15",
+  "response_sha256": "dad261b4b5a23db73ef2611a608c639bb40a4f7e23a0943708c36e08b24604e9",
   "solver": "GLOP+priority-split",
   "stages": [
    [
@@ -165,13 +165,6 @@
     "lp_phase2:no_resequence",
     "OPTIMAL",
     true,
-    null,
-    null
-   ],
-   [
-    "lp_phase2:cpsat",
-    "OPTIMAL",
-    false,
     null,
     null
    ],
@@ -321,7 +314,7 @@
   ],
   "net_benefit_cents": 19379566,
   "resequence": null,
-  "response_sha256": "f63c9398e69520391baf861f15a1f68e368617d34a373c7136c56fc872133e84",
+  "response_sha256": "904b5b422e2f085ade6bcd9a090e8b9bc3f43abf1f25e461a5c5b8041ad87d9b",
   "solver": "GLOP+priority-split",
   "stages": [
    [
@@ -363,13 +356,6 @@
     "lp_phase2",
     "OPTIMAL",
     true,
-    null,
-    null
-   ],
-   [
-    "lp_phase2:cpsat",
-    "OPTIMAL",
-    false,
     null,
     null
    ],

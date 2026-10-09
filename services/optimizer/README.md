@@ -278,9 +278,10 @@ above, byte for byte (same responses, goldens and `inputs_hash`); `"cpsat"` adds
   basis, cases, group capacity, orders per source, buys per line - with the phase-1 LP objective on
   the touched DC × SKU pairs (transfers fixed) in exact integers (× 40 000, `composed.OBJ_SCALE`).
   The repair is the complete hint and its objective the acceptance bound. Its units are used only
-  when the simulator agrees twice: on the pairs either decision set touches (phase-1 transfers),
-  then on the whole plan after both completions (phase 2 with the CP-SAT buys *and* splits fixed vs
-  the repair's own phase 2, both with `prioritize_allocation` applied on copies). Otherwise the
+  when the simulator agrees: on the pairs either decision set touches (phase-1 transfers), then on
+  the whole plan against the repair's own phase 2 (both with `prioritize_allocation` applied on
+  copies) - first with the CP-SAT units on the repair completion's transfers (no LP solve; a loss
+  ends the stage), then with their own phase 2 (CP-SAT buys *and* splits fixed). Otherwise the
   repair plan is returned unchanged; `solver.params.integer_method` = `cpsat_optimal` /
   `cpsat_feasible` / `lp_rounding` (+ `integer_gap_bp`, `integer_fallback`). Technical fallbacks
   (`model_too_large`, `objective_overflow`, `time_limit_no_solution`, `infeasible`,

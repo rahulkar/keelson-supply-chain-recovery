@@ -22,7 +22,7 @@ Steps:
    * ``cpsat`` responses carry stages with the planning seed and one CP-SAT worker, and the integer
      stage's method / fallback in the params;
    * a second ``cpsat`` call is identical except ``solver.solve_ms``;
-   * each call within the time budget (``repair`` 5 s, ``cpsat`` 8 s: up to three more LP solves
+   * each call within the time budget (``repair`` 5 s, ``cpsat`` 8 s: up to two more LP solves
      and 0.6 deterministic CP-SAT seconds).
 
 Exit 0 pass, 1 expectation failed (``FAIL:`` line), 2 environment missing.

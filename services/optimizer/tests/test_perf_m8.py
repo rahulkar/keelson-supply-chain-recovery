@@ -1,6 +1,6 @@
 """Spike S4 budgets for ``integer_stage="cpsat"`` (M8): the full profile with every lever, the
 planner's worst case (resequence moves PO lines, so the LP levers are solved and completed with
-and without it) and a 400-order line. ``cpsat`` is opt-in and runs up to three more GLOP solves
+and without it) and a 400-order line. ``cpsat`` is opt-in and runs up to two more GLOP solves
 plus up to 0.6 deterministic CP-SAT seconds per request, so its budget is 8 s (``repair`` keeps
 the 5 s of S4, ``tests/test_perf.py``); the deterministic CP-SAT time per stage is printed for
 the README's det/wall calibration."""

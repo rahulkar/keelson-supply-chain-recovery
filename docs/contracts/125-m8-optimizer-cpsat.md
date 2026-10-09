@@ -130,11 +130,14 @@ budget use enter as constants):
 2. Its units differ from the repair's and its objective is ≤ `H` (else `no_improvement`).
 3. On the pairs either set touches, with the phase-1 transfers, its weighted net is ≥ the repair's
    (`simulator_not_better` when lower; equal and not a lower objective → `no_improvement`).
-4. **Completion:** phase 2 with the CP-SAT buys **and** splits fixed (`Fixed.exp`: only those split
-   variables exist, `lb = ub = q`; only the transfers are re-optimised) against the repair's own
-   phase 2; both compared after `prioritize_allocation` ran on copies, on the pairs either touches
-   (`planner._lookahead`). The CP-SAT completion is used only when strictly better; a phase 2 that
-   does not reproduce the fixed units → `solver_error`.
+4. **Screen:** the CP-SAT units on the transfers of the repair's own phase 2 (feasible for any buys
+   and splits: transfers are reserved at the source) against that repair completion, both after
+   `prioritize_allocation` ran on copies, on the pairs either touches (`planner._lookahead`); not
+   strictly better → `simulator_not_better` / `no_improvement` without another LP solve.
+5. **Completion:** phase 2 with the CP-SAT buys **and** splits fixed (`Fixed.exp`: only those split
+   variables exist, `lb = ub = q`; only the transfers are re-optimised) against the repair
+   completion, compared the same way. The CP-SAT completion is used only when strictly better; a
+   phase 2 that does not reproduce the fixed units → `solver_error`.
 
 Otherwise the repair plan is returned exactly as in `repair` mode. Exceptions inside the stage are
 logged and become `solver_error`. Technical fallbacks add the warning `resource_alt_supplier:
@@ -264,7 +267,8 @@ equal (the D integer stage is rejected by the simulator guard). Resequence only,
 **Deviations from 120 / the brief**
 
 1. *Budget:* the brief asked for < 5 s in `cpsat` mode for the full profile. The `cpsat` path runs
-   up to three more GLOP solves in compare mode (both completions + the CP-SAT completion) and up to
+   up to two more GLOP solves (compare mode: the second repair completion; the CP-SAT completion when
+   the screen passes) and up to
    0.6 deterministic CP-SAT seconds (5–8× in wall time). Measured on the shared 6-CPU test host at
    load 6–9 (2026-10-09): 3.9 s (BD), 4.8 s (VN), 6.0 s (BD+VN), 6.7 s over HTTP, against 1.9 / 2.5
    / 4.0 s for `repair` in the same run (the unchanged M7 perf tests themselves exceeded 5 s in one
@@ -274,8 +278,10 @@ equal (the D integer stage is rejected by the simulator guard). Resequence only,
    phase-1 plans: with the phase-1 decision the `cpsat` D options ended below `repair`
    (VN 7.56 M vs 7.98 M, BD+VN 26.94 M vs 27.36 M).
 3. *Whole-plan completion check*: the brief accepted CP-SAT units after the partial simulator
-   check; this also compares the two phase-2 completions (one more GLOP solve) so the integer stage
-   is never worse than the repair on the returned plan.
+   check; this also compares against the repair's phase-2 completion - screened without an LP solve
+   (the CP-SAT units on the repair completion's transfers), then with the CP-SAT units' own phase 2
+   (one more GLOP solve, only when the screen passes) - so the integer stage is never worse than the
+   repair on the returned plan.
 4. *Budgets*: integer 0.15 (brief 0.2), request 0.6 (brief "≤ 0.6 per request" for resequencing
    only), resequencing `min(0.15, 0.02 + 0.0007·n)` per line and 0.3 per request (brief
    `min(0.2, 0.03 + 0.001·n)`, 0.6) — calibrated on the full profile; wall guard default 3000 ms

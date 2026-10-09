@@ -44,9 +44,10 @@ M8 (``SolverOptions.integer_stage="cpsat"``, ``docs/contracts/125-m8-optimizer-c
 before phase 2, the whole-unit CP-SAT stage (:mod:`keelson_opt.levers.alt_integer`) re-decides
 the buys and the splits competing for their PO lines over every phase-1 candidate, hinted with
 the repair above. Its units are used only when the simulator agrees: first on the DC x SKU
-pairs either decision set touches (phase-1 transfers), then on the whole plan after both
-completions (phase 2 with the CP-SAT units fixed - buys *and* splits, so only the transfers
-move - against the repair's own phase 2); otherwise the repair plan is kept, byte for byte, and
+pairs either decision set touches (phase-1 transfers), then on the whole plan against the
+repair's own phase 2 - screened with the CP-SAT units on that completion's transfers, then with
+their own phase 2 (the CP-SAT units fixed - buys *and* splits, so only the transfers move);
+otherwise the repair plan is kept, byte for byte, and
 the reason is recorded (``integer_fallback``, ``SolverInfo.stages``). In compare mode it runs
 once, for the winning phase-1 plan. The resequence uses its CP-SAT v2 per line
 (:mod:`keelson_opt.levers.resequence_cpsat`). ``integer_stage="repair"`` (the default) is the M7
@@ -619,10 +620,20 @@ def _complete(
     transfers move) and the repair's own phase 2 (``done`` when compare mode computed it
     already) - compared through :func:`_lookahead`; the better one is written into ``plan`` /
     ``lp`` (``None`` = the CP-SAT completion, else why the repair completion was kept, exactly
-    as in ``repair`` mode)."""
+    as in ``repair`` mode). A screen first puts the CP-SAT units on the repair completion's
+    transfers (feasible for any buys and splits: transfers are reserved at the source) and skips
+    the second LP solve when that already loses to the repair completion."""
     out = lp.out
     assert out is not None
     repaired = done or _repair_completion(scn, lp_levers, spec, options, plan, lp, cp, "lp_phase2")
+    screen = repaired.plan.without("")
+    screen.alt = [_alt(out.alt_cands[k], q) for k, q in sorted(res.alt.items())]
+    screen.expedites = [_expedite(out.exp_cands[k], q) for k, q in sorted(res.exp.items())]
+    net_s, net_r = _lookahead(scn, spec, screen, repaired.plan, cp)
+    if net_s <= net_r:
+        cp.stages.mark(repaired.stage, used=True)
+        _adopt(plan, lp, repaired)
+        return "simulator_not_better" if net_s < net_r else "no_improvement"
     plan_c, lp_c = plan.without(""), replace(lp, params=dict(lp.params), warnings=list(lp.warnings))
     lp_c.alt = [(out.alt_cands[k], q) for k, q in sorted(res.alt.items())]
     fixed = Fixed(alt=dict(res.alt), exp_blocked={k[1] for k in res.alt}, exp=dict(res.exp))

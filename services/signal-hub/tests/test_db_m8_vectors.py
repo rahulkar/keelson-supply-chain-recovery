@@ -16,10 +16,12 @@ import asyncpg
 import httpx
 import pytest
 
-from conftest import T0
-from fakes import FakeLlm, MockLiteLlm, vector_for
+from conftest import T0, make_token, running_app
+from fakes import Clock, FakeLlm, MockLiteLlm, vector_for
 from keelson_contracts.signals import ClusteringConfigUpdate
-from signal_hub import maintenance, vectors
+from signal_hub import maintenance, membership, vectors
+from signal_hub.adapters.connector import ConnectorEvent, parse_connector_event
+from signal_hub.app import build_state, create_app
 from signal_hub.bootstrap import BootstrapError, _ensure_vector, ensure_database
 from signal_hub.clustering_config import load_config, save_config
 from signal_hub.config import Settings
@@ -27,7 +29,7 @@ from signal_hub.db import tx
 from signal_hub.embeddings import cluster_text
 from signal_hub.gazetteer import Gazetteer
 from signal_hub.llm_key import LiteLlmAdmin, provision_signals_key
-from signal_hub.models import NewsItemDraft
+from signal_hub.models import NewsItemDraft, SourceContext
 from signal_hub.pipeline import Pipeline
 from signal_hub.quarantine import backoff
 from test_m7_admin_logic import MemConn
@@ -219,6 +221,8 @@ async def test_profile_change_retires_backfills_and_halfvec(pool: asyncpg.Pool, 
                                      WHERE attrelid = $1::regclass AND attname = 'embedding'""", second.table)
         assert col == "halfvec(2048)"
     assert await vectors.enqueue(pool, second, tenant=None, now=now) == 2  # backfill: the last 14 days only
+    async with tx(pool, None) as conn:  # the retired profile's leftover jobs are not counted as pending
+        assert (await membership.counts(conn, now - dt.timedelta(days=7)))["embeddings_pending"] == 2
     mock = MockLiteLlm()
     key = await _key(mock, wide)
     out = await vectors.process_jobs(pool, _embedder(mock, key, dims=2048), second, tenant=None, now=now)
@@ -228,6 +232,33 @@ async def test_profile_change_retires_backfills_and_halfvec(pool: asyncpg.Pool, 
         c_ev = str(await conn.fetchval("SELECT event_id FROM signal WHERE native_key = 'c-1'"))
         sim = await vectors.centroid_similarity_bp(conn, second, a_ev, c_ev, tenant=None)
     assert sim is not None and 0 <= sim <= 10_000  # avg(halfvec) + cosine distance work on halfvec
+
+
+async def test_status_route_counts_pending_jobs_in_the_token_tenants_scope(pool: asyncpg.Pool, gaz: Gazetteer,
+                                                                           settings: Settings) -> None:
+    """``GET /v1/clustering``: the remote profile's pending jobs and the counts agree (global + own)."""
+    tenant = "demo-retail"
+    s = _settings(settings, litellm_key="sk-virtual-x")
+    pipe = Pipeline(pool, gaz)
+    drafts, _ = parse_connector_event(ConnectorEvent.model_validate({
+        "type": "lane.capacity_changed", "id": "e9", "data": {"lane_code": "CGP-FXT-SEA", "factor_bp": 2500, "origin": "BDCGP"}}),
+        SourceContext(retrieved_at=T0, tenant=tenant))
+    await pipe.ensure_tenant(tenant)
+    await pipe.ingest(drafts, now=T0)
+    async with pool.acquire() as conn:
+        profile = await vectors.ensure_profile(conn, s, now=T0)
+    assert profile is not None
+    assert await vectors.enqueue(pool, profile, tenant=tenant, now=T0) == 1
+    state = build_state(s, pool, llm=None, clock=Clock(T0 + H), internal_client=httpx.AsyncClient())
+    app = create_app(s, state=state, background=False)
+    async with running_app(app), httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://hub") as c:
+        mine = (await c.get("/v1/clustering", headers={"Authorization": f"Bearer {make_token(tenant)}"})).json()
+        theirs = (await c.get("/v1/clustering", headers={"Authorization": f"Bearer {make_token('other-co')}"})).json()
+    for client in state.clients:
+        await client.aclose()
+    assert mine["vector_backend"]["remote"]["pending"] == mine["counts"]["embeddings_pending"] == 1
+    assert mine["vector_backend"]["remote"]["status"] == "backfilling"
+    assert theirs["vector_backend"]["remote"]["pending"] == theirs["counts"]["embeddings_pending"] == 0
 
 
 async def test_status_reasons_and_local_clustering_without_pgvector(pool: asyncpg.Pool, gaz: Gazetteer, settings: Settings,

@@ -1429,12 +1429,14 @@ def check_expected(pack_dir: Path, data: dict[str, Any], hub: dict[str, Any], mo
             refs = sorted({r for s in sims for r in s.draft.location_refs})
             # clustering (v1 + v2): every member, in arrival order, is placed by the hub's own decide()
             # against the event formed by the members before it
-            methods = _member_methods(sims, hub, mods, ew, rep)
+            copies: set[str] = set()
+            methods = _member_methods(sims, hub, mods, ew, rep, copies)
             want_methods = ev.get("memberships")
             if want_methods is not None and {str(k): str(v) for k, v in dict(want_methods).items()} != methods:
                 rep.error(ew, f"memberships: expected {dict(want_methods)}, replay gives {methods}")
-            member_keys = {s.key for s in sims}
-            independent = {s.draft.connector_id for s in sims if s.near_dup_of is None or s.near_dup_of not in member_keys}
+            # cluster.aggregate_event: a member joined as a near-duplicate of another member adds no source
+            independent = ({s.draft.connector_id for s in sims if s.key not in copies}
+                           or {s.draft.connector_id for s in sims})
             if "sources" in ev and ev["sources"] != len(independent):
                 rep.error(ew, f"sources: expected {ev['sources']} independent source(s), replay gives "
                               f"{len(independent)} ({sorted(independent)})")
@@ -1499,11 +1501,14 @@ def check_expected(pack_dir: Path, data: dict[str, Any], hub: dict[str, Any], mo
             rep.error(where, f"no checkpoint after step {i} (every ingesting step needs one)")
 
 
-def _local_vector(s: SimSignal, hub: dict[str, Any], gaz: Any) -> dict[str, int]:
+def _terms(s: SimSignal, hub: dict[str, Any], gaz: Any) -> tuple[str, ...]:
     d = s.draft
-    emb = hub["embeddings"]
-    return emb.local_vector(emb.cluster_terms(kind=d.kind, subtype=d.subtype, location_refs=d.location_refs, gaz=gaz,
-                                              mentions=d.mentions, companies=d.companies))
+    return tuple(hub["embeddings"].cluster_terms(kind=d.kind, subtype=d.subtype, location_refs=d.location_refs, gaz=gaz,
+                                                 mentions=d.mentions, companies=d.companies))
+
+
+def _local_vector(s: SimSignal, hub: dict[str, Any], gaz: Any) -> dict[str, int]:
+    return dict(hub["embeddings"].local_vector(_terms(s, hub, gaz)))
 
 
 def _event_candidate(members: list[SimSignal], s: SimSignal | None, hub: dict[str, Any], gaz: Any,
@@ -1533,8 +1538,9 @@ def _event_candidate(members: list[SimSignal], s: SimSignal | None, hub: dict[st
 
 
 def _member_methods(sims: list[SimSignal], hub: dict[str, Any], mods: dict[str, Any], where: str,
-                    rep: Report) -> dict[str, str]:
-    """Each member's membership method, decided by the hub's ``cluster.decide`` in arrival order."""
+                    rep: Report, copies: set[str] | None = None) -> dict[str, str]:
+    """Each member's membership method, decided by the hub's ``cluster.decide`` in arrival order;
+    ``copies`` collects the members joined as near-duplicates (they add no source)."""
     cluster = hub["cluster"]
     cfg = mods["contracts"][0].DEFAULT_CLUSTERING_CONFIG
     gaz = hub["Gazetteer"](GEO_DIR)
@@ -1548,12 +1554,15 @@ def _member_methods(sims: list[SimSignal], hub: dict[str, Any], mods: dict[str, 
             out[s.key] = "anchor" if d.authoritative else "founded"
             before.append(s)
             continue
-        keys = {m.key for m in before}
+        original = next((m for m in before if m.key == s.near_dup_of), None)
+        # Pipeline._decide: a copy that names a place its original does not is not joined as a near-duplicate
+        joins = original is not None and hub["embeddings"].names_no_other_place(_terms(s, hub, gaz),
+                                                                                _terms(original, hub, gaz))
         features = cluster.SignalFeatures(
             kind=d.kind, subtype=d.subtype, connector_id=d.connector_id, authoritative=d.authoritative,
             starts_at=d.starts_at, ends_at=d.ends_at, refs=frozenset(d.location_refs),
-            near_dup_event=event_id if s.near_dup_of in keys else None, near_dup_bits=s.near_dup_bits,
-            duplicate_of="00000000-0000-5000-8000-000000000002" if s.near_dup_of in keys else None)
+            near_dup_event=event_id if joins else None, near_dup_bits=s.near_dup_bits,
+            duplicate_of="00000000-0000-5000-8000-000000000002" if joins else None)
         own = None if d.authoritative else _local_vector(s, hub, gaz)
         event = _event_candidate(before, s, hub, gaz, own, event_id)
         decision = cluster.decide(features, [event], cfg)
@@ -1570,6 +1579,8 @@ def _member_methods(sims: list[SimSignal], hub: dict[str, Any], mods: dict[str, 
                 out[m.key] = "absorbed"
         elif decision.event_id is None:
             rep.error(where, f"member {s.key!r} would not attach (hub decision: {decision.method})")
+        if decision.method == "near_duplicate" and copies is not None:
+            copies.add(s.key)
         out[s.key] = decision.method
         before.append(s)
     return out

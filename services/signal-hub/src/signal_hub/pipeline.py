@@ -195,13 +195,18 @@ class Pipeline:
                                         gaz=self.gaz, mentions=draft.mentions, companies=draft.companies)
 
     async def _decide(self, conn: asyncpg.Connection, sid: str, draft: SignalDraft, cfg: ClusteringConfig) -> Decision:
-        candidates = await self._candidates(conn, sid, draft,
-                                            window_hours=cfg.vector.window_hours if cfg.vector.enabled else 72)
+        terms = self.terms(draft)
         near_event: str | None = None
         if cfg.simhash.enabled and draft.near_duplicate_of is not None:
-            near_event = _s(await conn.fetchval("SELECT event_id FROM signal WHERE id = $1", draft.near_duplicate_of))
+            original = await conn.fetchrow("SELECT event_id, cluster_terms FROM signal WHERE id = $1",
+                                           draft.near_duplicate_of)
+            # a copy naming a place its original does not (resolved or not) is another story
+            if original is not None and embeddings.names_no_other_place(terms, original["cluster_terms"] or ()):
+                near_event = _s(original["event_id"])
+        candidates = await self._candidates(conn, sid, draft, prefer_event=near_event,
+                                            window_hours=cfg.vector.window_hours if cfg.vector.enabled else 72)
         if cfg.vector.enabled and not draft.authoritative and candidates:
-            own = embeddings.local_vector(self.terms(draft))
+            own = embeddings.local_vector(terms)
             members = await membership.member_terms(conn, [c.event_id for c in candidates])
             candidates = [
                 replace(c, similarity_bp=max((embeddings.similarity_bp(own, embeddings.local_vector(t))
@@ -269,13 +274,16 @@ class Pipeline:
         return sid, True, prev_event, version
 
     async def _candidates(self, conn: asyncpg.Connection, sid: str, draft: SignalDraft, *,
-                          window_hours: int = 72) -> list[Candidate]:
-        """Open in-scope events whose window is within ``max(72 h, window_hours)`` of the signal,
-        nearest first (at most :data:`MAX_CANDIDATES`); the v1 rule re-checks its own 72 h."""
+                          window_hours: int = 72, prefer_event: str | None = None) -> list[Candidate]:
+        """Open in-scope events whose window is within ``max(72 h, window_hours)`` of the signal (the
+        v1 rule re-checks its own 72 h), at most :data:`MAX_CANDIDATES`: ``prefer_event`` (a
+        near-duplicate's original event) and the events sharing a location ref with the signal first
+        (v1 ranks a shared ref above any distance), then the nearest, then (no distance on either
+        side) the most recently active."""
         if draft.pack_id is not None:
-            scope_sql, args = "e.tenant = $3 AND e.pack_id = $4", [draft.tenant, draft.pack_id]
+            scope_sql, args = "e.tenant = $4 AND e.pack_id = $5", [draft.tenant, draft.pack_id]
         elif draft.tenant is not None:
-            scope_sql, args = "(e.tenant IS NULL OR e.tenant = $3) AND e.pack_id IS NULL AND NOT e.simulated", [draft.tenant]
+            scope_sql, args = "(e.tenant IS NULL OR e.tenant = $4) AND e.pack_id IS NULL AND NOT e.simulated", [draft.tenant]
         else:
             scope_sql, args = "e.tenant IS NULL AND NOT e.simulated", []
         rows = await conn.fetch(
@@ -294,10 +302,14 @@ class Pipeline:
               AND greatest(coalesce(e.window_end, e.last_observed_at, e.window_start), e.window_start)
                   >= s.starts_at - make_interval(hours => $2)
               AND {scope_sql}
-            ORDER BY distance_km NULLS LAST, e.id
+            ORDER BY coalesce(e.id = $3::uuid, false) DESC,
+                     EXISTS (SELECT 1 FROM signal m WHERE m.event_id = e.id AND m.is_current
+                             AND m.location_refs && s.location_refs) DESC,
+                     distance_km NULLS LAST,
+                     greatest(coalesce(e.window_end, e.last_observed_at, e.window_start), e.window_start) DESC, e.id
             LIMIT {MAX_CANDIDATES}
             """,
-            sid, max(72, window_hours), *args,
+            sid, max(72, window_hours), prefer_event, *args,
         )
         return [
             Candidate(
@@ -655,7 +667,7 @@ class Pipeline:
                         """SELECT id, status, extraction, extracted_by, next_attempt_at, signal_id FROM news_item
                            WHERE id = $1""", item["near_duplicate_of"])
                 original = dict(orow) if orow is not None else None
-                if original is not None and prebaked is None and cfg.simhash.reuse_extraction:
+                if original is not None and prebaked is None and cfg.simhash.enabled and cfg.simhash.reuse_extraction:
                     reuse = neardup.reuse_outcome(text, original, now)
             if isinstance(reuse, neardup.Defer):  # the original is still being extracted: wait for it
                 async with tx(self.pool, tenant) as conn:

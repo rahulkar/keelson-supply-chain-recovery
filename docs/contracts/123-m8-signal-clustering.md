@@ -72,8 +72,11 @@ bad output counted); `flagged` → the copy is flagged `{by: near_duplicate, of}
 
 **Joining.** The copy's draft carries the original's current signal id; `decide()` puts it in the
 original's event (`near_duplicate`) when that event is an open in-scope candidate of a compatible
-kind **and** the copy names no other place (no refs, or a ref shared with the event). The copy's
-`signal.near_duplicate_of` is set only then (and copied to its later versions).
+kind **and** the copy names no other place: every place word (`p:` term) of the copy is one of the
+original signal's (`embeddings.names_no_other_place`, checked in `Pipeline._decide`; this also
+catches a place the gazetteer cannot resolve) and it has no refs or one shared with the event. The
+copy's `signal.near_duplicate_of` is set only then (and copied to its later versions); otherwise it
+clusters by the normal rules and counts as an independent source.
 
 **Corroboration.** `aggregate_event` counts independent sources = connectors of current members that
 are not a near-duplicate of another member of the same event (falls back to all). Status `confirmed`
@@ -127,7 +130,8 @@ similarity_bp, similarity_profile, hamming_bits, duplicate_of}` — the first ru
 
 1. authoritative (GDACS/USGS): the v1 same-hazard rule → `same_hazard` (distance); else it founds → `anchor`;
 2. `simhash.enabled` and the signal is a near-duplicate whose original's event is an open in-scope
-   candidate of a compatible kind, and the signal has no refs or shares one with that event → `near_duplicate`;
+   candidate of a compatible kind, the copy names no place word its original does not (§2), and the
+   signal has no refs or shares one with that event → `near_duplicate`;
 3. the v1 attach rule, unchanged ranking (anchored, most shared strong refs, nearest, id) →
    `attach_ref` (any shared ref; strong refs listed first) else `attach_geo` (distance);
 4. `vector.enabled`: compatible kind, windows overlapping within `vector.window_hours`, similarity >=
@@ -137,8 +141,10 @@ similarity_bp, similarity_profile, hamming_bits, duplicate_of}` — the first ru
    `attach_vector`;
 5. otherwise `founded` (a candidate event).
 
-The candidate SQL now orders by distance and keeps at most 500 events, within `max(72 h,
-vector.window_hours)` (the v1 rule re-checks its own 72 h). `choose_event()` (v1) is unchanged; a
+The candidate SQL keeps at most 500 events within `max(72 h, vector.window_hours)` (the v1 rule
+re-checks its own 72 h): the near-duplicate original's event and the events sharing a location ref
+with the signal first (v1 ranks a shared ref above any distance, so the bound never hides them), then
+the nearest, then — no distance on either side — the most recently active. `choose_event()` (v1) is unchanged; a
 600-case random corpus checks that `decide()` with v2 off — and with v2 on but no similarity or
 near-duplicate evidence — chooses the same event.
 
@@ -149,7 +155,9 @@ near-duplicate evidence — chooses the same event.
 anchored **or older** (window start, then id — the newer of two candidates merges into the older,
 never both ways), compatible kind, overlapping windows, similarity >= the profile's `merge_bp`, the
 same geography gate on event geographies / member refs. Preference: anchored, earliest, id. No chains
-in one pass. Similarity: the remote centroid cosine (`1 - (avg(a) <=> avg(b))` on the profile table)
+in one pass. A pass considers the scope's 500 most recently active open events and checks the kind /
+window / older-or-anchored gates (`cluster.merge_target_possible`) before computing any similarity
+(a remote one is a query). Similarity: the remote centroid cosine (`1 - (avg(a) <=> avg(b))` on the profile table)
 when an active remote profile has a vector for **every** current member of both events, else the
 local centroids. A merge relabels the source's memberships (`merged_vector`, `from_event_id`,
 similarity), moves its signals (same scope, like `_absorb`), sets `merged_into` + `resolved`,
@@ -215,14 +223,16 @@ Only with `SIGNALS_EMBED_PROVIDER=litellm` **and** pgvector in the signals datab
   this provider. Only processes holding the key embed (the API; `poller --once --adapter cluster`
   resolves the provisioned key like `extraction`); the compose poller has no key.
 * **Use**: only the background merge pass. Ingest, replay and the validator are local-only.
-* **Status**: `vector_backend.remote = {alias, dims, storage, status: active|backfilling, pending}` or
+* **Status**: `vector_backend.remote = {alias, dims, storage, status: active|backfilling, pending}` (the
+  pending jobs the caller's tenant can see — global + its own, like `counts.embeddings_pending`) or
   `null`, `remote_reason`: `provider_local` · `pgvector_missing` · `profile_missing` (bootstrap not
   re-run for the configured alias/dims) · `key_missing` (profile active, no key yet: jobs wait).
 
 ## 7. Settings, API, engine, web
 
 **Platform settings** (`cluster_config`, one versioned row; `clustering_config.load_config` falls back
-to `DEFAULT_CLUSTERING_CONFIG`): `simhash {enabled, max_hamming_bits 0..7 (default 6), window_hours
+to `DEFAULT_CLUSTERING_CONFIG` — at the stored version when a stored row no longer validates, so
+versions never repeat): `simhash {enabled, max_hamming_bits 0..7 (default 6), window_hours
 1..168 (72), reuse_extraction}`, `vector {enabled, window_hours 1..168 (72), max_distance_km 50..3000
 (1000), local / remote {attach_bp 5000..9900, merge_bp >= attach, strict_bp >= attach, <= 10000}}`.
 Global feeds cluster once for every tenant (plan §15), so **no tenant can change them**; thresholds
@@ -230,7 +240,8 @@ are not env (determinism rule 120 §3.5).
 
 **Hub REST** (service JWT): `GET /v1/clustering` → `ClusteringStatus` (any tenant token; counts of the
 last 7 days by wall clock in the token tenant's RLS scope: SimHash copies, identical re-posts,
-reused extractions, current signals' membership methods, pending/failed embedding jobs) ·
+reused extractions, current signals' membership methods, pending/failed jobs of the active embedding
+profile) ·
 `PUT /v1/clustering/config` `ClusteringConfigUpdate` → `ClusteringConfig` (version + 1; **only** a
 token with `scope: "platform"` → else 403; stale `base_version` → 409 `{detail: {message,
 current_version}}`; bounds → 422) · `POST /v1/clustering/run` (platform scope) →
@@ -340,19 +351,23 @@ Scheduler job is required (`signal-hub-poll` with `--adapter cluster` is availab
   `LiteLlmEmbedder` against `httpx.MockTransport` incl. 402/429/timeouts, NaN, dims, key not in repr,
   storage helpers, the platform claim, key restrictions, env parsing).
 * signal-hub DB (`-m postgis`): `test_db_m8_clustering.py` (same-source re-post, syndicated copy with
-  one guard + extract call and 1-source confidence, templated other-port story, defer / flag /
-  injection / pre-baked / rejected-original, scope isolation, window, vector attach with an unresolved
-  terminal, memberships for versions and absorb, v2 off == v1 outcomes, merge pass with alerts + open
-  case guard + idempotence, anchored / cross-scope never merged, RLS of the new tables + cascade,
-  clustering REST 403/200/409/422/run, counts RLS-scoped, memberships in alert detail / event bundle /
-  MCP); `test_db_m8_vectors.py` (`-m pgvector`: bootstrap extension optional + pin validation, profile
-  table / HNSW / RLS, jobs through MockLiteLlm `/v1/embeddings`, 14-day backfill, remote-centroid merge
-  with the expected cosine, 402 backoff, dims-mismatch failure, profile change retire + drop, halfvec
-  incl. `avg(halfvec)`, status reasons, local clustering without pgvector); `test_db_real_packs.py`
+  one guard + extract call and 1-source confidence, templated other-port story — resolved or unknown
+  to the gazetteer —, defer / flag / injection / pre-baked / rejected-original, SimHash switched off
+  before a queued copy is extracted, scope isolation, window, vector attach with an unresolved
+  terminal, memberships for versions and absorb, the bounded candidate query keeping shared-ref and
+  near-duplicate events, v2 off == v1 outcomes, merge pass with alerts + open case guard + idempotence,
+  the bounded merge pass taking the latest events, anchored / cross-scope never merged, RLS of the new
+  tables + cascade, clustering REST 403/200/409/422/run, an invalid stored config at its version,
+  counts RLS-scoped, memberships in alert detail / event bundle / MCP); `test_db_m8_vectors.py`
+  (`-m pgvector`: bootstrap extension optional + pin validation, profile table / HNSW / RLS, jobs
+  through MockLiteLlm `/v1/embeddings`, 14-day backfill, remote-centroid merge with the expected
+  cosine, 402 backoff, dims-mismatch failure, profile change retire + drop (the retired profile's jobs
+  not counted), halfvec incl. `avg(halfvec)`, status reasons, the status route's pending jobs in the
+  token tenant's scope, local clustering without pgvector); `test_db_real_packs.py`
   (the three M6 packs with v2 on and off, the new pack: memberships, confidence, exposure, reset
   clears memberships, a second replay is identical).
 * `data/scenarios/tests/test_packs.py`: the new pack, membership / source drift, same-source re-post
-  dropped, separate events that would merge.
+  dropped, a copy naming another place not joined, separate events that would merge.
 * engine `tests/platform/test_m8_signals_clustering.py` (platform claim; tenant admin 403 with no hub
   call; platform admin PUT forwards the platform token + `updated_by`, audit row with the diff; 409 /
   422 / run; hub invalid / down; memberships passed through `GET /api/alerts/{id}` and a foreign one
@@ -390,8 +405,11 @@ From the **brief** (`signals-clustering.md`):
 * `signal_membership` stores no `event_id` (it is the signal's `event_id`), and gains `recorded_at`
   (wall clock) so the 7-day counts work for sim-clock replays.
 * Embedding jobs are enqueued by the maintenance pass (no ingest-path or poller change); the merge pass
-  considers all open un-anchored events of a scope (bounded, idempotent) instead of tracking "updated
-  since the last pass".
+  considers the open un-anchored events of a scope (the 500 most recently active, idempotent) instead
+  of tracking "updated since the last pass".
+* The candidate query's bound (brief: `ORDER BY distance_km NULLS LAST, e.id LIMIT 500`) ranks the
+  near-duplicate original's event and the events sharing a ref first, so the bound can never change a
+  v1 decision by cutting off a shared-ref event behind 500 nearer ones.
 * `remote_reason` gains `profile_missing`; the status counts by wall-clock recording time.
 * Admin audit rows for the platform-wide settings are **platform** rows (tenant NULL).
 * Contract doc number: this file is `123-m8-signal-clustering.md` (120 §1), not `120-…`.
@@ -423,8 +441,12 @@ From the **brief** (`signals-clustering.md`):
 * The local profile is lexical: a place name that is a strict subset of another ("York" vs "New York")
   scores like a real match (7977 bp) when one side is unresolved; the kind / window / strict gates
   limit the damage. Remote embeddings (opt-in) are the semantic path.
-* Signals stored before migration 0004 have no membership rows (and empty cluster terms) until they
-  re-version; the drawer then simply shows fewer rows.
+* Signals stored before migration 0004 have no membership rows, and neither do their later versions
+  (a new version copies its predecessor's row, and there is none); their cluster terms are empty until
+  they re-version. The drawer then simply shows fewer rows.
+* The candidate query (500 events) and the merge pass (500 events per scope) are bounded: in a scope
+  with more open events, a signal with neither a location nor a ref is compared with the 500 most
+  recently active events only, and older events drop out of the merge pass first.
 * A near-duplicate whose original's event is not an open candidate (resolved, outside the window)
   clusters by the normal rules and counts as an independent source.
 * The open-case guard is checked before the merge transaction; a case opened in that instant could

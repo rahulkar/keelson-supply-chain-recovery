@@ -9,6 +9,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import Any
 
 import asyncpg
@@ -30,6 +31,7 @@ from keelson_contracts.signals import (
     TenantNetwork,
 )
 from signal_hub import maintenance, membership
+from signal_hub import pipeline as pipeline_module
 from signal_hub.adapters.connector import ConnectorEvent, parse_connector_event
 from signal_hub.adapters.gdacs import parse_gdacs
 from signal_hub.alerts import alert_id_for
@@ -38,7 +40,7 @@ from signal_hub.clustering_config import load_config, save_config
 from signal_hub.config import Settings
 from signal_hub.db import tx
 from signal_hub.gazetteer import Gazetteer
-from signal_hub.models import NewsItemDraft, SourceContext
+from signal_hub.models import NewsItemDraft, SignalDraft, SourceContext
 from signal_hub.pipeline import Pipeline
 from signal_hub.queries import load_event
 
@@ -47,6 +49,7 @@ H = dt.timedelta(hours=1)
 TENANT = "demo-retail"
 OTHER = "other-co"
 BASE = "http://signal-hub-api:8300"
+MIGRATIONS = Path(__file__).resolve().parents[1] / "migrations"
 
 A_TITLE = "Dockworkers strike halts container handling at the Port of Hamburg"
 SNIPPET = "Union says the walkout at all four terminals will last at least 48 hours; vessels are waiting at anchor."
@@ -124,6 +127,21 @@ async def _set_config(pool: asyncpg.Pool, **vector: Any) -> ClusteringConfig:
         return await save_config(conn, ClusteringConfigUpdate.model_validate(update.model_dump(mode="json")), T0)
 
 
+class _Rollback(Exception):
+    pass
+
+
+async def test_migration_0004_is_rerunnable(pool: asyncpg.Pool) -> None:
+    """Executing ``0004_m8_clustering.sql`` again on a migrated database is a no-op (rolled back)."""
+    sql = (MIGRATIONS / "0004_m8_clustering.sql").read_text(encoding="utf-8")
+    async with pool.acquire() as conn:
+        with pytest.raises(_Rollback):
+            async with conn.transaction():
+                await conn.execute(sql)
+                assert await conn.fetchval("SELECT relforcerowsecurity FROM pg_class WHERE relname = 'signal_membership'")
+                raise _Rollback
+
+
 # ─────────────────────────────── SimHash at queue time ───────────────────────────────
 
 
@@ -189,6 +207,25 @@ async def test_templated_story_about_another_port_is_not_folded_in(pool: asyncpg
     assert "UNLOCODE:NLRTM" in r["location_refs"]
 
 
+async def test_templated_story_about_an_unknown_port_is_not_folded_in(pool: asyncpg.Pool, gaz: Gazetteer) -> None:
+    """A copy naming a place its original does not (here one the gazetteer does not know, so the
+    copy has no refs at all) is not the same story: no near-duplicate join, an independent source."""
+    unknown = A_TITLE.replace("Hamburg", "Quellhafen")  # a fictional port: 4 SimHash bits from the original
+
+    def extract(text: str) -> dict[str, Any]:
+        return {"kind": "labor", "subtype": "strike", "companies": [],
+                "ports": ["Port of Quellhafen" if "Quellhafen" in text else "Port of Hamburg"]}
+
+    pipe = Pipeline(pool, gaz, FakeLlm(extract_fn=extract))
+    await _news(pipe, [_item(A_TITLE, native="a-1")])
+    await _news(pipe, [_item(unknown, native="q-1", connector="rss.b")], now=T0 + 4 * H)
+    q_item = await _row(pool, "q-1")
+    assert q_item["near_duplicate_of"] is not None and q_item["extracted_by"] == "extract-fast"  # own extraction
+    a, q = await _signal(pool, "a-1"), await _signal(pool, "q-1")
+    assert q["location_refs"] == [] and "p:quellhafen" in q["cluster_terms"]
+    assert q["event_id"] != a["event_id"] and q["method"] == "founded" and q["near_duplicate_of"] is None
+
+
 async def test_reuse_defers_flags_and_falls_back(pool: asyncpg.Pool, gaz: Gazetteer) -> None:
     down = _llm(unavailable=402)
     pipe = Pipeline(pool, gaz, down)
@@ -232,6 +269,19 @@ async def test_reuse_defers_flags_and_falls_back(pool: asyncpg.Pool, gaz: Gazett
     p2 = await _row(pool, "p-2", TENANT)
     assert p2["extracted_by"] == "prebaked" and p2["near_duplicate_of"] is not None
     assert (await _signal(pool, "p-2", TENANT))["method"] == "near_duplicate"
+
+
+async def test_simhash_off_stops_reuse_for_copies_queued_before(pool: asyncpg.Pool, gaz: Gazetteer) -> None:
+    llm = _llm()
+    pipe = Pipeline(pool, gaz, llm)
+    await _news(pipe, [_item(A_TITLE, native="a-1")])
+    ids = await pipe.queue_news([_item(COPY_TITLE, native="b-1", connector="rss.b")], now=T0 + 4 * H)
+    assert (await _row(pool, "b-1"))["near_duplicate_of"] is not None
+    await _set_config(pool, simhash={"enabled": False})  # switched off before the copy is extracted
+    await pipe.process_news(ids, tenant=None, now=T0 + 4 * H)
+    assert (await _row(pool, "b-1"))["extracted_by"] == "extract-fast" and len(llm.calls) == 4  # v1: its own extraction
+    b = await _signal(pool, "b-1")
+    assert b["method"] == "attach_ref" and b["near_duplicate_of"] is None
 
 
 async def test_rejected_original_lets_the_copy_run_its_own_quarantine(pool: asyncpg.Pool, gaz: Gazetteer) -> None:
@@ -338,6 +388,42 @@ async def test_memberships_for_versions_and_absorb(pool: asyncpg.Pool, gaz: Gaze
     assert rows[str(versions[1]["id"])].explanation == "Official GDACS report that founded this event."
 
 
+def _draft(native: str, *, refs: list[str], point: tuple[float, float] | None, at: dt.datetime = T0 + 2 * H,
+           near_of: str | None = None) -> SignalDraft:
+    """A tenant connector-style signal (labor / strike) with the given refs and point."""
+    return SignalDraft(
+        tenant=TENANT, connector_id="merxa", native_key=native, origin="connected_system", kind="labor",
+        subtype="strike", title=f"Report {native}", summary=None, raw_text=None,
+        geometry={"type": "Point", "coordinates": list(point)} if point else None, location_refs=refs,
+        starts_at=at, ends_at=None, observed_at=at, expires_at=at + 72 * H, severity_bp=5500,
+        severity_native={"scheme": "test"}, provenance="fact", extracted_by=None, source_name="Merxa webhook",
+        source_url=None, license="tenant data", authority_bp=8000, retrieved_at=at, native_id=native,
+        near_duplicate_of=near_of, near_duplicate_bits=2 if near_of else None)
+
+
+async def test_bounded_candidates_keep_the_events_v1_and_near_duplicates_need(
+        pool: asyncpg.Pool, gaz: Gazetteer, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The candidate query is bounded (``MAX_CANDIDATES``, nearest first): events sharing a place
+    code with the signal, and its near-duplicate original's event, are never cut off by nearer ones."""
+    await _set_config(pool, enabled=False)
+    pipe = Pipeline(pool, gaz)
+    await pipe.ensure_tenant(TENANT)
+    rep = await pipe.ingest([_draft("y", refs=["SUPPLIER:ACME-1"], point=None)], now=T0 + 3 * H)
+    (shared,) = rep.events  # no geometry, shares a strong ref with the next signal
+    for i, lon in enumerate((10.0, 16.0, 22.0)):  # located events (~400 km apart), no ref in common
+        await pipe.ingest([_draft(f"x{i}", refs=[], point=(lon, 53.5))], now=T0 + 3 * H)
+    monkeypatch.setattr(pipeline_module, "MAX_CANDIDATES", 2)
+    rep = await pipe.ingest([_draft("n", refs=["SUPPLIER:ACME-1"], point=(10.05, 53.5))], now=T0 + 4 * H)
+    assert rep.events == {shared}  # v1: the shared strong ref outranks the nearby event
+    n = await _signal(pool, "n", TENANT)
+    assert n["method"] == "attach_ref"
+    # a near-duplicate copy with no place of its own joins its original's event (SimHash on)
+    y = await _signal(pool, "y", TENANT)
+    rep = await pipe.ingest([_draft("copy", refs=[], point=None, near_of=str(y["id"]))], now=T0 + 4 * H)
+    assert rep.events == {shared}
+    assert (await _signal(pool, "copy", TENANT))["method"] == "near_duplicate"
+
+
 async def test_v2_disabled_gives_v1_outcomes(pool: asyncpg.Pool, gaz: Gazetteer) -> None:
     await _set_config(pool, enabled=False, simhash={"enabled": False})
     pipe = Pipeline(pool, gaz, _llm())
@@ -392,6 +478,23 @@ async def test_merge_pass_merges_similar_candidates_and_respects_cases(pool: asy
         assert await conn.fetchval("SELECT status FROM alert WHERE id = $1", alert_id_for(TENANT, src)) == "resolved"
         exposed = {r["node_code"] for r in await conn.fetch("SELECT node_code FROM exposure WHERE event_id = $1", dst)}
     assert {"DEHAM", "PLGDN"} <= exposed  # the target now carries both places
+
+
+async def test_bounded_merge_pass_considers_the_most_recent_events(
+        pool: asyncpg.Pool, gaz: Gazetteer, monkeypatch: pytest.MonkeyPatch) -> None:
+    def extract(text: str) -> dict[str, Any]:
+        return {"kind": "weather", "subtype": "storm", "places": ["Vietnam"]} if "Vietnam" in text else _extract(text)
+
+    pipe = Pipeline(pool, gaz, FakeLlm(extract_fn=extract))
+    await _set_config(pool, enabled=False)
+    await _news(pipe, [_item("Storm nears Vietnam as ports prepare for heavy rain and strong winds", "Coastal provinces brace.",
+                             native="old", published=T0 - 20 * H)], now=T0 - 20 * H)  # an older, unrelated open event
+    await _news(pipe, [_item(A_TITLE, native="a-1")])
+    await _news(pipe, [_item(GDANSK_TITLE, GDANSK_SNIPPET, native="g-1", connector="rss.b")], now=T0 + 4 * H)
+    a, g = await _signal(pool, "a-1"), await _signal(pool, "g-1")
+    await _set_config(pool, enabled=True, local={"attach_bp": 6000, "merge_bp": 6500, "strict_bp": 6500})
+    monkeypatch.setattr(maintenance, "MAX_EVENTS", 2)  # only two events per pass: the two latest
+    assert await maintenance.merge_pass(pipe, now=T0 + 5 * H) == [(str(g["event_id"]), str(a["event_id"]))]
 
 
 async def test_merge_pass_never_moves_anchored_events_or_crosses_scopes(pool: asyncpg.Pool, gaz: Gazetteer) -> None:
@@ -517,6 +620,20 @@ async def test_clustering_settings_api(hub: Harness) -> None:
         assert (await other_c.get("/v1/clustering")).json()["config"]["version"] == 2  # platform-wide
         r = await platform_c.post("/v1/clustering/run")
         assert r.status_code == 200 and r.json() == {"merged": [], "embedded": 0, "embedding_failed": 0}
+
+
+async def test_an_invalid_stored_config_falls_back_to_the_defaults_at_its_version(pool: asyncpg.Pool) -> None:
+    """Stored settings that no longer validate (e.g. tighter bounds in a later release) give the
+    defaults — at the stored version, so the next save goes forward, never back to version 2."""
+    async with tx(pool, None) as conn:
+        await conn.execute("INSERT INTO cluster_config (id, version, config) VALUES (1, 7, $1)",
+                           {"simhash": {"enabled": True}, "vector": {}})
+        cfg = await load_config(conn)
+        assert cfg.version == 7 and cfg.simhash == DEFAULT_CLUSTERING_CONFIG.simhash
+        assert cfg.vector == DEFAULT_CLUSTERING_CONFIG.vector
+        update = ClusteringConfigUpdate(base_version=7, simhash=cfg.simhash, vector=cfg.vector, updated_by="ava")
+        assert (await save_config(conn, update, T0)).version == 8
+        assert (await load_config(conn)).version == 8
 
 
 async def test_counts_are_rls_scoped_and_details_carry_memberships(hub: Harness, gaz: Gazetteer) -> None:

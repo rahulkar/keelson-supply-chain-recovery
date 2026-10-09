@@ -64,8 +64,8 @@ def build_clustering_router() -> APIRouter:
         hub = _hub(request)
         async with tx(hub.pool, None) as conn:
             config = await load_config(conn)
+        async with tx(hub.pool, principal.tenant) as conn:  # pending jobs like the counts: global + own
             pgvector, remote, reason = await vectors.remote_status(conn, hub.settings)
-        async with tx(hub.pool, principal.tenant) as conn:
             counts = await membership.counts(conn, hub.clock() - dt.timedelta(days=STATUS_WINDOW_DAYS))
         out = ClusteringStatus.model_validate({
             "config": config.model_dump(mode="json"),

@@ -44,6 +44,7 @@ __all__ = [
     "cluster_terms",
     "cluster_text",
     "local_vector",
+    "names_no_other_place",
     "similarity_bp",
     "term_words",
 ]
@@ -99,6 +100,14 @@ def cluster_terms(
     specific = [f"p:{w}" for w in sorted(places)] + [f"o:{w}" for w in sorted(orgs)]
     terms += specific[:room]
     return tuple(sorted(set(terms)))
+
+
+def names_no_other_place(terms: Iterable[str], original_terms: Iterable[str]) -> bool:
+    """Whether every place word (``p:``) of ``terms`` is also a place word of ``original_terms``: a
+    SimHash copy that names a place its original does not (a templated story about another port,
+    resolved by the gazetteer or not) is not the same story, so it never joins as a near-duplicate."""
+    places = {t for t in terms if t.startswith("p:")}
+    return places <= {t for t in original_terms if t.startswith("p:")}
 
 
 def local_vector(terms: Iterable[str]) -> dict[str, int]:

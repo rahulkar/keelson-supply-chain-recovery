@@ -23,13 +23,14 @@ from __future__ import annotations
 
 import datetime as dt
 from collections.abc import Sequence
+from dataclasses import replace
 from typing import Any, Final
 
 import asyncpg
 
 from keelson_contracts.signals import LOCAL_SIMILARITY_PROFILE, ClusteringConfig
 from signal_hub import embeddings, membership, vectors
-from signal_hub.cluster import Candidate, EventFeatures, choose_merge
+from signal_hub.cluster import Candidate, EventFeatures, choose_merge, merge_target_possible
 from signal_hub.clustering_config import load_config
 from signal_hub.db import tx
 from signal_hub.logs import get_logger
@@ -65,12 +66,16 @@ async def _open_case_events(pipeline: Pipeline, tenant: str | None, event_ids: S
 
 
 async def _load_events(conn: asyncpg.Connection, tenant: str | None, pack_id: str | None) -> list[asyncpg.Record]:
+    """The scope's open events, at most :data:`MAX_EVENTS`: the most recently active ones (new
+    candidate events are the merge sources; an event inactive for longer than the vector window
+    can no longer overlap them)."""
     scope_sql, args = _scope_sql(tenant, pack_id)
     return list(await conn.fetch(
         f"""SELECT e.id, e.kind, e.subtype, e.anchor_signal_id IS NOT NULL AS anchored, e.window_start, e.window_end,
                    e.last_observed_at, e.geog IS NOT NULL AS located
             FROM event e WHERE e.status <> 'resolved' AND e.merged_into IS NULL AND {scope_sql}
-            ORDER BY e.window_start, e.id LIMIT {MAX_EVENTS}""",
+            ORDER BY greatest(coalesce(e.window_end, e.last_observed_at, e.window_start), e.window_start) DESC, e.id DESC
+            LIMIT {MAX_EVENTS}""",
         *args,
     ))
 
@@ -138,6 +143,8 @@ async def merge_pass(pipeline: Pipeline, *, now: dt.datetime, tenant: str | None
                 window_start=src["window_start"], window_end=src["window_end"], last_observed=src["last_observed_at"],
                 refs=refs.get(sid, frozenset()), open_case=sid in blocked,
             )
+            if features.open_case:
+                continue  # never merged away (choose_merge refuses it too)
             options: list[Candidate] = []
             for t in events:
                 tid = str(t["id"])
@@ -149,14 +156,16 @@ async def merge_pass(pipeline: Pipeline, *, now: dt.datetime, tenant: str | None
                     distance: float | None = distances[(sid, tid)]
                 else:
                     distance = None
-                similarity, profile_name = await _similarity(conn, cfg, profile, centroids, sid, tid, tenant,
-                                                             remote_cache)
-                options.append(Candidate(
+                option = Candidate(
                     event_id=tid, kind=t["kind"], subtype=t["subtype"], anchored=bool(t["anchored"]),
                     anchor_connector=None, window_start=t["window_start"], window_end=t["window_end"],
                     last_observed=t["last_observed_at"], distance_km=distance, refs=refs.get(tid, frozenset()),
-                    similarity_bp=similarity, similarity_profile=profile_name,
-                ))
+                )
+                if not merge_target_possible(features, option, cfg):
+                    continue  # kind / window / older-or-anchored gates first: a remote similarity is a query
+                similarity, profile_name = await _similarity(conn, cfg, profile, centroids, sid, tid, tenant,
+                                                             remote_cache)
+                options.append(replace(option, similarity_bp=similarity, similarity_profile=profile_name))
             decision = choose_merge(features, options, cfg)
             if decision is None or decision.event_id is None:
                 continue

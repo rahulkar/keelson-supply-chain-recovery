@@ -56,6 +56,7 @@ __all__ = [
     "decide",
     "kinds_compatible",
     "km",
+    "merge_target_possible",
     "radius_km",
 ]
 
@@ -122,7 +123,8 @@ class SignalFeatures:
     ends_at: dt.datetime | None
     refs: frozenset[str] = frozenset()
     near_dup_event: str | None = None
-    """v2: the current event of the signal this one is a SimHash near-duplicate of."""
+    """v2: the current event of the signal this one is a SimHash near-duplicate of (only when the copy
+    names no place word its original does not)."""
     near_dup_bits: int | None = None
     duplicate_of: str | None = None
     """v2: the id of that original signal."""
@@ -282,7 +284,9 @@ def decide(sig: SignalFeatures, candidates: Sequence[Candidate], cfg: Clustering
     1. authoritative: the v1 same-hazard rule (``same_hazard``), else it founds (``anchor``);
     2. a near-duplicate joins its original's event when that event is an open, in-scope candidate
        of a compatible kind and the copy names no other place (no refs, or a ref shared with the
-       event) (``near_duplicate``; ``simhash.enabled``);
+       event; the caller sets ``near_dup_event`` only when the copy names no place word its original
+       does not, :func:`signal_hub.embeddings.names_no_other_place`) (``near_duplicate``;
+       ``simhash.enabled``);
     3. v1 attach, same ranking (``attach_ref`` when a ref is shared, else ``attach_geo``);
     4. vector attach (``vector.enabled``): compatible kind, windows within ``window_hours``,
        similarity >= the profile's ``attach_bp``, the geography gate (:func:`_geo_ok`); ranked
@@ -318,6 +322,19 @@ def decide(sig: SignalFeatures, candidates: Sequence[Candidate], cfg: Clustering
     return Decision(None, "founded")
 
 
+def merge_target_possible(src: EventFeatures, c: Candidate, cfg: ClusteringConfig) -> bool:
+    """The similarity-independent gates of :func:`choose_merge` for one target: another event that is
+    anchored or older than the source, of a compatible kind, with windows overlapping within
+    ``vector.window_hours`` (the merge pass checks these before computing any similarity)."""
+    if c.event_id == src.event_id:
+        return False
+    if not c.anchored and (c.window_start, c.event_id) >= (src.window_start, src.event_id):
+        return False
+    as_signal = SignalFeatures(kind=src.kind, subtype=src.subtype, connector_id="", authoritative=False,
+                               starts_at=src.window_start, ends_at=src.window_end or src.last_observed, refs=src.refs)
+    return kinds_compatible(src.kind, c.kind) and _overlaps(as_signal, c, dt.timedelta(hours=cfg.vector.window_hours))
+
+
 def choose_merge(src: EventFeatures, candidates: Sequence[Candidate], cfg: ClusteringConfig) -> Decision | None:
     """The event an open candidate event merges into (background pass), or ``None``.
 
@@ -328,16 +345,9 @@ def choose_merge(src: EventFeatures, candidates: Sequence[Candidate], cfg: Clust
     Preference: anchored, then earliest, then id."""
     if src.anchored or src.open_case or not cfg.vector.enabled:
         return None
-    window = dt.timedelta(hours=cfg.vector.window_hours)
-    as_signal = SignalFeatures(kind=src.kind, subtype=src.subtype, connector_id="", authoritative=False,
-                               starts_at=src.window_start, ends_at=src.window_end or src.last_observed, refs=src.refs)
     ranked: list[tuple[int, dt.datetime, str, Candidate]] = []
     for c in candidates:
-        if c.event_id == src.event_id or c.similarity_bp is None:
-            continue
-        if not c.anchored and (c.window_start, c.event_id) >= (src.window_start, src.event_id):
-            continue
-        if not kinds_compatible(src.kind, c.kind) or not _overlaps(as_signal, c, window):
+        if c.similarity_bp is None or not merge_target_possible(src, c, cfg):
             continue
         thresholds = _thresholds(cfg, c.similarity_profile)
         if c.similarity_bp < thresholds.merge_bp:

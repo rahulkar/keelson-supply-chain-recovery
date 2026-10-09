@@ -532,6 +532,26 @@ def test_same_source_repost_is_dropped_by_the_replay(tree: Path) -> None:
 
 
 @replay_only
+def test_copy_naming_another_place_is_not_joined_as_a_near_duplicate(tree: Path) -> None:
+    """Parity with Pipeline._decide: a SimHash copy that names a place its original does not (here a
+    fictional port the gazetteer does not know) is another story: it does not join as a near-duplicate."""
+    tag = "tag:simulated-shipping-wire.example,2026-10-06:hamburg-dock-strike"
+
+    def mutate(d: dict[str, Any]) -> None:
+        d["steps"][1]["payload"]["extractions"][tag]["ports"] = ["Port of Quellhafen"]
+
+    edit_yaml(tree / "port-strike-syndication" / "pack.yaml", mutate)
+    atom = tree / "port-strike-syndication" / "news-simulated-shipping-wire.xml"
+    text = atom.read_text(encoding="utf-8").replace("strike stops", "strike halts")  # only the port differs
+    atom.write_text(text.replace("Port of Hamburg", "Port of Quellhafen"), encoding="utf-8")
+    data = yaml.safe_load((tree / "port-strike-syndication" / "pack.yaml").read_text(encoding="utf-8"))
+    final = V.simulate(tree / "port-strike-syndication", data, MODS["hub"], MODS, V.Report())[-1]
+    assert final[tag].near_dup_of == "https://demo-freight-daily.example/?p=26311"  # still a SimHash copy …
+    rep = run("port-strike-syndication")
+    assert has(rep, f"member {tag!r} would not attach (hub decision: founded)")  # … but not joined
+
+
+@replay_only
 def test_separate_events_that_would_merge_are_reported(tree: Path) -> None:
     def mutate(d: dict[str, Any]) -> None:
         last = d["checkpoints"][2]

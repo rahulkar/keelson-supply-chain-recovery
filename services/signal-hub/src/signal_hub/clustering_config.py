@@ -31,7 +31,8 @@ class ConfigConflict(RuntimeError):
 
 
 async def load_config(conn: asyncpg.Connection) -> ClusteringConfig:
-    """The stored settings, else the defaults (also when a stored row no longer validates)."""
+    """The stored settings, else the defaults (also when a stored row no longer validates: then at
+    the stored version, so a save goes forward from it and versions never repeat)."""
     row = await conn.fetchrow("SELECT version, config, updated_by, updated_at FROM cluster_config WHERE id = 1")
     if row is None:
         return DEFAULT_CLUSTERING_CONFIG
@@ -40,7 +41,7 @@ async def load_config(conn: asyncpg.Connection) -> ClusteringConfig:
                                                 "updated_by": row["updated_by"], "updated_at": row["updated_at"]})
     except (ValidationError, TypeError, ValueError):
         log.warning("stored clustering settings are invalid; using the defaults", extra={"version": row["version"]})
-        return DEFAULT_CLUSTERING_CONFIG
+        return DEFAULT_CLUSTERING_CONFIG.model_copy(update={"version": int(row["version"])})
 
 
 async def save_config(conn: asyncpg.Connection, update: ClusteringConfigUpdate, now: dt.datetime) -> ClusteringConfig:

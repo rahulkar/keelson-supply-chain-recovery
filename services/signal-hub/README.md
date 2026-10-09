@@ -223,12 +223,16 @@ v2 only adds evidence v1 cannot see. Per new signal (`cluster.decide`, first rul
 
 1. authoritative: the v1 same-hazard rule (`same_hazard`), else it founds (`anchor`);
 2. a **near-duplicate** joins its original's event when that event is an open in-scope candidate of a
-   compatible kind and the copy names no other place (`near_duplicate`);
+   compatible kind and the copy names no other place — no place word its original lacks (resolved by
+   the gazetteer or not) and no ref the event lacks (`near_duplicate`);
 3. the v1 attach rule, unchanged ranking (`attach_ref` with the shared refs, else `attach_geo`);
 4. **vector attach** (`attach_vector`): compatible kind, windows within `vector.window_hours`,
    similarity >= `attach_bp`, and a geography gate — both located: within `max_distance_km`;
    otherwise a shared country, or (the signal has no ref at all) similarity >= `strict_bp`;
 5. otherwise it founds a candidate (`founded`).
+
+The candidate query is bounded (500 open events): the near-duplicate original's event and the events
+sharing a ref with the signal come first (so the bound never changes a v1 decision), then the nearest.
 
 **Cluster terms** (`signal.cluster_terms`, not part of `content_hash`): `k:` kind, `s:` subtype,
 `t:` taxonomy key, `p:` place words of the extracted mentions (resolved or not; a signal without
@@ -245,7 +249,8 @@ never both ways, no chains in one pass, never an event with an opened case) when
 compatible, windows overlap, similarity >= `merge_bp` and the geography gate holds — the remote
 centroid cosine (pgvector) when a remote profile has vectors for every member of both, else the
 local centroid. Members move with `merged_vector`, the source is resolved (`merged_into`) and both
-events' alerts re-evaluate (the source's alert resolves).
+events' alerts re-evaluate (the source's alert resolves). A pass looks at the scope's 500 most recently
+active open events and checks kind / window / older-or-anchored before computing any similarity.
 
 **Memberships** (`signal_membership`, `membership.py`): one row per signal version — method,
 evidence (distance, shared refs, similarity + profile, Hamming bits + original), `config_version`,

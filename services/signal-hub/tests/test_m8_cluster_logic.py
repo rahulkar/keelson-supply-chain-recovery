@@ -31,6 +31,7 @@ from signal_hub.cluster import (
     countries_of,
     decide,
     km,
+    merge_target_possible,
 )
 from signal_hub.config import Settings, load_settings
 from signal_hub.explain import explain
@@ -251,6 +252,23 @@ def test_choose_merge_rules() -> None:
                                        similarity_profile=LOCAL_SIMILARITY_PROFILE)], CFG) is None
     assert choose_merge(_src(kind="cyber"), [older], CFG) is None
     assert choose_merge(_src(refs=frozenset({"ISO3166:FR"})), [older], CFG) is None  # no geometry, no shared country
+    # the similarity-independent gates the merge pass checks before computing any similarity
+    assert merge_target_possible(_src(), _cand(event_id=EV, window_start=T0), CFG)
+    assert not merge_target_possible(_src(), _cand(event_id=EV3, window_start=T0 + 9 * H), CFG)  # newer, un-anchored
+    assert merge_target_possible(_src(), _cand(event_id=EV3, window_start=T0 + 9 * H, anchored=True), CFG)
+    assert not merge_target_possible(_src(kind="cyber"), _cand(event_id=EV, window_start=T0), CFG)
+    assert not merge_target_possible(_src(), _cand(event_id=EV, window_start=T0 - 200 * H, last_observed=T0 - 190 * H),
+                                     CFG)  # windows more than 72 h apart
+    assert not merge_target_possible(_src(event_id=EV), _cand(event_id=EV), CFG)
+
+
+def test_names_no_other_place() -> None:
+    original = ("k:labor", "p:hamburg", "s:strike", "t:LOG.strike")
+    assert embeddings.names_no_other_place(original, original)
+    assert embeddings.names_no_other_place(("k:labor", "s:strike"), original)  # names no place at all
+    assert not embeddings.names_no_other_place(("k:labor", "p:quellhafen", "s:strike"), original)
+    assert not embeddings.names_no_other_place(("p:hamburg", "p:rotterdam"), original)
+    assert embeddings.names_no_other_place(("p:hamburg", "o:maersk"), original)  # organisations are not places
 
 
 def test_aggregate_does_not_count_near_duplicates_as_sources() -> None:

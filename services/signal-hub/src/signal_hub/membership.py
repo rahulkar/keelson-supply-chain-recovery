@@ -170,8 +170,9 @@ async def counts(conn: asyncpg.Connection, since: dt.datetime) -> dict[str, Any]
     methods = {r["method"]: int(r["n"]) for r in await conn.fetch(
         """SELECT m.method, count(*) AS n FROM signal_membership m JOIN signal s ON s.id = m.signal_id
            WHERE s.is_current AND m.recorded_at >= $1 GROUP BY m.method""", since)}
-    jobs = {r["status"]: int(r["n"]) for r in await conn.fetch(
-        "SELECT status, count(*) AS n FROM embedding_job WHERE status IN ('pending', 'failed') GROUP BY status")}
+    jobs = {r["status"]: int(r["n"]) for r in await conn.fetch(  # the active profile's (a retired one's never run)
+        """SELECT j.status, count(*) AS n FROM embedding_job j JOIN embedding_profile p ON p.id = j.profile_id
+           WHERE p.status = 'active' AND j.status IN ('pending', 'failed') GROUP BY j.status""")}
     out: dict[str, Any] = {
         "simhash_near_duplicates": int(news["near"]), "same_source_duplicates": int(news["dup"]),
         "extractions_reused": int(news["reused"]),

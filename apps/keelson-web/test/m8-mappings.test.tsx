@@ -394,6 +394,8 @@ describe("connector call to action", () => {
     nav.pathname = "/admin/connectors/merxa-lite";
     m8.mappings.read = F7.mappingRow("read", null);
     renderM8(<ConnectorDetail slug="merxa-lite" />);
+    // Two loads in sequence (the connector, then the callout's read mapping): wait for each in turn.
+    await screen.findByRole("heading", { name: /Northwind ERP/ });
     const note = await screen.findByText(/has no read mapping yet/);
     expect(within(note.closest("[data-propose-callout]") as HTMLElement).getByRole("link", { name: "Propose mappings" })).toHaveAttribute(
       "href",

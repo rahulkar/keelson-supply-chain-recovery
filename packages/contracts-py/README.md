@@ -331,6 +331,15 @@ Submodules are imported explicitly (`from keelson_contracts.blocks import make_b
   dry-run-request|dry-run-result`, `scn.snapshot-label`, `commit.ledger-entry`,
   `connectors.capabilities`.
 
+## M8 additions — adapter sidecar (`122-m8-adapter-sidecar.md`, backward compatible)
+
+- **Receipts.** `ApprovalReceiptClaims.issue(…, aud=RECEIPT_AUDIENCE, ext_iss=MERXA_ISSUER)`: a
+  non-platform connector's receipt names that system (its MCP URL and issuer); the defaults keep Merxa
+  receipts byte-identical.
+- **Snapshots.** `SnapshotManifest.consistency` (`consistent` default) and `as_of_range` (required
+  exactly for `crawled`) plus a `label` property (`SnapshotLabel`); Merxa manifests parse unchanged.
+  Not exported to JSON Schema (no contracts-ts change).
+
 ## Develop (inside Docker, per `docs/contracts/60-build-guide.md`)
 
 ```bash

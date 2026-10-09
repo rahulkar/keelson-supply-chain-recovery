@@ -278,11 +278,13 @@ def make_plan(
             _phase2(scn, lp_levers, spec, options, plan, lp, cp, completed.get("other" if drop else "plan"))
         solve_ms += lp.solve_ms
         warnings.extend(lp.warnings)
+        warnings.extend(cp.warnings)
         params.update(lp.params)
+        params.update(cp.params)
         status, detail, binding = lp.status, lp.status_detail, lp.binding
         if not lp.ok:
             plan = Plan(rebook=plan.rebook)  # no usable LP solution: nothing from any lever
-        elif str(lp.params.get("integer_method", "")).startswith("cpsat"):
+        elif str(cp.params.get("integer_method", "")).startswith("cpsat"):
             names.append("CP-SAT")
     if reseq_name is not None and reseq_name not in names:
         names.append(reseq_name)
@@ -320,6 +322,10 @@ class _Cpsat:
     stages: StageLog
     margin_before: int
     prio: PrioritizeAllocationParams | None
+    params: dict[str, int | str | bool] = field(default_factory=dict)
+    """The integer stage's ``integer_method`` / ``integer_gap_bp`` / ``integer_fallback``."""
+    warnings: list[str] = field(default_factory=list)
+    """The integer stage's fallback warnings."""
 
     @property
     def on(self) -> bool:
@@ -585,14 +591,16 @@ def _integer_stage(
     cp.stages.cp("integer", run, payload, used=used, fallback=reason, det_limit=res.det_limit, size=res.size)
     if reason == "no_candidates":
         return False
+    # Recorded on the request state, not on ``lp``: a fallback before the completion adopts the
+    # repair completion computed on copies (compare mode), which replaces ``lp.params``.
     if used and run is not None:
-        lp.params["integer_method"] = "cpsat_optimal" if run.status == "OPTIMAL" else "cpsat_feasible"
-        lp.params["integer_gap_bp"] = run.gap_bp
+        cp.params["integer_method"] = "cpsat_optimal" if run.status == "OPTIMAL" else "cpsat_feasible"
+        cp.params["integer_gap_bp"] = run.gap_bp
     else:
-        lp.params["integer_method"] = "lp_rounding"
-        lp.params["integer_fallback"] = str(reason)
+        cp.params["integer_method"] = "lp_rounding"
+        cp.params["integer_fallback"] = str(reason)
         if reason in _TECHNICAL_FALLBACKS:
-            lp.warnings.append(f"resource_alt_supplier: whole-unit CP-SAT stage fell back to LP rounding ({reason})")
+            cp.warnings.append(f"resource_alt_supplier: whole-unit CP-SAT stage fell back to LP rounding ({reason})")
     return completed
 
 

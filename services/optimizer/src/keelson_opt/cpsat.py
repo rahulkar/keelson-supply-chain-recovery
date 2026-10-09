@@ -270,7 +270,7 @@ class StageLog:
     enabled: bool
     seed: int
     inputs_hash: str = ""
-    budget: Budget = field(default_factory=Budget)
+    budget: Budget = field(default_factory=lambda: Budget(REQUEST_DET_BUDGET))
     stages: list[SolverStage] = field(default_factory=list)
     cpsat_runs: int = 0
 

@@ -80,18 +80,39 @@ and graph zoom transitions, and every visual has a table with the same data.
 | Block | Component | What it shows |
 |---|---|---|
 | `scenario_compare@1` | `ScenarioCompare` | ECharts 6 Pareto scatter (axes from `props.axes`, default extra cost × lost units; ◆ recommended, dashed ring guide-only, dashed frontier through the `pareto` options) + **scorecard table** (Recommended / Guide only / Best trade-off badges, the guide-only reason, levers, cost breakdown; every scorecard measure, so both plotted axes are always in the table). |
-| `network_map@1` | `NetworkMap` | react-map-gl 8.1 (`react-map-gl/maplibre`) on MapLibre 6.12 + deck.gl 9.4 `MapLibreOverlay`: `ScatterplotLayer` sites coloured by status, `PathLayer` inbound / transfer lanes (status colour when affected), `ArcLayer` sea–air / near-shore proposals, `GeoJsonLayer` footprint. OpenFreeMap **Positron** (light) / **dark** styles, attribution always expanded, zoom buttons, cooperative gestures. **Option chips** (All options / Current network / each option with its lane count; a `link` legend entry whose key is an option id names the chip and is not drawn as a swatch) filter the proposed lanes; **View as table** lists exactly the drawn sites and lanes (paged by 100). No WebGL2, or more than 5,000 sites / 5,000 lanes / 100,000 path points → tables only, with the reason. Base map unavailable → plain token background + notice. |
+| `network_map@1` | `NetworkMap` | react-map-gl 8.1 (`react-map-gl/maplibre`) on MapLibre 6.12 + deck.gl 9.4 `MapLibreOverlay`: `ScatterplotLayer` sites coloured by status, `PathLayer` inbound / transfer lanes (status colour when affected), `ArcLayer` sea–air / near-shore proposals, `GeoJsonLayer` footprint. Base map from the **M8 fallback chain** (below): self-hosted Protomaps, OpenFreeMap **Positron** (light) / **dark**, the built-in Natural Earth outline, a plain background; attribution always expanded, zoom buttons, cooperative gestures. **Option chips** (All options / Current network / each option with its lane count; a `link` legend entry whose key is an option id names the chip and is not drawn as a swatch) filter the proposed lanes; **View as table** lists exactly the drawn sites and lanes (paged by 100). No WebGL2, or more than 5,000 sites / 5,000 lanes / 100,000 path points → tables only, with the reason. Detailed base map unavailable → the outline + "Showing a simplified background map" notice; nothing loadable → plain token background + "couldn't be loaded" notice. |
 | `impact_graph@1` | `ImpactGraph` | React Flow 12.12 + elkjs 0.12 layered left-to-right layout (deterministic), status badge / units on delayed receipts / first stock-out on every node, status filter chips, **arrow keys** follow the chain (→ feeds, ← fed by, ↑↓ same column) with a polite live summary of the focused node. Wide graphs open at a readable zoom from the upstream edge. **View as table**: same nodes with "Fed by" / "Feeds". Over 2,000 links → table only. |
 | `stockout_timeline@1` | `StockoutTimeline` | ECharts custom heat strip (rows × `props.weeks`: enough / tight / short), ring = first stock-out without action. **Option switcher** (No action + `props.options`): ◆ first stock-out with the option, dashed line = the shift (to the window's end when avoided) and a summary "N avoided, N later, N earlier, N unchanged, N new" (new = a row that only runs short with the option). The table (visually hidden while the chart shows, so screen readers always have it) adds "With <option>" and **Change** columns. |
 
 Model helpers are pure and shared by canvas and table (`src/map/model.ts`, `src/graph/model.ts`,
 `src/timeline/model.ts`, `src/compare/model.ts`). Chart tooltips escape every data string.
 
-**Map settings.** `configureNetworkMap({ styleUrls?: {light, dark}, workerUrl? })` (defaults
-`https://tiles.openfreemap.org/styles/{positron,dark}` and `/maplibre/maplibre-gl-worker.mjs`).
+**Map settings.** `configureNetworkMap({ styleUrls?: {light, dark}, workerUrl?, basemap?: {mode?, manifestUrl?} })`
+(defaults `https://tiles.openfreemap.org/styles/{positron,dark}`, `/maplibre/maplibre-gl-worker.mjs`,
+`{mode: "auto", manifestUrl: "/basemap/manifest.json"}`; nested objects are merged).
 The app must serve maplibre-gl's `dist/maplibre-gl-worker.mjs` **and** `dist/maplibre-gl-shared.mjs`
-(the module worker imports it) at that path and allow the tile origin in its CSP (`connect-src`,
-`img-src`) plus `worker-src 'self'`.
+(the module worker imports it) at that path and allow the hosted style's origin in its CSP
+(`connect-src`, `img-src`) plus `worker-src 'self'`; the self-hosted base map is same-origin.
+
+**Base map (M8, `docs/contracts/127-m8-basemap.md`).** Modes `auto` | `protomaps` | `openfreemap` |
+`offline` (`BASEMAP_MODES`); per subtree with `<NetworkMapSettingsProvider basemap={{mode}}>` (the web
+app feeds it from `KEELSON_BASEMAP`), read with `useNetworkMapSettings()`. `NetworkMap` resolves the
+manifest (`loadBasemapManifest`: same-origin, `redirect: "error"`, 3 s timeout, validated by the
+strict `basemapManifestSchema` `keelson.basemap/1`, cached per page; 404 / 204 / invalid → none, only
+for `auto` / `protomaps` and only when a map is drawn) and walks `basemapChain(mode, installed)`:
+`auto` → protomaps (when installed) → openfreemap → offline → plain; `protomaps` never falls back to a
+third-party origin. Each base-map failure (an error before the map loaded that is not a single
+tile) remounts the canvas with the next kind. The `[data-map-canvas]` region carries
+`data-map-basemap="protomaps|openfreemap|offline|plain"` (absent while resolving; `data-map-style`
+is unchanged). The lazy map chunk builds the styles: **Protomaps** — `@protomaps/basemaps` 5.7 layers
+(tiles v4, `lang: "en"`, POI and house-number layers dropped) in a Keelson flavour from tokens
+(`src/map/palette.ts`: land `surface` / water `surface-2` light, `surface-2` / `bg` dark, labels
+`fg-muted` / `fg-subtle`), archive via `pmtiles://` (pmtiles 4.5, one `Protocol({metadata: false})`
+per page, HTTP Range on our origin), glyphs and sprite from the manifest's directory, a **constant**
+attribution (never the archive's or the manifest's); max zoom = archive max + 5. **Offline** — the
+committed Natural Earth 1:110m land (`src/map/assets/ne-110m-land.json`, ~76 KB, public domain,
+`scripts/basemap/build-land-fallback.mjs`) as inline GeoJSON, max zoom 8. MapLibre controls are
+themed on tokens in `styles.css` (opaque attribution, `fg-muted` on `surface`).
 
 **Decided cards (M2, 70 §6).** `BlockRenderer` takes `decision?: BlockDecision`
 (`{status?: "decided" | "recorded" | "closed", decision?, by?: string | string[], at?}`): on
@@ -192,7 +213,14 @@ fallback style, graph model, readable initial viewport, ELK layout + arrow-key f
 Flow, graph ⇄ table equivalence under a filter, ISO weeks + breach shifts, timeline option
 switching, chart options (markers, shift lines, `outerBounds` instead of ECharts 6's ignored
 `containLabel` — also fixed in `BarChart`), tooltip HTML escaping, scorecard markers + reasons,
-axe on every visual (graph and table views).
+axe on every visual (graph and table views). M8 base map (`tests/basemap.test.ts`,
+`tests/protomaps-style.test.ts`, `tests/networkmap-basemap.test.tsx`, `tests/mapcanvas.test.ts`):
+chain table, manifest schema (path safety, version, strictness) against the fixture shared with
+`scripts/basemap` (`tests/fixtures/basemap-manifest.json`), loader (timeout, cache, redirect /
+credentials options, 404 / 204 / HTML / invalid → none), pinned style hash per theme, same-origin
+URLs, installed fonts only, token-only flavour, WCAG contrast of labels / land / water / overlay,
+the outline's size and precision, pmtiles registration, the block's notices per kind, settings
+provider. `tests/setup.ts` answers every un-stubbed `fetch` with 404 (no test reaches the network).
 
 ## M5 (docs/contracts/95)
 

@@ -108,9 +108,20 @@ Header: History drawer, brand (home), DEMO persona switcher (`GET /api/demo/pers
   `dist/maplibre-gl-worker.mjs` and the `maplibre-gl-shared.mjs` it imports into
   `public/maplibre/` (git-ignored, lint-ignored, excluded from the session proxy so the module
   Worker can always load it); `setWorkerUrl('/maplibre/maplibre-gl-worker.mjs')`.
-- **CSP** — the base map is the only off-origin traffic: `MAP_TILE_ORIGINS`
-  (`https://tiles.openfreemap.org`: styles, TileJSON, tiles, sprites, glyphs) in `connect-src`
-  and `img-src`; `worker-src 'self'` (no blob: workers).
+- **CSP** — the hosted base map is the only off-origin traffic: `MAP_TILE_ORIGINS`
+  (default `https://tiles.openfreemap.org`: styles, TileJSON, tiles, sprites, glyphs) in
+  `connect-src` and `img-src`; `worker-src 'self'` (no blob: workers). **M8**: the origins come from
+  the **build-time** `KEELSON_CSP_MAP_ORIGINS` (Dockerfile `ARG`, compose `build.args`; space-separated
+  https origins, `none` = no third-party origin at all; a bad value fails the build) because
+  `headers()` is compiled into the standalone server. The self-hosted base map (`/basemap/*`) is
+  same-origin and needs nothing here.
+- **Base map mode (M8, `docs/contracts/127-m8-basemap.md`)** — the `(app)` layout reads the
+  **runtime** env `KEELSON_BASEMAP` (`auto` | `protomaps` | `openfreemap` | `offline`; anything else
+  → `auto`; `src/lib/server/basemap.ts`) per request and wraps the pages in `@keelson/viz`
+  `NetworkMapSettingsProvider`, so a restart (no rebuild) switches the network map's base map.
+  `/basemap/*` is excluded from the session proxy; `src/app/basemap/manifest.json/route.ts`
+  answers **204** ("nothing installed") when no Caddy / bucket route serves the base map (Cloud Run
+  without `--enable-basemap`), so the map falls back without a 404 in the console.
 - **Page states** — not-found, no-access and error pages render their `EmptyState` title as the
   page's `h1` (`headingLevel={1}`).
 - **Canvas** auto-opens once per case (remembered in `localStorage`) when the first heavy result

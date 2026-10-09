@@ -17,6 +17,7 @@ verify, reset and troubleshoot the infrastructure part.
 | `valkey` | `valkey/valkey:8-alpine` | Run wake-ups, event hot tail | 128 MiB / ~4 MiB |
 | `litellm` | `ghcr.io/berriai/litellm-non_root:1.104.0` | AI gateway (Gemini) | 1.2 GiB / ~570 MiB |
 | `phoenix` | `arizephoenix/phoenix` (profile `obs`) | Traces | 768 MiB |
+| `basemap-fetch` | built from `infra/basemap/Dockerfile` (Node 24 + go-pmtiles, profile `basemap`, one-shot) | Fills the `basemap` volume with the self-hosted Protomaps base map (M8, `docs/contracts/127`) | 384 MiB / exits |
 
 All infra together (without pg-merxa/phoenix) measured **~1.27 GiB** (`docker stats`, idle).
 
@@ -56,7 +57,9 @@ failed checks):
 
 ```bash
 scripts/tests/caddy/run.sh    # Caddyfile: routes, X-Forwarded-*, admin block (+ DEV_ALLOW_KC_ADMIN=1),
-                              # forward_auth incl. header spoofing, streaming, access-log redaction
+                              # forward_auth incl. header spoofing, streaming, access-log redaction,
+                              # /basemap/* (byte ranges, cache headers, no listing / dotfiles /
+                              # traversal, 204 manifest when nothing is installed)
 scripts/tests/pgcore/run.sh   # pg-core image: health gating during first init, roles/DB owners,
                               # CONNECT revoked from PUBLIC, extensions
 scripts/tests/keycloak/run.sh # realm files imported from scratch into a throwaway Keycloak:
@@ -116,7 +119,7 @@ Last run (2026-10-06, independent review): all checks green; Gemini smoke call ~
 
 | URL | Upstream | Notes |
 |---|---|---|
-| `http://keelson.localhost` | `keelson-web:3000`; `/api`, `/api/*` → `engine-api:8000` | API unbuffered (`flush_interval -1`, SSE) |
+| `http://keelson.localhost` | `keelson-web:3000`; `/api`, `/api/*` → `engine-api:8000`; `/basemap/*` → static files of the `basemap` volume (M8) | API unbuffered (`flush_interval -1`, SSE); base map: byte ranges, read-only, no listing, dotfiles hidden, `manifest.json` 204 when nothing is installed |
 | `http://merxa.localhost` | `merxa-web:3001`; `/v1/*`, `/mcp`, `/mcp/*`, `/mcp-lite*`, `/.well-known/*` → `merxa-api:8100` | MCP + API unbuffered |
 | `http://auth.localhost` | `keycloak:8080` | `/admin*`, `/realms/master*` → 403 unless `DEV_ALLOW_KC_ADMIN=1` |
 | `http://gateway.localhost` | `litellm:4000` | `forward_auth` → `engine-api:8000/api/internal/forward-auth?role=platform-admin` |
@@ -186,6 +189,26 @@ Logs: `docker compose logs egress`.
 600 s timeout. Never enable semantic caching or JWT auth. Console: `http://gateway.localhost`
 (UI user `admin`, password `LITELLM_UI_PASSWORD`).
 
+## 5b. Self-hosted base map (M8, `docs/contracts/127-m8-basemap.md`)
+
+The network map draws on a Protomaps base map served from our own origin once the `basemap` volume
+is filled; until then (`auto`) it uses OpenFreeMap and, offline, a built-in Natural Earth outline.
+
+```bash
+scripts/basemap/fetch.sh                      # standard: world z0-6, ~59 MB (= docker compose --profile basemap run --rm basemap-fetch)
+scripts/basemap/fetch.sh --profile lite       # z0-5, ~29 MB   (detail: z0-7, ~203 MB)
+scripts/basemap/fetch.sh --dry-run            # size estimate only, writes nothing
+scripts/basemap/fetch.sh --check              # verify the installed archive (sha256), glyphs, sprites, licences
+```
+
+(`scripts\basemap\fetch.ps1` from PowerShell.) The one-shot container runs as uid 10001, on the
+`edge` network only, through the egress proxy, and talks to `build.protomaps.com`,
+`build-metadata.protomaps.dev`, `api.github.com` and `raw.githubusercontent.com` only. It writes
+`manifest.json` last, so a cancelled run never leaves a half-installed map that browsers would use;
+nothing needs a restart afterwards. Runtime switch (no rebuild): `KEELSON_BASEMAP=auto|protomaps|
+openfreemap|offline` in `.env`, then `docker compose up -d keelson-web`. A strict CSP without any
+third-party map origin is a build option: `KEELSON_CSP_MAP_ORIGINS=none docker compose build keelson-web`.
+
 ## 6. Stop / reset
 
 ```powershell
@@ -201,6 +224,7 @@ Reset a single store (destroys its data; the next `up` re-initialises it):
 | LiteLLM DB (models, keys, spend) | `docker volume rm keelson_pg_litellm` |
 | Merxa DB | `docker volume rm keelson_pg_merxa` |
 | Valkey | `docker volume rm keelson_valkey_data` |
+| Self-hosted base map (M8; re-creatable cache, label `com.keelson.cache=basemap`) | `docker volume rm keelson_basemap` (after `docker compose rm -sf caddy`), then `scripts/basemap/fetch.sh` again; without it the map uses OpenFreeMap / the built-in outline |
 
 Re-apply realms without reset: `docker compose up kc-config` (unchanged files are skipped).
 Rotating generated secrets: delete the line(s) from `.env`, run init, then reset the

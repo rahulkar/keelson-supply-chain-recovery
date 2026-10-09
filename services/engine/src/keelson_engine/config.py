@@ -203,14 +203,17 @@ class Settings(BaseSettings):
     model call); ``off``: proposals disabled (409)."""
     mapping_proposer_alias: str = "fast-default"
     """LiteLLM alias of the ``mapping_proposer`` agent (Flash / Flash-Lite only; Pro is refused)."""
-    mapping_propose_max_calls: int = Field(default=24, ge=1, le=200)
-    """Read-tool calls one proposal may make while sampling."""
-    mapping_propose_sample_size: int = Field(default=20, ge=1, le=200)
-    """Items per sampled page."""
+    # Sampling budgets shape a proposal, so (120 §3.5) their values are code constants
+    # (mapping_profile.MAX_CALLS / SAMPLE_SIZE, mapping_proposer.MAX_PROFILE_CHARS): the env may only
+    # lower them as safety caps, and a cap that bites is recorded as a ``sampling_truncated`` note.
+    mapping_propose_max_calls: int = Field(default=24, ge=1, le=24)
+    """Read-tool calls one proposal may make while sampling (≤ the code constant 24)."""
+    mapping_propose_sample_size: int = Field(default=20, ge=1, le=20)
+    """Items per sampled page (≤ the code constant 20)."""
     mapping_propose_timeout_s: float = Field(default=120.0, ge=5.0, le=600.0)
     mapping_propose_llm_timeout_s: float = Field(default=60.0, ge=5.0, le=300.0)
-    mapping_propose_max_profile_chars: int = Field(default=24_000, ge=2_000, le=200_000)
-    """Upper bound of the profile data block sent to the model."""
+    mapping_propose_max_profile_chars: int = Field(default=24_000, ge=2_000, le=24_000)
+    """Upper bound of the profile data block sent to the model (≤ the code constant 24,000)."""
 
     # ── runs ─────────────────────────────────────────────────────────────────
     run_lease_seconds: int = 60

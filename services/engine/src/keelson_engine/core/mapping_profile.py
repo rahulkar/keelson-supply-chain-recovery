@@ -80,6 +80,11 @@ MAX_DEPTH: Final = 4
 DEFAULT_PAGE_SIZE: Final = 100
 DEFAULT_MAX_PAGES: Final = 1000
 MIN_MAX_PAGES: Final = 10
+SAMPLE_SIZE: Final = 20
+"""Items per sampled page (120 §3.5: a code constant; ``MAPPING_PROPOSE_SAMPLE_SIZE`` may only lower it,
+recorded as a ``sampling_truncated`` note)."""
+MAX_CALLS: Final = 24
+"""Read calls one proposal may make (``MAPPING_PROPOSE_MAX_CALLS`` may only lower it)."""
 
 VARIANT_PARAMS: Final = frozenset({"type", "kind", "entity", "resource", "table", "collection", "record_type",
                                    "entity_type", "object_type"})

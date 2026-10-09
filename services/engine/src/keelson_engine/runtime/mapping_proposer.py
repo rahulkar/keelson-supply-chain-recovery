@@ -88,7 +88,7 @@ from .plugins import BudgetPlugin, UsagePlugin
 from .quarantine import _fence
 from .spec import AgentSpec, Budgets, default_spec
 
-__all__ = ["AGENT_NAME", "MAX_LLM_CALLS", "LlmOutcome", "merge", "refine", "validate"]
+__all__ = ["AGENT_NAME", "MAX_LLM_CALLS", "MAX_PROFILE_CHARS", "LlmOutcome", "merge", "refine", "validate"]
 
 log = structlog.get_logger(__name__)
 
@@ -96,6 +96,8 @@ AGENT_NAME: Final = "mapping_proposer"
 MAX_LLM_CALLS: Final = 2
 """One structured-output call + one retry (``LLM_RETRY``)."""
 MAX_TOKENS: Final = 200_000
+MAX_PROFILE_CHARS: Final = 24_000
+"""The data block sent to the model (``MAPPING_PROPOSE_MAX_PROFILE_CHARS`` may only lower it)."""
 APP_NAME: Final = "keelson-mapping-proposer"
 NODE_RUN_ID: Final = "mapping-proposer-r1"
 PATH_CAP: Final = 2000

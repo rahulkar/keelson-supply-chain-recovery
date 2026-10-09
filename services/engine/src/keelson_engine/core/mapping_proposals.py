@@ -175,6 +175,9 @@ async def _propose(tenant: str, conn: reg.ConnectorRow, request: MappingProposeR
     ops = list(request.ops) if request.ops else list(OP_PAYLOAD_MODELS)
     probe = mh.probe_variants(ops) if "action" in request.kinds else None
     if request.sample:
+        if settings.mapping_propose_sample_size < mp.SAMPLE_SIZE:
+            notes.add("sampling_truncated", None, f"MAPPING_PROPOSE_SAMPLE_SIZE samples "
+                      f"{settings.mapping_propose_sample_size} items per page instead of {mp.SAMPLE_SIZE}")
         try:
             async with session_caller(conn) as call:
                 sampling = await mp.sample(call, tools, request, max_calls=settings.mapping_propose_max_calls,

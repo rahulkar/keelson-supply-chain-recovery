@@ -360,3 +360,17 @@ def test_location_pair_with_codes_absent_from_the_sample() -> None:
     fc = {f.column: f.expression for f in result.read.entities[0].fields}
     assert fc["location_kind"] == "if_present($.store_code, 'store', 'cluster')"
     assert fc["location_code"] == "coalesce($.store_code, $.cluster_code)"
+
+
+def test_sampling_budgets_are_code_constants_the_env_may_only_lower() -> None:
+    """120 §3.5: what shapes a proposal is a code constant; the MAPPING_PROPOSE_* budgets are safety
+    caps bounded by it (a lower cap that bites leaves a ``sampling_truncated`` note)."""
+    from keelson_engine.config import Settings
+    from keelson_engine.runtime import mapping_proposer as llm
+
+    for name, constant in (("mapping_propose_max_calls", mp.MAX_CALLS),
+                           ("mapping_propose_sample_size", mp.SAMPLE_SIZE),
+                           ("mapping_propose_max_profile_chars", llm.MAX_PROFILE_CHARS)):
+        field = Settings.model_fields[name]
+        assert field.default == constant, name
+        assert [m.le for m in field.metadata if hasattr(m, "le")] == [constant], name

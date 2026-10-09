@@ -125,6 +125,14 @@ async def test_refusals_discard_and_retention(people: dict[str, Browser], lite: 
     r = await _propose(nadia)
     assert r.status_code == 429 and r.json()["code"] == "proposal_busy"
     monkeypatch.setattr(mapping_proposals, "_running", {})
+    # an env cap may only lower the code constant, and says so
+    monkeypatch.setattr(settings, "mapping_propose_sample_size", 5)
+    r = await _propose(nadia, kinds=["read"])
+    assert r.status_code == 201, r.text
+    lowered = MappingProposal.model_validate(r.json())
+    assert any(n.code == "sampling_truncated" and "5 items per page instead of 20" in n.message for n in lowered.notes)
+    assert lowered.profiles and max(p.items_sampled for p in lowered.profiles) <= 5
+    monkeypatch.setattr(settings, "mapping_propose_sample_size", 20)
 
     assert (await nadia.post(f"{BASE}/disable")).status_code == 200
     lite.calls.clear()

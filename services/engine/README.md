@@ -127,8 +127,8 @@ All variables of `compose.yaml` `*engine-env` (names are env var names):
 | `DUCKDB_MEMORY_LIMIT_MB`, `DUCKDB_THREADS` | `256`, `2` | M8: per DuckDB session (one crawl / preview; spills to a private temp dir). Compose sets engine-api to `128` |
 | `MAPPING_PREVIEW_MAX_ITEMS` | `20000` | M8: items per source a staged preview maps in engine-api (`capped: true` beyond) |
 | `MAPPING_PROPOSER`, `MAPPING_PROPOSER_ALIAS` | `auto` (compose: `heuristic`), `fast-default` | M8 proposed mappings: `auto` = rules refined by the AI when the tenant has a model, `heuristic` = rules only (no model call), `off` = 409; the agent's alias (Pro refused) |
-| `MAPPING_PROPOSE_MAX_CALLS`, `MAPPING_PROPOSE_SAMPLE_SIZE` | `24`, `20` | M8: read calls one proposal may make while sampling; items per sampled page |
-| `MAPPING_PROPOSE_TIMEOUT_S`, `MAPPING_PROPOSE_LLM_TIMEOUT_S`, `MAPPING_PROPOSE_MAX_PROFILE_CHARS` | `120`, `60`, `24000` | M8: whole proposal (504 beyond) / AI step (falls back to the rules) / the profile data block sent to the model |
+| `MAPPING_PROPOSE_MAX_CALLS`, `MAPPING_PROPOSE_SAMPLE_SIZE` | `24`, `20` | M8: read calls one proposal may make while sampling; items per sampled page (safety caps: may only lower these code constants) |
+| `MAPPING_PROPOSE_TIMEOUT_S`, `MAPPING_PROPOSE_LLM_TIMEOUT_S`, `MAPPING_PROPOSE_MAX_PROFILE_CHARS` | `120`, `60`, `24000` | M8: whole proposal (504 beyond) / AI step (falls back to the rules) / the profile data block sent to the model (at most 24000) |
 | `CONNECTOR_DEV_HOSTS` | `merxa.localhost` | comma-separated hosts allowed although not public (URL policy) |
 | `MERXA_WEBHOOK_SECRET` (any `*_WEBHOOK_SECRET`) | | named by a connector's `webhook_secret_ref`; `whsec_<base64>` |
 | `CONNECTOR_TEST_TIMEOUT_SECONDS` | `20` | per network step of a connection test |

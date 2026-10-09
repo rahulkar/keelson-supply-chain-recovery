@@ -387,10 +387,13 @@ Size: raw staging is ~50–120 MB jsonb per crawled connector at `/mcp-lite` dem
 | `MAPPING_PREVIEW_MAX_ITEMS` | `20000` | per source, staged preview |
 | `MAPPING_PROPOSER` | `auto` (compose `heuristic` while credits are depleted) | `auto` / `heuristic` / `off` |
 | `MAPPING_PROPOSER_ALIAS` | `fast-default` | Pro refused |
-| `MAPPING_PROPOSE_MAX_CALLS`, `MAPPING_PROPOSE_SAMPLE_SIZE` | `24`, `20` | sampling budget |
-| `MAPPING_PROPOSE_TIMEOUT_S`, `MAPPING_PROPOSE_LLM_TIMEOUT_S`, `MAPPING_PROPOSE_MAX_PROFILE_CHARS` | `120`, `60`, `24000` | |
+| `MAPPING_PROPOSE_MAX_CALLS`, `MAPPING_PROPOSE_SAMPLE_SIZE` | `24`, `20` | sampling budget; caps ≤ the code constants `mapping_profile.MAX_CALLS` / `SAMPLE_SIZE` |
+| `MAPPING_PROPOSE_TIMEOUT_S`, `MAPPING_PROPOSE_LLM_TIMEOUT_S` | `120`, `60` | |
+| `MAPPING_PROPOSE_MAX_PROFILE_CHARS` | `24000` | cap ≤ the code constant `mapping_proposer.MAX_PROFILE_CHARS` |
 
-Determinism (120 §3.5): sample sizes, budgets and caps only bound work (env may lower them); the
+Determinism (120 §3.5): the sampling budgets (calls, items per page, model data block) are code
+constants; their env settings are safety caps that may only lower them (settings validation refuses a
+higher value) and a lowered cap that bites leaves a `sampling_truncated` note on the proposal. The
 rule-based proposer, confidence values and merge rules are code constants; nothing affects plans.
 Compose: `MAPPING_PROPOSER: ${MAPPING_PROPOSER:-heuristic}` in the engine env anchor, engine-api
 `DUCKDB_MEMORY_LIMIT_MB: "128"` (mem_limit unchanged, duckdb imported lazily). Engine dependency

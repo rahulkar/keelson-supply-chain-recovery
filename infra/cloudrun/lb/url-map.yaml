@@ -2,8 +2,10 @@
 # routing in infra/caddy/Caddyfile. Imported by scripts/cloudrun/deploy.sh with
 #   gcloud compute url-maps import keelson-urlmap --global --source=<rendered file>
 # ${BS} = projects/<project>/global/backendServices (each backend service has one serverless NEG).
+# ${BB} = projects/<project>/global/backendBuckets (the base map bucket, infra/cloudrun/basemap.sh).
 #
 #   keelson.<domain>   /api, /api/*  -> engine-api (streamed SSE; Cloud Run request timeout 60 min)
+#                      /basemap/*    -> backend bucket keelson-basemap-bb (only with --enable-basemap)
 #                      everything else -> keelson-web
 #   merxa.<domain>     /v1/*, /mcp, /mcp/*, /mcp-lite, /mcp-lite/*, /.well-known/* -> merxa-api
 #                      everything else -> merxa-web
@@ -37,6 +39,11 @@ pathMatchers:
       # The /api bypass: the API goes straight to engine-api, never through Next.js.
       - paths: [/api, /api/*]
         service: ${BS}/engine-api-bs
+      # BEGIN basemap
+      # M8 self-hosted base map (docs/contracts/127): GCS objects basemap/* behind Cloud CDN.
+      - paths: [/basemap/*]
+        service: ${BB}/keelson-basemap-bb
+      # END basemap
   - name: merxa
     defaultService: ${BS}/merxa-web-bs
     pathRules:

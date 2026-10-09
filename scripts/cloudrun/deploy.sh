@@ -33,6 +33,9 @@
 #   --iap-members LIST            comma separated IAP principals for the consoles,
 #                                 e.g. group:platform-admins@example.com,user:ava@example.com
 #   --enable-phoenix              also deploy Phoenix (traces.<domain>); default: use Cloud Trace
+#   --enable-basemap              serve the self-hosted base map: bucket + Cloud CDN backend bucket at
+#                                 keelson.<domain>/basemap/* (infra/cloudrun/basemap.sh, docs/contracts/127)
+#   --basemap-dir DIR             the base map to upload (scripts/basemap/export.sh DIR)
 #   --sql-isolation               separate Cloud SQL instances for LiteLLM and Merxa (production);
 #                                 default: one instance, databases isolated by role + CONNECT
 #   --env-file F / --secrets-dir D   default: <repo>/.env and <repo>/secrets
@@ -54,6 +57,7 @@ warn() { printf 'deploy.sh: warning: %s\n' "$*" >&2; }
 PROJECT="${PROJECT:-}"; REGION="${REGION:-}"; DOMAIN="${DOMAIN:-}"
 DRY_RUN="${DRY_RUN:-0}"; RENDER_ONLY=""; TAG="${TAG:-}"; SKIP_BUILD="${SKIP_BUILD:-0}"
 IAP_MEMBERS="${IAP_MEMBERS:-}"; ENABLE_PHOENIX="${ENABLE_PHOENIX:-0}"; SQL_ISOLATION="${SQL_ISOLATION:-0}"
+ENABLE_BASEMAP="${ENABLE_BASEMAP:-0}"; BASEMAP_DIR="${BASEMAP_DIR:-}"
 ENV_FILE="${ENV_FILE:-$ROOT/.env}"; SECRETS_DIR="${SECRETS_DIR:-$ROOT/secrets}"
 positional=()
 while [ $# -gt 0 ]; do
@@ -70,6 +74,8 @@ while [ $# -gt 0 ]; do
     --skip-build) SKIP_BUILD=1; shift ;;
     --iap-members) IAP_MEMBERS="${2:?--iap-members needs a value}"; shift 2 ;;
     --enable-phoenix) ENABLE_PHOENIX=1; shift ;;
+    --enable-basemap) ENABLE_BASEMAP=1; shift ;;
+    --basemap-dir) BASEMAP_DIR="${2:?--basemap-dir needs a directory}"; shift 2 ;;
     --sql-isolation) SQL_ISOLATION=1; shift ;;
     --env-file) ENV_FILE="${2:?}"; shift 2 ;;
     --secrets-dir) SECRETS_DIR="${2:?}"; shift 2 ;;
@@ -107,6 +113,7 @@ DOMAIN="$(printf '%s' "$DOMAIN" | tr '[:upper:]' '[:lower:]')"
 [[ "$DOMAIN" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$ ]] || die "invalid domain: $DOMAIN"
 case "$DOMAIN" in localhost | *.localhost) die "a .localhost domain cannot be deployed" ;; esac
 [ "$ENABLE_PHOENIX" = 1 ] || ENABLE_PHOENIX=0
+[ "$ENABLE_BASEMAP" = 1 ] || ENABLE_BASEMAP=0
 
 # ───────────────────────────── pins and settings ─────────────────────────────
 while IFS='=' read -r k v; do
@@ -219,6 +226,9 @@ render() {  # render SRC DST: substitute ${VAR} placeholders, drop comments + di
   if [ "$ENABLE_PHOENIX" != 1 ]; then
     content="$(printf '%s\n' "$content" | sed '/# BEGIN phoenix/,/# END phoenix/d')"
   fi
+  if [ "$ENABLE_BASEMAP" != 1 ]; then
+    content="$(printf '%s\n' "$content" | sed '/# BEGIN basemap/,/# END basemap/d')"
+  fi
   # Full-line comments are documentation only (and may mention placeholders): drop them.
   content="$(printf '%s\n' "$content" | sed '/^[[:space:]]*#/d')"
   for var in "${RENDER_VARS[@]}"; do
@@ -264,6 +274,10 @@ done
 # shellcheck source=infra/cloudrun/signal-hub.sh
 source "$CR/signal-hub.sh"
 signal_hub_init
+# M8 self-hosted base map (docs/contracts/127): optional bucket + backend bucket, keelson-web mode.
+# shellcheck source=infra/cloudrun/basemap.sh
+source "$CR/basemap.sh"
+basemap_init
 CORE_SQL_IP="${CORE_SQL_IP:-10.0.0.3}"; SQL_IP=""; SQL_INSTANCE=""; DB_ROLES=""; DB_ROLE_ENV=""
 
 WORK="${RENDER_ONLY:-$(mktemp -d "${TMPDIR:-/tmp}/keelson-cloudrun.XXXXXX")}"
@@ -371,7 +385,7 @@ build_push IMAGE_ENGINE "$CR/images/engine.Dockerfile" "$ROOT" \
   --build-arg "ENGINE_IMAGE=$ENGINE_BASE" --build-arg "PUBLIC_BASE_DOMAIN=$DOMAIN"
 build_push IMAGE_OPTIMIZER "$ROOT/services/optimizer/Dockerfile" "$ROOT"
 build_push IMAGE_MERXA_API "$ROOT/services/merxa-api/Dockerfile" "$ROOT/services/merxa-api"
-build_push IMAGE_KEELSON_WEB "$ROOT/apps/keelson-web/Dockerfile" "$ROOT"
+build_push IMAGE_KEELSON_WEB "$ROOT/apps/keelson-web/Dockerfile" "$ROOT" "${KEELSON_WEB_BUILD_ARGS[@]}"
 build_push IMAGE_MERXA_WEB "$ROOT/apps/merxa-web/Dockerfile" "$ROOT"
 build_push IMAGE_KEYCLOAK "$CR/images/keycloak.Dockerfile" "$CR/images" --build-arg "KEYCLOAK_IMAGE=$KEYCLOAK_IMAGE"
 build_push IMAGE_LITELLM "$CR/images/litellm.Dockerfile" "$ROOT" --build-arg "LITELLM_IMAGE=$LITELLM_IMAGE"
@@ -546,6 +560,7 @@ for bs in "${IAP_BACKENDS[@]}"; do
       --member="$m" --role=roles/iap.httpsResourceAccessor
   done
 done
+basemap_deploy  # --enable-basemap: bucket upload (manifest last) + backend bucket, before the URL map uses it
 gc compute url-maps import keelson-urlmap --global --source="$WORK/lb/url-map.yaml"
 gc compute url-maps import keelson-http-redirect --global --source="$WORK/lb/http-redirect.yaml"
 if exists gcloud compute target-https-proxies describe keelson-https-proxy --global; then

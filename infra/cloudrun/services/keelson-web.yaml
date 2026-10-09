@@ -52,3 +52,6 @@ spec:
               value: ${URL_ENGINE_API}
             - name: BRAND_ENGINE_NAME
               value: ${BRAND_ENGINE_NAME}
+            # network map base map (docs/contracts/127): protomaps with --enable-basemap, else auto
+            - name: KEELSON_BASEMAP
+              value: ${KEELSON_BASEMAP}

@@ -6,7 +6,8 @@ short weeks for the perturbed DCs' clusters; every v1 lever emits contract-valid
 ProblemData v2 lists allow it (expedite → ``po_line.split`` + ``capacity_booking.create``,
 alt-supplier → ``po.create`` + ``po_line.change_qty`` in one atomic group, prioritise → one
 ``allocation.set_qty``, resequence → ``production_order.resequence`` + ``po_line.reschedule``), and
-every response carries a scorecard."""
+every response carries a scorecard. M8: ``integer_stage="cpsat"`` requests echo ``SolverInfo.stages``
+and the integer params."""
 
 from __future__ import annotations
 
@@ -37,6 +38,7 @@ from keelson_contracts.optimizer import (
     Provenance,
     Scorecard,
     SolverInfo,
+    SolverStage,
     TimelinePoint,
     TtsRow,
 )
@@ -266,6 +268,25 @@ class OptimizerStub:
             action["seq"] = seq
         return actions, decisions, cost
 
+    def _solver_info(self, req: OptimizeRequest, *, do_nothing: bool, fallback: bool) -> SolverInfo:
+        """M8: ``integer_stage="cpsat"`` requests get per-solve records (an LP stage, plus the whole-unit
+        CP-SAT stage when the plan re-sources) and the integer params, like the real optimizer."""
+        params: dict[str, int | str | bool] = {"plan_fallback": "do_nothing"} if fallback else {}
+        stages: list[SolverStage] = []
+        if req.solver.integer_stage == "cpsat" and not do_nothing:
+            params["integer_stage"] = "cpsat"
+            seed = req.solver.seed
+            stages.append(SolverStage(name="lp_phase1", solver="GLOP", status="OPTIMAL", used=True, seed=seed,
+                                      model_hash="1" * 64, num_variables=10, num_constraints=5))
+            if any(lv.code == "resource_alt_supplier" for lv in req.plan_spec.levers):
+                params.update(integer_method="cpsat_optimal", integer_gap_bp=0, cpsat_num_workers=1,
+                              cpsat_deterministic=True)
+                stages.append(SolverStage(name="integer", solver="CP-SAT", status="OPTIMAL", used=True, seed=seed,
+                                          model_hash="2" * 64, objective=100, bound=100, det_time_limit_ms=150,
+                                          det_time_ms=12, num_workers=1, num_variables=40, num_constraints=30))
+        return SolverInfo(name="none" if do_nothing else "GLOP", ortools="9.15.6755", params=params,
+                          seed=req.solver.seed, inputs_hash=self._hash(req), solve_ms=3, stages=stages)
+
     def optimize(self, req: OptimizeRequest) -> OptimizeResponse:
         before = self._kpis(req, perturbed=True)
         do_nothing = not req.plan_spec.levers or self.fallback
@@ -301,9 +322,7 @@ class OptimizerStub:
             decisions=decisions,
             actions=[Action.model_validate(a) for a in actions],
             explain=Explain(binding_constraints=[]),
-            solver=SolverInfo(name="none" if do_nothing else "GLOP", ortools="9.15.6755",
-                              params={"plan_fallback": "do_nothing"} if fallback else {},
-                              seed=req.solver.seed, inputs_hash=self._hash(req), solve_ms=3),
+            solver=self._solver_info(req, do_nothing=do_nothing, fallback=fallback),
             warnings=["no plan improves the outcome"] if fallback else [],
             scorecard=scorecard if self.scorecards else None,
         )

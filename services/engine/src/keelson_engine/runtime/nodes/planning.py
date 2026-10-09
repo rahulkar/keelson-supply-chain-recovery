@@ -291,7 +291,26 @@ def _option_from(
         option["scorecard"] = option_scorecard(
             option, total_demand=total_demand(problem), horizon_end=horizon_end(problem)
         ).model_dump(mode="json")
+    if resp.solver.stages:
+        option["solver"] = solver_summary(resp)
     return option
+
+
+def solver_summary(resp: OptimizeResponse) -> dict[str, Any]:
+    """M8 (``integer_stage="cpsat"`` responses only, so ``repair`` options are unchanged): how the
+    option's whole units were found (``integer_method`` is ``None`` when no integer stage ran,
+    i.e. the option has no ``resource_alt_supplier``)."""
+    params = resp.solver.params
+    method = params.get("integer_method")
+    gap = params.get("integer_gap_bp")
+    fallback = params.get("integer_fallback")
+    return {
+        "integer_stage": "cpsat",
+        "integer_method": str(method) if method is not None else None,
+        "gap_bp": int(gap) if isinstance(gap, int) and not isinstance(gap, bool) else None,
+        "fallback_reason": str(fallback) if fallback is not None else None,
+        "resequence_methods": str(params["resequence_methods"]) if "resequence_methods" in params else None,
+    }
 
 
 option_from = _option_from
@@ -376,7 +395,9 @@ async def simulate(ctx: Context, node_input: Any) -> AsyncGenerator[Any]:
     )
     caps = table.primary
     candidates = build_candidates(planning, table)
-    solver = SolverOptions(time_limit_s=planning.solver_time_limit_s, seed=planning.solver_seed)
+    solver = SolverOptions(
+        time_limit_s=planning.solver_time_limit_s, seed=planning.solver_seed, integer_stage=planning.solver_integer_stage
+    )
     options: list[dict[str, Any]] = []
     plans = [(c.plan_spec, c) for c in candidates] + [(PlanSpec(id=DO_NOTHING_ID, title="Do nothing", levers=[]), None)]
     for spec, cand in plans:  # the optimizer runs one computation at a time

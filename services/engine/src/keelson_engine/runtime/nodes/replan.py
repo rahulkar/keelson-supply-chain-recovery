@@ -318,7 +318,9 @@ async def prepare_replan(ctx: Context, node_input: Any) -> AsyncGenerator[Any]:
     capacity, mode = _lane_capacity(problem, parsed.lane_code, parsed.factor_bp, fresh=fresh)
     label = lane_label(mode)
     planning = run.spec.planning
-    solver = SolverOptions(time_limit_s=planning.solver_time_limit_s, seed=planning.solver_seed)
+    solver = SolverOptions(
+        time_limit_s=planning.solver_time_limit_s, seed=planning.solver_seed, integer_stage=planning.solver_integer_stage
+    )
     options = [dict(o) for o in plan.get("options") or []]
     committed_ids = list(dict.fromkeys(str(i.get("option_id")) for i in applied if i.get("option_id")))
     previous_version = int(plan["version"])

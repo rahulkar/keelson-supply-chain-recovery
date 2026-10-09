@@ -186,6 +186,11 @@ class _SpecModel(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
 
+def _omitted_at(default: Any) -> Any:
+    """An additive spec field (M8) omitted from dumps while it equals its default."""
+    return Field(default=default, exclude_if=lambda v: v == default)
+
+
 class ModelAliases(_SpecModel):
     """LiteLLM aliases per LLM role (never provider model ids)."""
 
@@ -560,7 +565,19 @@ class AltSourcingDefaults(_SpecModel):
     weekly_capacity_units: Annotated[int, Field(ge=0)] = 3000
     """Used when the factory has no production orders to derive its capacity from."""
     blocked_factories: tuple[str, ...] = ()
-    """Factories that fail compliance (``compliance_ok = false``)."""
+    """Factories that fail compliance (``compliance_ok = false``). Removing one is a guarded
+    change (M8: four-eyes change request ``compliance_block_removed``)."""
+    # ── M8 (125-m8-optimizer-cpsat.md): sourcing terms of the derived sources, omitted from
+    # dumps at their defaults so stored specs and every dump of an unchanged spec stay as before ──
+    order_multiple_units: Annotated[int, Field(ge=1, le=100_000)] = _omitted_at(1)
+    """Case pack: every ``po.create`` line is a multiple of it (the MOQ rounds up to whole packs)."""
+    moq_basis: Literal["po", "style"] = _omitted_at("po")
+    """``style``: the MOQ applies to each style-colour within a purchase order."""
+    share_factory_capacity: bool = _omitted_at(False)
+    """One weekly capacity per factory over all its lanes (``AltSource.capacity_group``) instead
+    of the factory's full capacity on every lane."""
+    max_orders_per_source: Annotated[int, Field(ge=1, le=52)] | None = _omitted_at(None)
+    """At most this many purchase orders (arrival weeks) per derived source over the horizon."""
 
 
 class PlanningDefaults(_SpecModel):
@@ -590,6 +607,9 @@ class PlanningDefaults(_SpecModel):
     alt_sourcing: AltSourcingDefaults = Field(default_factory=AltSourcingDefaults)
     max_change_set_items: Annotated[int, Field(ge=1, le=10_000)] = 500
     """Largest change set the connector accepts (Merxa: 500 items)."""
+    solver_integer_stage: Literal["repair", "cpsat"] = _omitted_at("repair")
+    """M8 (``SolverOptions.integer_stage``): ``repair`` = LP rounding and repair (the M7 plans),
+    ``cpsat`` = whole-unit CP-SAT buys and splits plus resequencing v2 (opt-in)."""
 
     @field_validator("enabled_levers")
     @classmethod

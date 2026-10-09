@@ -243,7 +243,7 @@ async def test_catalog(people: dict[str, Browser], gateway_ready: FakeLiteLLM, m
     assert "untrusted" in tools["list_supplier_messages"]["reason"]
     assert tools["apply_change_set"]["bindable"] is False and "destructive" in tools["apply_change_set"]["reason"]
     assert cat["guarded_fields"] == ["policy.auto_max_lines", "policy.auto_max_units", "policy.approver_role",
-                                     "policy.approval_quorum", "connector"]
+                                     "policy.approval_quorum", "connector", "planning.alt_sourcing.blocked_factories"]
     assert cat["prompt_max_chars"] == 4000 and cat["gateway_available"] is True
     assert cat["specialists"][0]["display_name"] in ("Inventory & demand analyst", "Stock analyst")
 

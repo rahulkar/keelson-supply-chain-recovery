@@ -888,6 +888,10 @@ def _alt_sources(
                     lead_time_days=cfg.production_lead_time_days + ln.transit_days, unit_cost_cents=cost,
                     moq_units=cfg.moq_units, weekly_capacity_units=weekly, approved=True,
                     compliance_ok=factory not in cfg.blocked_factories, lane_code=ln.code,
+                    # M8 terms (omitted from the request at their defaults)
+                    order_multiple_units=cfg.order_multiple_units, moq_basis=cfg.moq_basis,
+                    capacity_group=factory if cfg.share_factory_capacity else None,
+                    max_orders=cfg.max_orders_per_source,
                 )
             )
     return out

@@ -34,6 +34,9 @@ must be the latest, else 409). Validation (422 unless noted):
   request (kind ``agent_spec``, or ``policy_set`` via ``PUT /policies``; ``base_version`` = the spec
   version it was made against). Approval re-runs :func:`put_spec` / :func:`restore` with
   ``cosigned=True`` (409 when the spec moved).
+* M8 (``125`` §7): removing a factory from ``planning.alt_sourcing.blocked_factories`` relaxes
+  compliance (the planner may then buy from it) and is guarded the same way (reason
+  ``compliance_block_removed``); the other planning fields are commercial tuning, not guarded.
 """
 
 from __future__ import annotations
@@ -123,11 +126,14 @@ LEGACY_DEFAULT_BUDGETS = ({"max_llm_calls": 40, "max_total_tokens": 600_000},)
 """Built-in budget defaults of earlier releases: a tenant still on one of them gets the current
 default when :func:`upgrade_builtins` adds specialists (more agents need a larger run budget)."""
 GUARDED_POLICY = ("auto_max_lines", "auto_max_units")
+BLOCKED_FACTORIES = "planning.alt_sourcing.blocked_factories"
 GUARDED_FIELDS = (*(f"policy.{f}" for f in GUARDED_POLICY), "policy.approver_role", "policy.approval_quorum",
-                  "connector")
+                  "connector", BLOCKED_FACTORIES)
 """Fields a tenant-admin may not loosen (403 ``guarded_change``): raising the auto-approval
 thresholds (contract 70 §1), plus — same rationale — changing who approves change sets, lowering
-the approval quorum and re-pointing the planning connector (where change sets are written)."""
+the approval quorum and re-pointing the planning connector (where change sets are written). M8
+(125): removing a factory from the compliance block list (``compliance_ok`` of the derived
+alternate sources; adding one only tightens)."""
 
 _spec_model: type[BaseModel] | None = None
 
@@ -307,6 +313,7 @@ _LEGACY_GUARD_CODES = {
     "policy.approver_role": ("approver_changed", "changes who approves change sets"),
     "policy.approval_quorum": ("quorum_lowered", "lowers the number of approvals a change set needs"),
     "connector": ("planning_connector_changed", "re-points the connector change sets are written to"),
+    BLOCKED_FACTORIES: ("compliance_block_removed", "lets the planner buy from a factory blocked for compliance"),
 }
 
 
@@ -361,6 +368,11 @@ def _bindings(spec: dict[str, Any]) -> dict[str, tuple[str, list[str]]]:
     return out
 
 
+def _blocked_factories(spec: dict[str, Any]) -> set[str]:
+    alt = (spec.get("planning") or {}).get("alt_sourcing") or {}
+    return {str(f) for f in alt.get("blocked_factories") or ()}
+
+
 async def _validate_semantics(tenant: str, base: dict[str, Any], new: dict[str, Any], *,
                               platform_admin: bool, cosigned: bool = False,
                               guard: _SpecGuard | None = None) -> None:
@@ -390,6 +402,8 @@ async def _validate_semantics(tenant: str, base: dict[str, Any], new: dict[str, 
     for g in rule_guards:
         if g["field"] not in guarded:
             guarded.append(g["field"])
+    if _blocked_factories(base) - _blocked_factories(new):
+        guarded.append(BLOCKED_FACTORIES)
     if connector_changed:
         planning = str(new.get("connector"))
         try:

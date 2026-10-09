@@ -21,10 +21,11 @@ from __future__ import annotations
 import datetime as dt
 from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
-from typing import Any
+from typing import Any, get_args
 
 from keelson_contracts.blocks import (
     MAX_TIMELINE_ROWS,
+    CompareInteger,
     CompareOption,
     Footprint,
     ImpactGraphProps,
@@ -46,6 +47,7 @@ from keelson_contracts.blocks import (
 from keelson_contracts.common import Provenance, monday_of, week_range
 from keelson_contracts.optimizer import (
     CostBreakdown,
+    IntegerFallbackReason,
     ImpactGraph,
     ImpactKpis,
     InboundLane,
@@ -140,11 +142,31 @@ def scenario_compare_props(options: Sequence[Mapping[str, Any]], *, recommended_
                 recommended=str(o["id"]) == recommended_id,
                 guided_only=bool(o.get("guided_only")),
                 guided_reason=o.get("guided_reason") if o.get("guided_only") else None,
+                integer=compare_integer(o.get("solver")),
                 pareto=pareto[str(o["id"])],
             )
             for o in options
         ]
     )
+
+
+_INTEGER_FALLBACKS = frozenset(get_args(IntegerFallbackReason))
+
+
+def compare_integer(solver: Any) -> CompareInteger | None:
+    """M8: an option's ``solver`` summary (``integer_stage="cpsat"`` options only) as the compare
+    note on how its whole units were found; ``None`` (omitted) without an integer stage."""
+    if not isinstance(solver, Mapping):
+        return None
+    method = solver.get("integer_method")
+    if method in ("cpsat_optimal", "cpsat_feasible"):
+        gap = solver.get("gap_bp")
+        ok = isinstance(gap, int) and not isinstance(gap, bool)
+        return CompareInteger(method=method, gap_bp=min(10_000, max(0, gap)) if ok else None)
+    if method == "lp_rounding":
+        reason = solver.get("fallback_reason")
+        return CompareInteger(method=method, fallback_reason=reason if reason in _INTEGER_FALLBACKS else None)
+    return None
 
 
 # ─────────────────────────────── scenario targets ───────────────────────────────

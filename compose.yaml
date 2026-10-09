@@ -28,6 +28,9 @@ volumes:
   valkey_data: {}
   squid_cache: {}
   merxa_snapshots: {}
+  # M8 self-hosted base map (docs/contracts/127): filled by `basemap-fetch`; re-creatable cache.
+  basemap:
+    labels: { com.keelson.cache: basemap }
 
 services:
   # ───────────────────────────── edge ─────────────────────────────
@@ -39,6 +42,7 @@ services:
       DEV_ALLOW_KC_ADMIN: ${DEV_ALLOW_KC_ADMIN:-0}
     volumes:
       - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - basemap:/srv/basemap:ro
     networks:
       edge:
         aliases: [keelson.localhost, merxa.localhost, auth.localhost, gateway.localhost, traces.localhost]
@@ -399,11 +403,16 @@ services:
     build:
       context: .
       dockerfile: apps/keelson-web/Dockerfile
+      args:
+        # build time (CSP): third-party map origins; "none" = strict / air-gapped (docs/contracts/127)
+        KEELSON_CSP_MAP_ORIGINS: ${KEELSON_CSP_MAP_ORIGINS:-https://tiles.openfreemap.org}
     restart: unless-stopped
     environment:
       PORT: "3000"
       HOSTNAME: 0.0.0.0
       ENGINE_API_INTERNAL_URL: http://engine-api:8000
+      # runtime: auto | protomaps | openfreemap | offline (restart keelson-web to switch)
+      KEELSON_BASEMAP: ${KEELSON_BASEMAP:-auto}
     depends_on:
       engine-api: { condition: service_healthy }
     networks: [edge]
@@ -491,6 +500,32 @@ services:
       egress: { condition: service_started }
     networks: [app]
     mem_limit: 256m
+
+  # ─────────────────────────── self-hosted base map (M8, profile basemap) ───────────────────────────
+  # One-shot: `docker compose --profile basemap run --rm basemap-fetch [--profile lite|standard|detail]
+  # [--dry-run|--check]` (or scripts/basemap/fetch.sh / fetch.ps1). Protomaps archive + glyphs +
+  # sprites into the `basemap` volume, which Caddy serves read-only at /basemap/*. Public hosts only,
+  # through the egress proxy; non-root; never started by `up`.
+  basemap-fetch:
+    build:
+      context: .
+      dockerfile: infra/basemap/Dockerfile
+    profiles: [basemap]
+    restart: "no"
+    environment:
+      BASEMAP_PROFILE: ${BASEMAP_PROFILE:-standard}
+      BASEMAP_BUILD: ${BASEMAP_BUILD:-latest}
+      BASEMAP_MAX_MB: ${BASEMAP_MAX_MB:-300}
+      HTTPS_PROXY: http://egress:3128
+      HTTP_PROXY: http://egress:3128
+      NODE_USE_ENV_PROXY: "1"
+    volumes:
+      - basemap:/srv/basemap
+    depends_on:
+      egress: { condition: service_started }
+    networks: [edge]
+    mem_limit: 384m
+    cpus: 1
 
   # ─────────────────────────── observability (profile obs) ───────────────────────────
   phoenix:

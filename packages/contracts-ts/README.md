@@ -123,6 +123,18 @@ to MapLibre/deck.gl. Python-side cross-field rules (edge/link endpoints exist, `
 have `shortage_units > 0`, ...) are not in the Zod schemas; the engine validates them. The generator fails if a schema would
 convert to `z.any()` without an explicit open object.
 
+## M8 notes — Evals UI (`docs/contracts/128-m8-evals-ui.md`)
+
+- Generated `evals*Schema` modules (`evals.status`, `evals.run`, `evals.run-detail`,
+  `evals.run-create`, `evals.run-event`, `evals.case-result`, `evals.compare`, `evals.trends`,
+  `evals.threshold`, `evals.suite`). Units: `*_bp`, `*_ms`, integer `cost_microusd`, integer tokens.
+- Friendly vocabularies in `src/evals.ts`: `EVAL_MODES`, `EVAL_LIVE_MODES`, `EVAL_RUN_MODES`,
+  `EVAL_RUN_STATUSES`, `EVAL_CASE_STATUSES`, `EVAL_METRICS` + `EVAL_METRIC_META` (label, unit, better
+  direction), `CONFIRM_LIVE_TEXT` (`RUN LIVE`), `EVAL_STOP_CODES`; UI pre-checks `isLiveMode` and
+  `evalRunCreateProblem` (mirror of contracts-py `eval_run_create_error`; the engine stays
+  authoritative). The CLI results file (`keelson-evals/1|2`) has no generated schema: the engine
+  converts it with a sanitising converter, so clients only do light early checks.
+
 ## M7 notes (`docs/contracts/110-m7-backoffice-generic.md`)
 
 - Friendly vocabularies in `src/backoffice.ts` (derived from the generated schemas): `PRODUCT_ROLES`,

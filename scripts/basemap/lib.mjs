@@ -251,6 +251,7 @@ export function rawUrl(repo, commit, filePath) {
 
 /** Resolves a symlink target (relative, posix) from the link's own directory; null if it escapes `root`. */
 export function resolveLink(linkPath, target, root = "fonts") {
+  if (typeof target !== "string" || target.startsWith("/") || target.includes("\\")) return null;
   const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(linkPath), target));
   return resolved.startsWith(`${root}/`) && isSafeRelativePath(resolved) ? resolved : null;
 }
@@ -347,6 +348,22 @@ export function manifestProblems(m) {
   need(Array.isArray(m.fonts) && m.fonts.every((f) => isSafeRelativePath(f)), "fonts are not safe names");
   need(SPRITE_THEMES.every((t) => isSafeRelativePath(m.sprites?.[t])), "sprites are not safe relative paths");
   return problems;
+}
+
+/**
+ * Writes `file` via a hidden temp file in the same directory + rename, so readers (Caddy, a
+ * browser) see the old content or the complete new one, never a partial file. `fsImpl` is
+ * `node:fs` (injectable for tests).
+ */
+export function writeFileAtomic(file, data, fsImpl) {
+  const tmp = path.join(path.dirname(file), `.${path.basename(file)}.tmp`);
+  fsImpl.writeFileSync(tmp, data);
+  try {
+    fsImpl.renameSync(tmp, file);
+  } catch (err) {
+    fsImpl.rmSync(tmp, { force: true });
+    throw err;
+  }
 }
 
 /** Archives to delete after a successful install: older `v4/keelson-*.pmtiles`, keeping `keep` newest (incl. current). */

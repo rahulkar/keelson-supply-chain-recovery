@@ -36,6 +36,12 @@ the reference (pure reordering effect; Merxa additionally re-dates the orders ba
 back, which is not counted as earlier supply) and then pass the lane-closure rules of
 :mod:`keelson_opt.scn` again (a temporary port closure may now be missed or hit); a
 sequence that would make a receipt miss its lane altogether is not used.
+
+M8: ``frozen_days`` (both modes) keeps the movable orders planned to start before ``as_of +
+frozen_days`` at the head of the sequence, in their current order (the longest such prefix);
+only the rest is resequenced. With ``integer_stage="cpsat"`` every line also gets the CP-SAT
+v2 sequence (:mod:`keelson_opt.levers.resequence_cpsat`: lost margin by arrival week, due
+dates, stability), and the simulator keeps the better of v2 and the method above.
 """
 
 from __future__ import annotations
@@ -45,7 +51,6 @@ import functools
 import heapq
 import itertools
 import logging
-import os
 from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -54,6 +59,7 @@ from fractions import Fraction
 from keelson_contracts.optimizer import ProductionLine, ProductionOrder, ResequenceProductionParams
 from ortools.sat.python import cp_model
 
+from keelson_opt.cpsat import StageLog, cpsat_workers
 from keelson_opt.impact import lost_margin, simulate
 from keelson_opt.plan import EtaMove, LineSequence, RLine, apply_moves, receipt_series
 from keelson_opt.scn import ReceiptLine, Scenario, closure_delay
@@ -66,15 +72,6 @@ CPSAT_MAX_ORDERS = 40
 it on the full-profile lines and costs ~5x its deterministic budget in wall time)."""
 DEFAULT_MAX_ORDERS = 400
 CPSAT_DETERMINISTIC_TIME = 0.05
-
-
-def cpsat_workers() -> int:
-    """``CPSAT_NUM_WORKERS`` (compose sets 1; default 1). More than one worker makes CP-SAT
-    non-deterministic, so only 1 keeps the optimizer's determinism guarantee."""
-    try:
-        return max(1, int(os.environ.get("CPSAT_NUM_WORKERS", "1")))
-    except ValueError:
-        return 1
 
 
 @dataclass(slots=True)
@@ -202,9 +199,13 @@ def plan_resequence(
     seed: int,
     w_lost_bp: int,
     pinned: frozenset[str] = frozenset(),
+    stages: StageLog | None = None,
+    time_limit_s: int = 5,
 ) -> ReseqOutcome:
     """``pinned`` PO lines (the lines carried by capacity bookings: already-applied
-    decisions, M5) must keep their arrival: a new sequence that would move one is not used."""
+    decisions, M5) must keep their arrival: a new sequence that would move one is not used.
+    An enabled ``stages`` log (``integer_stage="cpsat"``) adds the CP-SAT v2 sequence per line
+    (M8)."""
     out = ReseqOutcome()
     data = scn.data
     if data is None or not data.production:
@@ -229,7 +230,16 @@ def plan_resequence(
     for pl in sorted(data.production, key=lambda p: p.line_code):
         if wanted is not None and pl.line_code not in wanted:
             continue
-        result = _line(scn, pl, lost, prod_delay, max_orders, seed, out)
+        if stages is not None and stages.enabled:
+            from keelson_opt.levers.resequence_cpsat import line_v2  # noqa: PLC0415 - imports this module
+
+            model = _line_model(scn, pl, lost, prod_delay, max_orders, params.frozen_days, out)
+            result = None if model is None else line_v2(
+                scn, model, current, params, seed=seed, w_lost_bp=w_lost_bp, pinned=pinned, stages=stages,
+                out=out, time_limit_s=time_limit_s,
+            )  # fmt: skip
+        else:
+            result = _line(scn, pl, lost, prod_delay, max_orders, seed, out, params.frozen_days)
         if result is None:
             continue
         seq, moves = result
@@ -255,15 +265,34 @@ def plan_resequence(
     return out
 
 
-def _line(
+@dataclass(slots=True)
+class LineModel:
+    """A factory line's movable orders as single-machine jobs (time unit: one unit of product,
+    or one day without a capacity). ``reference`` = each job's scenario completion (on time +
+    its own readiness delay); the first ``frozen`` jobs keep their place (``frozen_days``)."""
+
+    line: ProductionLine
+    jobs: list[_Job]
+    per_day: int
+    reference: list[int]
+    frozen: int
+    anchor: dt.date
+    """Earliest planned start of a movable order (time 0)."""
+
+    @property
+    def base_day(self) -> list[int]:
+        return [(e - 1) // self.per_day for e in self.reference]
+
+
+def _line_model(
     scn: Scenario,
     pl: ProductionLine,
     lost: dict[tuple[str, str], int],
     prod_delay: dict[str, int],
     max_orders: int,
-    seed: int,
+    frozen_days: int,
     out: ReseqOutcome,
-) -> tuple[LineSequence, dict[str, EtaMove]] | None:
+) -> LineModel | None:
     movable = sorted((o for o in pl.orders if o.movable), key=lambda o: (o.seq, o.code))
     if len(movable) < 2:
         return None
@@ -292,21 +321,83 @@ def _line(
         jobs.append(_Job(o, durs[i], release, weight))
     if not any(j.weight for j in jobs):
         return None
-    if all(j.release == 0 for j in jobs):
-        seq, method = _wspt(jobs), "wspt"
-    elif len(jobs) <= ENUMERATE_MAX:
-        seq, method = _enumerate(jobs), "enumeration"
-    elif len(jobs) <= CPSAT_MAX_ORDERS:
-        seq, method = _cpsat(jobs, seed)
-    else:
-        seq, method = _greedy(jobs), "greedy"
+    frozen = 0
+    if frozen_days > 0:
+        limit = scn.as_of + dt.timedelta(days=frozen_days)
+        while frozen < len(movable) and movable[frozen].planned_start < limit:
+            frozen += 1
+        if frozen >= len(movable) - 1:
+            return None  # at most one order left to move: nothing to resequence
     # Scenario completion: on time, plus the order's own readiness delay.
     reference = [on_time[i] + delays[i] * per_day for i in range(len(jobs))]
-    if _objective(jobs, seq) >= sum(j.weight * reference[i] for i, j in enumerate(jobs)):
+    anchor = min(o.planned_start for o in movable)
+    return LineModel(pl, jobs, per_day, reference, frozen, anchor)
+
+
+def m3_sequence(model: LineModel, seed: int) -> tuple[list[int], str] | None:
+    """The M3 method's sequence (after the frozen prefix), or ``None`` when it does not beat
+    the reference's weighted completion."""
+    jobs, k = model.jobs, model.frozen
+    if k:
+        # The frozen prefix runs first; the rest is an independent machine starting at its
+        # end P (release r -> max(0, r - P)); completions shift by P, so the optimal order of
+        # the rest is unchanged.
+        prefix_end = _schedule(jobs, list(range(k)))[k - 1]
+        rest = [_Job(j.order, j.dur, max(0, j.release - prefix_end), j.weight) for j in jobs[k:]]
+    else:
+        rest = jobs
+    if all(j.release == 0 for j in rest):
+        sub, method = _wspt(rest), "wspt"
+    elif len(rest) <= ENUMERATE_MAX:
+        sub, method = _enumerate(rest), "enumeration"
+    elif len(rest) <= CPSAT_MAX_ORDERS:
+        sub, method = _cpsat(rest, seed)
+    else:
+        sub, method = _greedy(rest), "greedy"
+    seq = list(range(k)) + [k + i for i in sub]
+    if _objective(jobs, seq) >= sum(j.weight * model.reference[i] for i, j in enumerate(jobs)):
         return None
+    return seq, method
+
+
+def _line(
+    scn: Scenario,
+    pl: ProductionLine,
+    lost: dict[tuple[str, str], int],
+    prod_delay: dict[str, int],
+    max_orders: int,
+    seed: int,
+    out: ReseqOutcome,
+    frozen_days: int = 0,
+) -> tuple[LineSequence, dict[str, EtaMove]] | None:
+    """The M3 sequence of one line and the arrivals it moves (``None``: nothing to gain)."""
+    model = _line_model(scn, pl, lost, prod_delay, max_orders, frozen_days, out)
+    if model is None:
+        return None
+    m3 = m3_sequence(model, seed)
+    if m3 is None:
+        return None
+    seq, method = m3
     out.methods[pl.line_code] = method
-    base_day = [(e - 1) // per_day for e in reference]
-    new_day = [(e - 1) // per_day for e in _schedule(jobs, seq)]
+    result, missed = line_moves(scn, model, seq)
+    if missed is not None:
+        out.warnings.append(
+            f"resequence_production: {pl.line_code} new sequence would make {missed} miss its lane; kept as is"
+        )
+        out.methods.pop(pl.line_code, None)
+        return None
+    return result
+
+
+def line_moves(
+    scn: Scenario, model: LineModel, seq: Sequence[int]
+) -> tuple[tuple[LineSequence, dict[str, EtaMove]] | None, str | None]:
+    """The PO-line arrivals ``seq`` changes (back-to-back schedule): ``(result, None)``, with
+    ``result=None`` when no arrival moves, or ``(None, ref)`` when ``ref`` would miss its lane.
+    Each PO line's goods are ready earlier/later by its orders' latest completion-day change."""
+    jobs = model.jobs
+    base_day = model.base_day
+    new_day = [(e - 1) // model.per_day for e in _schedule(jobs, seq)]
     delta_by_ref: dict[str, int] = {}
     for i, j in enumerate(jobs):
         ref = j.order.po_line_ref
@@ -321,11 +412,7 @@ def _line(
             continue
         eta = _moved_eta(scn, rl, d)
         if eta is None:
-            out.warnings.append(
-                f"resequence_production: {pl.line_code} new sequence would make {rl.ref} miss its lane; kept as is"
-            )
-            out.methods.pop(pl.line_code, None)
-            return None
+            return None, rl.ref
         new_eta[rl.ref] = max(new_eta.get(rl.ref, eta), eta)
         cur_eta[rl.ref] = max(cur_eta.get(rl.ref, rl.eta_perturbed), rl.eta_perturbed)
     for ref, eta in sorted(new_eta.items()):
@@ -337,7 +424,8 @@ def _line(
         eta_after = max(scn.as_of, eta)
         moves[ref] = EtaMove(ref, pol.eta, eta_after, scn.week_of(eta_after), eta_after > pol.eta)
     if not moves:
-        return None
+        return None, None
+    pl = model.line
     return (
         LineSequence(
             line_code=pl.line_code,
@@ -347,4 +435,4 @@ def _line(
             refs=tuple(sorted(moves)),
         ),
         moves,
-    )
+    ), None

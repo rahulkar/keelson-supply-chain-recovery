@@ -68,7 +68,15 @@ from .common import (
     new_block_id,
 )
 from .changeset import bundle_hash
-from .optimizer import ImpactGraph, LatE6, LonE6, NodeStatus, Scorecard, ScorecardMetric
+from .optimizer import (
+    ImpactGraph,
+    IntegerFallbackReason,
+    LatE6,
+    LonE6,
+    NodeStatus,
+    Scorecard,
+    ScorecardMetric,
+)
 from .policy import QuorumView, RoleName
 from .runs import MAX_DECISION_REASON_CHARS, ApproachEdit
 from .scenario import Assumption
@@ -105,6 +113,7 @@ __all__ = [
     "BLOCK_DATA_REGISTRY",
     "BLOCK_KEYS",
     "CompareAxes",
+    "CompareInteger",
     "CompareOption",
     "DATA_REF_REQUIRED_KINDS",
     "Footprint",
@@ -1128,6 +1137,9 @@ class CompareOption(ContractModel):
     recommended: StrictBool
     guided_only: StrictBool
     guided_reason: str | None = None
+    integer: CompareInteger | None = _m5_optional()
+    """M8 (125; ``integer_stage="cpsat"`` options with re-sourcing only, omitted while unset): how
+    the option's whole-unit buys and splits were found."""
     pareto: StrictBool
 
     @model_validator(mode="after")
@@ -1148,6 +1160,25 @@ class CompareAxes(ContractModel):
     def _distinct(self) -> CompareAxes:
         if self.x == self.y:
             raise ValueError("axes x and y must differ")
+        return self
+
+
+class CompareInteger(ContractModel):
+    """M8 (125): how a ``cpsat`` option found its whole units. ``cpsat_optimal`` /
+    ``cpsat_feasible``: the buys and splits come from CP-SAT (proven optimal for the planning
+    model, or the best found within ``gap_bp`` of the best bound); ``lp_rounding``: CP-SAT fell
+    back to the LP rounding and repair for ``fallback_reason``."""
+
+    method: Literal["cpsat_optimal", "cpsat_feasible", "lp_rounding"]
+    gap_bp: Annotated[StrictInt, Field(ge=0, le=10_000)] | None = None
+    fallback_reason: IntegerFallbackReason | None = None
+
+    @model_validator(mode="after")
+    def _consistent(self) -> CompareInteger:
+        if self.method == "lp_rounding" and self.gap_bp is not None:
+            raise ValueError("lp_rounding options have no CP-SAT gap")
+        if self.method != "lp_rounding" and self.fallback_reason is not None:
+            raise ValueError("fallback_reason is only allowed for lp_rounding options")
         return self
 
 

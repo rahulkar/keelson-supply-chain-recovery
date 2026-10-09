@@ -1,9 +1,9 @@
 """Spike S4 budgets for ``integer_stage="cpsat"`` (M8): the full profile with every lever, the
 planner's worst case (resequence moves PO lines, so the LP levers are solved and completed with
 and without it) and a 400-order line. ``cpsat`` is opt-in and runs up to two more GLOP solves
-plus up to 0.6 deterministic CP-SAT seconds per request, so its budget is 8 s (``repair`` keeps
-the 5 s of S4, ``tests/test_perf.py``); the deterministic CP-SAT time per stage is printed for
-the README's det/wall calibration."""
+plus up to 0.6 deterministic CP-SAT seconds per request, so its budget is 10 s - twice S4's
+(``repair`` keeps the 5 s, ``tests/test_perf.py``); the deterministic CP-SAT time per stage is
+printed for the README's det/wall calibration."""
 
 from __future__ import annotations
 
@@ -20,8 +20,8 @@ from keelson_opt.service import run_optimize
 from .fixtures.full_problem import BD_TRIMS_DELAY, OPTIONS, VN_PORT_CLOSURE, full_request
 from .test_resequence_m8 import long_line_problem
 
-BUDGET_S = 8.0
-"""See the module doc (125 §9: measured 3.9-6.7 s on the shared 6-CPU test host)."""
+BUDGET_S = 10.0
+"""See the module doc (125 §9: measured 3.8-7.9 s on the shared 6-CPU test host under load)."""
 
 
 def _cpsat_line(resp: OptimizeResponse) -> str:

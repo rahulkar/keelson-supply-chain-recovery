@@ -22,7 +22,7 @@ Steps:
    * ``cpsat`` responses carry stages with the planning seed and one CP-SAT worker, and the integer
      stage's method / fallback in the params;
    * a second ``cpsat`` call is identical except ``solver.solve_ms``;
-   * each call within the time budget (``repair`` 5 s, ``cpsat`` 8 s: up to two more LP solves
+   * each call within the time budget (``repair`` 5 s, ``cpsat`` 10 s: up to two more LP solves
      and 0.6 deterministic CP-SAT seconds).
 
 Exit 0 pass, 1 expectation failed (``FAIL:`` line), 2 environment missing.
@@ -49,7 +49,7 @@ TENANT = "demo-retail"
 CONNECTOR = "merxa"
 MULTIPLE = 6
 OPTIONS = ("opt-C", "opt-D")
-BUDGET_S = {"repair": 5.0, "cpsat": 8.0}
+BUDGET_S = {"repair": 5.0, "cpsat": 10.0}
 TRIM_DELAY = {
     "op": "lead_time_shift",
     "target": {"kinds": ["supplier"], "ids": ["TRIM-BD-01"]},

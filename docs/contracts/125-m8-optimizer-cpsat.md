@@ -270,10 +270,10 @@ equal (the D integer stage is rejected by the simulator guard). Resequence only,
    up to two more GLOP solves (compare mode: the second repair completion; the CP-SAT completion when
    the screen passes) and up to
    0.6 deterministic CP-SAT seconds (5–8× in wall time). Measured on the shared 6-CPU test host at
-   load 6–9 (2026-10-09): 3.9 s (BD), 4.8 s (VN), 6.0 s (BD+VN), 6.7 s over HTTP, against 1.9 / 2.5
-   / 4.0 s for `repair` in the same run (the unchanged M7 perf tests themselves exceeded 5 s in one
-   run under that load). `tests/test_perf_m8.py` uses **8 s**; `repair` keeps the 5 s of S4.
-   `cpsat` is opt-in and not the demo default (§10).
+   load ~6 (2026-10-09, all levers): 3.8 s (BD), 5.6 s (VN), 6.9 s (BD+VN), 7.9 s over HTTP, against
+   2.2 / 2.7 / 2.9 s for `repair` in the same run (the unchanged M7 perf tests themselves exceeded
+   5 s in another run under higher load). `tests/test_perf_m8.py` and the e2e use **10 s** (twice
+   S4); `repair` keeps the 5 s. `cpsat` is opt-in and not the demo default (§10).
 2. *Compare mode completes both candidates* (one more GLOP solve) instead of deciding on bare
    phase-1 plans: with the phase-1 decision the `cpsat` D options ended below `repair`
    (VN 7.56 M vs 7.98 M, BD+VN 26.94 M vs 27.36 M).
@@ -318,7 +318,7 @@ equal (the D integer stage is rejected by the simulator guard). Resequence only,
 
 ## 11. Known issues
 
-* Timing under host load: the `cpsat` perf tests (8 s) and the M7 perf tests (5 s) are wall-clock
+* Timing under host load: the `cpsat` perf tests (10 s) and the M7 perf tests (5 s) are wall-clock
   checks; on an overloaded host they can fail without a functional regression.
 * The CP-SAT recourse is the LP's DC-level fair-pool model; the simulator rations per cluster with
   protected minimums, so CP-SAT optimality does not imply simulator optimality — the guards (§4.4)

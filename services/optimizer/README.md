@@ -316,9 +316,9 @@ VN line 0.146 det-s ≈ 0.75 s (5-8×).
 Full profile, `cpsat` vs `repair` net benefit (`tests/fixtures/full_problem.cpsat.golden.json`):
 C (BD story) 16.13 M vs 13.85 M cents, C (VN) 6.35 M vs 5.51 M, C (BD+VN) 22.48 M vs 19.57 M,
 D (VN) 8.01 M vs 7.98 M; A, B and D (BD, BD+VN) unchanged (D: the simulator rejects the CP-SAT
-units). Time (`tests/test_perf_m8.py`, shared 6-CPU test host at load 6-9, 2026-10-09): all levers
-`cpsat` 3.9 s (BD), 4.8 s (VN), 6.0 s (BD+VN), 6.7 s over HTTP, against 1.9 / 2.5 / 4.0 s for
-`repair` in the same run; the `cpsat` budget is 8 s (`repair` keeps 5 s).
+units). Time (`tests/test_perf_m8.py`, shared 6-CPU test host at load ~6, 2026-10-09): all levers
+`cpsat` 3.8 s (BD), 5.6 s (VN), 6.9 s (BD+VN), 7.9 s over HTTP, against 2.2 / 2.7 / 2.9 s for
+`repair` in the same run; the `cpsat` budget is 10 s (`repair` keeps 5 s).
 
 ## Build, run, test
 ```bash

@@ -315,7 +315,7 @@ when there is none) and calls the real optimizer through its optimizer client.
 
 | script | model calls | what it proves |
 |---|---|---|
-| `api_m8_cpsat_offline.py` | **none** | ProblemData with the tenant's planning defaults plus the M8 sourcing terms (case packs of 6, MOQ per style-colour, one capacity per factory) and the TRIM-BD-01 +7 d delay; the derived sources carry the terms. opt-C and opt-D in `repair` and `cpsat` mode: OPTIMAL/FEASIBLE; every `po.create` line a multiple of 6, every style at least the effective MOQ, within the source and factory capacity, one op per PO line; `cpsat` net benefit ≥ `repair`; `repair` responses carry no stages; `cpsat` responses carry stages with the planning seed and one CP-SAT worker, `integer_method` in the params, and a second identical call is identical except `solve_ms`; `repair` < 5 s, `cpsat` < 8 s per call. |
+| `api_m8_cpsat_offline.py` | **none** | ProblemData with the tenant's planning defaults plus the M8 sourcing terms (case packs of 6, MOQ per style-colour, one capacity per factory) and the TRIM-BD-01 +7 d delay; the derived sources carry the terms. opt-C and opt-D in `repair` and `cpsat` mode: OPTIMAL/FEASIBLE; every `po.create` line a multiple of 6, every style at least the effective MOQ, within the source and factory capacity, one op per PO line; `cpsat` net benefit ≥ `repair`; `repair` responses carry no stages; `cpsat` responses carry stages with the planning seed and one CP-SAT worker, `integer_method` in the params, and a second identical call is identical except `solve_ms`; `repair` < 5 s, `cpsat` < 10 s per call. |
 
 ## `api_m3_levers.py` — M3 levers through the API
 

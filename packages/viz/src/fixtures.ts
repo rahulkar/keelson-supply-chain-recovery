@@ -100,6 +100,21 @@ function advisoryVariant(json: unknown, id: string): BlockEnvelope {
   return { ...base, id, data_ref: null, props: { ...(base.props as object), advisory: ADVISORY_LABEL } } as BlockEnvelope;
 }
 
+/**
+ * M8 (125): options planned with `integer_stage="cpsat"`: each option with re-sourcing notes how
+ * its whole units were found (proven optimal, or the best found with its gap).
+ */
+function integerVariant(json: unknown, id: string): BlockEnvelope {
+  const base = env(json);
+  const props = base.props as { options: { id: string; levers: string[] }[] };
+  const notes: Record<string, unknown> = {
+    opt_nearshore: { method: "cpsat_optimal", gap_bp: 0, fallback_reason: null },
+    opt_hybrid: { method: "cpsat_feasible", gap_bp: 40, fallback_reason: null },
+  };
+  const options = props.options.map((o) => (notes[o.id] ? { ...o, integer: notes[o.id] } : o));
+  return { ...base, id, data_ref: null, props: { ...props, options } } as BlockEnvelope;
+}
+
 /** A network too large to draw (> 5,000 sites): the block shows paged tables instead. */
 function largeNetwork(): { envelope: BlockEnvelope; data: NetworkMapData } {
   const statuses = ["ok", "ok", "ok", "at_risk", "impacted"] as const;
@@ -215,6 +230,12 @@ export const blockFixtures: BlockFixture[] = [
     name: "scenario_compare.advisory",
     description: "Options compared on crawled data (Advisory badge + as-of range)",
     envelope: advisoryVariant(scenarioCompare, "blk_scenario_compare_advisory"),
+  },
+  // M8 (docs/contracts/125), appended so the earlier order stays stable for e2e.
+  {
+    name: "scenario_compare.integer",
+    description: "CP-SAT plans: how each re-sourcing option's whole units were found (optimal, best found)",
+    envelope: integerVariant(scenarioCompare, "blk_scenario_compare_integer"),
   },
 ];
 

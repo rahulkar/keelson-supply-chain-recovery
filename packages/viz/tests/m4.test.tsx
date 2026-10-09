@@ -289,6 +289,7 @@ describe("M3 carry-overs", () => {
       recommended,
       guided_only: false,
       guided_reason: null,
+      integer: null,
       pareto: true,
       scorecard: {
         changes: 0,

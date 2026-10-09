@@ -331,6 +331,27 @@ Submodules are imported explicitly (`from keelson_contracts.blocks import make_b
   dry-run-request|dry-run-result`, `scn.snapshot-label`, `commit.ledger-entry`,
   `connectors.capabilities`.
 
+## M8 additions (`126-m8-co2-robustness.md`, backward compatible)
+
+All omitted from dumps while unset (`_m8_optional` / `_m8_list`), so M1–M7 payloads, `inputs_hash`
+values and goldens are unchanged.
+
+- `optimizer`: `TransportMode`, `LaneLeg`, `Band` (p10 ≤ p50 ≤ p90), `EmissionFactor`, `EmissionsSpec`,
+  `LeadTimeNoise`, `WindowBand`, `RobustnessSpec` (`mc/1`, 8–256 samples), `Co2eBreakdown`,
+  `ScorecardBands`, `EmissionsSummary`, `RobustnessResult` (per-sample vectors, `crn_key`);
+  `Sku.unit_weight_g`, `Lane.distance_km`, `InboundLane.legs`; `Scorecard.incremental_co2e_kg` +
+  `co2e_breakdown` (present together, the breakdown sums to the total) + `bands`;
+  `ScorecardMetric += incremental_co2e_kg`; `OptimizeRequest.emissions` / `robustness` (window-band
+  indexes checked); `OptimizeResponse.emissions` / `robustness`.
+- `blocks`: `KpiUnit += kg_co2e`; `KpiItem.band` (`KpiBand {p10, p90, samples}`); `CompareOption.win_rate_bp`
+  (on every option or none, summing to 10000) and `scores [ProfileScore]`; `ScenarioCompareProps.profiles`
+  (`CompareProfile`, at most one default), `uncertainty` (`UncertaintyNote`), `emissions` (`EmissionsNote`);
+  an `incremental_co2e_kg` axis needs CO₂e on every option.
+- `scoring` (new): `WeightProfile`, `ScoringConfig` (1–8 unique profiles, a known default),
+  `DEFAULT_PROFILES` (net-benefit, cost-first, service-first, low-carbon), `profile_score` (integer
+  cents, half up; the default profile's score is the net benefit), `rank_options` (ties keep the input
+  order). Tests: `tests/test_m8_co2_robustness.py`.
+
 ## Develop (inside Docker, per `docs/contracts/60-build-guide.md`)
 
 ```bash

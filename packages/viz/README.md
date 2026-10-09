@@ -276,3 +276,25 @@ axe on every visual (graph and table views).
 - Fixtures appended after the M6 ones: `recommended_option.advisory`, `narrative.advisory`,
   `scenario_compare.advisory`. Tests: `tests/m7.test.tsx` (contract validation, badge + note +
   range text, fallback text, graph model: fan-out, dashed edges, toggles, every edge joins nodes).
+
+## M8 (docs/contracts/126) — CO₂e, likely ranges, weight profiles
+
+- `formatValue(v, "kg_co2e")` → "26,811 kg CO₂e" (compact "26.8K kg CO₂e"), like the engine's narrative.
+- `compare/model.ts`: the optional metric `incremental_co2e_kg` ("Extra CO₂e", lower is better;
+  `metricValue` is `NaN` when a scorecard has none, `hasMetric`), robustness bands (`bandOf`,
+  `bandSamples`, `pessimistic`, `likelyText` → "likely 91.26%–97.16%"), a direction-aware
+  `paretoFlags` / `withXAxis` (the frontier recomputed client-side when the x axis changes — comparisons
+  only, no KPI arithmetic) and p10–p90 **whiskers** on the scatter's y metric (custom series).
+- `compare/robustness.ts`: `robustnessRows` and `rangeChartOption` (bar p10–p90, median tick, ◆ planned)
+  for the **"How sure are we?"** panel (`RobustnessPanel`: Lost margin | Fill rate | Net benefit chips,
+  View as table with p10 / median / p90 / planned / chance of a stock-out / best in % of futures).
+- `ScenarioCompare`: "Compare against" chips (the server's x axis | Extra CO₂e; the CO₂e chip is disabled
+  with the options it is missing for), "Rank by" profile chips (rank column + "Top under …" badge;
+  ranking only — the recommendation follows the default profile), likely-range captions under banded
+  values (with an sr-only "10th–90th percentile of N sampled futures"), an Extra CO₂e column, the CO₂e
+  footnote (transport only, factor source, indicative). Without M8 data the block renders as in M7.
+- `KpiTiles`: a "Likely A–B" line under a value with a `band` (also on the recommended option card).
+- `ChoiceChip.disabled` (with its reason in `title`).
+- Fixtures `scenario_compare.robust`, `kpi_strip.robust` (appended after the M7 ones). Tests:
+  `tests/m8.test.tsx` (model, whiskers, Pareto recompute, chips, disabled reason, panel table, KPI band
+  line, axe in chart and table views), `tests/format.test.ts` (kg CO₂e).

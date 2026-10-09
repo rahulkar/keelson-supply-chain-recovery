@@ -186,6 +186,7 @@ The worker reads the table above (`config.Settings`) plus these. None of them ar
 | `WORKER_SCN_GC_BATCH_ROWS`, `WORKER_SCN_GC_BATCHES_PER_TICK`, `WORKER_SCN_GC_PAUSE_S` | `20000`, `25`, `0.05` | rows per delete statement (one short transaction), statements per pass (passes follow each other while work is left), pause between statements |
 | `TAXONOMY_DIR` | `/app/taxonomy`, else the source tree's `data/taxonomy` | M4 event taxonomy (`events.yaml`) and material synonyms (`synonyms.yaml`), checked at worker start-up (`check_taxonomy`) |
 | `GEO_DIR` | `/app/geo`, else the source tree's `data/geo` | map geometry, `chokepoints.json` and the region gazetteer `regions.json` (framing, `network_map`) |
+| `EMISSIONS_DIR` | `/app/emissions`, else the source tree's `data/emissions` | M8 transport emission factor sets (`factors.yaml`; plan CO₂e, `docs/contracts/126`) |
 | `MALLOC_ARENA_MAX` | `2` (compose, worker only) | fewer glibc malloc arenas: less retained heap during case runs and syncs |
 
 `WORKER_*` variables are read by `runtime/settings.py` `WorkerSettings` (pydantic-settings, prefix `WORKER_`, case-insensitive), which is separate from `config.Settings`.
@@ -517,6 +518,34 @@ Design notes:
 - **Stale marks.** `due_at = max(min(now + debounce, stale_since + max_delay), retry_at)`; a successful sync
   clears the mark unless an event arrived after the sync started (then it stays due). Failures set `retry_at`.
 - **S5 preview**: see "Tests" below.
+
+## Plan CO₂e, robustness and option scoring (M8, `docs/contracts/126-m8-co2-robustness.md`)
+
+`simulate` and the M5 re-plan build every optimize request of a plan version with
+`runtime/robustness.py` `OptimizeInputs` (one seed for every option, so the options are compared in the
+same sampled futures):
+
+* **CO₂e** (`runtime/emissions.py`): the factor set `planning.emissions.factors_id` from
+  `data/emissions/factors.yaml` (platform data; `$EMISSIONS_DIR`, `/app/emissions`, then the source
+  tree) and, in the request only (never in the stored problem evidence), `Sku.unit_weight_g` (longest
+  `planning.emissions.unit_weights` style prefix, else `default_unit_weight_g`, else `grams_per_unit`),
+  `Lane.distance_km` (great circle × the set's road circuity) and `InboundLane.legs` from the map
+  catalogue (sea routes Cape / Suez, sea-air = sea leg into the hub + air great circle + 95 km, road ×
+  1.2). A missing or unknown factor set logs a warning and the plan carries no CO₂e.
+* **Robustness**: `planning.robustness {enabled, samples 16–256 (64), seed (null = solver_seed),
+  value_bands, duration_bands, lead_time_noise, demand_noise_bp}`; a windowed perturbation whose
+  duration is an assumption gets the taxonomy's duration band (`window_bands`).
+* **Scoring**: `planning.scoring {default_profile, profiles[≤ 8]}` (`keelson_contracts.scoring`): the
+  default profile's weights become `PlanSpec.weights` and rank the improving options for the default
+  recommendation (the built-in `net-benefit` profile = the M3 net-benefit rule); every profile's score
+  and rank, the win rates, an uncertainty and an emissions note go into `scenario_compare@1`; the KPI
+  strip and the recommended option get p10–p90 bands and the "Extra CO₂e of the plan" tile.
+* Replay safety: the Strategist brief and its KPI catalog are unchanged (no CO₂e or band keys reach a
+  model); `compose` formats `kg_co2e` and treats CO₂ / CO₂e words as words, not free numbers.
+* Admin: the Policies page's *Option scoring* section saves `planning.scoring` and
+  `planning.robustness.samples` through `PUT /api/admin/agents/spec` (merge patch; not a guarded
+  change). Set `planning.emissions.enabled` / `planning.robustness.enabled` to `false` to send the M7
+  requests byte-identically.
 
 ## Knowledge base (M4, `docs/contracts/90-m4-investigation.md` §7)
 

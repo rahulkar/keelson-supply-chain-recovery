@@ -16,7 +16,8 @@ A ``signal`` run (``{signal_id}``, origin webhook) starts at ``pre_route`` → `
    second time in the optimizer request;
 5. re-simulates only the affected options: the committed option when changes were applied
    (applied decisions stay fixed: they are part of the post-apply state), else the open plan's
-   options that use the lane;
+   options that use the lane; M8: with the same CO₂e inputs and robustness spec as ``simulate``
+   (``runtime.robustness.OptimizeInputs``);
 6. committed plans: the **delta change set** (:func:`~keelson_engine.runtime.remediation.delta_actions`)
    — the re-simulated lines not applied yet plus compensations of committed lines on the cut lane
    (``capacity_booking.cancel`` + smaller re-booking, ``po_line.reschedule`` of withdrawn sea-air

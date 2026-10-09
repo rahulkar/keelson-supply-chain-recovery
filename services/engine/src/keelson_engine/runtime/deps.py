@@ -813,13 +813,35 @@ def _scn_adapter() -> Any:
     return CoreScnAdapter()
 
 
+def _replay_eval_run_bound() -> bool:
+    """(M8, ``128`` §3) Whether the bound run belongs to a replay eval case (its effective LLM mode
+    is ``replay``). Such a run makes no provider call at all, and query embeddings are not part of
+    LLM record/replay, so its knowledge-base searches stop before the embedding request."""
+    from .context import maybe_current_run  # noqa: PLC0415 - runtime modules import deps
+    from .replay import effective_mode, replay_mode  # noqa: PLC0415
+
+    run = maybe_current_run()
+    override = getattr(run, "llm_replay_override", None) if run is not None else None
+    if override is None:
+        return False
+    try:
+        return effective_mode(replay_mode(), override) == "replay"
+    except RuntimeConfigError:
+        return True  # fail closed
+
+
 class _KbAdapter:
     """``core.kb.search(tenant, query, kb_ids, top_k)`` (M4 platform). Until the platform module
-    exists the knowledge base is empty (the playbook analyst reports a gap, never fails)."""
+    exists the knowledge base is empty (the playbook analyst reports a gap, never fails). In a run
+    of a replay eval case (M8) the knowledge base is unavailable: embedding the query would call
+    the provider."""
 
     async def search(
         self, *, tenant: str, query: str, kb_ids: Sequence[str] | None = None, top_k: int = 6
     ) -> list[dict[str, Any]]:
+        if _replay_eval_run_bound():
+            log.info("knowledge base search skipped in a replay eval run")
+            raise LookupError("knowledge base unavailable (replay eval run: query embeddings are not replayed)")
         try:
             from keelson_engine.core import kb  # noqa: PLC0415 - optional until the platform ships it
         except ImportError:

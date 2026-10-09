@@ -1151,7 +1151,10 @@ into cases, compare runs and track trends. The **in-app runner** is a separate c
   cancelled (`EVAL_CANCELLED`) or its live budget is used up (`EVAL_BUDGET_EXHAUSTED`), and its
   `BudgetPlugin` stops at what is left of the budget (`BUDGET_EXCEEDED`). Each run's metered usage is
   added to the link and the eval run once (`add_eval_usage`). A replay miss ends the run with
-  `LLM_REPLAY_MISS` (was `INTERNAL_ERROR`). A failing link lookup fails the run closed.
+  `LLM_REPLAY_MISS` (was `INTERNAL_ERROR`). A failing link lookup fails the run closed. Query
+  embeddings are not part of LLM replay, so in a replay eval run the KB port (`deps._KbAdapter`)
+  reports the knowledge base unavailable instead of embedding the query (no provider call; the
+  playbook analyst reports a gap, like an embedding outage).
 * **Authoritative numbers**: the summary and threshold outcomes are computed from the stored results
   when a run finishes (`core/evals_summary.py`); a case result is merged with the engine's accounting of
   its linked case (a reported `fail` with engine-seen replay misses becomes `error` / `replay_miss`).

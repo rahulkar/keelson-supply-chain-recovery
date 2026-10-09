@@ -249,6 +249,37 @@ async def test_budget_plugin_checks_the_eval_cost_cap_before_each_call() -> None
     assert plain.abort_reason is None
 
 
+@pytest.mark.parametrize(("process", "override", "blocked"), [
+    ("record_or_replay", "replay", True),       # a replay eval case: no embedding request
+    ("replay", "record_or_replay", True),       # a replay-only installation never escalates
+    ("record_or_replay", "record_or_replay", False),
+    ("record_or_replay", None, False),          # not an eval case: unchanged
+])
+async def test_replay_eval_runs_never_embed_kb_queries(monkeypatch: pytest.MonkeyPatch, process: str,
+                                                       override: str | None, blocked: bool) -> None:
+    """Query embeddings are not replayed: in a replay eval run ``kb.search`` must not reach the
+    provider, so the KB port reports the usual 'unavailable' gap without calling ``core.kb``."""
+    from keelson_engine.core import kb
+    from keelson_engine.runtime.context import bind_run
+    from keelson_engine.runtime.deps import _KbAdapter
+
+    calls: list[str] = []
+
+    async def fake_search(tenant: str, query: str, kb_ids: Any = None, top_k: int = 6) -> list[dict[str, Any]]:
+        calls.append(query)
+        return [{"chunk_id": "k1", "document_title": "SOP", "heading": "h", "text": "t", "score": 1.0}]
+
+    monkeypatch.setattr(kb, "search", fake_search)
+    monkeypatch.setenv("LLM_REPLAY_MODE", process)
+    with bind_run(_ctx(llm_replay_override=override)):
+        if blocked:
+            with pytest.raises(LookupError, match="replay eval run"):
+                await _KbAdapter().search(tenant="demo-retail", query="air freight SOP")
+        else:
+            assert len(await _KbAdapter().search(tenant="demo-retail", query="air freight SOP")) == 1
+    assert calls == ([] if blocked else ["air freight SOP"])
+
+
 def test_replay_miss_text_never_carries_the_exception_or_key() -> None:
     from keelson_engine.runtime.execute import _public_failure
 

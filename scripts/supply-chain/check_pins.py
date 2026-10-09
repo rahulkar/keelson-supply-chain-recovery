@@ -651,7 +651,9 @@ class Checker:
             if img.verify_upstream:
                 if not self.repo.exists(img.verify_upstream["pubkey"]):
                     self.add("P9", rp, 0, f"image '{img.name}': verify_upstream key {img.verify_upstream['pubkey']} does not exist")
-        # compose builds -> registered Dockerfiles
+        # compose builds -> registered Dockerfiles; release images -> compose-release.sh map
+        by_dockerfile = {i.dockerfile: i for i in r.images if not i.overlay_of}
+        release_services: dict[str, str] = {}
         for f, services in sorted(compose.items()):
             for svc, info in sorted(services.items()):
                 if "build_line" not in info:
@@ -660,6 +662,13 @@ class Checker:
                 df = os.path.normpath(os.path.join(ctx, info.get("build_dockerfile", "Dockerfile"))).replace(os.sep, "/")
                 if df not in registered:
                     self.add("P9", f, info["build_line"], f"service {svc} builds {df}, which is not registered in {rp}")
+                elif df in by_dockerfile and by_dockerfile[df].release and f == "compose.yaml":
+                    release_services[svc] = by_dockerfile[df].release_key
+        crm = self._compose_release_map()
+        if crm is not None and crm != release_services:
+            diff = sorted(set(crm.items()) ^ set(release_services.items()))
+            self.add("P9", "scripts/supply-chain/compose-release.sh", 0,
+                     f"COMPOSE_RELEASE_MAP differs from the compose.yaml services that build release images: {diff}")
         # deploy.sh image variables <-> deploy_var
         deploy_vars = self._deploy_image_vars()
         if deploy_vars is not None:
@@ -691,6 +700,13 @@ class Checker:
         # third-party images mirrored from a versions.env pin (no first-party build, e.g. Phoenix)
         mirrored = set(re.findall(r"\bmirror (IMAGE_[A-Z0-9_]+)", text))
         return out - mirrored
+
+    def _compose_release_map(self) -> dict[str, str] | None:
+        f = "scripts/supply-chain/compose-release.sh"
+        if not self.repo.exists(f):
+            return None
+        m = re.search(r"^COMPOSE_RELEASE_MAP=\((.*?)\)", self.repo.read(f), re.S | re.M)
+        return dict(re.findall(r"\b([a-z0-9-]+):([A-Z0-9_]+)\b", m.group(1))) if m else None
 
     def _deploy_release_map(self) -> dict[str, str] | None:
         f = "scripts/cloudrun/deploy.sh"

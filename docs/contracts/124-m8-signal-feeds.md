@@ -173,7 +173,8 @@ checked live: `http` now redirects to `https`). The export line is accepted only
 `data.gdeltproject.org` with path `^/gdeltv2/\d{14}\.export\.CSV\.zip$` and is fetched over https; the
 latest file's size and MD5 must match `lastupdate.txt`; up to `GDELT_MAX_BACKFILL` (4) missed
 15-minute slots since the last processed one are fetched by their deterministic URL (a missing one is
-skipped); every zip goes through `safezip` (`.export.CSV`, ≤ 32 MiB). Rows (61 tab-separated columns)
+skipped); the processed slot in the cursor never moves backwards, so a stale `lastupdate.txt` never
+counts a file twice; every zip goes through `safezip` (`.export.CSV`, ≤ 32 MiB). Rows (61 tab-separated columns)
 kept when `IsRootEvent = 1`, `EventCode` starts with a configured code (`GDELT_EVENT_CODES`, each one
 the adapter maps), `NumArticles ≥ GDELT_MIN_ARTICLES` (3), `ActionGeo_Type` 3/4 (city level), and the
 action point lies within `GDELT_PORT_RADIUS_KM` (30) of a gazetteer port (nearest wins) or

@@ -9,6 +9,7 @@
 #
 #   docker build -f apps/keelson-web/Dockerfile -t keelson-web .
 #   docker build -f apps/keelson-web/Dockerfile --target test .     # typecheck + lint + unit tests
+#   docker build -f apps/keelson-web/Dockerfile --target workspace-test .   # packages/*: contract chain + tests
 
 ARG NODE_IMAGE=node:24.21.0-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20
 
@@ -44,6 +45,20 @@ RUN pnpm --filter @keelson/web build
 FROM build AS test
 ENV NODE_ENV=test
 RUN pnpm --filter @keelson/web typecheck && pnpm --filter @keelson/web lint && pnpm --filter @keelson/web test
+
+# ── workspace packages (not part of the runtime image; no Next build): docker build --target workspace-test …
+# The contract chain is current (contracts-ts JSON Schemas -> generated Zod, tokens -> generated CSS/TS),
+# then every packages/* typecheck and unit test suite (CI suite web-packages, infra/supply-chain/images.json).
+FROM deps AS workspace-test
+COPY packages/tokens-keelson/ packages/tokens-keelson/
+COPY packages/ui-keelson/ packages/ui-keelson/
+COPY packages/viz/ packages/viz/
+COPY packages/contracts-ts/ packages/contracts-ts/
+ENV NODE_ENV=test
+RUN pnpm --filter @keelson/contracts exec node scripts/gen-zod.mjs --check \
+ && pnpm --filter @keelson/tokens exec node scripts/gen-tokens.mjs --check \
+ && pnpm --filter "./packages/*" typecheck \
+ && pnpm --filter "./packages/*" test
 
 # ── runtime: standalone server only, non-root ──
 FROM ${NODE_IMAGE} AS runtime

@@ -24,8 +24,9 @@ from typing import Any
 
 import pyarrow as pa
 import pyarrow.parquet as pq
-from keelson_contracts.scn import SCN_COLUMNS, SCN_ENTITIES, parse_row
 from pydantic import ValidationError
+
+from keelson_contracts.scn import SCN_COLUMNS, SCN_ENTITIES, parse_row
 
 S, I64, F64, D32 = pa.string(), pa.int64(), pa.float64(), pa.date32()
 LS = pa.list_(pa.string())

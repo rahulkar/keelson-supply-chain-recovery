@@ -24,6 +24,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from fastmcp import Client
 from fastmcp.client.transports import StreamableHttpTransport
 from jwt.algorithms import ECAlgorithm
+
 from keelson_contracts.receipts import ApprovalReceiptClaims, approved_by_policy, approved_by_user, receipt_header
 
 SERVICE = Path(__file__).resolve().parents[1]

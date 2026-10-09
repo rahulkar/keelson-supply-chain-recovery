@@ -28,7 +28,6 @@ from fastmcp.exceptions import ToolError
 from fastmcp.server.auth import AccessToken, AuthProvider
 from fastmcp.server.dependencies import get_access_token
 from fastmcp.tools.base import ToolResult
-from keelson_contracts.scn import CANONICAL_MODEL, SCN_ENTITIES
 from pydantic import BaseModel, ConfigDict, Field, create_model
 
 from adapter_sidecar import models as m
@@ -45,6 +44,7 @@ from adapter_sidecar.config import (
 )
 from adapter_sidecar.errors import Problem
 from adapter_sidecar.logs import get_logger
+from keelson_contracts.scn import CANONICAL_MODEL, SCN_ENTITIES
 
 log = get_logger(__name__)
 
@@ -73,7 +73,8 @@ APPLY_ANN = mcp_types.ToolAnnotations(read_only_hint=False, destructive_hint=Tru
                                       open_world_hint=False)
 
 IdemKey = Annotated[
-    str, Field(min_length=1, max_length=255, description="client-chosen key; retries with the same key are replay-safe"),
+    str,
+    Field(min_length=1, max_length=255, description="client-chosen key; retries with the same key are replay-safe"),
 ]
 Receipt = Annotated[str, Field(min_length=1, description="ES256 JWT, typ approval-receipt+jwt, issued by Keelson")]
 
@@ -151,7 +152,7 @@ def build_mcp(sidecar: Any, auth: AuthProvider | None) -> FastMCP:
     )
     snaps = sidecar.snapshots
     svc = sidecar.changesets
-    ItemIn = item_model(sorted(cfg.ops))  # noqa: N806 - a model class
+    ItemIn = item_model(sorted(cfg.ops))
 
     @mcp.tool(name="get_system_info", annotations=READ_ANN, output_schema=_schema(m.SystemInfoOut),
               description="What this system offers: backend, scn/1.0 entity coverage, supported change-set ops and "
@@ -189,7 +190,8 @@ def build_mcp(sidecar: Any, auth: AuthProvider | None) -> FastMCP:
                                    mime_type="application/vnd.apache.parquet", size=p["bytes"])
             for i, p in enumerate(data["parts"], start=1)
         ]
-        summary = mcp_types.TextContent(type="text", text=f"{len(data['parts'])} part(s), {data['rows']} row(s) of {entity}.")
+        summary = mcp_types.TextContent(type="text",
+                                        text=f"{len(data['parts'])} part(s), {data['rows']} row(s) of {entity}.")
         return ToolResult(content=[summary, *links], structured_content=data)
 
     @mcp.tool(name="scn.changes_since", annotations=READ_ANN, output_schema=_schema(m.ChangesOut),

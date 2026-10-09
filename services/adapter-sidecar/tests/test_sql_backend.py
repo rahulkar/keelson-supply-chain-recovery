@@ -7,14 +7,14 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 
 import pytest
-from conftest import SQL_CONFIG, FakeKeelson, Running, fresh_pg_database, load_sql_fixture, sidecar_env, start_app
-from helpers import TO_ITEM, apply, call, prepare
 from sqlalchemy import text
 
 from adapter_sidecar.auth import Principal
 from adapter_sidecar.backends import sql as sql_backend
 from adapter_sidecar.db import begin_write
 from adapter_sidecar.errors import ConfigError
+from conftest import SQL_CONFIG, FakeKeelson, Running, fresh_pg_database, load_sql_fixture, sidecar_env, start_app
+from helpers import TO_ITEM, apply, call, prepare
 
 
 class Crash(BaseException):
@@ -93,7 +93,8 @@ async def test_marker_and_in_doubt_recovery(sql_url: str, tmp_path: Path, keelso
         async with begin_write(run.sidecar.state) as conn:
             await conn.execute(text("INSERT INTO apply_journal (change_set_id, purpose, plan, created_at) VALUES "
                                     "('never', 'apply', :p, 'x')"),
-                               {"p": '{"state": [["UPDATE change_set SET title = \'forged\'", {}]], "marker": "never"}'})
+                               {"p": '{"state": [["UPDATE change_set SET title = \'forged\'", {}]], '
+                                     '"marker": "never"}'})
     finally:
         await shutdown()
     run2, shutdown2 = await boot(tmp_path, sql_url, keelson)

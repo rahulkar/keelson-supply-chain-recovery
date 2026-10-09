@@ -42,7 +42,8 @@ async def test_audit_log_is_append_only(tmp_path: Path) -> None:
 
 def test_statement_splitter_keeps_trigger_bodies() -> None:
     stmts = state.split_statements(
-        "-- c\nCREATE TABLE a (x INT);\nCREATE TRIGGER t BEFORE DELETE ON a\nBEGIN\n  SELECT RAISE(ABORT, 'no');\nEND;\n")
+        "-- c\nCREATE TABLE a (x INT);\nCREATE TRIGGER t BEFORE DELETE ON a\n"
+        "BEGIN\n  SELECT RAISE(ABORT, 'no');\nEND;\n")
     assert len(stmts) == 2 and stmts[1].endswith("END;") and "RAISE" in stmts[1]
 
 

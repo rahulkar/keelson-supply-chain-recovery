@@ -15,7 +15,6 @@ from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from keelson_contracts.changeset import CHANGE_SET_ITEM_ADAPTER, change_set_hash
 from pydantic import ValidationError
 from sqlalchemy import bindparam, text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
@@ -37,6 +36,7 @@ from adapter_sidecar.primitives import Effect, Executor, ItemResult, ItemSpec, S
 from adapter_sidecar.receipts import ReceiptContext, ReceiptVerifier, VerifiedReceipt, check_autocommit_caps
 from adapter_sidecar.settings import Settings
 from adapter_sidecar.templates import parse_ref, render, resolve
+from keelson_contracts.changeset import CHANGE_SET_ITEM_ADAPTER, change_set_hash
 
 log = get_logger(__name__)
 
@@ -302,14 +302,15 @@ class ChangeSetService:
             async with self.lock, begin_write(self.state) as conn:
                 cs = await self._resolve(conn, ref)
                 if cs.status not in EDITABLE:
-                    raise Problem(409, "invalid_state", f"items can only be added while draft/validated (status {cs.status})")
+                    raise Problem(409, "invalid_state",
+                                  f"items can only be added while draft/validated (status {cs.status})")
                 if cs.items_count + len(normalized) > MAX_ITEMS:
                     raise Problem(400, "invalid_items", f"a change set holds at most {MAX_ITEMS} items")
                 start, total, now = cs.items_count, cs.items_count + len(normalized), iso(utcnow())
                 response = {"change_set_id": cs.id, "items_count": total}
                 stmts: list[Stmt] = [
-                    ("INSERT INTO change_set_item (change_set_id, seq, op, target_ref, expected_version, payload, status) "
-                     "VALUES (:c, :s, :op, :t, :v, :p, 'pending')",
+                    ("INSERT INTO change_set_item (change_set_id, seq, op, target_ref, expected_version, payload, "
+                     "status) VALUES (:c, :s, :op, :t, :v, :p, 'pending')",
                      {"c": cs.id, "s": start + i, "op": it["op"], "t": it["target_ref"], "v": it["expected_version"],
                       "p": jdump(it["payload"])})
                     for i, it in enumerate(normalized, start=1)
@@ -363,7 +364,8 @@ class ChangeSetService:
                 await self._sync()
                 cs, items = await self._load(ref)
                 if cs.status not in EDITABLE:
-                    raise Problem(409, "invalid_state", f"only draft/validated change sets can be validated (status {cs.status})")
+                    raise Problem(409, "invalid_state",
+                                  f"only draft/validated change sets can be validated (status {cs.status})")
                 if not items:
                     raise Problem(409, "empty_change_set", "change set has no items")
                 if not self.cfg.writable:
@@ -460,8 +462,8 @@ class ChangeSetService:
             try:
                 async with self.backend.transaction() as w:
                     floors = await self._code_floors(w.conn if self.backend.shared_state else None)
-                    ex = Executor(self.cfg, w, mode="apply", change_set={"id": cs.id, "code": cs.code, "title": cs.title},
-                                  code_floors=floors)
+                    ex = Executor(self.cfg, w, mode="apply",
+                                  change_set={"id": cs.id, "code": cs.code, "title": cs.title}, code_floors=floors)
                     results = [await ex.run_item(spec) for spec in self._specs(items, with_before=True)]
                     failed = [r.conflict() for r in results if not r.ok]
                     if failed:
@@ -614,8 +616,9 @@ class ChangeSetService:
                 raise Problem(409, "invalid_state", f"change set {cs.code} is {cs.status}")
             await self._check_jti(receipt.jti)
             async with self.state.connect() as conn:
-                effects = [Effect.from_dict({"item_seq": r.item_seq, "kind": r.kind, "table": r.tbl, "key": jload(r.key),
-                                             "before": jload(r.before), "after": jload(r.after)})
+                effects = [Effect.from_dict({"item_seq": r.item_seq, "kind": r.kind, "table": r.tbl,
+                                             "key": jload(r.key), "before": jload(r.before),
+                                             "after": jload(r.after)})
                            for r in (await conn.execute(text(
                                "SELECT item_seq, kind, tbl, key, before, after FROM change_set_effect "
                                "WHERE change_set_id = :c ORDER BY n"), {"c": cs.id})).all()]
@@ -674,9 +677,10 @@ class ChangeSetService:
         h = change_set_hash(items)
         co = receipt.co_approvers or None
         stmts: list[Stmt] = [
-            ("INSERT INTO change_set (id, code, title, status, origin, items_count, preview, preview_hash, approval_ref, "
-             "receipt_jti, approved_by, approver_name, initiated_by, co_approvers, via, created_by, applied_by, "
-             "rollback_of, result, created_at, updated_at, validated_at, applied_at) VALUES (:i, :code, :title, "
+            ("INSERT INTO change_set (id, code, title, status, origin, items_count, preview, preview_hash, "
+             "approval_ref, receipt_jti, approved_by, approver_name, initiated_by, co_approvers, via, created_by, "
+             "applied_by, rollback_of, result, created_at, updated_at, validated_at, applied_at) VALUES (:i, :code, "
+             ":title, "
              "'applied', :origin, :n, :preview, :h, :ar, :j, :ab, :an, :ib, :co, :via, :cl, :cl, :orig, :res, :now, "
              ":now, :now, :now)",
              {"i": new_id, "code": new_code, "title": f"Rollback of {cs.code}",
@@ -688,8 +692,8 @@ class ChangeSetService:
               "orig": cs.id, "res": jdump({"status": "applied", "applied": len(items)}), "now": now}),
         ]
         stmts += [
-            ("INSERT INTO change_set_item (change_set_id, seq, op, target_ref, expected_version, payload, before, after, "
-             "status, result_ref) VALUES (:c, :s, :op, :t, :v, :p, :b, :a, 'applied', :t)",
+            ("INSERT INTO change_set_item (change_set_id, seq, op, target_ref, expected_version, payload, before, "
+             "after, status, result_ref) VALUES (:c, :s, :op, :t, :v, :p, :b, :a, 'applied', :t)",
              {"c": new_id, "s": it["seq"], "op": it["op"], "t": it["target_ref"], "v": it["expected_version"],
               "p": jdump(it["payload"]), "b": jdump(eff.after), "a": jdump(nxt.after)})
             for it, eff, nxt in zip(items, reversed(original), done, strict=True)
@@ -720,7 +724,8 @@ class ChangeSetService:
             payload = it["payload"] if isinstance(it["payload"], dict) else {}
             scope: dict[str, Any] = {"payload": payload, "target_ref": it["target_ref"],
                                      "expected_version": it["expected_version"], "op": it["op"],
-                                     "change_set": {"id": cs["change_set_id"], "code": cs["code"], "title": cs["title"]},
+                                     "change_set": {"id": cs["change_set_id"], "code": cs["code"],
+                                                    "title": cs["title"]},
                                      "result_ref": it.get("result_ref")}
             spec = self.cfg.ops.get(it["op"])
             guide = spec.guide if spec is not None else None

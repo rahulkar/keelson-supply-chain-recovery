@@ -13,6 +13,8 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 import yaml
+
+from adapter_sidecar.scn_export import SCN_ARROW_TYPES, RowError, convert_row, fk_problems
 from conftest import FERNHILL, Running, sidecar_env, start_app
 from helpers import call
 from keelson_contracts.scn import (
@@ -24,8 +26,6 @@ from keelson_contracts.scn import (
     SnapshotManifest,
     parse_row,
 )
-
-from adapter_sidecar.scn_export import SCN_ARROW_TYPES, RowError, convert_row, fk_problems
 
 
 def _expected_arrow(annotation: object) -> pa.DataType:

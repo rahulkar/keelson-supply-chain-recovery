@@ -56,7 +56,7 @@ from adapter_sidecar.templates import parse_ref, render, resolve
 Mode = Literal["validate", "apply"]
 
 
-class StepFailure(Exception):  # noqa: N818 - an item outcome, not a crash
+class StepFailure(Exception):  # an item outcome, not a crash
     def __init__(self, code: str, detail: str, *, actual_version: int | None = None) -> None:
         super().__init__(f"{code}: {detail}")
         self.code = code
@@ -260,7 +260,8 @@ class Executor:
             total = sum(coef * int(row.get(col) or 0) for col, coef in inv.expr.items())
             if total < inv.min:
                 key = key_text(self.cfg.tables[table], row)
-                raise StepFailure(inv.error, f"{table} {key}: {_expr_text(inv.expr)} would be {total} (minimum {inv.min})")
+                raise StepFailure(inv.error,
+                                  f"{table} {key}: {_expr_text(inv.expr)} would be {total} (minimum {inv.min})")
 
     async def allocate_code(self, spec: CodeSpec) -> str:
         name = f"code:{spec.table}.{spec.column}"
@@ -301,7 +302,8 @@ class Executor:
         res = ItemResult(item.seq, item.op, item.target_ref, item.expected_version)
         spec = self.cfg.ops.get(item.op)
         if spec is None:
-            return self._fail(res, StepFailure("unsupported_op", f"{item.op} is not supported by {self.cfg.system.name}"))
+            return self._fail(res, StepFailure("unsupported_op",
+                                               f"{item.op} is not supported by {self.cfg.system.name}"))
         touched: set[str] = set()
         sp = await self.conn.begin_nested()
         try:
@@ -348,7 +350,8 @@ class Executor:
                                       f"expected {item.expected_version}, current {version}", actual_version=version)
             elif self.mode == "apply" and t.version_col is None and item.validated_before is not None \
                     and row != item.validated_before:
-                raise StepFailure("row_changed", f"{spec.target.table} {key_text(t, target_key)} changed since validation")
+                raise StepFailure("row_changed",
+                                  f"{spec.target.table} {key_text(t, target_key)} changed since validation")
             res.before = row
             scope["before"] = row
         if spec.code is not None:

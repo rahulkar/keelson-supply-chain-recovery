@@ -4,14 +4,14 @@ watermarks ask for a full resync; paging; Keelson's ``ChangesSince`` parses ever
 from __future__ import annotations
 
 import pytest
-from conftest import ADMIN_KEY, FakeKeelson, Running
 from fastmcp.exceptions import ToolError
-from helpers import TO_ITEM, alloc_item, apply, call, prepare
-from keelson_contracts.scn import ChangesSince
 from sqlalchemy import text
 
 from adapter_sidecar import journal
 from adapter_sidecar.db import begin_write
+from conftest import ADMIN_KEY, FakeKeelson, Running
+from helpers import TO_ITEM, alloc_item, apply, call, prepare
+from keelson_contracts.scn import ChangesSince
 
 
 async def test_own_applies_are_listed(fernhill: Running, keelson: FakeKeelson) -> None:
@@ -31,7 +31,7 @@ async def test_own_applies_are_listed(fernhill: Running, keelson: FakeKeelson) -
     alloc = next(ch for ch in parsed.changes if ch.key == "AL-0003")
     assert alloc.version == 2 and alloc.op == "upsert" and alloc.at is not None
     again = ChangesSince.model_validate(
-        (await fernhill.sidecar.changes_since(parsed.next_watermark)))
+        await fernhill.sidecar.changes_since(parsed.next_watermark))
     assert not again.requires_sync and again.next_watermark == parsed.next_watermark
 
 

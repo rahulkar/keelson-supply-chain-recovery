@@ -12,13 +12,13 @@ import httpx2
 import jwt
 import pytest
 import yaml
-from conftest import ADMIN_KEY, API_KEY, FERNHILL, RESOURCE, Running, sidecar_env, start_app
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastmcp.exceptions import ToolError
-from helpers import TO_ITEM, call
 from jwt.algorithms import RSAAlgorithm
 
 from adapter_sidecar.errors import ConfigError
+from conftest import ADMIN_KEY, API_KEY, FERNHILL, RESOURCE, Running, sidecar_env, start_app
+from helpers import TO_ITEM, call
 
 READER_KEY = "fh_reader_key_0123456789abcdefghijklmnop"
 IDP = "http://idp.example.test/realms/erp"
@@ -80,11 +80,11 @@ async def test_scopes_are_enforced_per_tool(tmp_path: Path, data_dir: Path) -> N
         async with run.client(READER_KEY) as c:
             assert len(await c.list_tools()) == 13  # every key sees the complete list
             assert (await call(c, "scn.snapshot_open", {"entities": ["item"]}))["entities"]["item"]["rows"] == 12
-            with pytest.raises(ToolError, match="insufficient_scope: .*changes:preview"):
+            with pytest.raises(ToolError, match=r"insufficient_scope: .*changes:preview"):
                 await c.call_tool("create_change_set", {"title": "x", "idempotency_key": "k1"})
-            with pytest.raises(ToolError, match="insufficient_scope: .*orders:read"):
+            with pytest.raises(ToolError, match=r"insufficient_scope: .*orders:read"):
                 await c.call_tool("list_transfer_orders", {})
-            with pytest.raises(ToolError, match="insufficient_scope: .*changes:apply or changes:apply:auto"):
+            with pytest.raises(ToolError, match=r"insufficient_scope: .*changes:apply or changes:apply:auto"):
                 await c.call_tool("apply_change_set", {"change_set_id": "CS-0001", "preview_hash": "a" * 64,
                                                        "approval_ref": "A", "approval_receipt": "x",
                                                        "idempotency_key": "k2"})
@@ -145,7 +145,8 @@ async def test_oauth_mode(tmp_path: Path, data_dir: Path) -> None:
             prm = await http.get("/.well-known/oauth-protected-resource/mcp")
             assert prm.status_code == 200
             doc = prm.json()
-            assert doc["resource"].rstrip("/") == RESOURCE and IDP in [s.rstrip("/") for s in doc["authorization_servers"]]
+            assert doc["resource"].rstrip("/") == RESOURCE
+            assert IDP in [s.rstrip("/") for s in doc["authorization_servers"]]
             assert (await http.get("/.well-known/oauth-protected-resource")).status_code == 200
         async with run.client() as c:  # the static key still works alongside OAuth
             assert (await call(c, "get_system_info", {}))["system"] == "Fernhill ERP"

@@ -108,13 +108,13 @@ class Sidecar:
         problems: list[str] = []
         try:
             await self.backend.probe()
-        except Exception as exc:  # noqa: BLE001 - reported as a readiness problem
+        except Exception as exc:  # reported as a readiness problem
             return [f"backend unreachable: {exc}"]
         async with self.backend.read() as conn:
             for entity, spec in self.cfg.entities.items():
                 try:
                     cols = await _probe_columns(conn, spec.sql)
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     problems.append(f"entities.{entity}: the SQL fails ({_db_error(exc)})")
                     continue
                 if (p := entity_columns_problem(entity, cols)) is not None:
@@ -125,7 +125,7 @@ class Sidecar:
                                          ("lines_sql", view.lines_sql, VIEW_LINE_COLUMNS)):
                     try:
                         cols = await _probe_columns(conn, sql)
-                    except Exception as exc:  # noqa: BLE001
+                    except Exception as exc:
                         problems.append(f"views.transfer_orders.{label}: the SQL fails ({_db_error(exc)})")
                         continue
                     if sorted(cols) != sorted(want):
@@ -136,7 +136,7 @@ class Sidecar:
                         await conn.execute(text(
                             f"SELECT {', '.join(quote_ident(conn, c) for c in table.column_types)} "
                             f"FROM {quote_ident(conn, name)} WHERE 1 = 0"))
-                    except Exception as exc:  # noqa: BLE001
+                    except Exception as exc:
                         problems.append(f"tables.{name}: not readable with the configured columns ({_db_error(exc)})")
         return problems
 
@@ -212,7 +212,8 @@ class Sidecar:
         entities: dict[str, int] = {}
         async with self.backend.read() as conn:
             for name in self.cfg.tables:
-                tables[name] = int((await conn.execute(text(f"SELECT count(*) FROM {quote_ident(conn, name)}"))).scalar_one())
+                count = await conn.execute(text(f"SELECT count(*) FROM {quote_ident(conn, name)}"))
+                tables[name] = int(count.scalar_one())
             for entity, spec in self.cfg.entities.items():
                 entities[entity] = int((await conn.execute(text(f"SELECT count(*) FROM ({spec.sql}) e"))).scalar_one())
         async with self.state.connect() as conn:

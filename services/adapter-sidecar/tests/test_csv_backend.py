@@ -7,11 +7,11 @@ import hashlib
 from pathlib import Path
 
 import pytest
-from conftest import GOLDEN, FakeKeelson, Running, sidecar_env
-from helpers import TO_ITEM, alloc_item, apply, call, prepare, stock
 
 from adapter_sidecar.backends.csvdir import CsvBackend
 from adapter_sidecar.errors import SourceDataError
+from conftest import GOLDEN, FakeKeelson, Running, sidecar_env
+from helpers import TO_ITEM, alloc_item, apply, call, prepare, stock
 
 
 def digest(path: Path) -> str:

@@ -24,14 +24,14 @@ from pathlib import Path
 from typing import Annotated, Any, Literal, get_args
 
 import yaml
-from keelson_contracts.changeset import OP_NAME_PATTERN, OP_PAYLOAD_MODELS
-from keelson_contracts.common import TENANT_SLUG_PATTERN
-from keelson_contracts.mapping import ExpressionError, ScnEntityName, parse_path
-from keelson_contracts.scn import SCN_ENTITIES
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from adapter_sidecar.errors import ConfigError
 from adapter_sidecar.templates import Ref, RootRule, TemplateError, check_refs, parse_ref
+from keelson_contracts.changeset import OP_NAME_PATTERN, OP_PAYLOAD_MODELS
+from keelson_contracts.common import TENANT_SLUG_PATTERN
+from keelson_contracts.mapping import ExpressionError, ScnEntityName, parse_path
+from keelson_contracts.scn import SCN_ENTITIES
 
 IDENT_PATTERN = r"^[A-Za-z_][A-Za-z0-9_]{0,62}$"
 TABLE_PATTERN = r"^[A-Za-z_][A-Za-z0-9_]{0,62}(\.[A-Za-z_][A-Za-z0-9_]{0,62})?$"
@@ -67,7 +67,8 @@ TableName = Annotated[str, Field(pattern=TABLE_PATTERN)]
 EnvName = Annotated[str, Field(pattern=ENV_PATTERN)]
 ErrorCode = Annotated[str, Field(pattern=ERROR_CODE_PATTERN)]
 OpName = Annotated[str, Field(pattern=OP_NAME_PATTERN, max_length=64)]
-Scope = Literal["catalog:read", "orders:read", "snapshot:read", "changes:preview", "changes:apply", "changes:apply:auto"]
+Scope = Literal["catalog:read", "orders:read", "snapshot:read", "changes:preview", "changes:apply",
+                "changes:apply:auto"]
 ColumnType = Literal["text", "int", "real", "date", "bool", "json"]
 Scalar = str | int | bool | None
 TemplateValue = Any
@@ -115,7 +116,8 @@ class RestAuth(_Model):
             raise ValueError("auth kind 'header' needs header and token_env")
         if self.kind == "oauth_client_credentials" and not (self.token_url and self.client_id_env
                                                              and self.client_secret_env):
-            raise ValueError("auth kind 'oauth_client_credentials' needs token_url, client_id_env and client_secret_env")
+            raise ValueError("auth kind 'oauth_client_credentials' needs token_url, client_id_env and "
+                             "client_secret_env")
         if self.token_url is not None:
             _http_url(self.token_url, "token_url")
         return self
@@ -665,7 +667,8 @@ def config_problems(cfg: SidecarConfig) -> list[str]:
         problems += _op_problems(cfg, op, spec, mutated)
     for name in sorted(mutated):
         if name in tables and not tables[name].affects:
-            problems.append(f"tables.{name}: ops change this table, so it needs affects (the change feed would miss it)")
+            problems.append(f"tables.{name}: ops change this table, so it needs affects "
+                            "(the change feed would miss it)")
 
     receipts = cfg.receipts
     if receipts.autocommit is not None:

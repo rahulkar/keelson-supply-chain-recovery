@@ -9,10 +9,10 @@ from typing import Any
 
 import pytest
 import yaml
-from conftest import FERNHILL, SERVICE, sidecar_env
 
 from adapter_sidecar.config import load_config, parse_config
 from adapter_sidecar.errors import ConfigError
+from conftest import FERNHILL, SERVICE, sidecar_env
 
 EXAMPLES = SERVICE / "examples"
 

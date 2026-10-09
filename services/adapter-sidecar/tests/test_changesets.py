@@ -8,14 +8,14 @@ import datetime as dt
 from typing import Any
 
 import pytest
-from conftest import FakeKeelson, Running, key
 from fastmcp.exceptions import ToolError
-from helpers import TO_ITEM, apply, call, prepare
-from keelson_contracts.changeset import change_set_hash
 from sqlalchemy import text
 
 from adapter_sidecar import idempotency
 from adapter_sidecar.db import begin_write, iso
+from conftest import FakeKeelson, Running, key
+from helpers import TO_ITEM, apply, call, prepare
+from keelson_contracts.changeset import change_set_hash
 
 
 async def row(run: Running, table: str, **filters: Any) -> dict[str, Any]:
@@ -106,7 +106,7 @@ async def test_validation_errors(any_backend: Running) -> None:
         assert errors[2][0].startswith("unknown_warehouse: warehouses FH-XXX does not exist")
         assert errors[3] == []
         # the second transfer sees the first one's reservation (items run in order)
-        assert errors[4] == [f"insufficient_atp: stock FH-RTM|FH-PARKA-NVY-M: need 10, available 5"]
+        assert errors[4] == ["insufficient_atp: stock FH-RTM|FH-PARKA-NVY-M: need 10, available 5"]
         cs = await call(c, "get_change_set", {"change_set_id": v["change_set_id"]})
         assert cs["status"] == "draft" and cs["preview_hash"] is None
         assert [it["status"] for it in cs["items"]] == ["error", "error", "error", "ok", "error"]
@@ -147,7 +147,8 @@ async def test_apply_and_reconcile_read_backs(any_backend: Running, keelson: Fak
         cs = await call(c, "get_change_set", {"change_set_id": v["change_set_id"]})
         assert cs["status"] == "applied" and [it["status"] for it in cs["items"]] == ["applied", "applied"]
         assert [it["result_ref"] for it in cs["items"]] == ["TR-00002", "AL-0003"]
-        assert cs["attribution_text"] == "Applied via Keelson auto-policy auto-small-transfer@p-1, initiated by Nora Test"
+        assert cs["attribution_text"] == ("Applied via Keelson auto-policy auto-small-transfer@p-1, "
+                                          "initiated by Nora Test")
         assert cs["approval_ref"] == "APR-1" and cs["via"] == "Keelson"
         tos = await call(c, "list_transfer_orders", {"from_dc": "FH-RTM", "to_dc": "FH-LDS"})
         mine = [t for t in tos["items"] if t["created_via"] == "change_set:CS-0001"]
@@ -218,8 +219,8 @@ async def test_idempotency_protocol(any_backend: Running, keelson: FakeKeelson) 
         body = {"title": "inflight", "origin": {}}
         claim_key = key()
         async with begin_write(run.sidecar.state) as conn:
-            await conn.execute(text("INSERT INTO idempotency_record (principal, key, request_sha256, state, created_at) "
-                                    "VALUES ('key:keelson', :k, :h, 'in_flight', :t)"),
+            await conn.execute(text("INSERT INTO idempotency_record (principal, key, request_sha256, state, "
+                                    "created_at) VALUES ('key:keelson', :k, :h, 'in_flight', :t)"),
                                {"k": claim_key, "h": idempotency.request_fingerprint("change_set.create", body),
                                 "t": iso(dt.datetime.now(dt.UTC))})
         with pytest.raises(ToolError, match="idempotency_in_flight"):

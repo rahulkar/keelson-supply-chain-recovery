@@ -29,16 +29,16 @@ from typing import Any
 from urllib.parse import urljoin
 
 import httpx
-from keelson_contracts.mapping import parse_path
-from keelson_contracts.scn import part_uri_allowed
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from adapter_sidecar.backends import Backend
-from adapter_sidecar.backends import staging
-from adapter_sidecar.config import Endpoint, RestBackend as RestOpts, TableSpec
+from adapter_sidecar.backends import Backend, staging
+from adapter_sidecar.config import Endpoint, TableSpec
+from adapter_sidecar.config import RestBackend as RestOpts
 from adapter_sidecar.db import begin_write
 from adapter_sidecar.errors import ConfigError, Problem, SourceDataError
 from adapter_sidecar.logs import get_logger
+from keelson_contracts.mapping import parse_path
+from keelson_contracts.scn import part_uri_allowed
 
 log = get_logger(__name__)
 
@@ -105,7 +105,7 @@ class RestBackend(Backend):
     async def probe(self) -> None:
         if not self.cfg.tables:
             return
-        name, table = next(iter(self.cfg.tables.items()))
+        table = next(iter(self.cfg.tables.values()))
         assert table.endpoint is not None
         await self._get(self.opts.base_url + table.endpoint.path, dict(table.endpoint.params))
 

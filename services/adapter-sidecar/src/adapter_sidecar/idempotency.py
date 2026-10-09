@@ -19,13 +19,13 @@ import datetime as dt
 from dataclasses import dataclass
 from typing import Any
 
-from keelson_contracts.common import sha256_hex
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from adapter_sidecar.backends import Stmt
 from adapter_sidecar.db import begin_write, iso, jdump, jload, utcnow
 from adapter_sidecar.errors import Problem
+from keelson_contracts.common import sha256_hex
 
 MAX_KEY_LEN = 255
 

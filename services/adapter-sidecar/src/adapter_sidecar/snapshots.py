@@ -32,7 +32,6 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from keelson_contracts.scn import CANONICAL_MODEL, SCN_COLUMNS, SCN_ENTITIES
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
@@ -44,6 +43,7 @@ from adapter_sidecar.errors import Problem, SourceDataError, not_found
 from adapter_sidecar.logs import get_logger
 from adapter_sidecar.scn_export import RowError, convert_row, write_part
 from adapter_sidecar.settings import Settings
+from keelson_contracts.scn import CANONICAL_MODEL, SCN_COLUMNS, SCN_ENTITIES
 
 log = get_logger(__name__)
 
@@ -58,7 +58,8 @@ def entity_columns_problem(entity: str, columns: list[str]) -> str | None:
     if sorted(columns) != sorted(want) or len(columns) != len(set(columns)):
         missing = [c for c in want if c not in columns]
         extra = [c for c in columns if c not in want]
-        return f"entities.{entity}: the SQL must return exactly the scn/1.0 columns (missing {missing}, unknown {extra})"
+        return (f"entities.{entity}: the SQL must return exactly the scn/1.0 columns "
+                f"(missing {missing}, unknown {extra})")
     return None
 
 

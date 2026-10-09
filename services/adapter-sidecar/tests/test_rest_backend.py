@@ -12,8 +12,9 @@ import httpx
 import pytest
 import respx
 import yaml
-from conftest import SERVICE, Running, sidecar_env, start_app
 from fastmcp.exceptions import ToolError
+
+from conftest import SERVICE, Running, sidecar_env, start_app
 from helpers import call
 from keelson_contracts.connectors import ConnectorTier, detect_tiers
 from keelson_contracts.scn import SnapshotManifest
@@ -29,7 +30,8 @@ class FakeErpApi:
              "geo": {"lat": 53.8, "lon": -1.55}, "version": 1},
             {"id": "W2", "name": "Rotterdam", "address": {"country": "NL", "city": "Rotterdam"},
              "geo": {"lat": 51.92, "lon": 4.48}, "version": 3},
-            {"id": "W3", "name": "Lyon", "address": {"country": "FR"}, "geo": {"lat": 45.76, "lon": 4.84}, "version": 1},
+            {"id": "W3", "name": "Lyon", "address": {"country": "FR"}, "geo": {"lat": 45.76, "lon": 4.84},
+             "version": 1},
         ]
         self.products = [{"code": "P1", "name": "Parka", "family": "outerwear", "colour": "navy",
                           "retail_price_cents": 12900, "currency": "GBP", "rev": 1},

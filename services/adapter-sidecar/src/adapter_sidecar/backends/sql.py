@@ -76,7 +76,7 @@ class SqlWriteTxn(WriteTxn):
             await s.execute(text("DELETE FROM apply_journal WHERE change_set_id = :c"), {"c": change_set_id})
         try:
             await b.store_own_fingerprints(sorted(self.touched))
-        except Exception:  # noqa: BLE001 - drift bookkeeping never fails a committed apply
+        except Exception:  # drift bookkeeping never fails a committed apply
             log.warning("could not refresh table fingerprints after an apply", exc_info=True)
 
 
@@ -110,7 +110,8 @@ class SqlBackend(Backend):
             async with begin_write(self._engine) as conn:
                 await conn.exec_driver_sql(
                     f"CREATE TABLE IF NOT EXISTS {quote_ident(conn, self.opts.apply_marker_table)} "
-                    "(change_set_id TEXT PRIMARY KEY, purpose TEXT NOT NULL, preview_hash TEXT, applied_at TEXT NOT NULL)"
+                    "(change_set_id TEXT PRIMARY KEY, purpose TEXT NOT NULL, preview_hash TEXT, "
+                    "applied_at TEXT NOT NULL)"
                 )
         await self.recover()
         await self.refresh()

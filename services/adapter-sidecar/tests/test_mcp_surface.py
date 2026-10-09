@@ -8,10 +8,9 @@ import re
 from collections.abc import Mapping
 from typing import Any
 
+from adapter_sidecar.mcp_server import READ_TOOLS, WRITE_TOOLS
 from conftest import Running
 from keelson_contracts.connectors import ConnectorTier, detect_tiers
-
-from adapter_sidecar.mcp_server import READ_TOOLS, WRITE_TOOLS
 
 # Copied from services/engine/src/keelson_engine/core/connectors.py (_UNTRUSTED_WORDS /
 # _mentions_untrusted): a tool whose name, title or description matches is suggested as

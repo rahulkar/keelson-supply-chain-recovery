@@ -52,7 +52,8 @@ async def ensure_tables(conn: AsyncConnection, tables: Mapping[str, TableSpec]) 
     for name, table in tables.items():
         sig = schema_signature(table)
         source = f"schema:{name}"
-        row = (await conn.execute(text("SELECT sha256 FROM source_fingerprint WHERE source = :s"), {"s": source})).first()
+        row = (await conn.execute(text("SELECT sha256 FROM source_fingerprint WHERE source = :s"),
+                                  {"s": source})).first()
         exists = (await conn.execute(text("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = :n"),
                                      {"n": name})).first() is not None
         if exists and row is not None and row[0] == sig:

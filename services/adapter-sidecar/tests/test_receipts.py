@@ -8,15 +8,15 @@ import time
 from typing import Any
 
 import pytest
-from conftest import EXT_SUB, KEELSON_ISS, PUBLIC, RESOURCE, FakeKeelson, Running, key
 from cryptography.hazmat.primitives.asymmetric import ec
 from fastmcp.exceptions import ToolError
-from helpers import TO_ITEM, apply, call, prepare
-from keelson_contracts.receipts import MERXA_ISSUER, MERXA_MCP_RESOURCE
 
 from adapter_sidecar.config import AutocommitSpec, ReceiptsSpec
 from adapter_sidecar.errors import Problem
 from adapter_sidecar.receipts import ReceiptContext, ReceiptError, ReceiptVerifier
+from conftest import EXT_SUB, KEELSON_ISS, PUBLIC, RESOURCE, FakeKeelson, Running, key
+from helpers import TO_ITEM, apply, call, prepare
+from keelson_contracts.receipts import MERXA_ISSUER, MERXA_MCP_RESOURCE
 
 HASH = "a" * 64
 CTX = ReceiptContext(change_set_id="0199c0de-0000-7000-8000-000000000001", change_set_code="CS-0001",

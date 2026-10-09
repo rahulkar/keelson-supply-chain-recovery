@@ -33,7 +33,7 @@ Stmt = tuple[str, dict[str, Any]]
 values only) — the replayable unit of an apply's state write."""
 
 
-class SourceChanged(Exception):  # noqa: N818 - a business outcome, rendered as a conflict reason
+class SourceChanged(Exception):  # a business outcome, rendered as a conflict reason
     """A source changed underneath an apply (CSV file edited meanwhile): nothing was applied."""
 
     def __init__(self, tables: Sequence[str]) -> None:
@@ -83,10 +83,10 @@ class Backend(abc.ABC):
     def consistency(self) -> str:
         return self.cfg.consistency
 
-    async def start(self) -> None:
+    async def start(self) -> None:  # noqa: B027 - optional hook, nothing to prepare by default
         """Prepare (staging tables, marker table, locks) and settle in-doubt applies."""
 
-    async def close(self) -> None:
+    async def close(self) -> None:  # noqa: B027 - optional hook, nothing to release by default
         """Release resources."""
 
     @abc.abstractmethod

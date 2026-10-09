@@ -6,13 +6,13 @@ import json
 from pathlib import Path
 
 import pytest
-from conftest import FakeKeelson, sidecar_env, start_app
-from helpers import TO_ITEM, apply, call, csv_rows, prepare, stock
 from sqlalchemy import text
 
 from adapter_sidecar.auth import Principal
 from adapter_sidecar.backends import csvdir
 from adapter_sidecar.db import begin_write
+from conftest import FakeKeelson, sidecar_env, start_app
+from helpers import TO_ITEM, apply, call, csv_rows, prepare, stock
 
 
 class Crash(BaseException):

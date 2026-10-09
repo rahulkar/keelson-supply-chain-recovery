@@ -6,11 +6,11 @@ import time
 from urllib.parse import urlsplit
 
 import pytest
-from conftest import Running
-from helpers import call
 from sqlalchemy import text
 
 from adapter_sidecar.db import begin_write
+from conftest import Running
+from helpers import call
 
 
 async def test_signed_download_round_trip(fernhill: Running) -> None:

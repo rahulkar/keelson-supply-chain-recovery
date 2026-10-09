@@ -108,7 +108,7 @@ async def _housekeeping(sidecar: Sidecar) -> None:
         await asyncio.sleep(HOUSEKEEPING_S)
         try:
             await sidecar.housekeeping()
-        except Exception:  # noqa: BLE001 - next round
+        except Exception:  # next round
             log.exception("housekeeping failed")
 
 
@@ -151,7 +151,7 @@ def create_app(settings: Settings | None = None, sidecar: Sidecar | None = None,
             try:
                 await sidecar.backend.probe()
                 checks["backend"] = True
-            except Exception:  # noqa: BLE001
+            except Exception:
                 checks["backend"] = False
         ok = sidecar.ready and checks.get("backend") is True
         return JSONResponse({"status": "ready" if ok else "not_ready", "checks": checks},
@@ -205,5 +205,5 @@ def run() -> None:
 
     settings = Settings.from_env()
     configure_logging(settings.log_level)
-    uvicorn.run(create_app(settings), host="0.0.0.0", port=settings.port, proxy_headers=True,  # noqa: S104
+    uvicorn.run(create_app(settings), host="0.0.0.0", port=settings.port, proxy_headers=True,
                 forwarded_allow_ips="*", workers=1, access_log=False, log_config=None)

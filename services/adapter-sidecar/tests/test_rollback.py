@@ -4,8 +4,9 @@ anything changed since makes it a conflict; the receipt rules of a rollback."""
 from __future__ import annotations
 
 import pytest
-from conftest import FakeKeelson, Running
 from fastmcp.exceptions import ToolError
+
+from conftest import FakeKeelson, Running
 from helpers import TO_ITEM, apply, call, prepare, rollback
 from test_changesets import alloc, external_update, row
 

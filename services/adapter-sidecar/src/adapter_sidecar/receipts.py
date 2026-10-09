@@ -108,7 +108,8 @@ def check_co_approvers(claims: dict[str, Any]) -> None:
         return
     value = claims["co_approved_by"]
     if not isinstance(value, list) or len(value) > MAX_CO_APPROVERS:
-        raise ReceiptError("bad_co_approved_by", f"co_approved_by must be a list of at most {MAX_CO_APPROVERS} approvers")
+        raise ReceiptError("bad_co_approved_by",
+                           f"co_approved_by must be a list of at most {MAX_CO_APPROVERS} approvers")
     if not value:
         return
     if not all(isinstance(v, str) and _CO_APPROVER_RE.match(v) for v in value):
@@ -150,7 +151,7 @@ class KeelsonJwks:
                 continue
             try:
                 keys[str(jwk["kid"])] = ECAlgorithm.from_jwk(json.dumps(jwk))
-            except Exception as exc:  # noqa: BLE001 - one bad key never blocks the others
+            except Exception as exc:  # one bad key never blocks the others
                 log.warning("skipping unusable keelson jwk", extra={"kid": jwk.get("kid"), "error": str(exc)})
         self._keys = keys
         self._fetched_at = time.monotonic()
@@ -275,4 +276,5 @@ def check_autocommit_caps(caps: AutocommitSpec | None, ops: Iterable[str], items
         reasons.append(f"{units} units exceeds the cap of {caps.max_units}")
     if reasons:
         raise Problem(403, "auto_cap_exceeded", "; ".join(reasons),
-                      extra={"caps": {"ops": sorted(allowed), "max_items": caps.max_items, "max_units": caps.max_units}})
+                      extra={"caps": {"ops": sorted(allowed), "max_items": caps.max_items,
+                                      "max_units": caps.max_units}})

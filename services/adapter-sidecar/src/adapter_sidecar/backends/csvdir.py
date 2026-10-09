@@ -38,8 +38,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncTransaction
 
-from adapter_sidecar.backends import Backend, SourceChanged, Stmt, WriteTxn, run_statements
-from adapter_sidecar.backends import staging
+from adapter_sidecar.backends import Backend, SourceChanged, Stmt, WriteTxn, run_statements, staging
 from adapter_sidecar.config import TableSpec
 from adapter_sidecar.db import begin_write, iso, jdump, utcnow
 from adapter_sidecar.errors import ConfigError, SourceDataError

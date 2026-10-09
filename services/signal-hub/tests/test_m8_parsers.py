@@ -303,6 +303,10 @@ def test_gdelt_lastupdate_host_and_path() -> None:
 def test_gdelt_missed_slots() -> None:
     assert gdelt.missed_slots("20261007101500", None, 4) == ["20261007101500"]
     assert gdelt.missed_slots("20261007101500", "20261007101500", 4) == []
+    assert gdelt.missed_slots("20261007100000", "20261007101500", 4) == []  # a stale lastupdate.txt
+    assert gdelt.processed_slot("20261007100000", "20261007101500") == "20261007101500"  # never backwards
+    assert gdelt.processed_slot("20261007101500", "20261007100000") == "20261007101500"
+    assert gdelt.processed_slot("20261007101500", None) == "20261007101500"
     assert gdelt.missed_slots("20261007101500", "20261007094500", 4) == ["20261007100000", "20261007101500"]
     assert gdelt.missed_slots("20261007101500", "20261006000000", 2) == ["20261007094500", "20261007100000",
                                                                           "20261007101500"]

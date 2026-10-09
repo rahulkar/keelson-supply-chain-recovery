@@ -59,6 +59,7 @@ __all__ = [
     "matching_rows",
     "missed_slots",
     "parse_lastupdate",
+    "processed_slot",
     "prune",
     "read_export",
     "slot_url",
@@ -184,10 +185,11 @@ def parse_lastupdate(body: bytes, *, allowed_host: str = HOST) -> LastUpdate:
 
 def missed_slots(latest: str, done: str | None, max_backfill: int) -> list[str]:
     """Slots to fetch, oldest first: ``latest`` plus up to ``max_backfill`` 15-minute slots between
-    the last processed one and it (an older gap is not backfilled)."""
+    the last processed one and it (an older gap is not backfilled). Nothing when ``latest`` is not
+    newer than the last processed slot (a stale ``lastupdate.txt`` must not count a file twice)."""
     if not _SLOT_RE.match(latest):
         raise GdeltError("bad slot")
-    if done == latest:
+    if done and _SLOT_RE.match(done) and done >= latest:
         return []
     out = [latest]
     if done and _SLOT_RE.match(done):
@@ -196,6 +198,12 @@ def missed_slots(latest: str, done: str | None, max_backfill: int) -> list[str]:
             out.append(t.strftime("%Y%m%d%H%M%S"))
             t -= SLOT
     return sorted(out)
+
+
+def processed_slot(latest: str, done: str | None) -> str:
+    """The slot the cursor keeps after a poll: it never moves backwards, so slots already counted
+    are never backfilled again."""
+    return done if done and _SLOT_RE.match(done) and done > latest else latest
 
 
 def _slot_time(slot: str) -> dt.datetime:

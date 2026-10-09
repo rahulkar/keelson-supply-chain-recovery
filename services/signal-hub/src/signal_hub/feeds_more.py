@@ -352,7 +352,8 @@ async def poll_gdelt(runner: FeedRunner, spec: SourceSpec, now: dt.datetime) -> 
         flt = gdelt.Filter(codes=s.gdelt_event_codes, min_articles=s.gdelt_min_articles,
                            port_radius_km=s.gdelt_port_radius_km, chokepoint_buffer_km=s.gdelt_chokepoint_buffer_km)
         touched: set[str] = set()
-        slots = gdelt.missed_slots(latest.slot, cursor.get("slot"), max(0, s.gdelt_max_backfill))
+        done = cursor.get("slot") if isinstance(cursor.get("slot"), str) else None
+        slots = gdelt.missed_slots(latest.slot, done, max(0, s.gdelt_max_backfill))
         for slot in slots:
             try:
                 body = (await runner.fetcher.get(cid, gdelt.slot_url(slot), accept="application/zip",
@@ -369,7 +370,7 @@ async def poll_gdelt(runner: FeedRunner, spec: SourceSpec, now: dt.datetime) -> 
         drafts = gdelt.drafts_for(agg, touched & set(agg), SourceContext(retrieved_at=now), runner.gaz,
                                   cap_bp=s.gdelt_max_severity_bp, flt=flt)
         report = await runner.pipeline.ingest(drafts, now=now)
-        cursor.update(slot=latest.slot, agg=agg)
+        cursor.update(slot=gdelt.processed_slot(latest.slot, done), agg=agg)
         await runner._save(cid, now=now, cadence_s=cadence, status="ok", etag=result.etag,
                            last_modified=result.last_modified, cursor=cursor, items=len(drafts))
         return PollResult(cid, "ok", len(drafts), report)

@@ -305,6 +305,26 @@ second run took the key-rotation path (northwind-test plans on merxa-lite after
 `api_m7_foreign_erp.py --prepare-only`). `m7-offline` (6 tests) ~1.5 min; with `dev-blocks`,
 `admin-smoke`, `auth`, `m5-offline` under `E2E_NO_MODEL=1`: 15 passed, 1 skipped.
 
+## M8 Evals UI (`docs/contracts/128`): `api_m8_evals_offline.py`, `api_m8_evals_live.py`
+
+Both run inside the engine image like the M5–M7 offline scripts (only httpx and the helpers of
+`api_thin_slice.py` are used), with `EVALS_RUNNER_TOKEN` set and the in-app runner up. The offline
+script needs a stack started with `LLM_REPLAY_MODE=replay` (fail-closed: no provider call is possible):
+
+```bash
+# Git Bash, repo root; the whole stack is up with LLM_REPLAY_MODE=replay
+docker compose --profile evals up -d evals-runner
+MSYS_NO_PATHCONV=1 docker compose run --rm --no-deps -T -e LOG_LEVEL=warning   -v D:/keelson-supply-chain-recovery/e2e:/e2e:ro   -v D:/keelson-supply-chain-recovery/evals/tests/fixtures:/fixtures:ro   engine-api python -u /e2e/api_m8_evals_offline.py
+```
+
+| script | model calls | what it proves |
+|---|---|---|
+| `api_m8_evals_offline.py` | **none** | As ava: `/api/admin/evals/status` shows the runner online with its suite (≥ 7 cases), process mode `replay`, both live modes unavailable (`replay_only`). A **replay run** of `store_shortage_question` is queued, claimed by the runner and followed through the events endpoint until `succeeded`; the engine counters show `llm_calls_live == 0` and `tokens_live == 0`, the tenant's gateway usage did not grow, and the case is `pass` or `error` with `error_code replay_miss` (with no recordings it fails closed). A live request → `409 evals_unavailable` (`replay_only`). The two committed CLI result files import as runs (the same file again → `duplicate: true`); compare(A, B): `adversarial_kb_doc` fixed, `adversarial_supplier_message` changed, four cases removed; trends list all three runs; the in-app run's export re-imports as a duplicate of it; sam → 403 `platform_admin_required`. |
+| `api_m8_evals_live.py` | **live** (one case) | `scripts/verify-live.sh --only m8-evals` (needs `EVALS_LIVE_ENABLED=1` and credits): a `record_or_replay` run of `trim_delay_actual` with a 1.5M-token / $2 budget and the typed `RUN LIVE`; it makes live calls, ends `succeeded`, stays within its budget (plus at most the one response that crossed the token cap) and the case is evaluated (no replay miss). |
+
+The runner resets Merxa's demo data for every case: never run it against a stack you are presenting
+from.
+
 ## `api_m3_levers.py` — M3 levers through the API
 
 Same container, command shape and options as `api_thin_slice.py` (it imports that script's

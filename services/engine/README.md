@@ -58,6 +58,9 @@ src/keelson_engine/
     hub_ingest.py      M6 webhook -> hub forwarding (inline + retry outbox on connector_event)
     alerts.py          M6 alert<->case (one case per alert, auto-open), AlertWatcher (poll, diff, SSE stream)
     alert_map.py       M6 the alert drawer's network_map@1 (footprint + exposed sites/lanes at network positions)
+    evals.py           M8 eval runs: runner heartbeat/claim/lease/events, case links, results, imports, export,
+                       compare, trends, recordings coverage, runtime port (get_eval_link / add_eval_usage)
+    evals_summary.py   M8 pure run summary, case columns, run comparison, trend series (integer units)
     change_requests.py M7 four-eyes change requests (GuardedChange → pending request, approve/reject, expiry, handlers)
     users.py           M7 tenant users via the Keycloak admin API (list/create/patch/disable, admin grants = four-eyes)
     connector_mappings.py M7 tier-A read/action mappings (versioned), capabilities, action dry-run
@@ -83,6 +86,8 @@ src/keelson_engine/
     routes_demo.py     POST /api/demo/reset (M5), /api/demo/packs/{pack}/{action} (M6) (DEMO_MODE, presenter)
     routes_alerts.py   M6 /api/alerts*, SSE /api/alerts/events
     routes_admin_m7.py M7 /api/admin/* (change requests, users, mappings + crawl + dry-run, signals, activity, evals)
+    routes_admin_evals.py   M8 /api/admin/evals/* (status, runs, events, case results, cancel, export, imports, compare, trends)
+    routes_internal_evals.py M8 /api/internal/evals/runner/* (bearer EVALS_RUNNER_TOKEN: heartbeat, claim, events, attach, results, finish)
     routes_system.py   healthz/readyz, JWKS, forward-auth, console handoff (/__keelson/*)
     shutdown.py        SIGTERM hook that ends open SSE streams at once (graceful shutdown)
 migrations/0001_init.sql   all engine tables + RLS policies
@@ -100,6 +105,7 @@ migrations/0008_scn_gc.sql  scn_snapshot.gc_requested_at (background snapshot GC
 migrations/0009_m6_signals.sql  auth_kind service_jwt, alert_case (RLS FORCE), connector_event hub forward outbox
 migrations/0010_m7_backoffice.sql  tenant.status (suspension), admin_change_request + connector_mapping (RLS FORCE),
                           crawled snapshot columns, per-op commit_ledger columns, connector_tool.binding
+migrations/0012_m8_evals.sql  eval_run, eval_case_result, eval_run_event, eval_case_link (RLS FORCE), eval_runner
 tests/platform/            pytest (throwaway Postgres + Valkey; mocked Keycloak/LiteLLM via respx)
 ```
 
@@ -120,7 +126,11 @@ All variables of `compose.yaml` `*engine-env` (names are env var names):
 | `LITELLM_BASE_URL`, `LITELLM_MASTER_KEY` | | bootstrap, readiness, AI Gateway facade (server-side only) |
 | `LLM_REQUEST_TIMEOUT_S` | `180` | one model request through the proxy; the client retries a timed-out request (a hung provider call stalled a run 10 min at 600 s). Used by every worker LLM agent (`KeelsonLiteLlm(timeout=…)` via `runner_cache.default_bindings`) and by KB `/embeddings` calls (`core/kb.py`, ingestion and search). (updated M4, 2026-10-07) |
 | `PACKS_DIR` | `/app/packs` (compose mounts `data/packs`) | template packs; falls back to the source tree |
-| `EVALS_RESULTS_DIR`, `EVALS_LIST_LIMIT` | `/app/evals/results` (else the source tree), `10` | M7 `GET /api/admin/evals`: latest `evals/results/<UTC stamp>.json` (mount read-only) |
+| `EVALS_RESULTS_DIR`, `EVALS_LIST_LIMIT` | `/app/evals/results` (else the source tree), `10` | M7 `GET /api/admin/evals`: latest `evals/results/<UTC stamp>.json` (mount read-only); M8: the "results folder" the Evals page imports from |
+| `EVALS_RUNNER_TOKEN` | empty (off) | M8 bearer token of the in-app eval runner (`/api/internal/evals/runner/*`; empty = 404, no in-app runs) |
+| `EVALS_LIVE_ENABLED` | `0` | M8 allow live (model-calling) eval runs; replay runs need nothing |
+| `EVALS_LIVE_MAX_TOKENS`, `EVALS_LIVE_MAX_COST_MICROUSD` | `3000000`, `5000000` | M8 hard caps of one live eval run's budget (tokens; integer micro-USD) |
+| `EVALS_RUNNER_STALE_S`, `EVALS_LEASE_S`, `EVALS_MAX_IMPORT_BYTES` | `60`, `180`, `8388608` | M8 runner offline after; claimed-run lease (renewed by every runner call); largest imported results document |
 | `SCN_CRAWL_MAX_ROWS` | `2000000` | M7 tier-A crawl: rows one crawl may load (all entities; hard cap 10M) |
 | `CONNECTOR_DEV_HOSTS` | `merxa.localhost` | comma-separated hosts allowed although not public (URL policy) |
 | `MERXA_WEBHOOK_SECRET` (any `*_WEBHOOK_SECRET`) | | named by a connector's `webhook_secret_ref`; `whsec_<base64>` |
@@ -1121,6 +1131,36 @@ edited** `custom_specialists` entry, and by the playground for drafts and saved 
 **read** tools of **active** connectors, a chat alias of the tenant's LiteLLM team that is not a Pro
 model and can run a tool loop, existing knowledge bases → `422 custom_specialist_invalid`
 (`problems[]`). Unchanged entries are not re-checked (like tool bindings).
+
+## Evals UI (M8, `docs/contracts/128-m8-evals-ui.md`) — platform
+
+Platform admins start eval runs in `/admin/evals` (or import CLI result files), follow them, drill
+into cases, compare runs and track trends. The **in-app runner** is a separate container
+(`evals/runner_service.py`, compose service `evals-runner`, profile `evals`) that drives the CLI's own
+`run_live.run_case` black-box over HTTP; the engine only stores and serves.
+
+* **Runner protocol** (`routes_internal_evals.py`, bearer `EVALS_RUNNER_TOKEN`, `hmac.compare_digest`;
+  unset = 404): heartbeat with the case catalogue → claim (`FOR UPDATE SKIP LOCKED`, lease
+  `EVALS_LEASE_S`; one queued/running run platform-wide) → events (seq assigned here; the answer carries
+  `cancel_requested` / `budget_exhausted`) → attach each new Keelson case (same tenant, created after the
+  run started, never re-linked) → PUT the case's `keelson-evals/2` result → finish. Every call renews the
+  lease; an expired one is reaped lazily as `failed` (`runner_lost`), its results kept.
+* **Runtime** (`runtime/execute.py`, port `RuntimeDeps.evals`): a run of an eval-linked case runs in the
+  eval run's LLM mode (`runtime/replay.effective_mode`: a `replay` process always stays `replay`; a
+  replay eval never calls the provider whatever the process mode), does not start once the eval run is
+  cancelled (`EVAL_CANCELLED`) or its live budget is used up (`EVAL_BUDGET_EXHAUSTED`), and its
+  `BudgetPlugin` stops at what is left of the budget (`BUDGET_EXCEEDED`). Each run's metered usage is
+  added to the link and the eval run once (`add_eval_usage`). A replay miss ends the run with
+  `LLM_REPLAY_MISS` (was `INTERNAL_ERROR`). A failing link lookup fails the run closed.
+* **Authoritative numbers**: the summary and threshold outcomes are computed from the stored results
+  when a run finishes (`core/evals_summary.py`); a case result is merged with the engine's accounting of
+  its linked case (a reported `fail` with engine-seen replay misses becomes `error` / `replay_miss`).
+* **Untrusted input**: runner reports and imports go through `keelson_contracts.evals.case_result_from_doc`
+  (caps, control/bidi characters stripped, ≤ 1 MiB per case); a Keelson case id is kept only when linked;
+  `keelson_url` is a label; nothing from a result is fetched or sent to a model.
+* **Imports** are idempotent on the normalised document (`results_doc_sha256`): a file, its
+  re-serialisation and the export of its run dedupe; an in-app run's export re-imports as that run.
+* **History survives demo resets**: `eval_case_link` cascades with the case; runs and results stay.
 
 ## Tests
 

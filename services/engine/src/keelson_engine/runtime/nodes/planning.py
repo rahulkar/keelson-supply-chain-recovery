@@ -88,6 +88,7 @@ from ..errors import RuntimeConfigError
 from ..mcp_client import get_gateway
 from ..optimizer_client import get_optimizer
 from ..quarantine import display_results
+from ..spec import PlanningDefaults
 from .case_state import ensure_planning_state
 from .common import ENGINE_COMPOSE, ENGINE_OPT, block_event, input_dict, say
 from .investigate import user_request
@@ -313,6 +314,16 @@ def solver_summary(resp: OptimizeResponse) -> dict[str, Any]:
     }
 
 
+def solver_options(planning: PlanningDefaults) -> SolverOptions:
+    """The optimizer's solver options from the tenant's planning defaults (planning and re-plan);
+    M8: ``integer_stage`` is omitted from the request while ``repair``."""
+    return SolverOptions(
+        time_limit_s=planning.solver_time_limit_s,
+        seed=planning.solver_seed,
+        integer_stage=planning.solver_integer_stage,
+    )
+
+
 option_from = _option_from
 """Public name of the optimizer response → plan option conversion (M5 re-plan)."""
 
@@ -395,9 +406,7 @@ async def simulate(ctx: Context, node_input: Any) -> AsyncGenerator[Any]:
     )
     caps = table.primary
     candidates = build_candidates(planning, table)
-    solver = SolverOptions(
-        time_limit_s=planning.solver_time_limit_s, seed=planning.solver_seed, integer_stage=planning.solver_integer_stage
-    )
+    solver = solver_options(planning)
     options: list[dict[str, Any]] = []
     plans = [(c.plan_spec, c) for c in candidates] + [(PlanSpec(id=DO_NOTHING_ID, title="Do nothing", levers=[]), None)]
     for spec, cand in plans:  # the optimizer runs one computation at a time

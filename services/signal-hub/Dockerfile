@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 # Keelson Signal Hub (docs/contracts/100-m6-signals.md). One image, three roles:
 #   signal-hub-api        (default CMD: uvicorn on :8300)
-#   signal-hub-poller     python -m signal_hub.poller [--once --adapter <feed adapter>|extraction|sweep]
+#   signal-hub-poller     python -m signal_hub.poller [--once --adapter gdacs|usgs|rss|extraction|sweep]
 #   signal-hub-bootstrap  python -m signal_hub.bootstrap
 # Build context = repository root (needs packages/contracts-py, data/geo, data/scenarios):
 #   docker build -f services/signal-hub/Dockerfile -t keelson-signal-hub .

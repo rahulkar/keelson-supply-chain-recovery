@@ -305,6 +305,18 @@ second run took the key-rotation path (northwind-test plans on merxa-lite after
 `api_m7_foreign_erp.py --prepare-only`). `m7-offline` (6 tests) ~1.5 min; with `dev-blocks`,
 `admin-smoke`, `auth`, `m5-offline` under `E2E_NO_MODEL=1`: 15 passed, 1 skipped.
 
+## M8 CP-SAT (`docs/contracts/125`): `api_m8_cpsat_offline.py`
+
+Runs **inside the engine image** like the M5–M7 offline scripts (`docker compose run --rm --no-deps -T
+-e LOG_LEVEL=warning -v <repo>/e2e:/e2e:ro engine-api python -u /e2e/api_m8_cpsat_offline.py`); needs
+pg-core, the optimizer and merxa-api up. No chat, no run, **no model call**: the engine's own runtime
+builds ProblemData from the current demo-retail snapshot (a sync is requested through the admin API
+when there is none) and calls the real optimizer through its optimizer client.
+
+| script | model calls | what it proves |
+|---|---|---|
+| `api_m8_cpsat_offline.py` | **none** | ProblemData with the tenant's planning defaults plus the M8 sourcing terms (case packs of 6, MOQ per style-colour, one capacity per factory) and the TRIM-BD-01 +7 d delay; the derived sources carry the terms. opt-C and opt-D in `repair` and `cpsat` mode: OPTIMAL/FEASIBLE; every `po.create` line a multiple of 6, every style at least the effective MOQ, within the source and factory capacity, one op per PO line; `cpsat` net benefit ≥ `repair`; `repair` responses carry no stages; `cpsat` responses carry stages with the planning seed and one CP-SAT worker, `integer_method` in the params, and a second identical call is identical except `solve_ms`; `repair` < 5 s, `cpsat` < 8 s per call. |
+
 ## `api_m3_levers.py` — M3 levers through the API
 
 Same container, command shape and options as `api_thin_slice.py` (it imports that script's

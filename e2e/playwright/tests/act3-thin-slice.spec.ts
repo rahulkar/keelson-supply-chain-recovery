@@ -225,8 +225,11 @@ test("act3-thin-slice", async ({ page, context, tracer }) => {
     } finally {
       if (viewport) await page.setViewportSize(viewport);
     }
-    if (await visuals.network_map.getByText(/background map couldn.t be loaded/).isVisible()) {
-      test.info().annotations.push({ type: "note", description: "OpenFreeMap base map unavailable; overlay drawn on a plain background" });
+    // M8 (docs/contracts/127): which base map of the fallback chain was drawn.
+    const basemap = await visuals.network_map.locator("[data-map-canvas]").getAttribute("data-map-basemap");
+    if (basemap === "offline" || basemap === "plain") {
+      const drawnOn = basemap === "offline" ? "the built-in Natural Earth outline" : "a plain background";
+      test.info().annotations.push({ type: "note", description: `Detailed base map unavailable; overlay drawn on ${drawnOn}` });
     }
   });
 

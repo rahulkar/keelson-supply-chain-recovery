@@ -34,5 +34,7 @@ export const config = {
   // `\\.` in this (statically analysed, so plain literal) string is a literal dot in the regular
   // expression; a bare `\.` would be just `.` and let e.g. `/cases/xpng` skip the session gate.
   // `maplibre/` is the MapLibre worker copied into public/ (static, loaded by a module Worker).
-  matcher: ["/((?!_next/static|_next/image|api/|maplibre/|favicon\\.ico$|icon\\.svg$|robots\\.txt$|.*\\.(?:svg|png|ico|woff2?|txt)$).*)"],
+  // `basemap/` is the self-hosted base map (Caddy or a bucket serve it; when neither does, the
+  // public "nothing installed" manifest route answers here, never a sign-in redirect).
+  matcher: ["/((?!_next/static|_next/image|api/|maplibre/|basemap/|favicon\\.ico$|icon\\.svg$|robots\\.txt$|.*\\.(?:svg|png|ico|woff2?|txt)$).*)"],
 };

@@ -75,6 +75,7 @@ export const GUARD_REASON_LABELS: Record<GuardReasonCode, string> = {
   approver_changed: "Changes who approves",
   quorum_lowered: "Lowers the number of approvals",
   planning_connector_changed: "Changes the planning connector",
+  compliance_block_removed: "Takes a factory off the compliance block list",
   auto_rule_added: "Adds an automatic-apply rule",
   policy_rule_removed: "Removes an approval or refuse rule",
   policy_rule_weakened: "Weakens an approval or refuse rule",

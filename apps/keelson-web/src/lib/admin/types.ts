@@ -78,6 +78,24 @@ export const agentSpecSchema = z
       })
       .loose()
       .default({}),
+    /** M8 (125): planning solver settings; the engine omits each one while it has its default. */
+    planning: z
+      .object({
+        solver_integer_stage: z.enum(["repair", "cpsat"]).optional(),
+        alt_sourcing: z
+          .object({
+            moq_units: z.number().optional(),
+            order_multiple_units: z.number().optional(),
+            moq_basis: z.enum(["po", "style"]).optional(),
+            share_factory_capacity: z.boolean().optional(),
+            max_orders_per_source: z.number().nullable().optional(),
+            blocked_factories: z.array(z.string()).optional(),
+          })
+          .loose()
+          .optional(),
+      })
+      .loose()
+      .optional(),
   })
   .loose();
 export type AgentSpec = z.infer<typeof agentSpecSchema>;

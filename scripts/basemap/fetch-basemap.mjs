@@ -169,7 +169,6 @@ async function install(opts, versions) {
   const out = path.resolve(opts.out);
   fs.mkdirSync(out, { recursive: true });
   fs.accessSync(out, fs.constants.W_OK);
-  cleanStaleStaging(out);
 
   const { build, warning } = resolveBuild(await getJson(versions.builds_index), opts.build);
   if (warning) log(`warning: ${warning}`);
@@ -185,6 +184,7 @@ async function install(opts, versions) {
     return;
   }
 
+  cleanStaleStaging(out);
   const staged = path.join(out, `.staging-${process.pid}-${Date.now()}`);
   fs.mkdirSync(staged);
   try {

@@ -397,7 +397,11 @@ From the **brief** (`signals-clustering.md`):
 * Contract doc number: this file is `123-m8-signal-clustering.md` (120 §1), not `120-…`.
 * Hub DB tests: the M8 harness's Postgres already has pgvector; the README documents the pg-core image
   for local runs; tests marked `pgvector` skip without the extension.
-* Web `test/adminMock.ts` is not changed (the new tests bring their own routes).
+* Web `test/adminMock.ts` is not changed (the new tests bring their own routes); the web fixtures are
+  `test/fixtures/m8-signals.ts` (the brief's `m8.ts`; the other M8 web workstreams use `m8-<area>.ts`).
+* The Signal Hub Cloud Run API manifest is unchanged: the `SIGNALS_EMBED_*` defaults (local profile,
+  60 s maintenance loop) apply; opting a Cloud Run deployment into remote embeddings means adding
+  `SIGNALS_EMBED_PROVIDER=litellm` (+ alias / dims) to the API and bootstrap env.
 
 ## 13. Deferred
 
@@ -410,6 +414,9 @@ From the **brief** (`signals-clustering.md`):
 * An alert settle delay for news-only candidate events (fewer alert changes before merges) and
   LLM-written titles for news-only events (design note only).
 * Calibrating the remote thresholds against a real embedding model (needs live credits).
+* The brief's optional Playwright screenshots (`e2e/playwright/tests/m8-clustering.spec.ts`): the
+  offline API e2e covers the flow end to end and `test/m8-signals.test.tsx` covers both web sections
+  (incl. axe).
 
 ## 14. Known issues
 

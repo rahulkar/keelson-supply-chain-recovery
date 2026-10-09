@@ -268,12 +268,16 @@ and restorable); approval floors, four-eyes and RLS are unchanged. Fully determi
 
 | Suite | Command (Docker harness) | Result |
 |---|---|---|
-| optimizer (all) | `M8_SLOT=13 m8-pytest.sh <wt> optimizer -q` | see the delivery report |
-| optimizer perf at 512 MB / 1.5 CPU | `docker run --memory 512m --cpus 1.5 … m8-test-optimizer pytest tests/test_perf.py` | 8 passed (S4 + CO₂e + robustness 3.1 s, 253 MB) |
-| contracts-py | `m8-pytest.sh <wt> contracts-py -q` | see the delivery report |
-| contracts chain | `m8-contracts.sh <wt> optimizer-co2-robustness --check` | clean |
-| engine runtime / platform | `m8-pytest.sh <wt> engine tests/runtime` / `tests/platform` | see the delivery report |
-| viz, contracts-ts, web | `m8-js.sh … 'pnpm --filter … typecheck && lint && test'` | see the delivery report |
+| optimizer (all) | `M8_SLOT=13 m8-pytest.sh <wt> optimizer -q` | 268 passed |
+| optimizer perf at 512 MB / 1.5 CPU | `M8_MEM=512m M8_ENV="--cpus 1.5" m8-pytest.sh <wt> optimizer tests/test_perf.py -s` | 8 passed; S4 + CO₂e + robustness 4.8 s in process / 3.8 s over HTTP, 235 MB on the loaded shared host (plain S4 bd+vn 4.2 s in the same run); 3.1 s / 253 MB on a quiet host |
+| contracts-py | `m8-pytest.sh <wt> contracts-py -q` | 1471 passed |
+| contracts chain | `m8-contracts.sh <wt> optimizer-co2-robustness --check` | clean (76 generated modules up to date) |
+| engine runtime | `m8-pytest.sh <wt> engine tests/runtime -q` | 930 passed, 5 deselected |
+| engine platform | `m8-pytest.sh <wt> engine tests/platform -q` | 466 passed, 2 skipped, 3 failed = the known `test_kb.py` PDF tests (`120` §5) |
+| viz | `m8-js.sh … 'pnpm --filter @keelson/viz typecheck && pnpm --filter @keelson/viz test'` | typecheck clean, 267 passed (viz has no lint script) |
+| contracts-ts | `m8-js.sh … 'pnpm --filter @keelson/contracts typecheck && … test'` | typecheck clean, 169 passed |
+| web | `m8-js.sh … 'pnpm --filter @keelson/web typecheck && … lint && … test'` | typecheck + lint clean, 473 passed |
+| e2e | `python -m py_compile e2e/api_m8_robustness_offline.py` (engine image); `tsc --noEmit` in `e2e/playwright` (node image) | both clean; not run (needs the full stack) |
 
 New tests: optimizer `test_robust_draws_m8.py` (pinned draws for seed 7, anchors, tails, half-up rounding,
 uniformity, identical across processes and hash seeds), `test_batch_sim_m8.py` (batch == scalar per key /
@@ -339,9 +343,10 @@ off = M7 requests, replay safety), platform `test_m8_scoring_admin.py`; viz `tes
 
 * Factor values are indicative mid-points; distances follow hand-made illustrative sea polylines; unit
   weights are assumptions — CO₂e compares options, it is not an emissions inventory.
-* Perf headroom: on the shared 9-builder harness full suite runs measured S4 + CO₂e + robustness at
-  3.0 s in process / 3.9 s over HTTP (one earlier run 4.8 s; budget 5 s) while the isolated perf run is
-  2.9–3.1 s; like the existing S4 tests it is sensitive to CPU contention.
+* Perf headroom: on the shared 9-builder harness S4 + CO₂e + robustness measured 3.0–4.8 s in process
+  and 3.8–3.9 s over HTTP (budget 5 s; the 4.8 s runs were at 1.5 CPU while the host was loaded, when the
+  plain S4 bd+vn case also took 4.2 s), against 2.9–3.1 s on a quiet host. Like the existing S4 tests it is
+  sensitive to CPU contention; the robustness share is ~0.5 s.
 * Nominal values can sit outside their p10–p90 (see §5); the UI shows both ("planned" ◆ vs the bar).
 * Merge overlap: workstream 5 edits `optimizer.py`, `service.py` (`run_optimize`), `planning.py`,
   `candidates.py`, `spec.py`, `pyproject.toml` / `uv.lock`, `README.md`, `test_perf.py`; workstreams 7 / 8

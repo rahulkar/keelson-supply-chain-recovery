@@ -10,6 +10,8 @@
 #   scripts/supply-chain/verify-images.sh --compose
 #       third-party images of compose.yaml: digest-pinned, and LiteLLM signed with BerriAI's vendored
 #       cosign key (infra/supply-chain/keys); the others carry no publisher signature we rely on
+#   scripts/supply-chain/verify-images.sh --upstream REF PUBKEY
+#       one third-party image signed with its publisher's cosign key (release.yml, before building on it)
 #
 # Options: --signing-env FILE (default infra/supply-chain/signing.env), -h | --help
 # cosign: $COSIGN_BIN, `cosign` on PATH, or the pinned COSIGN_IMAGE through docker (needs the network:
@@ -26,11 +28,12 @@ usage() { sed -n '2,/^set -uo/p' "${BASH_SOURCE[0]}" | sed '$d' | sed 's/^# \{0,
 die() { printf 'verify-images.sh: %s\n' "$*" >&2; exit 2; }
 
 SIGNING_ENV="$ROOT/infra/supply-chain/signing.env"
-RELEASE=""; COMPOSE=0; REFS=(); ANNOTATIONS=()
+RELEASE=""; COMPOSE=0; REFS=(); ANNOTATIONS=(); UPSTREAM_REF=""; UPSTREAM_KEY=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --release) RELEASE="${2:?--release needs a file}"; shift 2 ;;
     --compose) COMPOSE=1; shift ;;
+    --upstream) UPSTREAM_REF="${2:?--upstream needs REF PUBKEY}"; UPSTREAM_KEY="${3:?--upstream needs REF PUBKEY}"; shift 3 ;;
     --signing-env) SIGNING_ENV="${2:?--signing-env needs a file}"; shift 2 ;;
     -a | --annotation) ANNOTATIONS+=("${2:?-a needs key=value}"); shift 2 ;;
     -h | --help) usage; exit 0 ;;
@@ -42,7 +45,8 @@ modes=0
 [ -n "$RELEASE" ] && modes=$((modes + 1))
 [ "$COMPOSE" = 1 ] && modes=$((modes + 1))
 [ ${#REFS[@]} -gt 0 ] && modes=$((modes + 1))
-[ "$modes" = 1 ] || die "give exactly one of --release FILE, --compose or REF... (see --help)"
+[ -n "$UPSTREAM_REF" ] && modes=$((modes + 1))
+[ "$modes" = 1 ] || die "give exactly one of --release FILE, --compose, --upstream REF PUBKEY or REF... (see --help)"
 sc_load_signing_env "$SIGNING_ENV" || die "$SC_ERROR"
 [ "$SC_SIGNER_MODE" = keyless ] || printf 'verify-images.sh: WARNING: SIGNER_MODE=%s (test key), not the release.yml identity\n' "$SC_SIGNER_MODE" >&2
 
@@ -96,6 +100,13 @@ elif [ "$COMPOSE" = 1 ]; then
       record "$ref" "$digest" none skipped skipped PINNED "digest-pinned; no publisher signature is relied on"
     fi
   done < <(sed -n 's/^[[:space:]]*image:[[:space:]]*\([^[:space:]#]*\).*$/\1/p' "$ROOT/compose.yaml" | sort -u)
+elif [ -n "$UPSTREAM_REF" ]; then
+  digest=""; [[ "$UPSTREAM_REF" == *@sha256:* ]] && digest="${UPSTREAM_REF##*@}"
+  if sc_verify_upstream "$UPSTREAM_REF" "$UPSTREAM_KEY"; then
+    record "$UPSTREAM_REF" "$digest" pass skipped skipped PASS "publisher key $UPSTREAM_KEY"
+  else
+    record "$UPSTREAM_REF" "$digest" "$SC_SIGNATURE" skipped skipped FAIL "$SC_ERROR"
+  fi
 else
   for ref in "${REFS[@]}"; do check_ref "$ref" "$ref" "${ANNOTATIONS[@]}"; done
 fi

@@ -180,3 +180,12 @@ def test_compose_mode(tmp_path: Path) -> None:
 def test_usage_errors(tmp_path: Path) -> None:
     assert run(tmp_path)[0] == 2
     assert run(tmp_path, "--compose", "x@sha256:" + "a" * 64)[0] == 2
+
+
+def test_upstream_mode(tmp_path: Path) -> None:
+    ref = f"ghcr.io/berriai/litellm-non_root:1.104.0@{digest('litellm')}"
+    rc, lines, calls, _ = run(tmp_path, "--upstream", ref, "infra/supply-chain/keys/litellm-cosign.pub")
+    assert rc == 0 and lines[0]["status"] == "PASS"
+    assert calls == [f"verify --key {ROOT}/infra/supply-chain/keys/litellm-cosign.pub {ref}"]
+    rc, lines, _, _ = run(tmp_path / "2", "--upstream", "ghcr.io/berriai/litellm-non_root:1.104.0", "k.pub")
+    assert rc == 1 and lines[0]["signature"] == "refused"

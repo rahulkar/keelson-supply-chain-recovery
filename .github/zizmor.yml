@@ -1,0 +1,6 @@
+# zizmor policy (ci.yml meta job). The workflows use the local composite action as ./.github/actions/...;
+# zizmor's self-repository audit prefers the newer `$/` form, which actionlint 1.7.12 and older runners
+# do not accept yet, so that single low-severity audit is disabled. All other audits stay on.
+rules:
+  self-repository:
+    disable: true

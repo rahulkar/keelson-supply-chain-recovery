@@ -1269,3 +1269,25 @@ The running engine-worker idles at ≈ 300 MB, so a sync peaks around 450 MB. A 
 little (2,000 rows: +102 MB; 50,000: +159 MB) because pyarrow decodes a whole row group (Merxa writes one per
 50k-row part). The first version of the FK check (an anti join per inventory row, run before planner
 statistics exist) took 11–15 s on the full profile; it now checks distinct keys (≈ 0.3 s).
+
+## M8 CP-SAT planning (`docs/contracts/125-m8-optimizer-cpsat.md`)
+
+- `planning.solver_integer_stage` (`repair` default | `cpsat`) and the derived-source terms
+  `planning.alt_sourcing.order_multiple_units` / `moq_basis` / `share_factory_capacity` /
+  `max_orders_per_source` are omitted from spec dumps at their defaults (stored specs, default spec
+  and every request of an unchanged tenant stay byte-identical). `nodes.planning.solver_options()`
+  builds the optimizer's `SolverOptions` for planning **and** re-plan; `problem_scn._alt_sources`
+  passes the terms to every derived `AltSource` (`capacity_group` = the factory when shared).
+- `cpsat` responses carry `solver.stages`; their option dicts get `option["solver"] =
+  {integer_stage, integer_method, gap_bp, fallback_reason, resequence_methods}`
+  (`nodes.planning.solver_summary`) and `visuals.compare_integer` maps it to
+  `CompareOption.integer` (only for options with an integer stage). `repair` options, block props
+  and replay keys are unchanged.
+- Guard: removing a factory from `planning.alt_sourcing.blocked_factories` is a guarded agent-spec
+  change (`compliance_block_removed`, field `planning.alt_sourcing.blocked_factories`, listed in the
+  catalog's `guarded_fields`): 202 + change request for a tenant-admin, applied for a
+  platform-admin; adding a factory or any other planning field is not guarded.
+- Tests: `tests/runtime/test_m8_cpsat_planning.py` (spec dumps, solver options, derived terms,
+  option summary and compare note, the planning flow in both modes with the optimizer stub) and
+  `tests/platform/test_m8_cpsat_admin.py` (settings applied, guard). The optimizer stub echoes
+  stages for `cpsat` requests. Offline real-stack e2e: `e2e/api_m8_cpsat_offline.py`.

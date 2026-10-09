@@ -276,3 +276,13 @@ axe on every visual (graph and table views).
 - Fixtures appended after the M6 ones: `recommended_option.advisory`, `narrative.advisory`,
   `scenario_compare.advisory`. Tests: `tests/m7.test.tsx` (contract validation, badge + note +
   range text, fallback text, graph model: fan-out, dashed edges, toggles, every edge joins nodes).
+
+## M8 (docs/contracts/125)
+
+- **Whole-unit note** (`src/compare/integer.ts`, `ScorecardTable`): options planned with
+  `integer_stage="cpsat"` carry `CompareOption.integer {method, gap_bp, fallback_reason}`; the
+  scorecard shows a muted caption under the option's levers ("Whole units: CP-SAT, proven
+  optimal" / "… best found (gap 0.4 %)" / "Whole units: rounded from the LP (CP-SAT fallback: time
+  limit)", `data-integer-method`). Options without it (every `repair` plan) are unchanged.
+- Fixture appended after the M7 ones: `scenario_compare.integer`. Tests: `tests/m8-cpsat.test.tsx`
+  (contract validation, every caption, notes only where present, axe).

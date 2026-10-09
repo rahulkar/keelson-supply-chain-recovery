@@ -28,6 +28,8 @@ volumes:
   valkey_data: {}
   squid_cache: {}
   merxa_snapshots: {}
+  # M8 adapter sidecar demo (profile adapters): Fernhill CSV data, sidecar state, snapshot parts
+  fernhill_data: {}
 
 services:
   # ───────────────────────────── edge ─────────────────────────────
@@ -41,7 +43,8 @@ services:
       - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
     networks:
       edge:
-        aliases: [keelson.localhost, merxa.localhost, auth.localhost, gateway.localhost, traces.localhost]
+        aliases: [keelson.localhost, merxa.localhost, auth.localhost, gateway.localhost, traces.localhost,
+                  fernhill.localhost]
       app:
         aliases: [keelson.localhost, auth.localhost]
       ai: {}
@@ -269,6 +272,44 @@ services:
     networks: [edge]
     mem_limit: 256m
 
+  # ─────────────── adapter sidecar demo (M8, profile adapters, docs/contracts/122) ───────────────
+  # "Fernhill ERP": a directory of CSV files behind tier B/C/W MCP tools (services/adapter-sidecar).
+  # Keelson registers it like any third-party MCP server: http://fernhill.localhost/mcp with the
+  # static header X-Adapter-Key = FERNHILL_API_KEY. Start: docker compose --profile adapters up -d
+  fernhill-sidecar:
+    <<: *py-service
+    profiles: [adapters]
+    build:
+      context: .
+      dockerfile: services/adapter-sidecar/Dockerfile
+    environment:
+      PORT: "8400"
+      SIDECAR_CONFIG: /app/demo/fernhill/sidecar.yaml
+      PUBLIC_URL: http://fernhill.localhost
+      MCP_RESOURCE: http://fernhill.localhost/mcp
+      MCP_ALLOWED_HOSTS: fernhill.localhost
+      STATE_DB_URL: sqlite+aiosqlite:////data/state/sidecar.db
+      DATA_DIR: /data/fernhill
+      SNAPSHOT_DIR: /data/snapshots
+      # empty when scripts/init has not generated them yet: the sidecar then refuses to start
+      SIDECAR_API_KEY: ${FERNHILL_API_KEY:-}
+      SIDECAR_ADMIN_KEY: ${FERNHILL_ADMIN_KEY:-}
+      SIDECAR_SNAPSHOT_SECRET: ${FERNHILL_SNAPSHOT_SECRET:-}
+      KEELSON_JWKS_URL: http://keelson.localhost/api/.well-known/jwks.json
+      TRUSTED_RECEIPT_ISSUERS: http://keelson.localhost
+      DEMO_MODE: ${DEMO_MODE:-1}
+      DEMO_GOLDEN_DIR: /app/demo/fernhill/golden
+    volumes:
+      - fernhill_data:/data
+    networks: [edge]
+    mem_limit: 256m
+    cpus: 0.5
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8400/healthz',timeout=3)"]
+      interval: 10s
+      retries: 30
+      start_period: 10s
+
   # ─────────────────────────── Keelson (engine) ───────────────────────────
   optimizer:
     <<: *py-service
@@ -324,7 +365,7 @@ services:
       DEMO_MODE: ${DEMO_MODE:-1}
       PUBLIC_BASE_DOMAIN: ${PUBLIC_BASE_DOMAIN:-localhost}
       MERXA_WEBHOOK_SECRET: ${MERXA_WEBHOOK_SECRET}
-      CONNECTOR_DEV_HOSTS: merxa.localhost
+      CONNECTOR_DEV_HOSTS: merxa.localhost,fernhill.localhost
       PACKS_DIR: /app/packs
       BRAND_ENGINE_NAME: ${BRAND_ENGINE_NAME:-Keelson}
       BRAND_VENDOR_NAME: ${BRAND_VENDOR_NAME:-Merxa}

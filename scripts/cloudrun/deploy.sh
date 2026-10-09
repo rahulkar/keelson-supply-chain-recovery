@@ -147,6 +147,7 @@ ENV_SECRETS=(
   DEMO_USER_PASSWORD SESSION_SECRET DEMO_ACCESS_SECRET OPTIMIZER_SHARED_SECRET PHOENIX_SECRET
   MERXA_WEBHOOK_SECRET MERXA_SNAPSHOT_SECRET
   SIGNAL_HUB_SHARED_SECRET SIGNALS_DB_PASSWORD
+  FERNHILL_API_KEY FERNHILL_ADMIN_KEY FERNHILL_SNAPSHOT_SECRET
 )
 # Secrets compose reads that may legitimately be unset in .env: created by a helper with a
 # placeholder value instead (LITELLM_SIGNALS_KEY: infra/cloudrun/signal-hub.sh stores "unset" until a

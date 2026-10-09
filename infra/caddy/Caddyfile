@@ -130,6 +130,17 @@ http://merxa.localhost {
 	}
 }
 
+# ── Fernhill ERP via the adapter sidecar (M8, compose profile adapters) ────────────
+# MCP (streamable HTTP), signed Parquet part downloads and the key-protected /v1/admin/*.
+# Never buffered. Without the adapters profile running this host answers 502.
+http://fernhill.localhost {
+	import common
+	reverse_proxy {$FERNHILL_UPSTREAM:fernhill-sidecar:8400} {
+		import proxy_headers
+		flush_interval -1
+	}
+}
+
 # ── Keycloak ─────────────────────────────────────────────────────────────────
 http://auth.localhost {
 	import common

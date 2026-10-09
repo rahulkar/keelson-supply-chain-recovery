@@ -97,6 +97,7 @@ __all__ = [
     "export_doc",
     "finish_run",
     "get_eval_link",
+    "gateway_budget_spent",
     "get_run",
     "import_doc",
     "import_folder",
@@ -326,8 +327,8 @@ async def runner_info() -> tuple[EvalRunnerInfo, EvalSuiteInfo | None]:
     return info, suite
 
 
-def mode_availability(runner: EvalRunnerInfo, *, demo_mode: bool, live_enabled: bool, process_mode: str
-                      ) -> list[EvalModeAvailability]:
+def mode_availability(runner: EvalRunnerInfo, *, demo_mode: bool, live_enabled: bool, process_mode: str,
+                      gateway_budget_spent: bool = False) -> list[EvalModeAvailability]:
     """Whether each mode can start now, with the first reason it cannot (pure)."""
     base: tuple[str, str] | None = None
     if not runner.configured:
@@ -346,10 +347,33 @@ def mode_availability(runner: EvalRunnerInfo, *, demo_mode: bool, live_enabled: 
                                          "(LLM_REPLAY_MODE=replay): live runs are impossible.")
             elif not live_enabled:
                 reason = ("live_disabled", "Live eval runs are switched off (EVALS_LIVE_ENABLED=0).")
+            elif gateway_budget_spent:
+                reason = ("gateway_budget_low", "The demo tenant's AI gateway budget is used up: the gateway would "
+                                                "refuse the model calls.")
         out.append(EvalModeAvailability(mode=mode, available=reason is None,  # type: ignore[arg-type]
                                         reason=reason[0] if reason else None,  # type: ignore[arg-type]
                                         message=reason[1] if reason else None))
     return out
+
+
+async def gateway_budget_spent(tenant: str) -> bool:
+    """Whether ``tenant``'s AI gateway team has a budget and spent it (LiteLLM ``spend ≥
+    max_budget``, both in the gateway's own units: the eval budget's micro-USD are never compared
+    with it). ``False`` when no budget is set or the gateway cannot be asked: this is a pre-check
+    for a clear refusal, the gateway itself stays the outer cap."""
+    from keelson_engine.core import gateway  # noqa: PLC0415 - platform module, only for live modes
+
+    try:
+        team = await gateway.get_admin().team_info(gateway.team_id(tenant))
+    except Exception as exc:  # noqa: BLE001 - transport or API failure: unknown, not a refusal
+        log.warning("eval gateway budget lookup failed", error=type(exc).__name__)
+        return False
+    if not team or team.get("max_budget") is None:
+        return False
+    try:
+        return float(team.get("spend") or 0.0) >= float(team["max_budget"])
+    except (TypeError, ValueError):
+        return False
 
 
 # ───────────────────────────── runs (admin API) ─────────────────────────────

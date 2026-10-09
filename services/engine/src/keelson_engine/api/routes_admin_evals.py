@@ -22,7 +22,8 @@ session's CSRF token and pass the Origin check like every admin mutation.
 ==============================================  ===================================================
 
 ``POST /runs`` errors: ``409 evals_unavailable {reason}`` (``runner_not_configured``,
-``runner_offline``, ``demo_mode_off``, ``live_disabled``, ``replay_only``), ``409 eval_running``,
+``runner_offline``, ``demo_mode_off``, ``live_disabled``, ``replay_only``, ``gateway_budget_low``),
+``409 eval_running``,
 ``422 unknown_cases {cases}`` (not in the runner's suite), ``422 confirm_required`` /
 ``budget_required`` / ``budget_too_high``. Imports: ``413 file_too_large``, ``422 invalid_results``.
 """
@@ -78,8 +79,14 @@ def _live_caps() -> EvalBudget:
 async def _availability() -> tuple[Any, Any, list[Any]]:
     settings = get_settings()
     runner, suite = await evals.runner_info()
+    process = _process_mode()
     modes = evals.mode_availability(runner, demo_mode=settings.demo_mode, live_enabled=settings.evals_live_enabled,
-                                    process_mode=_process_mode())
+                                    process_mode=process)
+    # the gateway is only asked when a live mode could otherwise start (never on replay-only installs)
+    if any(m.available and m.mode != "replay" for m in modes) and await evals.gateway_budget_spent(eval_tenant()):
+        modes = evals.mode_availability(runner, demo_mode=settings.demo_mode,
+                                        live_enabled=settings.evals_live_enabled, process_mode=process,
+                                        gateway_budget_spent=True)
     return runner, suite, modes
 
 

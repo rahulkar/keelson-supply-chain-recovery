@@ -156,7 +156,9 @@ EvalEventType = Literal["run_started", "case_started", "turn_started", "turn_fin
                         "run_finished"]
 EVAL_EVENT_TYPES: Final[tuple[str, ...]] = get_args(EvalEventType)
 EvalUnavailableReason = Literal["runner_not_configured", "runner_offline", "demo_mode_off", "live_disabled",
-                                "replay_only"]
+                                "replay_only", "gateway_budget_low"]
+"""Why a mode cannot start now. ``gateway_budget_low`` (live modes): the eval tenant's AI gateway
+team budget is used up (spend ≥ budget, compared in the gateway's own units)."""
 
 EVAL_STOP_CODES: Final[Mapping[str, str]] = {
     "LLM_REPLAY_MISS": "replay_miss",

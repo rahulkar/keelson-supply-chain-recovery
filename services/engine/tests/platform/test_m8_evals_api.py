@@ -18,6 +18,7 @@ from sqlalchemy import text
 
 from e1_browser import Browser
 from e1_env import TENANT_A, TENANT_B
+from e1_litellm import FakeLiteLLM
 from keelson_engine.config import Settings
 from keelson_engine.core import evals, repo
 from keelson_engine.core.db import system_session, tenant_session
@@ -116,6 +117,38 @@ async def test_status_and_availability_reasons(api: httpx.AsyncClient, people: d
     monkeypatch.setattr(settings, "evals_runner_token", SecretStr(""))
     body = (await ava.get("/api/admin/evals/status")).json()
     assert body["runner"]["configured"] is False and reasons(body)["replay"] == "runner_not_configured"
+
+
+async def test_gateway_budget_low_refuses_live_runs(api: httpx.AsyncClient, people: dict[str, Browser],
+                                                    settings: Settings, litellm_fake: FakeLiteLLM,
+                                                    monkeypatch: pytest.MonkeyPatch) -> None:
+    """A spent AI gateway team budget makes live modes unavailable (replay is unaffected); an
+    unreachable gateway or a team without a budget does not block (the gateway stays the outer cap)."""
+    ava = people["ava"]
+    monkeypatch.setattr(settings, "evals_live_enabled", True)
+    monkeypatch.setenv("LLM_REPLAY_MODE", "record_or_replay")
+    await heartbeat(api)
+
+    async def reasons() -> dict[str, str | None]:
+        body = (await ava.get("/api/admin/evals/status")).json()
+        return {m["mode"]: m["reason"] for m in body["modes"]}
+
+    team = f"keelson-{TENANT_A}"
+    litellm_fake.teams.pop(team, None)  # unknown team: not a refusal
+    assert set((await reasons()).values()) == {None}
+    litellm_fake.teams[team] = {"team_id": team, "max_budget": None, "spend": 99.0}  # no budget set
+    assert set((await reasons()).values()) == {None}
+    litellm_fake.teams[team] = {"team_id": team, "max_budget": 5.0, "spend": 5.0}
+    assert await reasons() == {"replay": None, "record_or_replay": "gateway_budget_low", "record": "gateway_budget_low"}
+    live = await ava.post("/api/admin/evals/runs", json={
+        "acknowledge_reset": True, "mode": "record_or_replay", "confirm_live": "RUN LIVE",
+        "budget": {"max_tokens": 1000, "max_cost_microusd": 1000}})
+    assert live.status_code == 409 and live.json()["reason"] == "gateway_budget_low", live.text
+    litellm_fake.teams[team]["spend"] = 4.5  # headroom again
+    assert set((await reasons()).values()) == {None}
+    monkeypatch.setenv("LLM_REPLAY_MODE", "replay")  # replay-only installs never ask the gateway
+    asked = len(litellm_fake.calls)
+    assert (await reasons())["record"] == "replay_only" and len(litellm_fake.calls) == asked
 
 
 async def test_run_requests(api: httpx.AsyncClient, people: dict[str, Browser], settings: Settings,

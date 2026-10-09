@@ -992,7 +992,8 @@
                   "runner_offline",
                   "demo_mode_off",
                   "live_disabled",
-                  "replay_only"
+                  "replay_only",
+                  "gateway_budget_low"
                 ],
                 "type": "string"
               },

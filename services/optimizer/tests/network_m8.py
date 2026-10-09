@@ -95,7 +95,9 @@ def sourcing_problem(uk: dict[str, Any] | None = None, de: dict[str, Any] | None
             data["demand"] += [{"cluster_code": cl, "sku": sku, "iso_week": w, "units": units} for w in WEEKS]
             data["cluster_inventory"].append({"cluster_code": cl, "sku": sku, "on_hand": units})
         data["inventory"].append({"location_type": "dc", "location_code": "UK1", "sku": sku, "on_hand": 2 * (a + b)})
-    data["bom"].append({"style_code": "TEE", "component_code": "CMP-Z", "supplier_code": "TRIM-1", "factory_code": "F-1"})
+    data["bom"].append(
+        {"style_code": "TEE", "component_code": "CMP-Z", "supplier_code": "TRIM-1", "factory_code": "F-1"}
+    )
     data["inbound_lanes"].append(
         {
             "code": "NS-DE",
@@ -108,7 +110,10 @@ def sourcing_problem(uk: dict[str, Any] | None = None, de: dict[str, Any] | None
             "via": [],
         }
     )
-    data["alt_sources"] = [alt_source("NS-UK", ["TOP", "TEE"], **(uk or {})), alt_source("NS-DE", ["KNIT"], **(de or {}))]
+    data["alt_sources"] = [
+        alt_source("NS-UK", ["TOP", "TEE"], **(uk or {})),
+        alt_source("NS-DE", ["KNIT"], **(de or {})),
+    ]
     return data
 
 
@@ -191,7 +196,8 @@ def check_invariants(req: OptimizeRequest, resp: OptimizeResponse) -> None:
     group_cap: dict[str, int] = {}
     for s in data.alt_sources:
         if s.capacity_group is not None:
-            group_cap[s.capacity_group] = min(group_cap.get(s.capacity_group, s.weekly_capacity_units), s.weekly_capacity_units)
+            cap = group_cap.get(s.capacity_group, s.weekly_capacity_units)
+            group_cap[s.capacity_group] = min(cap, s.weekly_capacity_units)
 
     def source_of(factory: str, dc: str) -> AltSource:
         return next(s for s in data.alt_sources if s.factory_code == factory and lanes[s.lane_code].dest_dc == dc)

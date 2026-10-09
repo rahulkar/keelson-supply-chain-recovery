@@ -211,63 +211,60 @@ def test_repair_without_m8_terms_keeps_the_m7_rule(monkeypatch: pytest.MonkeyPat
     monkeypatch.setattr(alt_integer, "repair_terms", lambda *a, **k: calls.append(1) or {})
     optimize(request(BOTH, stage="repair"))
     assert calls == []
-    run_optimize(OptimizeRequest.model_validate(request(BOTH, sourcing_problem({"order_multiple_units": 6}), stage="repair")))
+    raw = request(BOTH, sourcing_problem({"order_multiple_units": 6}), stage="repair")
+    run_optimize(OptimizeRequest.model_validate(raw))
     assert calls == [1]
 
 
 # ───────────────────────────── fallbacks ─────────────────────────────
 
 
-def _fallback(monkeypatch: pytest.MonkeyPatch, reason: str, patch: Callable[[], None], *, skipped: bool) -> None:
+def _fallback(monkeypatch: pytest.MonkeyPatch, reason: str, target: object, name: str, value: object) -> None:
+    """With ``target.name`` patched to ``value`` the integer stage falls back for ``reason``:
+    the repair plan is returned unchanged, with a warning and the reason recorded."""
     raw = request(BOTH)
     rep = optimize(dict(raw, solver={**raw["solver"], "integer_stage": "repair"}))
-    patch()
+    monkeypatch.setattr(target, name, value)
     resp = optimize(raw)
     assert plan_of(resp) == plan_of(rep), "a fallback returns the repair plan"
     assert resp.status == rep.status
     stage = integer_stage(resp)
     assert stage.used is False and stage.fallback_reason == reason
-    assert (stage.status == "SKIPPED") is skipped
+    # solved but unusable (status / guard) vs not solved at all
+    assert (stage.status == "SKIPPED") is (reason not in ("time_limit_no_solution", "wall_clock_guard"))
     assert resp.solver.params["integer_method"] == "lp_rounding" and resp.solver.params["integer_fallback"] == reason
     assert f"whole-unit CP-SAT stage fell back to LP rounding ({reason})" in " ".join(resp.warnings)
     assert "CP-SAT" not in resp.solver.name.split("+")
 
 
-def test_fallback_time_limit_without_solution(monkeypatch: pytest.MonkeyPatch) -> None:
+def _patched_run(**change: Any) -> Callable[..., cpsat.CpRun]:
     real = alt_integer.run_cpsat
 
-    def unknown(*a: Any, **k: Any) -> cpsat.CpRun:
-        return dataclasses.replace(real(*a, **k), status="UNKNOWN", objective=None, bound=None)
+    def run(*a: Any, **k: Any) -> cpsat.CpRun:
+        return dataclasses.replace(real(*a, **k), **change)
 
-    _fallback(monkeypatch, "time_limit_no_solution", lambda: monkeypatch.setattr(alt_integer, "run_cpsat", unknown), skipped=False)
-
-
-def test_fallback_model_too_large(monkeypatch: pytest.MonkeyPatch) -> None:
-    _fallback(monkeypatch, "model_too_large", lambda: monkeypatch.setattr(alt_integer, "INTEGER_MAX_VARS", 1), skipped=True)
+    return run
 
 
-def test_fallback_wall_clock_guard(monkeypatch: pytest.MonkeyPatch) -> None:
-    real = alt_integer.run_cpsat
-
-    def guarded(*a: Any, **k: Any) -> cpsat.CpRun:
-        return dataclasses.replace(real(*a, **k), status="FEASIBLE", guard_hit=True)
-
-    _fallback(monkeypatch, "wall_clock_guard", lambda: monkeypatch.setattr(alt_integer, "run_cpsat", guarded), skipped=False)
+def _boom(*_a: Any, **_k: Any) -> None:
+    raise RuntimeError("synthetic failure")
 
 
-def test_fallback_objective_overflow(monkeypatch: pytest.MonkeyPatch) -> None:
-    _fallback(monkeypatch, "objective_overflow", lambda: monkeypatch.setattr(cpsat, "OBJECTIVE_LIMIT", 10**6), skipped=True)
-
-
-def test_fallback_solver_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    def boom(*a: Any, **k: Any) -> None:
-        raise RuntimeError("synthetic failure")
-
-    _fallback(monkeypatch, "solver_error", lambda: monkeypatch.setattr(alt_integer, "_IntegerModel", boom), skipped=True)
-
-
-def test_budget_exhausted_falls_back(monkeypatch: pytest.MonkeyPatch) -> None:
-    _fallback(monkeypatch, "budget_exhausted", lambda: monkeypatch.setattr(cpsat, "REQUEST_DET_BUDGET", 0.0), skipped=True)
+@pytest.mark.parametrize(
+    ("reason", "target", "name", "value"),
+    [
+        ("time_limit_no_solution", alt_integer, "run_cpsat", _patched_run(status="UNKNOWN", objective=None, bound=None)),
+        ("wall_clock_guard", alt_integer, "run_cpsat", _patched_run(status="FEASIBLE", guard_hit=True)),
+        ("model_too_large", alt_integer, "INTEGER_MAX_VARS", 1),
+        ("objective_overflow", cpsat, "OBJECTIVE_LIMIT", 10**6),
+        ("solver_error", alt_integer, "_IntegerModel", _boom),
+        ("budget_exhausted", cpsat, "REQUEST_DET_BUDGET", 0.0),
+    ],
+)
+def test_fallbacks_return_the_repair_plan(
+    monkeypatch: pytest.MonkeyPatch, reason: str, target: object, name: str, value: object
+) -> None:
+    _fallback(monkeypatch, reason, target, name, value)
 
 
 def test_wall_guard_env_stops_the_solve_and_falls_back(monkeypatch: pytest.MonkeyPatch) -> None:

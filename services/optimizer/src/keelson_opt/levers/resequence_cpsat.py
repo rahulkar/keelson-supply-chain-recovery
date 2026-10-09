@@ -152,8 +152,9 @@ def line_v2(
         }
         lm_v2 = _lost(scn, current, v2_res[1], keys)
         lm_rival = _lost(scn, current, rival, keys)
-        if w_lost_bp * (lm_rival - lm_v2) <= 0:
-            reason = "simulator_not_better" if rival else "no_improvement"
+        gain = w_lost_bp * (lm_rival - lm_v2)
+        if gain <= 0:  # ties keep the M3 result (nothing changes when the two agree)
+            reason = "simulator_not_better" if gain < 0 else "no_improvement"
             v2_res = None
     used = v2_res is not None
     name = f"resequence:{pl.line_code}"

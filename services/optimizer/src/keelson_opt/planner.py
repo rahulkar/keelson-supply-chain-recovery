@@ -728,7 +728,8 @@ def _decide_bookings(
         load=scn.booking_load(frozenset()),
     )
     if cp is not None and cp.on:
-        cp.stages.lp("booking_decision", out.status, out.params, {"locked": sorted(locked), "decidable": list(scn.decidable)})
+        payload = {"locked": sorted(locked), "decidable": list(scn.decidable)}
+        cp.stages.lp("booking_decision", out.status, out.params, payload)
     warnings = list(out.warnings)
     if out.status not in ("OPTIMAL", "FEASIBLE"):
         warnings.append(

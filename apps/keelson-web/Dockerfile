@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.7.1@sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e
 # keelson-web: the Keelson web app (Next.js 16 standalone, port 3000).
 #
 # Build context: the repository root (compose.yaml). The pnpm workspace (apps/keelson-web +
@@ -10,7 +10,7 @@
 #   docker build -f apps/keelson-web/Dockerfile -t keelson-web .
 #   docker build -f apps/keelson-web/Dockerfile --target test .     # typecheck + lint + unit tests
 
-ARG NODE_IMAGE=node:24-slim
+ARG NODE_IMAGE=node:24.21.0-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20
 
 FROM ${NODE_IMAGE} AS base
 ENV PNPM_HOME=/pnpm CI=true NEXT_TELEMETRY_DISABLED=1

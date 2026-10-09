@@ -13,9 +13,9 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 if command -v cygpath >/dev/null 2>&1; then ROOT="$(cygpath -m "$ROOT")"; export MSYS_NO_PATHCONV=1; fi
 # Keep in sync with compose.yaml (keycloak / kc-config).
-KC_IMAGE="quay.io/keycloak/keycloak:26.8.0"
-KCC_IMAGE="adorsys/keycloak-config-cli:6.5.1-26"
-PY_IMAGE="python:3.14-slim-trixie"
+KC_IMAGE="quay.io/keycloak/keycloak:26.8.0@sha256:b0f60d489d51c5d113390bdf5461d4c06e6051be026c05549f2e1e10ec352bcc"
+KCC_IMAGE="adorsys/keycloak-config-cli:6.5.1-26@sha256:1b22dfaa9ae0c71f74b0342f9221a6510f272da5def683dbba26a98e6b1b1411"
+PY_IMAGE="python:3.14.8-slim-trixie@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170"
 ID="keelson-kctest-$$"
 NET="$ID-net"
 BASE="http://auth.localhost:8080"   # network alias of the throwaway Keycloak

@@ -38,7 +38,7 @@ docker run -d --name "${P}_core" --network "$NET" --memory 384m --tmpfs /var/lib
   -e POSTGRES_PASSWORD=su-pw -e KEELSON_DB_PASSWORD=k-pw -e ADK_DB_PASSWORD=a-pw -e KEYCLOAK_DB_PASSWORD=kc-pw \
   keelson-pg-core:latest >/dev/null || exit 99
 docker run -d --name "${P}_plain" --network "$NET" --memory 256m --tmpfs /var/lib/postgresql:size=256m \
-  -e POSTGRES_PASSWORD=su-pw postgres:18-trixie >/dev/null || exit 99
+  -e POSTGRES_PASSWORD=su-pw postgres:18.6-trixie@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336 >/dev/null || exit 99
 for _ in $(seq 1 120); do
   [ "$(docker inspect -f '{{.State.Health.Status}}' "${P}_core")" = healthy ] &&
     docker exec "${P}_plain" pg_isready -h 127.0.0.1 -q && break

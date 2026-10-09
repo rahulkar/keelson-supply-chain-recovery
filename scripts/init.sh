@@ -14,7 +14,7 @@ if command -v cygpath >/dev/null 2>&1; then
   export MSYS_NO_PATHCONV=1
 fi
 
-IMAGE="python:3.14-slim-trixie"
+IMAGE="python:3.14.8-slim-trixie@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170"
 CRYPTOGRAPHY_VERSION="50.0.2"
 CHECK=0
 for arg in "$@"; do if [ "$arg" = "--check" ]; then CHECK=1; fi; done

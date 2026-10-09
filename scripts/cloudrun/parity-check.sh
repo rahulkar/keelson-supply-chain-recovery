@@ -171,7 +171,7 @@ start_deps() {
     -e POSTGRES_PASSWORD=parity-super -e KEELSON_DB_PASSWORD=parity-keelson \
     -e ADK_DB_PASSWORD=parity-adk -e KEYCLOAK_DB_PASSWORD=parity-keycloak \
     keelson-pg-core:latest postgres -c shared_buffers=32MB -c max_connections=80 >/dev/null || return 1
-  docker run -d --name "$VALKEY" --network "$NET" --memory 64m valkey/valkey:8-alpine \
+  docker run -d --name "$VALKEY" --network "$NET" --memory 64m valkey/valkey:8.1.10-alpine@sha256:081c2f5cb575efc901aa80ff9cdbd1ec6a301682fd35e1ebb4b0990a4a4a8507 \
     valkey-server --save "" --appendonly no >/dev/null || return 1
 
   for _ in $(seq 1 120); do
@@ -277,7 +277,7 @@ check_worker() {  # name image mem [docker args...] -- command...
 }
 
 selftest() {  # synthetic images with known outcomes; returns the number of wrong verdicts
-  local img="${PREFIX}/selftest:1" base="python:3.14-slim-trixie" wrong=0 r name st want
+  local img="${PREFIX}/selftest:1" base="python:3.14.8-slim-trixie@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170" wrong=0 r name st want
   local srv='import http.server,os
 class H(http.server.BaseHTTPRequestHandler):
     def do_GET(self):

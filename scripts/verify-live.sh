@@ -57,7 +57,7 @@ running="$(docker ps --format '{{.Names}}' | grep -c '^keelson-' || true)"
 py_e2e() {
   docker run --rm --memory 256m --network keelson_edge -e DEMO_USER_PASSWORD -e PYTHONPATH=/contracts/src \
     -v "$root/e2e:/e2e:ro" -v "$root/packages/contracts-py:/contracts:ro" \
-    -v keelson_pipcache:/root/.cache/pip python:3.14-slim-trixie sh -c \
+    -v keelson_pipcache:/root/.cache/pip python:3.14.8-slim-trixie@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170 sh -c \
     "pip install -q --root-user-action=ignore httpx==0.28.1 pydantic==2.13.5 && python -u /e2e/$1"
 }
 # The M5 scripts run inside the engine image (engine env, core access for seeding / run checks).
@@ -81,7 +81,7 @@ step m4-whatif     twice py_e2e api_m4_whatif.py
 step m4-followup   twice py_e2e api_m4_followup.py
 step evals docker run --rm --memory 256m --network keelson_edge -e PYTHONDONTWRITEBYTECODE=1 \
   -v "$root:/work:ro" -v "$root/evals/results:/work/evals/results" \
-  -v keelson_pipcache:/root/.cache/pip -w /work/evals python:3.14-slim-trixie sh -c \
+  -v keelson_pipcache:/root/.cache/pip -w /work/evals python:3.14.8-slim-trixie@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170 sh -c \
   "pip install -q --root-user-action=ignore -r requirements.txt && python -u run_live.py --preflight && python -u run_live.py"
 # LLM Playwright specs (the non-LLM ones run offline: m5-offline, dev-blocks, layout, auth, ...)
 step playwright bash e2e/playwright/run.sh act3-thin-slice act2-whatif keyboard-approve a11y layout

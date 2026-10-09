@@ -123,6 +123,17 @@ to MapLibre/deck.gl. Python-side cross-field rules (edge/link endpoints exist, `
 have `shortage_units > 0`, ...) are not in the Zod schemas; the engine validates them. The generator fails if a schema would
 convert to `z.any()` without an explicit open object.
 
+## M8 notes — signal clustering (`docs/contracts/123-m8-signal-clustering.md`)
+
+- New schemas `signals.event-membership`, `signals.clustering-config`,
+  `signals.clustering-config-update`, `signals.clustering-status` (exported from the package root as
+  `signalsEventMembershipSchema`, `signalsClusteringConfigSchema`,
+  `signalsClusteringConfigUpdateSchema`, `signalsClusteringStatusSchema` + their types);
+  `signals.alert-detail` gains an optional `memberships` array (absent from older hubs).
+- `src/signals.ts`: `MEMBERSHIP_METHODS` / `MembershipMethod` (from the generated enum).
+- The per-method evidence rules and "memberships belong to the event" are Python-only cross-field
+  checks; the web parses memberships tolerantly (one bad entry is dropped, not the alert).
+
 ## M7 notes (`docs/contracts/110-m7-backoffice-generic.md`)
 
 - Friendly vocabularies in `src/backoffice.ts` (derived from the generated schemas): `PRODUCT_ROLES`,

@@ -28,7 +28,7 @@ import {
   clusteringConfig,
   clusteringStatus,
   strikeDetail,
-} from "./fixtures/m8";
+} from "./fixtures/m8-signals";
 import { fakeApi, jsonResponse, makeMe, withSession, type Route } from "./session";
 
 const nav = vi.hoisted(() => ({ pathname: "/alerts", push: vi.fn(), refresh: vi.fn() }));

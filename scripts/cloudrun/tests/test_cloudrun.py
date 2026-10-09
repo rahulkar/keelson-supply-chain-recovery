@@ -32,6 +32,9 @@ NON_SECRET = {
 }
 LB_SERVICES = {"engine-api", "keelson-web", "merxa-api", "merxa-web", "keycloak", "litellm", "phoenix"}
 SECRETISH = re.compile(r"(SECRET|PASSWORD|_KEY$|DATABASE_URL$|^VALKEY_URL$|^PGPASSWORD$)")
+# Caddy hosts of optional local compose profiles that are never deployed to Cloud Run
+# (M8: the adapter sidecar demo "Fernhill ERP", profile adapters, docs/contracts/122).
+LOCAL_ONLY_HOSTS = {"fernhill"}
 
 
 # ───────────────────────────── helpers ─────────────────────────────
@@ -490,12 +493,12 @@ def test_phoenix_optional(tmp_path: Path, fakebin: tuple[Path, Path]) -> None:
 
 
 def test_caddy_routes_covered() -> None:
-    """Every host Caddy serves has a URL map host rule."""
+    """Every host Caddy serves has a URL map host rule (local-only profile hosts excepted)."""
     caddy = (ROOT / "infra" / "caddy" / "Caddyfile").read_text(encoding="utf-8")
     caddy_hosts = {h.split(".")[0] for h in re.findall(r"^http://([a-z]+)\.localhost", caddy, re.M)}
     um = (CR / "lb" / "url-map.yaml").read_text(encoding="utf-8")
     um_hosts = set(re.findall(r"hosts: \[([a-z]+)\.\$\{DOMAIN\}\]", um))
-    assert caddy_hosts == um_hosts
+    assert caddy_hosts - LOCAL_ONLY_HOSTS == um_hosts
 
 
 # ───────────────────────────── overlay images ─────────────────────────────

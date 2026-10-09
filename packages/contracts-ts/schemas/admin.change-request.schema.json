@@ -171,6 +171,7 @@
               "approver_changed",
               "quorum_lowered",
               "planning_connector_changed",
+              "compliance_block_removed",
               "auto_rule_added",
               "policy_rule_removed",
               "policy_rule_weakened",

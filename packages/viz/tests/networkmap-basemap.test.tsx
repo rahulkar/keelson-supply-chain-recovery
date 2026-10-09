@@ -94,7 +94,8 @@ describe("NetworkMap base map fallback chain", () => {
     serveManifest(204);
     await renderMap();
     await waitFor(() => expect(basemapAttr()).toBe("openfreemap"));
-    expect(seen.at(-1)).toEqual({ kind: "openfreemap", manifest: null });
+    // the canvas is a lazy chunk: it renders a moment after the region knows its kind
+    await waitFor(() => expect(seen.at(-1)).toEqual({ kind: "openfreemap", manifest: null }));
   });
 
   it("an invalid manifest counts as none", async () => {

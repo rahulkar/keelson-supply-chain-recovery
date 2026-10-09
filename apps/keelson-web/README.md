@@ -476,4 +476,6 @@ despite `--offline`), so `pnpm install` prints no "Ignored build scripts" warnin
 |---|---|---|
 | `ENGINE_API_INTERNAL_URL` | `http://engine-api:8000` | Server-side `/api/me` and case snapshot |
 | `BRAND_ENGINE_NAME` | `Keelson` | Page titles (the UI otherwise uses `brand` from `/api/me`) |
+| `KEELSON_BASEMAP` | `auto` | Network map base map, runtime: `auto` \| `protomaps` \| `openfreemap` \| `offline` (M8, `docs/contracts/127`) |
+| `KEELSON_CSP_MAP_ORIGINS` (build arg) | `https://tiles.openfreemap.org` | Third-party map origins in the CSP, `none` = strict (baked in at `next build`) |
 | `PORT` / `HOSTNAME` | `3000` / `0.0.0.0` | Standalone server |

@@ -22,6 +22,8 @@ import {
   nodeKindLabels,
   type MapModel,
 } from "../map/model";
+import { useNetworkMapSettings } from "../map/settings";
+import { useBasemap } from "../map/useBasemap";
 import { supportsWebGL2 } from "../map/webgl";
 import type { BlockComponentProps } from "../types";
 import { BlockFrame } from "./BlockFrame";
@@ -127,10 +129,11 @@ export function NetworkTables({
 
 /**
  * `network_map@1` (canvas) — sites coloured by status, inbound / transfer lanes, proposed
- * sea–air and near-shore arcs and the disruption footprint on an OpenFreeMap base map
- * (MapLibre + deck.gl, loaded on demand). Option chips filter the proposed lanes; "View as
- * table" lists exactly what the map shows. Without WebGL2, or for payloads too large to draw,
- * the tables are shown instead.
+ * sea–air and near-shore arcs and the disruption footprint (MapLibre + deck.gl, loaded on demand)
+ * on a base map from the fallback chain (docs/contracts/127-m8-basemap.md): self-hosted Protomaps
+ * when installed, OpenFreeMap, the built-in Natural Earth outline, a plain background. Option chips
+ * filter the proposed lanes; "View as table" lists exactly what the map shows. Without WebGL2, or
+ * for payloads too large to draw, the tables are shown instead.
  */
 export function NetworkMap({ props, data, envelope, density }: BlockComponentProps<NetworkMapProps, NetworkMapData>) {
   const theme = useDocumentTheme();
@@ -139,7 +142,7 @@ export function NetworkMap({ props, data, envelope, density }: BlockComponentPro
   const regionId = `map-${useId()}`;
   const [view, setView] = useState<VisualView>("visual");
   const [option, setOption] = useState<string>(ALL_OPTIONS);
-  const [baseMapFailed, setBaseMapFailed] = useState(false);
+  const settings = useNetworkMapSettings();
 
   const options = useMemo(() => mapOptions(data, props.legend), [data, props.legend]);
   const optionTitles = useMemo(() => new Map(options.map((o) => [o.id, o.label])), [options]);
@@ -153,7 +156,10 @@ export function NetworkMap({ props, data, envelope, density }: BlockComponentPro
   const webgl = isClient && supportsWebGL2();
   const canDraw = webgl && !oversized && !empty;
   const shown: VisualView = canDraw ? view : "table";
+  const basemap = useBasemap(settings, shown === "visual");
+  const basemapKind = basemap.kind;
   const { summary } = props;
+  const skeleton = <BlockSkeleton title="map" className={`w-full rounded-md ${density === "canvas" ? "h-[440px]" : "h-[280px]"}`} />;
 
   return (
     <BlockFrame
@@ -199,26 +205,36 @@ export function NetworkMap({ props, data, envelope, density }: BlockComponentPro
           ) : null}
           {shown === "visual" ? (
             <>
-              {baseMapFailed ? <Notice>The background map couldn&apos;t be loaded; sites and lanes are drawn without it.</Notice> : null}
+              {basemapKind === "plain" ? (
+                <Notice>The background map couldn&apos;t be loaded; sites and lanes are drawn without it.</Notice>
+              ) : basemapKind === "offline" && settings.mode !== "offline" ? (
+                <Notice>Showing a simplified background map: the detailed map isn&apos;t available.</Notice>
+              ) : null}
               <div
                 role="group"
                 aria-label={`Map of ${model.nodes.length} sites and ${model.links.length} lanes; ${summary.at_risk_nodes} at risk. "View as table" lists the details.`}
                 data-map-canvas=""
+                data-map-basemap={basemapKind ?? undefined}
               >
-                <Suspense
-                  fallback={<BlockSkeleton title="map" className={`w-full rounded-md ${density === "canvas" ? "h-[440px]" : "h-[280px]"}`} />}
-                >
-                  <MapCanvas
-                    model={model}
-                    bbox={props.bbox}
-                    theme={theme}
-                    reducedMotion={reducedMotion}
-                    labels={labels}
-                    optionTitles={optionTitles}
-                    height={density === "canvas" ? MAP_HEIGHT.canvas : MAP_HEIGHT.inline}
-                    onBaseMapError={() => setBaseMapFailed(true)}
-                  />
-                </Suspense>
+                {basemapKind === null ? (
+                  skeleton
+                ) : (
+                  <Suspense fallback={skeleton}>
+                    <MapCanvas
+                      // A new base map kind remounts the canvas (fresh MapLibre map and load state).
+                      key={basemapKind}
+                      model={model}
+                      bbox={props.bbox}
+                      theme={theme}
+                      reducedMotion={reducedMotion}
+                      labels={labels}
+                      optionTitles={optionTitles}
+                      height={density === "canvas" ? MAP_HEIGHT.canvas : MAP_HEIGHT.inline}
+                      basemap={{ kind: basemapKind, installed: basemap.installed }}
+                      onBaseMapError={() => basemap.fail(basemapKind)}
+                    />
+                  </Suspense>
+                )}
               </div>
             </>
           ) : (

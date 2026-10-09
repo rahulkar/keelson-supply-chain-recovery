@@ -85,3 +85,33 @@
   border: 0;
   border-top: 1px solid var(--k-border);
 }
+
+/*
+ * MapLibre controls of the network map on tokens (docs/contracts/127-m8-basemap.md): the
+ * attribution stays expanded, opaque and ≥ 4.5:1 (fg-muted on surface) over any base map, in
+ * both themes; zoom buttons follow the surface / border tokens and show the app's focus ring.
+ */
+.maplibregl-ctrl.maplibregl-ctrl-attrib {
+  background: var(--k-surface);
+  color: var(--k-fg-muted);
+}
+.maplibregl-ctrl-attrib a {
+  color: var(--k-fg-muted);
+  text-decoration: underline;
+}
+.maplibregl-ctrl-group:not(:empty) {
+  background: var(--k-surface);
+  box-shadow: 0 0 0 1px var(--k-border);
+}
+.maplibregl-ctrl-group button + button {
+  border-top-color: var(--k-border);
+}
+[data-theme="dark"] .maplibregl-ctrl-group .maplibregl-ctrl-icon {
+  filter: invert(1);
+}
+.maplibregl-ctrl button:focus-visible,
+.maplibregl-ctrl-attrib a:focus-visible {
+  outline: 2px solid var(--k-focus);
+  outline-offset: 1px;
+  box-shadow: none;
+}

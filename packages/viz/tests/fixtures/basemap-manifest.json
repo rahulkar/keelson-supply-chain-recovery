@@ -1,0 +1,26 @@
+{
+  "schema": "keelson.basemap/1",
+  "generated_at": "2026-10-09T10:00:00.000Z",
+  "profile": "standard",
+  "source": {
+    "build": "20261009",
+    "basemap_version": "4.15.2",
+    "url": "https://build.protomaps.com/20261009.pmtiles",
+    "b3sum": "66eb2acd67e4812c80f817d400906666260f1d25600a098717918095e725ba7b"
+  },
+  "archive": {
+    "path": "v4/keelson-20261009-standard.pmtiles",
+    "bytes": 45012345,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "minzoom": 0,
+    "maxzoom": 6
+  },
+  "glyphs": "fonts/{fontstack}/{range}.pbf",
+  "fonts": ["Noto Sans Regular", "Noto Sans Medium", "Noto Sans Italic", "Noto Sans Devanagari Regular v1"],
+  "sprites": {
+    "light": "sprites/v4/light",
+    "dark": "sprites/v4/dark"
+  },
+  "assets_commit": "028c18f713baecad011301ff7a69acc39bcc2ae7",
+  "licenses": ["LICENSES/NOTICE.md", "LICENSES/OFL.txt", "LICENSES/sprites-MIT.md"]
+}

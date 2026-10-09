@@ -1,0 +1,517 @@
+{
+ "bd+vn:C": {
+  "inputs_hash": "c3cde2e7b8cffcdd73e6c2117633c127e32b8eb5d9e349d4cdc87723a5018647",
+  "integer": [
+   "cpsat_optimal",
+   null
+  ],
+  "net_benefit_cents": 22484819,
+  "resequence": "FL-VN01-A:cpsat_v2_feasible",
+  "response_sha256": "b0d73ea21ecca2ea793a5d30d3ed994f1f8dd4e9edf67631efbe6c734e01964c",
+  "solver": "GLOP+CP-SAT",
+  "stages": [
+   [
+    "resequence:FL-BD01-A",
+    "OPTIMAL",
+    false,
+    0,
+    "no_improvement"
+   ],
+   [
+    "resequence:FL-BD01-A:tiebreak",
+    "OPTIMAL",
+    false,
+    0,
+    "no_improvement"
+   ],
+   [
+    "resequence:FL-BD02-A",
+    "OPTIMAL",
+    false,
+    0,
+    "no_improvement"
+   ],
+   [
+    "resequence:FL-BD02-A:tiebreak",
+    "OPTIMAL",
+    false,
+    0,
+    "no_improvement"
+   ],
+   [
+    "resequence:FL-VN01-A",
+    "FEASIBLE",
+    true,
+    34974800000,
+    null
+   ],
+   [
+    "lp_phase1",
+    "OPTIMAL",
+    true,
+    null,
+    null
+   ],
+   [
+    "lp_phase1:no_resequence",
+    "OPTIMAL",
+    false,
+    null,
+    null
+   ],
+   [
+    "lp_phase2",
+    "OPTIMAL",
+    false,
+    null,
+    null
+   ],
+   [
+    "lp_phase2:no_resequence",
+    "OPTIMAL",
+    false,
+    null,
+    null
+   ],
+   [
+    "lp_phase2:cpsat",
+    "OPTIMAL",
+    true,
+    null,
+    null
+   ],
+   [
+    "integer",
+    "OPTIMAL",
+    true,
+    197707022000,
+    null
+   ]
+  ],
+  "status": "OPTIMAL",
+  "units": [
+   18020,
+   2970
+  ]
+ },
+ "bd+vn:D": {
+  "inputs_hash": "0d7edd948b8b06e67942a018f73260ae8021534e37494cbb12f9e4bb5e0d8e9a",
+  "integer": [
+   "lp_rounding",
+   "simulator_not_better"
+  ],
+  "net_benefit_cents": 27356798,
+  "resequence": "FL-VN01-A:cpsat_v2_feasible",
+  "response_sha256": "c07269ac9d1c9c3600cef55d3a9931c6559dc1669f5442eaf9af772581209c15",
+  "solver": "GLOP+priority-split",
+  "stages": [
+   [
+    "resequence:FL-BD01-A",
+    "OPTIMAL",
+    false,
+    0,
+    "no_improvement"
+   ],
+   [
+    "resequence:FL-BD01-A:tiebreak",
+    "OPTIMAL",
+    false,
+    0,
+    "no_improvement"
+   ],
+   [
+    "resequence:FL-BD02-A",
+    "OPTIMAL",
+    false,
+    0,
+    "no_improvement"
+   ],
+   [
+    "resequence:FL-BD02-A:tiebreak",
+    "OPTIMAL",
+    false,
+    0,
+    "no_improvement"
+   ],
+   [
+    "resequence:FL-VN01-A",
+    "FEASIBLE",
+    true,
+    34974800000,
+    null
+   ],
+   [
+    "lp_phase1",
+    "OPTIMAL",
+    false,
+    null,
+    null
+   ],
+   [
+    "lp_phase1:no_resequence",
+    "OPTIMAL",
+    true,
+    null,
+    null
+   ],
+   [
+    "lp_phase2",
+    "OPTIMAL",
+    false,
+    null,
+    null
+   ],
+   [
+    "lp_phase2:no_resequence",
+    "OPTIMAL",
+    true,
+    null,
+    null
+   ],
+   [
+    "lp_phase2:cpsat",
+    "OPTIMAL",
+    false,
+    null,
+    null
+   ],
+   [
+    "integer",
+    "FEASIBLE",
+    false,
+    84483505200,
+    "simulator_not_better"
+   ]
+  ],
+  "status": "OPTIMAL",
+  "units": [
+   18020,
+   0
+  ]
+ },
+ "bd:A": {
+  "inputs_hash": "55637e81e3f16521b2f650855a4f46b92dce81470ef8b89a9b62865058f3ecf6",
+  "integer": [
+   null,
+   null
+  ],
+  "net_benefit_cents": 17209720,
+  "resequence": null,
+  "response_sha256": "8c2bf671539725959901b57d5813f8324ceb1a7d3b5077647e3c26a00a09f52c",
+  "solver": "GLOP",
+  "stages": [
+   [
+    "lp_phase1",
+    "OPTIMAL",
+    true,
+    null,
+    null
+   ]
+  ],
+  "status": "OPTIMAL",
+  "units": [
+   8878,
+   1037
+  ]
+ },
+ "bd:B": {
+  "inputs_hash": "8e6d1fd5ce9e8835405f6252a5bdceb0bee0713ab9de21ab823f1db734d990d3",
+  "integer": [
+   null,
+   null
+  ],
+  "net_benefit_cents": 19379566,
+  "resequence": null,
+  "response_sha256": "e62dba48c3fe92c673915d398b9bdcbcd85e7dd17fdceb88c2b688ae40537f73",
+  "solver": "GLOP",
+  "stages": [
+   [
+    "lp_phase1",
+    "OPTIMAL",
+    true,
+    null,
+    null
+   ]
+  ],
+  "status": "OPTIMAL",
+  "units": [
+   8878,
+   0
+  ]
+ },
+ "bd:C": {
+  "inputs_hash": "674d52f5937166111910c594edebf2ce4a64bcc24b4fe02763faa798d3cde6e7",
+  "integer": [
+   "cpsat_optimal",
+   null
+  ],
+  "net_benefit_cents": 16133139,
+  "resequence": null,
+  "response_sha256": "843b18b770a0c68abf5207ab28f74b05064ec1d91d21fe71088d8e643d884e8a",
+  "solver": "GLOP+CP-SAT",
+  "stages": [
+   [
+    "resequence:FL-BD01-A",
+    "OPTIMAL",
+    false,
+    0,
+    "no_improvement"
+   ],
+   [
+    "resequence:FL-BD01-A:tiebreak",
+    "OPTIMAL",
+    false,
+    0,
+    "no_improvement"
+   ],
+   [
+    "resequence:FL-BD02-A",
+    "OPTIMAL",
+    false,
+    0,
+    "no_improvement"
+   ],
+   [
+    "resequence:FL-BD02-A:tiebreak",
+    "OPTIMAL",
+    false,
+    0,
+    "no_improvement"
+   ],
+   [
+    "lp_phase1",
+    "OPTIMAL",
+    true,
+    null,
+    null
+   ],
+   [
+    "lp_phase2",
+    "OPTIMAL",
+    false,
+    null,
+    null
+   ],
+   [
+    "lp_phase2:cpsat",
+    "OPTIMAL",
+    true,
+    null,
+    null
+   ],
+   [
+    "integer",
+    "OPTIMAL",
+    true,
+    152170142000,
+    null
+   ]
+  ],
+  "status": "OPTIMAL",
+  "units": [
+   8878,
+   49
+  ]
+ },
+ "bd:D": {
+  "inputs_hash": "adc02c739f896237fc0b66ff61a29e17bfe7f685629c8308ae2a6f51eb4915d0",
+  "integer": [
+   "lp_rounding",
+   "simulator_not_better"
+  ],
+  "net_benefit_cents": 19379566,
+  "resequence": null,
+  "response_sha256": "f63c9398e69520391baf861f15a1f68e368617d34a373c7136c56fc872133e84",
+  "solver": "GLOP+priority-split",
+  "stages": [
+   [
+    "resequence:FL-BD01-A",
+    "OPTIMAL",
+    false,
+    0,
+    "no_improvement"
+   ],
+   [
+    "resequence:FL-BD01-A:tiebreak",
+    "OPTIMAL",
+    false,
+    0,
+    "no_improvement"
+   ],
+   [
+    "resequence:FL-BD02-A",
+    "OPTIMAL",
+    false,
+    0,
+    "no_improvement"
+   ],
+   [
+    "resequence:FL-BD02-A:tiebreak",
+    "OPTIMAL",
+    false,
+    0,
+    "no_improvement"
+   ],
+   [
+    "lp_phase1",
+    "OPTIMAL",
+    true,
+    null,
+    null
+   ],
+   [
+    "lp_phase2",
+    "OPTIMAL",
+    true,
+    null,
+    null
+   ],
+   [
+    "lp_phase2:cpsat",
+    "OPTIMAL",
+    false,
+    null,
+    null
+   ],
+   [
+    "integer",
+    "FEASIBLE",
+    false,
+    8920994000,
+    "simulator_not_better"
+   ]
+  ],
+  "status": "OPTIMAL",
+  "units": [
+   8878,
+   0
+  ]
+ },
+ "vn:C": {
+  "inputs_hash": "03b739afb01e4eab20b8f9704895c39d1d39baf744ffb6d6d005dcd927fa83ba",
+  "integer": [
+   "cpsat_optimal",
+   null
+  ],
+  "net_benefit_cents": 6351680,
+  "resequence": "FL-VN01-A:cpsat_v2_feasible",
+  "response_sha256": "4335f34f5dfd22780cbb54143df59dfa08fb0c7885ba21b92d84e87c7cc103e4",
+  "solver": "GLOP+CP-SAT",
+  "stages": [
+   [
+    "resequence:FL-VN01-A",
+    "FEASIBLE",
+    true,
+    34974800000,
+    null
+   ],
+   [
+    "lp_phase1",
+    "OPTIMAL",
+    true,
+    null,
+    null
+   ],
+   [
+    "lp_phase1:no_resequence",
+    "OPTIMAL",
+    false,
+    null,
+    null
+   ],
+   [
+    "lp_phase2",
+    "OPTIMAL",
+    false,
+    null,
+    null
+   ],
+   [
+    "lp_phase2:no_resequence",
+    "OPTIMAL",
+    false,
+    null,
+    null
+   ],
+   [
+    "lp_phase2:cpsat",
+    "OPTIMAL",
+    true,
+    null,
+    null
+   ],
+   [
+    "integer",
+    "OPTIMAL",
+    true,
+    45536880000,
+    null
+   ]
+  ],
+  "status": "OPTIMAL",
+  "units": [
+   9142,
+   2921
+  ]
+ },
+ "vn:D": {
+  "inputs_hash": "6b064b32f613f9fc8902e3d0529dc2ad86469a1b238af7cbcf357e313bb41b69",
+  "integer": [
+   "cpsat_feasible",
+   null
+  ],
+  "net_benefit_cents": 8009677,
+  "resequence": "FL-VN01-A:cpsat_v2_feasible",
+  "response_sha256": "e515f941d25d3ca44c809fafa1f9b2c2909ec153df15c156c2413498011c4921",
+  "solver": "GLOP+CP-SAT+priority-split",
+  "stages": [
+   [
+    "resequence:FL-VN01-A",
+    "FEASIBLE",
+    true,
+    34974800000,
+    null
+   ],
+   [
+    "lp_phase1",
+    "OPTIMAL",
+    false,
+    null,
+    null
+   ],
+   [
+    "lp_phase1:no_resequence",
+    "OPTIMAL",
+    true,
+    null,
+    null
+   ],
+   [
+    "lp_phase2:no_resequence",
+    "OPTIMAL",
+    false,
+    null,
+    null
+   ],
+   [
+    "lp_phase2:cpsat",
+    "OPTIMAL",
+    true,
+    null,
+    null
+   ],
+   [
+    "integer",
+    "FEASIBLE",
+    true,
+    49427929600,
+    null
+   ]
+  ],
+  "status": "OPTIMAL",
+  "units": [
+   9142,
+   0
+  ]
+ }
+}

@@ -39,7 +39,7 @@ log = logging.getLogger(__name__)
 
 WALL_GUARD_ENV = "OPTIMIZER_CPSAT_WALL_GUARD_MS"
 DEFAULT_WALL_GUARD_MS = 3000
-REQUEST_DET_BUDGET = 0.8
+REQUEST_DET_BUDGET = 0.6
 """Deterministic seconds every CP-SAT stage of one request may use together (integer stage
 plus resequencing); a stage that finds less than :data:`MIN_STAGE_DET` left falls back with
 ``budget_exhausted``."""

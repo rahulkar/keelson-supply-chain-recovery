@@ -27,7 +27,7 @@ simulator values - lost margin by arrival week - instead of the weighted-complet
   current back-to-back schedule (stability: nothing to gain, no change), with the budget (A)
   left, hinted with (A)'s solution ((A) itself is not hinted: from the M3 sequence the search
   stayed at its cost). Both solves use one worker, the request seed and a
-  deterministic budget of ``min(0.15, 0.02 + 0.0007 * orders)`` per line, at most 0.4 per
+  deterministic budget of ``min(0.15, 0.02 + 0.0007 * orders)`` per line, at most 0.3 per
   request.
 * **Choice.** The orders are sequenced by their CP-SAT day (ties: the M3 order) and applied
   back to back, as Merxa re-dates them (a back-to-back order can finish earlier than its CP-SAT
@@ -78,7 +78,7 @@ RESEQ_V2_DET_TIME = 0.15
 """Deterministic seconds per line at most (``RESEQ_V2_DET_BASE + RESEQ_V2_DET_PER_ORDER * orders`` below)."""
 RESEQ_V2_DET_BASE = 0.02
 RESEQ_V2_DET_PER_ORDER = 0.0007
-RESEQ_V2_REQUEST_CAP = 0.4
+RESEQ_V2_REQUEST_CAP = 0.3
 """Deterministic seconds all lines of one request may use together."""
 _LATENESS_SCALE = 10_000
 """``lateness_cents_per_unit_day`` enters the objective at weight x1.0 (basis points)."""

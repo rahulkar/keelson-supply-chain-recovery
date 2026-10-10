@@ -11,7 +11,8 @@ Steps:
 2. Clustering settings: ``ava`` (platform admin) reads them editable, ``sam`` (tenant admin)
    read-only; settings version >= 1, local profile ``local-terms-v1``, pgvector available on pg-core.
 3. Presenter ``ava`` starts and advances ``port-strike-syndication`` through every step.
-4. Exactly one simulated alert, for the Hamburg strike: its detail has memberships
+4. ``priya`` (planner: ``ava`` holds only ``platform-admin``, which the alert routes do not accept)
+   sees exactly one simulated alert, for the Hamburg strike: its detail has memberships
    ``{founded, near_duplicate, attach_vector}``; the near-duplicate differs by at most 6 SimHash bits
    and names the original; the vector member's similarity reaches the local strict threshold; the
    event is ``confirmed`` with the confidence of **two** independent sources (the syndicated copy is
@@ -117,7 +118,7 @@ def check_settings(ava: ts.KeelsonUser, sam: ts.KeelsonUser) -> dict[str, Any]:
     return {"version": cfg["version"], "local": cfg["vector"]["local"], "remote_reason": backend["remote_reason"]}
 
 
-def check_pack(ava: ts.KeelsonUser, local: dict[str, int]) -> dict[str, Any]:
+def check_pack(ava: ts.KeelsonUser, priya: ts.KeelsonUser, local: dict[str, int]) -> dict[str, Any]:
     heading(f"3-4. Replay {PACK}: one alert, grouped by first report / near-duplicate / similar description")
     r = ava.client.post(f"{KEELSON}/api/demo/packs/{PACK}/start", json={}, headers=ava.headers(), timeout=60.0)
     expect(r.status_code == 200, f"pack start: HTTP {r.status_code} {r.text[:300]}")
@@ -132,13 +133,13 @@ def check_pack(ava: ts.KeelsonUser, local: dict[str, int]) -> dict[str, Any]:
     deadline = time.monotonic() + 30
     alerts: list[dict[str, Any]] = []
     while time.monotonic() < deadline:
-        alerts = simulated_alerts(ava)
+        alerts = simulated_alerts(priya)
         if alerts:
             break
         time.sleep(1)
     expect(len(alerts) == 1, f"expected exactly one simulated alert, got {len(alerts)}")
     alert = alerts[0]
-    r = ava.client.get(f"{KEELSON}/api/alerts/{alert['id']}")
+    r = priya.client.get(f"{KEELSON}/api/alerts/{alert['id']}")
     expect(r.status_code == 200, f"alert detail: HTTP {r.status_code} {r.text[:200]}")
     detail = r.json()
     event = detail["event"]
@@ -188,10 +189,10 @@ def check_counts(ava: ts.KeelsonUser) -> dict[str, Any]:
     return counts
 
 
-def check_final_reset(ava: ts.KeelsonUser, event_id: str) -> dict[str, Any]:
+def check_final_reset(ava: ts.KeelsonUser, priya: ts.KeelsonUser, event_id: str) -> dict[str, Any]:
     heading("7. Demo reset clears the pack's signals, memberships and alerts")
     out = demo_reset(ava)
-    expect(simulated_alerts(ava) == [], "a simulated alert survived the demo reset")
+    expect(simulated_alerts(priya) == [], "a simulated alert survived the demo reset")
     expect(not hub_event_exists(event_id), "the strike event survived the demo reset")
     return out
 
@@ -203,15 +204,15 @@ def main() -> int:
     core_init()
     results: dict[str, Any] = {}
     try:
-        ava, sam = ts.keelson_login("ava"), ts.keelson_login("sam")
+        ava, sam, priya = ts.keelson_login("ava"), ts.keelson_login("sam"), ts.keelson_login("priya")
         heading("1. Demo reset")
         results["reset"] = demo_reset(ava)
         results["settings"] = check_settings(ava, sam)
-        results["pack"] = check_pack(ava, results["settings"]["local"])
+        results["pack"] = check_pack(ava, priya, results["settings"]["local"])
         results["writes"] = check_writes(ava, sam)
         results["counts"] = check_counts(ava)
         if not args.skip_final_reset:
-            results["final_reset"] = check_final_reset(ava, results["pack"]["event_id"])
+            results["final_reset"] = check_final_reset(ava, priya, results["pack"]["event_id"])
     except E2EFailure as exc:
         print(f"FAIL: {exc}", flush=True)
         return 1

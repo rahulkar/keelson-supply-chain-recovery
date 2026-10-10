@@ -157,7 +157,9 @@ never both ways), compatible kind, overlapping windows, similarity >= the profil
 same geography gate on event geographies / member refs. Preference: anchored, earliest, id. No chains
 in one pass. A pass considers the scope's 500 most recently active open events and checks the kind /
 window / older-or-anchored gates (`cluster.merge_target_possible`) before computing any similarity
-(a remote one is a query). Similarity: the remote centroid cosine (`1 - (avg(a) <=> avg(b))` on the profile table)
+(a remote one is a query). The open-case guard is read before the locked merge transaction (the
+global scope cannot read tenant alerts there); a source that enters the bounded list only in the
+locked reload was not checked and waits for the next pass. Similarity: the remote centroid cosine (`1 - (avg(a) <=> avg(b))` on the profile table)
 when an active remote profile has a vector for **every** current member of both events, else the
 local centroids. A merge relabels the source's memberships (`merged_vector`, `from_event_id`,
 similarity), moves its signals (same scope, like `_absorb`), sets `merged_into` + `resolved`,
@@ -356,7 +358,8 @@ Scheduler job is required (`signal-hub-poll` with `--adapter cluster` is availab
   before a queued copy is extracted, scope isolation, window, vector attach with an unresolved
   terminal, memberships for versions and absorb, the bounded candidate query keeping shared-ref and
   near-duplicate events, v2 off == v1 outcomes, merge pass with alerts + open case guard + idempotence,
-  the bounded merge pass taking the latest events, anchored / cross-scope never merged, RLS of the new
+  the bounded merge pass taking the latest events (and never a source its open-case check did not
+  cover), `poller --once --adapter cluster`, anchored / cross-scope never merged, RLS of the new
   tables + cascade, clustering REST 403/200/409/422/run, an invalid stored config at its version,
   counts RLS-scoped, memberships in alert detail / event bundle / MCP); `test_db_m8_vectors.py`
   (`-m pgvector`: bootstrap extension optional + pin validation, profile table / HNSW / RLS, jobs
@@ -453,5 +456,13 @@ From the **brief** (`signals-clustering.md`):
   still see its event merged (the alert then resolves with the case kept).
 * Remote similarities are float4 cosines (pgvector); only background merges use them and the value is
   recorded on the membership.
+* Demo replays cluster with the **stored** platform settings, while the packs' `expected.yaml` and
+  `validate.py` assume `DEFAULT_CLUSTERING_CONFIG`: after a platform admin changes the thresholds, a
+  replay may group a pack differently from its documented outcome (reset the settings to the defaults
+  before a demo).
+* The merge pass compares up to 500 × 500 event pairs in Python inside the API process every
+  `SIGNALS_CLUSTER_MAINTENANCE_S` (the distance / kind / window gates are cheap and run first); with a
+  remote profile every gated pair costs one centroid query while `CLUSTER_LOCK` is held, so ingest waits
+  for the pass. Scopes with hundreds of open news-only events may want a longer interval.
 * `contracts-ts/tests/blocks.test.ts` and `contracts-py/tests/test_export_schemas.py` hard-code the
   schema set; other M8 workstreams adding schemas change the same lines (integrator: union of the sets).

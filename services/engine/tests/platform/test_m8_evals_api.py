@@ -177,6 +177,13 @@ async def test_run_requests(api: httpx.AsyncClient, people: dict[str, Browser], 
     ):
         resp = await post(**body)
         assert resp.status_code == 422 and resp.json()["code"] == code, resp.text
+    # "all cases" of a suite larger than a run may hold (100): a 422, never a 500
+    big = {"title": "x", "tags": [], "turns": 1, "turn_kinds": ["message"], "needs_live_embeddings": False,
+           "injects": False}
+    await heartbeat(api, cases=[{**big, "id": f"case_{i}"} for i in range(101)])
+    too_many = await post()
+    assert too_many.status_code == 422 and too_many.json()["code"] == "too_many_cases", too_many.text
+    await heartbeat(api)
     ok = await post(note="nightly ‮check")
     assert ok.status_code == 202, ok.text
     run = ok.json()

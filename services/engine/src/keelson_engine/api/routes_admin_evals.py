@@ -24,7 +24,8 @@ session's CSRF token and pass the Origin check like every admin mutation.
 ``POST /runs`` errors: ``409 evals_unavailable {reason}`` (``runner_not_configured``,
 ``runner_offline``, ``demo_mode_off``, ``live_disabled``, ``replay_only``, ``gateway_budget_low``),
 ``409 eval_running``,
-``422 unknown_cases {cases}`` (not in the runner's suite), ``422 confirm_required`` /
+``422 unknown_cases {cases}`` (not in the runner's suite), ``422 too_many_cases`` (more than a run
+holds), ``422 confirm_required`` /
 ``budget_required`` / ``budget_too_high``. Imports: ``413 file_too_large``, ``422 invalid_results``.
 """
 
@@ -35,7 +36,7 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse, Response
-from keelson_contracts.evals import EvalBudget, EvalRunCreate, eval_run_create_error
+from keelson_contracts.evals import MAX_DOC_CASES, EvalBudget, EvalRunCreate, eval_run_create_error
 
 from keelson_engine.api.admin_deps import AdminCtx, AdminRead, AdminWrite, require_platform
 from keelson_engine.api.errors import ApiError
@@ -138,6 +139,8 @@ async def runs_create(body: EvalRunCreate, ctx: AdminWrite) -> dict[str, Any]:
     unknown = [c for c in case_ids if c not in known]
     if unknown:
         raise ApiError(422, "unknown_cases", "these cases are not in the runner's suite", cases=unknown[:50])
+    if len(case_ids) > MAX_DOC_CASES:  # "all" of a suite larger than a run may hold
+        raise ApiError(422, "too_many_cases", f"a run holds at most {MAX_DOC_CASES} cases: choose them")
     problem = eval_run_create_error(body, _live_caps())
     if problem is not None:
         raise ApiError(422, problem[0], problem[1])

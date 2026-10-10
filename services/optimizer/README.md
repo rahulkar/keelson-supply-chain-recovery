@@ -300,10 +300,12 @@ above, byte for byte (same responses, goldens and `inputs_hash`); `"cpsat"` adds
   400 orders, 400 days or 60 000 order-days use the M3 path (`model_too_large`).
   `ResequenceProductionParams.frozen_days` (both modes) keeps the orders starting before
   `as_of + frozen_days` at the head of the line.
-* **Per-solve records** `solver.stages` (cpsat only): every GLOP and CP-SAT solve in order with
-  `used`, the request seed, `model_hash` (sha256 of the request `inputs_hash`, the stage name and
+* **Per-solve records** `solver.stages` (cpsat only): every GLOP solve and every M8 CP-SAT solve, in
+  solve order, with `used` (in the returned plan: a dropped resequence and a do-nothing fallback are
+  unused), the request seed, `model_hash` (sha256 of the request `inputs_hash`, the stage name and
   its own inputs), CP-SAT objective / bound, deterministic limit and time, workers, sizes and the
-  fallback reason - no wall times (`solve_ms` stays the only volatile field).
+  fallback reason - no wall times (`solve_ms` stays the only volatile field). The M3 comparator's own
+  CP-SAT (`resequence._cpsat`) is not recorded.
 
 Determinism: one worker (`CPSAT_NUM_WORKERS`, default 1; more is allowed but recorded as
 `cpsat_deterministic=false` with a warning), `random_seed` = the request seed, every solve stops on

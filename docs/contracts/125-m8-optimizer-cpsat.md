@@ -183,9 +183,14 @@ full-profile D options although the completed plan without it was better — §9
 
 ## 6. Per-solve records and params (`cpsat` only)
 
-`SolverInfo.stages: [SolverStage]` in solve order: `booking_decision` (M5 LP), `resequence:<line>`
-(+ `resequence:<line>:tiebreak`), `lp_phase1`, `lp_phase1:no_resequence`, `lp_phase2`,
-`lp_phase2:no_resequence`, `integer`, `lp_phase2:cpsat`.
+`SolverInfo.stages: [SolverStage]` in solve order: `resequence:<line>` (+
+`resequence:<line>:tiebreak`) per line, `booking_decision` (M5 LP), `lp_phase1`, then either (one
+pass) `integer`, `lp_phase2` (the repair's completion), `lp_phase2:cpsat` (the CP-SAT units'
+completion, only when the screen passes) or (compare mode) `lp_phase1:no_resequence`, `lp_phase2`,
+`lp_phase2:no_resequence`, `integer`, `lp_phase2:cpsat`. The integer stage is recorded when it is
+solved and its `used` / `fallback_reason` settled once its completions decided (review fix: it was
+appended after them). A stage name is at most 160 characters (`resequence:` + a 128-character line
+code + `:tiebreak`).
 
 ```json
 {"name": "integer", "solver": "CP-SAT", "status": "OPTIMAL", "used": true, "seed": 7,
@@ -197,7 +202,11 @@ full-profile D options although the completed plan without it was better — §9
 `status` ∈ OPTIMAL/FEASIBLE/INFEASIBLE/UNKNOWN/MODEL_INVALID/SKIPPED (SKIPPED: not solved, see
 `fallback_reason` ∈ `no_candidates, model_too_large, objective_overflow, time_limit_no_solution,
 infeasible, model_invalid, wall_clock_guard, budget_exhausted, no_improvement,
-simulator_not_better, solver_error`). `used` marks the solves whose result is in the returned plan.
+simulator_not_better, solver_error`). `used` marks the solves whose result is in the returned plan:
+the resequence stages of a line whose sequence the returned plan does not keep (compare mode
+dropped it, the simulator check or the never-worse pruning rejected it) and every stage of a
+do-nothing fallback are reported unused; when the never-worse pruning (`_keep_improving`) drops a
+whole LP lever afterwards, the LP / integer stages that produced it keep `used`.
 No wall times: `solve_ms` stays the only volatile field. Flat params: `integer_stage`,
 `integer_method` (`cpsat_optimal|cpsat_feasible|lp_rounding`), `integer_gap_bp`,
 `integer_fallback`, `cpsat_num_workers`, `cpsat_deterministic`; `solver.name` gains `CP-SAT` when
@@ -247,16 +256,21 @@ CP-SAT units or a v2 sequence are used.
 ## 9. Tests, measurements and deviations
 
 **Tests** (all offline, no model): optimizer `tests/test_cpsat_integer_m8.py` (switch byte-identity,
-stages, determinism, one op per line, MOQ per PO / style, cases, capacity groups, split limits,
-budgets, **30 random networks: cpsat net ≥ repair net and every invariant in both modes**, every
-fallback returns the repair plan, workers > 1, runner helpers, HTTP 200/422 and the lever
-catalogue), `tests/test_resequence_m8.py` (v2 beats Smith's rule on the VN closure story, ties keep
-M3, nothing to gain, pinned line, frozen prefix in both modes, lateness tie-break, 200-order line
-deterministic and never worse than M3, size fallback, solver error), `tests/test_full_options_m8.py`
-(8 full-profile cases cpsat ≥ repair + invariants, M8 terms on the full profile, golden, option D
-bd+vn identical across processes, hash seeds and reversed input rows), `tests/test_perf_m8.py`;
-contracts `tests/test_m8_optimizer_cpsat.py` + contracts-ts `tests/m8-cpsat.test.ts`; engine
-`tests/runtime/test_m8_cpsat_planning.py`, `tests/platform/test_m8_cpsat_admin.py`; viz
+stages in solve order, `used` under a do-nothing fallback, determinism, one op per line, MOQ per PO
+/ style, cases, capacity groups, split limits, budgets, **30 random networks: cpsat net ≥ repair net
+and every invariant in both modes**, **a tiny instance: the CP-SAT optimum equals an exhaustive
+search over the integer model, and for every feasible whole-unit decision the CP-SAT objective is
+`OBJ_SCALE` × the phase-2 GLOP objective** (LP consistency), every fallback returns the repair plan,
+workers > 1, runner helpers, HTTP 200/422 and the lever catalogue), `tests/test_resequence_m8.py`
+(v2 beats Smith's rule on the VN closure story, ties keep M3, nothing to gain, pinned line, frozen
+prefix in both modes, lateness tie-break, **value tables = a direct simulation of the moved PO line**
+(reseq story and the closure-hit VN line), 200-order line deterministic and never worse than M3, size
+fallback, solver error, a 128-character line code), `tests/test_full_options_m8.py` (8 full-profile
+cases cpsat ≥ repair + invariants, resequence `used` against the returned plan, M8 terms on the full
+profile, golden, option D bd+vn identical across processes, hash seeds and reversed input rows),
+`tests/test_perf_m8.py`; contracts `tests/test_m8_optimizer_cpsat.py` + contracts-ts
+`tests/m8-cpsat.test.ts`; engine `tests/runtime/test_m8_cpsat_planning.py` (incl. a lane-signal
+re-plan flow carrying the integer stage), `tests/platform/test_m8_cpsat_admin.py`; viz
 `tests/m8-cpsat.test.tsx`; web `src/lib/admin/planning.test.ts`, `test/admin-planning.test.tsx`.
 
 **Full profile, net benefit `cpsat` vs `repair`** (golden): C/BD 16.13 M vs 13.85 M cents,
@@ -273,7 +287,14 @@ equal (the D integer stage is rejected by the simulator guard). Resequence only,
    load ~6 (2026-10-09, all levers): 3.8 s (BD), 5.6 s (VN), 6.9 s (BD+VN), 7.9 s over HTTP, against
    2.2 / 2.7 / 2.9 s for `repair` in the same run (the unchanged M7 perf tests themselves exceeded
    5 s in another run under higher load). `tests/test_perf_m8.py` and the e2e use **10 s** (twice
-   S4); `repair` keeps the 5 s. `cpsat` is opt-in and not the demo default (§10).
+   S4); `repair` keeps the 5 s. `cpsat` is opt-in and not the demo default (§10). Review re-run on
+   the same shared host (2026-10-10, three runs): `cpsat` 4.3-5.2 s (BD), 7.4-8.5 s (VN),
+   9.2-10.8 s (BD+VN) and 10.8-15.7 s over HTTP, against 3.4-5.5 s for `repair` BD+VN (base commit
+   and branch alike) - so the 10 s `cpsat` perf tests failed there too (BD+VN and HTTP). Profile of
+   one BD+VN request (cProfile): 4 GLOP solves (2 more than `repair`), ~1.3 s of `_lookahead`
+   simulations, the integer stage ~0.85 s wall for 0.15 det-s, resequence v2 ~1.1 s wall for 0.16
+   det-s plus ~0.7 s of value-table simulations. Meeting 5 s needs a design change (e.g. one shared
+   completion in compare mode, cheaper value tables), not a tuning of the budgets.
 2. *Compare mode completes both candidates* (one more GLOP solve) instead of deciding on bare
    phase-1 plans: with the phase-1 decision the `cpsat` D options ended below `repair`
    (VN 7.56 M vs 7.98 M, BD+VN 26.94 M vs 27.36 M).
@@ -295,12 +316,15 @@ equal (the D integer stage is rejected by the simulator guard). Resequence only,
 8. *Engine spec fields* use `exclude_if` like the contracts, so default spec dumps (admin API,
    stored versions) are unchanged; the web drops an M8 setting again when it is set back to its
    default.
-9. *Brute-force and objective-consistency unit tests* of the brief are covered differently: CP-SAT
-   proves optimality on the crafted cases (`integer_method=cpsat_optimal`) and the random-network
-   property test compares the recomputed nets of both modes; a separate exhaustive search over the
-   integer model was not added.
-10. *Re-plan path* is covered by the shared `solver_options()` unit test, not by a re-plan flow run
-    (the M5 re-plan flow needs the full scn fixture database).
+9. *Brute-force and objective-consistency unit tests*: added in the review
+   (`test_cpsat_matches_brute_force_and_the_lp_objective`, one tiny instance with three alternate
+   candidates and one split; every feasible decision, not only the floored LP one, is checked
+   against GLOP).
+10. *Re-plan path*: the shared `solver_options()` unit test plus, added in the review, a lane-signal
+    re-plan flow with the engine stubs (`test_the_replan_flow_carries_the_integer_stage`).
+11. *400-order resequence*: the brief's 400-order synthetic line exceeds the 60 000 order-day cap,
+    so `test_perf_m8.py` only shows that it falls back to the M3 path quickly; v2 itself is
+    exercised up to 200 orders.
 
 ## 10. Deferred
 
@@ -319,7 +343,17 @@ equal (the D integer stage is rejected by the simulator guard). Resequence only,
 ## 11. Known issues
 
 * Timing under host load: the `cpsat` perf tests (10 s) and the M7 perf tests (5 s) are wall-clock
-  checks; on an overloaded host they can fail without a functional regression.
+  checks; on an overloaded host they can fail without a functional regression. On the shared M8
+  test host the `cpsat` BD+VN and HTTP cases failed the 10 s in the review's runs (§9.1); rerun them
+  on a quiet host (the integrator) - the brief's 5 s is not met by design (§9.1).
+* The M3 path's own CP-SAT (`resequence._cpsat`, lines of 8-40 orders with releases), which `cpsat`
+  mode still runs as the comparator of v2, is not recorded in `SolverInfo.stages` and does not draw
+  on the request budget (it keeps its fixed 0.05 det-s, one worker and the request seed, so it stays
+  deterministic).
+* `exact_objective` adds the model's objective offset, which CP-SAT stores as a double: above
+  2^53 (only with extreme weights, below the 2^61 overflow guard) a stage's `objective` can be off by
+  a few units. Only the acceptance bound (objective ≤ the hint's) and the `no_improvement` tie rule
+  read it; the simulator guards that follow decide.
 * The CP-SAT recourse is the LP's DC-level fair-pool model; the simulator rations per cluster with
   protected minimums, so CP-SAT optimality does not imply simulator optimality — the guards (§4.4)
   keep the repair plan when they disagree (the full-profile D options).

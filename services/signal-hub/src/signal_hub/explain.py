@@ -27,14 +27,25 @@ METHOD_LABELS: Final[dict[str, str]] = {
     "absorbed": "absorbed",
     "merged_vector": "merged",
 }
-_OFFICIAL: Final[dict[str, str]] = {"gdacs": "GDACS", "usgs": "USGS"}
+_OFFICIAL: Final[dict[str, str]] = {
+    "gdacs": "GDACS", "usgs": "USGS",
+    # M8 authoritative feeds (124): anchors like GDACS / USGS
+    "nhc": "NHC", "copernicus_ems": "Copernicus EMS", "ofac": "OFAC",
+}
 _MAX_PLACES: Final = 3
 
 
 def source_label(connector_id: str | None) -> str:
-    """A fixed label for an authoritative connector (``gdacs`` / ``demo.gdacs`` → ``GDACS``)."""
+    """A fixed label for an authoritative connector (``gdacs`` / ``demo.gdacs`` → ``GDACS``); ``""`` when
+    the connector has none (the sentences then just say "official report")."""
     base = (connector_id or "").removeprefix("demo.")
-    return _OFFICIAL.get(base, "official")
+    return _OFFICIAL.get(base, "")
+
+
+def _official(connector_id: str | None) -> str:
+    """``official GDACS`` (or just ``official`` without a fixed label)."""
+    label = source_label(connector_id)
+    return f"official {label}" if label else "official"
 
 
 def _pct(bp: int | None) -> str:
@@ -72,13 +83,17 @@ def explain(
     prior_method: str | None = None,
     anchor_connector: str | None = None,
     window_hours: int = 72,
+    same_hazard_hours: int = 6,
 ) -> str:
     """The explanation sentence of one membership (<= 400 characters)."""
     if method == "anchor":
-        text = f"Official {source_label(anchor_connector)} report that founded this event."
+        official = _official(anchor_connector)
+        text = f"{official[:1].upper()}{official[1:]} report that founded this event."
     elif method == "same_hazard":
-        text = (f"Second official report ({source_label(anchor_connector)}) of the same hazard, "
-                f"{distance_km if distance_km is not None else '?'} km from the first report and starting within 6 h.")
+        label = source_label(anchor_connector)
+        text = (f"Second official report{f' ({label})' if label else ''} of the same hazard, "
+                f"{distance_km if distance_km is not None else '?'} km from the first report and starting within "
+                f"{same_hazard_hours} h.")
     elif method == "founded":
         text = "First report of this event: no open event matched it when it arrived."
     elif method == "attach_ref":
@@ -95,7 +110,7 @@ def explain(
         text = (f"Near-duplicate of another report in this event ({hamming_bits if hamming_bits is not None else '?'} "
                 f"of 64 fingerprint bits differ): counted once for corroboration.")
     elif method == "absorbed":
-        text = (f"Moved here when the official {source_label(anchor_connector)} report of this event arrived; "
+        text = (f"Moved here when the {_official(anchor_connector)} report of this event arrived; "
                 f"first grouped as: {METHOD_LABELS.get(prior_method or '', 'first report')}.")
     elif method == "merged_vector":
         text = (f"Moved here from a similar event (similarity {_pct(similarity_bp)}, {_profile(similarity_profile)}); "

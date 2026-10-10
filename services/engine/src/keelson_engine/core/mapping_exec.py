@@ -31,7 +31,6 @@ from collections.abc import AsyncIterator, Callable, Iterator, Sequence
 from contextlib import aclosing, suppress
 from typing import Annotated, Any, Final, Literal, TypeVar, Union, get_args, get_origin
 
-from pydantic import ValidationError
 
 from keelson_contracts import scn
 from keelson_contracts.mapping import ReadMapping, ReadPreview, SourceLookup, StaticLookup, parse_expression

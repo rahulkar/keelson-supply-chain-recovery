@@ -60,6 +60,7 @@ from keelson_contracts.optimizer import (
     OptimizeResponse,
     PlanSpec,
     ProblemData,
+    SolverOptions,
 )
 
 from ..advisory import ADVISORY_SENTENCE, advisory_from_kpis

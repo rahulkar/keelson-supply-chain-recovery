@@ -54,7 +54,6 @@ from keelson_contracts.mapping import (
     SourceLookup,
     StaticLookup,
     parse_expression,
-    path_text,
     required_scn_columns,
 )
 from keelson_contracts.mapping_proposal import (

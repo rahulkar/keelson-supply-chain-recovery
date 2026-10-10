@@ -40,10 +40,13 @@ SECRETISH = re.compile(r"(SECRET|PASSWORD|_KEY$|DATABASE_URL$|^VALKEY_URL$|^PGPA
 # services/signal-hub/README.md); EVALS_RESULTS_DIR + /app/evals/results expose local CLI eval results to
 # the admin listing (110 §6), and the Cloud Run engine has none (the listing reports the directory absent).
 # M8: the in-app eval runner (profile evals, docs/contracts/128) is a local compose service with no Cloud Run
-# counterpart: its token is stored (ENV_SECRETS) but bound to nothing, and its switches stay compose-only.
+# counterpart (128 §12: keep the evals profile off on hosted demos): its token is local-only (an empty
+# token is how the runner API is turned off, so deploy.sh must not require it) and its switches stay
+# compose-only.
 # engine-api caps DuckDB at 128 MiB only because its compose container has 512m (Cloud Run gives it 1Gi, so
 # the 256 MiB default applies, 121).
 COMPOSE_ONLY_SECRETS = {"SIGNALS_DATA_KEY"}
+LOCAL_ONLY_SECRETS = {"EVALS_RUNNER_TOKEN"}
 COMPOSE_ONLY_ENGINE_ENV = {"EVALS_RESULTS_DIR", "EVALS_RUNNER_TOKEN", "EVALS_LIVE_ENABLED", "EVALS_LIVE_MAX_TOKENS",
                            "EVALS_LIVE_MAX_COST_MICROUSD", "DUCKDB_MEMORY_LIMIT_MB"}
 COMPOSE_ONLY_ENGINE_MOUNTS = {"/app/evals/results"}
@@ -171,7 +174,7 @@ def test_every_env_example_secret_is_wired() -> None:
     keys = [ln.split("=", 1)[0] for ln in (ROOT / ".env.example").read_text(encoding="utf-8").splitlines()
             if ln and not ln.startswith("#") and "=" in ln]
     wired = set(bash_array("ENV_SECRETS"))
-    missing = [k for k in keys if k not in NON_SECRET and k not in wired]
+    missing = [k for k in keys if k not in NON_SECRET | LOCAL_ONLY_SECRETS and k not in wired]
     assert not missing, f".env.example secrets not wired in deploy.sh ENV_SECRETS: {missing}"
 
 

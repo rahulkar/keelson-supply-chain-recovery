@@ -194,7 +194,7 @@ member signals, one per signal.
 
 **Explanations** are built only from the method, integers, validated place codes, curated gazetteer
 names (`Gazetteer.display_name`: UNLOCODE, CHOKEPOINT, ISO3166, REGION) and fixed labels of
-authoritative connectors (`GDACS`, `USGS`) — never from a headline, snippet, mention or
+authoritative connectors (`GDACS`, `USGS`; the M8 feeds of 124: `NHC`, `Copernicus EMS`, `OFAC`) — never from a headline, snippet, mention or
 source-supplied name. Examples: *"Official GDACS report that founded this event."* · *"Names the same
 place as the event: Ho Chi Minh City (Cat Lai) [UNLOCODE:VNSGN], Vietnam [ISO3166:VN]; reported within
 72 h of the event."* · *"Describes a similar disruption (similarity 80 %, local term profile), with no

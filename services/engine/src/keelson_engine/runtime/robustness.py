@@ -34,7 +34,6 @@ from keelson_contracts.blocks import (
     EmissionsNote,
     KpiBand,
     KpiItem,
-    ProfileScore,
     ScenarioCompareProps,
     UncertaintyNote,
 )

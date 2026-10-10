@@ -153,6 +153,20 @@ def test_requests_without_m8_features_are_the_m7_requests() -> None:
         m7.model_dump(mode="json"), sort_keys=True)
 
 
+def test_solver_options_flow_through_the_shared_request_builder() -> None:
+    """Integration seam of 125 + 126: planning and re-plan build every request with OptimizeInputs, so the
+    tenant's integer stage must reach it next to the CO2e inputs and the robustness spec."""
+    p, scn = problem(), closure_scenario()
+    spec = PlanSpec(id="opt-A", title="A", levers=[])
+    cpsat = PlanningDefaults(solver_integer_stage="cpsat")
+    req = OptimizeInputs.build(cpsat, scn, p, scn.perturbations, get_geo(), solver=pl.solver_options(cpsat)).request(spec)
+    assert req.solver.integer_stage == "cpsat"
+    assert req.emissions is not None and req.robustness is not None
+    default = PlanningDefaults()
+    req = OptimizeInputs.build(default, scn, p, scn.perturbations, get_geo(), solver=pl.solver_options(default)).request(spec)
+    assert "integer_stage" not in req.solver.model_dump(mode="json")  # repair: omitted, as in M7
+
+
 def test_lp_weights_follow_the_default_profile() -> None:
     from test_m3_candidates import caps
 

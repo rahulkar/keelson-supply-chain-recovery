@@ -28,7 +28,16 @@ from keelson_contracts.signals import signal_id as make_signal_id
 from signal_hub import embeddings, membership, neardup, scoring
 from signal_hub.admin import event_subscribed
 from signal_hub.alerts import AlertChange, evaluate_alert
-from signal_hub.cluster import Candidate, Decision, MemberRow, SignalFeatures, aggregate_event, choose_event, decide
+from signal_hub.cluster import (
+    Candidate,
+    Decision,
+    MemberRow,
+    SignalFeatures,
+    aggregate_event,
+    choose_event,
+    decide,
+    same_hazard_window,
+)
 from signal_hub.clustering_config import load_config
 from signal_hub.db import tx
 from signal_hub.explain import explain
@@ -47,6 +56,7 @@ CLUSTER_LOCK: Final = 0x5348_434C_5354  # "SHCLST"
 NEWS_TTL: Final = dt.timedelta(hours=72)
 TEXT_TTL: Final = dt.timedelta(days=14)
 EXTRACTION_LEASE: Final = dt.timedelta(minutes=15)
+_HOUR: Final = dt.timedelta(hours=1)
 """How long a claimed news item is hidden from other workers while its guard/extractor calls run."""
 MAX_CANDIDATES: Final = 500
 """Open events considered per new signal (nearest first)."""
@@ -495,7 +505,8 @@ class Pipeline:
                                                 hamming_bits=decision.hamming_bits,
                                                 anchor_connector=draft.connector_id,
                                                 window_hours=cfg.vector.window_hours
-                                                if decision.method == "attach_vector" else 72),
+                                                if decision.method == "attach_vector" else 72,
+                                                same_hazard_hours=same_hazard_window(draft.subtype) // _HOUR),
                             decided_at=now)
                     if ev_tenant == draft.tenant:
                         row = await self.recompute_event(conn, ev_id, ev_tenant, now)

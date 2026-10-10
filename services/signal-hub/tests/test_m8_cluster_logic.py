@@ -18,7 +18,7 @@ import yaml
 from conftest import FIXTURES, SECRET, T0, make_token
 from keelson_contracts.llm import NewsExtraction
 from keelson_contracts.signals import DEFAULT_CLUSTERING_CONFIG, LOCAL_SIMILARITY_PROFILE, ClusteringConfig, EventMembership
-from signal_hub import embeddings
+from signal_hub import embeddings, sources
 from signal_hub.auth import verify_service_token
 from signal_hub.cluster import (
     Candidate,
@@ -32,6 +32,7 @@ from signal_hub.cluster import (
     decide,
     km,
     merge_target_possible,
+    same_hazard_window,
 )
 from signal_hub.config import Settings, load_settings
 from signal_hub.explain import explain
@@ -314,6 +315,26 @@ def test_golden_explanations(gaz: Gazetteer) -> None:
         "Moved here from a similar event (similarity 93 %, remote profile embed-default@1536); first grouped as: first report.")
     with pytest.raises(ValueError):
         explain("guessed")
+
+
+def test_explanations_for_the_m8_feeds() -> None:
+    """The authoritative feeds of 124 get fixed labels; the same-hazard window is the one applied (72 h for
+    storms, floods and wildfires); a connector without a label never reads "official official"."""
+    assert explain("anchor", anchor_connector="demo.nhc") == "Official NHC report that founded this event."
+    assert explain("anchor", anchor_connector="copernicus_ems") == (
+        "Official Copernicus EMS report that founded this event.")
+    assert explain("same_hazard", distance_km=12, anchor_connector="nhc",
+                   same_hazard_hours=same_hazard_window("tropical_cyclone") // dt.timedelta(hours=1)) == (
+        "Second official report (NHC) of the same hazard, 12 km from the first report and starting within 72 h.")
+    assert explain("anchor", anchor_connector="demo.unknown") == "Official report that founded this event."
+    assert explain("same_hazard", distance_km=5, anchor_connector="other") == (
+        "Second official report of the same hazard, 5 km from the first report and starting within 6 h.")
+    assert explain("absorbed", prior_method="founded", anchor_connector="other") == (
+        "Moved here when the official report of this event arrived; first grouped as: first report.")
+    for connector in (*sources.ADAPTERS, "unknown", None):
+        for method in ("anchor", "same_hazard", "absorbed"):
+            text = explain(method, anchor_connector=connector, distance_km=1, prior_method="founded")
+            assert "official official" not in text.lower(), (connector, method, text)
 
 
 def test_explanations_never_carry_untrusted_text(gaz: Gazetteer) -> None:

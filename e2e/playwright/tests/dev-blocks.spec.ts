@@ -48,6 +48,8 @@ const FIXTURES: { name: string; kind: string | null }[] = [
   { name: "recommended_option.advisory", kind: "recommended_option" },
   { name: "narrative.advisory", kind: "narrative" },
   { name: "scenario_compare.advisory", kind: "scenario_compare" },
+  // M8 (docs/contracts/125): CP-SAT plans, how each option's whole units were found
+  { name: "scenario_compare.integer", kind: "scenario_compare" },
   // M8 (docs/contracts/126): likely ranges, extra CO₂e, weight-profile ranks and win rates
   { name: "scenario_compare.robust", kind: "scenario_compare" },
   { name: "kpi_strip.robust", kind: "kpi_strip" },

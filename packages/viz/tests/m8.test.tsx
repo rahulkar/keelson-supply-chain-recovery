@@ -38,7 +38,9 @@ describe("M8 fixtures", () => {
   it("are appended after the M7 ones and validate against the envelope contract", () => {
     const names = blockFixtures.map((f) => f.name);
     const m7 = names.indexOf("scenario_compare.advisory");
-    expect(names.slice(m7 + 1)).toEqual(["scenario_compare.robust", "kpi_strip.robust"]);
+    const at = names.indexOf("scenario_compare.robust");  // after the CP-SAT fixture of 125 (m8-cpsat.test)
+    expect(at).toBeGreaterThan(m7);
+    expect(names.slice(at)).toEqual(["scenario_compare.robust", "kpi_strip.robust"]);
     for (const n of ["scenario_compare.robust", "kpi_strip.robust"]) {
       expect(blockEnvelopeSchema.safeParse(fixture(n)).success, n).toBe(true);
     }

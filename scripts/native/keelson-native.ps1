@@ -516,6 +516,7 @@ function Get-EngineEnv {
         LITELLM_BASE_URL          = 'http://127.0.0.1:4000'
         LITELLM_MASTER_KEY        = V LITELLM_MASTER_KEY
         LLM_REPLAY_MODE           = V LLM_REPLAY_MODE 'record_or_replay'
+        MAPPING_PROPOSER          = V MAPPING_PROPOSER 'heuristic'   # M8 (121): as compose while credits are out
         KEYCLOAK_INTERNAL_URL     = 'http://127.0.0.1:8080'
         KC_ADMIN_PASSWORD         = V KC_ADMIN_PASSWORD
         OIDC_ISSUER               = 'http://auth.localhost/realms/keelson'

@@ -1039,6 +1039,9 @@ function Step-Edge {
         MERXA_API_UPSTREAM = '127.0.0.1:8100'; MERXA_WEB_UPSTREAM = '127.0.0.1:3001'
         KEYCLOAK_UPSTREAM = '127.0.0.1:8080'; LITELLM_UPSTREAM = '127.0.0.1:4000'; PHOENIX_UPSTREAM = '127.0.0.1:6006'
         DEV_ALLOW_KC_ADMIN = V DEV_ALLOW_KC_ADMIN '0'
+        # M8 self-hosted base map (docs/contracts/127): files under .native\data\basemap (e.g. copied
+        # with scripts/basemap/export.sh); empty or missing = nothing installed (manifest 204, fallback).
+        BASEMAP_ROOT = (Join-Path $P.Data 'basemap').Replace('\', '/')
     }
     if (-not (Wait-Services @('redis', 'caddy') 60)) { Stop-WithError 'Redis/Caddy did not start' }
 }
@@ -1173,7 +1176,7 @@ function Step-Apps {
     $names = @('signal-hub-api', 'signal-hub-poller', 'engine-api', 'engine-worker')
     if (-not $SkipWeb) {
         $kwDir = Join-Path $P.Build 'keelson\apps\keelson-web\.next\standalone\apps\keelson-web'
-        Start-NativeService 'keelson-web' 'node' @('server.js') (@{ PORT = '3000'; HOSTNAME = '127.0.0.1'; NODE_ENV = 'production'; NEXT_TELEMETRY_DISABLED = '1'; ENGINE_API_INTERNAL_URL = 'http://127.0.0.1:8000' }) $kwDir
+        Start-NativeService 'keelson-web' 'node' @('server.js') (@{ PORT = '3000'; HOSTNAME = '127.0.0.1'; NODE_ENV = 'production'; NEXT_TELEMETRY_DISABLED = '1'; ENGINE_API_INTERNAL_URL = 'http://127.0.0.1:8000'; KEELSON_BASEMAP = V KEELSON_BASEMAP 'auto' }) $kwDir
         $mwDir = Join-Path $P.Build 'merxa-web\.next\standalone'
         Start-NativeService 'merxa-web' 'node' @('server.js') (@{ PORT = '3001'; HOSTNAME = '127.0.0.1'; NODE_ENV = 'production'; NEXT_TELEMETRY_DISABLED = '1'; MERXA_API_INTERNAL_URL = 'http://127.0.0.1:8100' }) $mwDir
         $names += @('keelson-web', 'merxa-web')

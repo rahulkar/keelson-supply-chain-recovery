@@ -46,6 +46,7 @@ screenshots taken in a 1280×1600 viewport) → Apply → approval card Priya ca
 | `dev-blocks.spec.ts` | `/dev/blocks` renders all 34 fixtures (12 M1 blocks, 6 M3 visual states incl. empty and too-large maps, 3 RawDataCard fallbacks, 3 M4 states, 10 M5 states: four-eyes / rejected / bundle approvals, the mixed apply + guide option, Guide checklists open and completed, commit tracker Undo / conflicts / rolled back, the re-plan banner), both densities, no console errors. |
 | `m5-offline.spec.ts` | **M5, no model calls** (`95` §7): the M5 fixtures on `/dev/blocks` — Guide checklist (verified / pending steps, "Open in Merxa" deep links in a new tab, Mark done → previewed action, "Guide completed"), four-eyes progress ("1 of 2 approvals … waiting for Compliance"), the bundle's systems, "Apply 3 changes for me · Guide me through 2", the re-plan banner with plan versions, commit tracker **Undo changes** → confirm → rollback action, conflicts, rolled back; axe-clean. Admin **Policies** as sam: rules in evaluation order, the test bench, raising the auto cap shows "requires a platform admin" and disables Save, a description edit saves as a new policy version (restored afterwards). **Demo reset** from the persona menu as ava (rehearsal mode: 10 steps with M6's `signal_hub`, consents and connections skipped); a planner is not offered it. |
 | `m6-alerts.spec.ts` | **M6, no model calls** (`100` §8), only through `run-m6.sh` (it holds the engine worker; skipped otherwise): presenter ava resets + starts the typhoon pack from the persona menu (Demo scenarios dialog) → priya's Home pill "1 new alert" → `/alerts` row (Medium, why, exposure summary, DEMO) → drawer (engine map: footprint + exposed sites, exposed sites/lanes list, GDACS source with CC BY, update timeline, marked seen) → **Open case** → the case page with its queued signal run ("Getting started…"); alert `opened`, repeat open-case → same case, the run is cancelled. Axe-clean on every page. Screenshots 27–30. |
+| `m8-basemap.spec.ts` | **M8 self-hosted base map, no model calls** (`127`): the `network_map` fixture on `/dev/blocks` with every request leaving `*.localhost` aborted (`context.route`), in the light and the dark theme. Base map installed (`GET /basemap/manifest.json` 200, e.g. after `docker compose --profile basemap run --rm basemap-fetch --profile lite`) → `data-map-basemap="protomaps"`, ≥ 1 `206` from `/basemap/v4/`, **no** third-party request attempted; nothing installed (204) → `data-map-basemap="offline"` (built-in Natural Earth outline) with the "simplified background map" notice. Both: a drawn canvas, no "couldn't be loaded" notice, attribution visible with its OpenStreetMap / Natural Earth link, axe-clean, no page errors. Needs the default `KEELSON_BASEMAP=auto`. Screenshots 37. |
 | `reduced-motion.spec.ts` | `prefers-reduced-motion: reduce` → static headline (`data-motion="reduced"`), no shimmer / pulse animations; switching the preference live brings the sweep back. |
 | `keyboard-approve.spec.ts` | Case prepared via the API up to the approval; Marco reaches Connect Merxa (if needed), the Keycloak form and Approve with Tab / Enter only, each with a visible focus ring; the commit verifies and the card shows the "Approved · Decided by Marco Rossi" note instead of its buttons. |
 | `a11y.spec.ts` | axe (WCAG 2.2 A/AA + best practice) on Home (+ persona menu) and a finished case (collapsed, everything expanded, canvas open with the M3 visuals drawn) at 1280 px and 390 px: no serious/critical violations. |
@@ -76,7 +77,8 @@ screenshots taken in a 1280×1600 viewport) → Apply → approval card Priya ca
   `26-policies-admin` (live admin page); M6 (`m6-alerts.spec.ts`, simulated typhoon pack, no model):
   `27-alerts-inbox`, `28-alert-drawer`, `29-home-alert-pill`, `30-case-from-alert` (up to the queued run);
   M7 (`m7-offline.spec.ts`, no model): `31-pending-changes`, `32-users`, `33-agent-builder`,
-  `34-workflow-graph`, `35-mapping-editor`, `36-signals-admin`.
+  `34-workflow-graph`, `35-mapping-editor`, `36-signals-admin`; M8 (`m8-basemap.spec.ts`, no model):
+  `37-basemap`, `37-basemap-dark` (network map fixture on the self-hosted base map or the built-in outline).
 - `report/` (HTML report), `results.json`, `test-results/` (failure screenshots, error context).
 
 ## Without model credits
@@ -87,7 +89,7 @@ Everything except the analyses runs offline:
 e2e/playwright/run.sh --grep-invert "Knowledge|case page|act2-whatif|act3-thin-slice|keyboard-only"
 ```
 
-(or `E2E_NO_MODEL=1 e2e/playwright/run.sh m7-offline dev-blocks admin-smoke auth m5-offline`: the
+(or `E2E_NO_MODEL=1 e2e/playwright/run.sh m7-offline m8-basemap dev-blocks admin-smoke auth m5-offline`: the
 Knowledge upload test skips itself, it would call the embedding model)
 
 and the M6 alerts spec with the worker held (demo reset → hold → spec → release → demo reset):

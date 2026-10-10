@@ -1,0 +1,5 @@
+# Build context for infra/basemap/Dockerfile (context = repo root): the fetch scripts and the
+# manifest fixture shared with @keelson/viz (test stage) only.
+*
+!scripts/basemap/
+!packages/viz/tests/fixtures/basemap-manifest.json

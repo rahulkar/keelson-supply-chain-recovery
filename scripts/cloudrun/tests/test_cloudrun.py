@@ -489,6 +489,91 @@ def test_phoenix_optional(tmp_path: Path, fakebin: tuple[Path, Path]) -> None:
     assert "phoenix" in env_of(docs["jobs/keelson-db-init-keelson-pg.yaml"])["DB_ROLES"]["value"].split()
 
 
+# ───────────────────────────── M8 self-hosted base map (infra/cloudrun/basemap.sh) ─────────────────────────────
+def test_basemap_off_by_default(rendered: dict[str, dict]) -> None:
+    um = rendered["lb/url-map.yaml"]
+    assert "backendBuckets" not in yaml.safe_dump(um)
+    keelson = {m["name"]: m for m in um["pathMatchers"]}["keelson"]
+    assert [r["paths"] for r in keelson["pathRules"]] == [["/api", "/api/*"]]
+    # without the bucket keelson-web answers /basemap/manifest.json with 204 and `auto` falls back
+    assert env_of(rendered["services/keelson-web.yaml"])["KEELSON_BASEMAP"]["value"] == "auto"
+
+
+def test_basemap_enabled_routes_to_the_backend_bucket(tmp_path: Path, fakebin: tuple[Path, Path]) -> None:
+    docs = render(tmp_path, fakebin, "--enable-basemap")
+    keelson = {m["name"]: m for m in docs["lb/url-map.yaml"]["pathMatchers"]}["keelson"]
+    assert keelson["pathRules"] == [
+        {"paths": ["/api", "/api/*"], "service": f"projects/{PROJECT}/global/backendServices/engine-api-bs"},
+        {"paths": ["/basemap/*"], "service": f"projects/{PROJECT}/global/backendBuckets/keelson-basemap-bb"},
+    ]
+    assert keelson["defaultService"].endswith("/keelson-web-bs")
+    assert env_of(docs["services/keelson-web.yaml"])["KEELSON_BASEMAP"]["value"] == "protomaps"
+    assert set(docs) == set(render(tmp_path / "plain", fakebin))  # no extra manifests
+
+
+def test_basemap_mode_override_is_validated(tmp_path: Path, fakebin: tuple[Path, Path]) -> None:
+    docs = render(tmp_path, fakebin)
+    assert env_of(docs["services/keelson-web.yaml"])["KEELSON_BASEMAP"]["value"] == "auto"
+    out = tmp_path / "offline"
+    deploy("--project", PROJECT, "--region", REGION, "--domain", DOMAIN, "--render-only", str(out),
+           fakebin=fakebin, extra_env={"KEELSON_BASEMAP": "offline"})
+    web = yaml.safe_load((out / "services" / "keelson-web.yaml").read_text(encoding="utf-8"))
+    assert env_of(web)["KEELSON_BASEMAP"]["value"] == "offline"
+    res = deploy("--project", PROJECT, "--region", REGION, "--domain", DOMAIN, "--render-only", str(tmp_path / "bad"),
+                 fakebin=fakebin, extra_env={"KEELSON_BASEMAP": "google"}, check=False)
+    assert res.returncode == 2 and "KEELSON_BASEMAP must be" in res.stderr
+
+
+def test_basemap_dry_run_uploads_manifest_last(fakebin: tuple[Path, Path], fake_env: tuple[Path, Path, dict[str, str]],
+                                               tmp_path: Path) -> None:
+    env_file, sd, _ = fake_env
+    bm = tmp_path / "basemap"
+    (bm / "v4").mkdir(parents=True)
+    (bm / "manifest.json").write_text("{}", encoding="utf-8")
+    res = deploy(PROJECT, REGION, "--domain", DOMAIN, "--dry-run", "--tag", "t1", "--enable-basemap", "--basemap-dir", str(bm),
+                 fakebin=fakebin, env_file=env_file, secrets_dir=sd, extra_env={"TMPDIR": str(tmp_path)})
+    out = res.stdout
+    _, marker = fakebin
+    assert not marker.exists()
+    bucket = f"gs://{PROJECT}-keelson-basemap"
+
+    def pos(s: str) -> int:
+        i = out.find(s)
+        assert i >= 0, s
+        return i
+
+    create = re.search(rf"^\+ gcloud storage buckets create {bucket} .*$", out, re.M)
+    assert create and "--uniform-bucket-level-access" in create.group(0)
+    assert f"storage buckets add-iam-policy-binding {bucket} --member=allUsers --role=roles/storage.objectViewer" in out
+    archive = re.search(rf"^\+ gcloud storage rsync \S+/v4 {bucket}/basemap/v4 .*$", out, re.M)
+    assert archive and "immutable" in archive.group(0) and "--delete-unmatched" not in archive.group(0)
+    manifest = re.search(rf"^\+ gcloud storage cp \S+/manifest\.json {bucket}/basemap/manifest\.json .*$", out, re.M)
+    assert manifest and "--cache-control=no-cache" in manifest.group(0)
+    for prefix in ("v4", "fonts", "sprites", "LICENSES"):
+        assert pos(f"{bucket}/basemap/{prefix} ") < manifest.start(), prefix
+    # only glyph ranges are typed as protobuf: fonts/OFL.txt (the copy in LICENSES/ is served) stays out
+    fonts = re.search(rf"^\+ gcloud storage rsync \S+/fonts {bucket}/basemap/fonts .*$", out, re.M)
+    assert fonts and "--content-type=application/x-protobuf" in fonts.group(0) and r"\.txt" in fonts.group(0)
+    prune = re.search(rf"^\+ gcloud storage rsync \S+/v4 {bucket}/basemap/v4 .*--delete-unmatched-destination-objects.*$", out, re.M)
+    assert prune and prune.start() > manifest.start()  # old archives go only after the new manifest
+    bb = re.search(r"^\+ gcloud compute backend-buckets create keelson-basemap-bb .*$", out, re.M)
+    assert bb
+    for flag in (f"--gcs-bucket-name={PROJECT}-keelson-basemap", "--enable-cdn", "--cache-mode=USE_ORIGIN_HEADERS",
+                 r"X-Content-Type-Options:\ nosniff", r"Cross-Origin-Resource-Policy:\ same-origin"):  # printf %q
+        assert flag in bb.group(0), flag
+    assert bb.start() < pos("url-maps import keelson-urlmap")
+
+
+def test_basemap_needs_a_directory_outside_dry_run(fakebin: tuple[Path, Path], fake_env: tuple[Path, Path, dict[str, str]],
+                                                   tmp_path: Path) -> None:
+    env_file, sd, _ = fake_env
+    res = deploy(PROJECT, REGION, "--domain", DOMAIN, "--enable-basemap", "--basemap-dir", str(tmp_path / "missing"),
+                 fakebin=fakebin, env_file=env_file, secrets_dir=sd, extra_env={"PROJECT_NUMBER": "123"}, check=False)
+    assert res.returncode == 2 and "--enable-basemap needs --basemap-dir" in res.stderr
+    _, marker = fakebin
+    assert not marker.exists()
+
+
 def test_caddy_routes_covered() -> None:
     """Every host Caddy serves has a URL map host rule."""
     caddy = (ROOT / "infra" / "caddy" / "Caddyfile").read_text(encoding="utf-8")

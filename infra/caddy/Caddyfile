@@ -93,6 +93,46 @@ http://keelson.localhost {
 		}
 	}
 
+	# M8 self-hosted base map (docs/contracts/127-m8-basemap.md): static files from the `basemap`
+	# volume (filled by `docker compose --profile basemap run --rm basemap-fetch`). Byte ranges for
+	# the .pmtiles archive (never encoded), no listing, dotfiles (staging) hidden, same-origin only
+	# (no CORS headers). Nothing installed → manifest.json answers 204, so the map falls back
+	# without a 404 in the browser console.
+	handle_path /basemap/* {
+		root * {$BASEMAP_ROOT:/srv/basemap}
+		header {
+			X-Content-Type-Options nosniff
+			Cross-Origin-Resource-Policy same-origin
+			?Cache-Control "public, max-age=86400"
+		}
+		@manifest path /manifest.json
+		header @manifest Cache-Control "no-cache"
+		@archive path *.pmtiles
+		header @archive Cache-Control "public, max-age=31536000, immutable"
+		@glyphs path *.pbf
+		header @glyphs Content-Type application/x-protobuf
+		@no_manifest {
+			path /manifest.json
+			not file
+		}
+		respond @no_manifest 204
+		# Dotfiles / dot directories (the fetch tool's .staging-*, temp files) are never served.
+		# Matched on the (decoded, cleaned) request path, not with `file_server { hide .* }`: hide
+		# compares every component of the absolute file path, so a root below a dot directory
+		# (native mode: .native/data/basemap) would hide the whole base map.
+		@hidden path_regexp /\.
+		respond @hidden 404
+		encode {
+			zstd
+			gzip
+			match {
+				header Content-Type application/json*
+				header Content-Type application/x-protobuf*
+			}
+		}
+		file_server
+	}
+
 	handle {
 		encode zstd gzip
 		reverse_proxy {$KEELSON_WEB_UPSTREAM:keelson-web:3000} {

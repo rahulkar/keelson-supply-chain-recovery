@@ -44,6 +44,12 @@ describe("proxy (session gate)", () => {
     expect(re.test("/maplibre/maplibre-gl-worker.mjs")).toBe(false);
     expect(re.test("/maplibre/maplibre-gl-shared.mjs")).toBe(false);
     expect(re.test("/cases/maplibre")).toBe(true);
+    // the self-hosted base map (Caddy / bucket; else the public 204 manifest route) is never gated
+    expect(re.test("/basemap/manifest.json")).toBe(false);
+    expect(re.test("/basemap/v4/keelson-20261009-standard.pmtiles")).toBe(false);
+    expect(re.test("/basemap/fonts/Noto%20Sans%20Regular/0-255.pbf")).toBe(false);
+    expect(re.test("/cases/basemap")).toBe(true);
+    expect(re.test("/basemapx")).toBe(true);
     // the dot is literal: page paths that merely end in an asset-like word stay gated (regression)
     expect(re.test("/cases/0199png")).toBe(true);
     expect(re.test("/cases/robotsxtxt")).toBe(true);

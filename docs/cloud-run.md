@@ -21,6 +21,8 @@ domain you control, and `--dry-run` shows every command first.
 | `kc-config` (one-shot) | **Job** `keelson-kc-config` (image `kc-config.Dockerfile`) | realm files baked in, dev origins rewritten to `<domain>` |
 | `litellm` | Service `litellm` (image `litellm.Dockerfile`, config baked in) | ingress internal + LB; console `gateway.<domain>` behind **IAP** |
 | `phoenix` (profile obs) | Service `phoenix` (optional, `--enable-phoenix`) | console `traces.<domain>` behind IAP, data in Cloud SQL; otherwise use Cloud Trace |
+| `basemap` volume + Caddy `/basemap/*` (M8) | **Bucket** `<project>-keelson-basemap` (objects `basemap/*`, public read) behind the **backend bucket** `keelson-basemap-bb` with **Cloud CDN** (optional, `--enable-basemap --basemap-dir DIR`; `infra/cloudrun/basemap.sh`) | DIR = `scripts/basemap/export.sh DIR` from a filled local volume; upload order archive → glyphs / sprites / licences → `manifest.json` (no-cache) → prune old archives; GCS serves byte ranges, so the browser code and the CSP (`'self'`) are unchanged. Without the flag keelson-web answers `/basemap/manifest.json` with 204 and `auto` uses OpenFreeMap |
+| `basemap-fetch` (profile basemap) | — (run locally, then export + `--enable-basemap`) | a Cloud Run Job writing straight to the bucket is deferred (`docs/contracts/127`) |
 | `pg-core`, `pg-litellm`, `pg-merxa` | **Cloud SQL POSTGRES_18** (`keelson-pg`; `--sql-isolation`: + `keelson-pg-litellm`, `merxa-pg`) | private IP only, TLS required, roles/databases/extensions by Job `keelson-db-init-<instance>`; see `infra/cloudrun/cloudsql.md` |
 | `valkey` | **Memorystore for Valkey** `keelson-valkey` (`VALKEY_8_0`, cluster mode disabled, AOF, `maxmemory-policy=noeviction`) | Private Service Connect endpoint in `keelson-vpc`, reached through **Direct VPC egress** |
 | `egress` (Squid) | Cloud NAT `keelson-nat` (+ the engine's own public-IP-only check) | see "What differs" |
@@ -32,6 +34,7 @@ URL map (`infra/cloudrun/lb/url-map.yaml`):
 | Host | Path | Backend |
 |---|---|---|
 | `keelson.<domain>` | `/api`, `/api/*` | engine-api |
+| | `/basemap/*` (only with `--enable-basemap`) | backend bucket `keelson-basemap-bb` (Cloud CDN) |
 | | everything else | keelson-web |
 | `merxa.<domain>` | `/v1/*`, `/mcp`, `/mcp/*`, `/mcp-lite`, `/mcp-lite/*`, `/.well-known/*` | merxa-api |
 | | everything else | merxa-web |
@@ -101,6 +104,8 @@ What happens (each step checks before it creates):
    certificate turns `ACTIVE` 15-60 min after DNS resolves; then open `https://keelson.<domain>`.
 
 Other entry points: `--render-only DIR` (render manifests only), `--enable-phoenix`,
+`--enable-basemap --basemap-dir DIR` (M8 self-hosted base map; `KEELSON_BASEMAP` / the build arg
+`KEELSON_CSP_MAP_ORIGINS` are taken from the environment or `.env`),
 `--sql-isolation`, `--env-file`, `--secrets-dir`; knobs `SQL_TIER`, `VALKEY_NODE_TYPE`,
 `WORKER_INSTANCES`, `SUBNET_RANGE`. Updating one service after a code change: re-run the script
 (idempotent), or build/push the image and `gcloud run services replace` the rendered manifest.
@@ -126,6 +131,7 @@ Verify parity locally before deploying: `scripts/cloudrun/parity-check.sh` (sect
 | Access logs | Caddy redacts `code`, `session_state`, `ticket`, credential headers | Cloud Run/ALB logs cannot redact: request logs with those query params are **excluded** from `_Default`; headers are never logged by Google |
 | Client IP | Caddy overwrites `X-Forwarded-For` | Google front end **appends**; uvicorn with `--forwarded-allow-ips '*'` takes the left-most (client-supplied) entry (no service uses the client IP today) |
 | Phoenix | container on the `obs` profile | optional service on Cloud SQL, or Cloud Trace |
+| Self-hosted base map (M8) | `basemap` volume filled by `basemap-fetch`, Caddy `file_server` (ranges, `manifest.json` 204 when empty) | optional public bucket + Cloud CDN (`--enable-basemap`); the bucket is filled from a local export, not fetched in GCP; an org policy enforcing public access prevention blocks it (then leave the flag off: `auto` falls back to OpenFreeMap) |
 | Scale | one container each | autoscaling (engine-api 1-4, web 0-4/0-2, optimizer 0-3); Keycloak and merxa-api pinned to 1 |
 
 ## 5. Security

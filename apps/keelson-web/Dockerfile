@@ -38,6 +38,9 @@ COPY packages/viz/ packages/viz/
 COPY packages/contracts-ts/ packages/contracts-ts/
 COPY apps/keelson-web/ apps/keelson-web/
 ENV NODE_ENV=production NODE_OPTIONS=--max-old-space-size=2048
+# Third-party base-map origins baked into the CSP (next.config.ts; "none" = strict build,
+# docs/contracts/127-m8-basemap.md). A build ARG, so it is seen by `next build` only.
+ARG KEELSON_CSP_MAP_ORIGINS=https://tiles.openfreemap.org
 RUN pnpm --filter @keelson/web build
 
 # ── tests (not part of the runtime image): docker build --target test … ──

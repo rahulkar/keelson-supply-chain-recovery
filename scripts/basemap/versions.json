@@ -1,0 +1,19 @@
+{
+  "comment": "Pinned sources of the self-hosted base map (docs/contracts/127-m8-basemap.md). The go-pmtiles image is pinned by digest in infra/basemap/Dockerfile.",
+  "builds_index": "https://build-metadata.protomaps.dev/builds.json",
+  "builds_base": "https://build.protomaps.com/",
+  "assets": {
+    "repo": "protomaps/basemaps-assets",
+    "commit": "028c18f713baecad011301ff7a69acc39bcc2ae7"
+  },
+  "sprite_license": {
+    "repo": "tangrams/icons",
+    "commit": "d7e160177365e00532d36e35e689727b97eb6be1",
+    "path": "LICENSE.md",
+    "blob_sha1": "a013aca51d3d5ac3c857387731c2c86857dac10b"
+  },
+  "natural_earth_land": {
+    "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_110m_land.geojson",
+    "sha256": "9e0729ee253ca7d7a5c4ae9395fb1902264c5377c52e224d13dd85010e2835d9"
+  }
+}

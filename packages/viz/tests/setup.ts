@@ -35,3 +35,7 @@ afterEach(() => {
   cleanup();
   setMatchMedia(() => false);
 });
+
+// Tests never reach the network: anything not stubbed by a test (e.g. the network map's base map
+// manifest, /basemap/manifest.json) answers 404, so the map falls back deterministically.
+globalThis.fetch = (async () => new Response(null, { status: 404 })) as typeof fetch;

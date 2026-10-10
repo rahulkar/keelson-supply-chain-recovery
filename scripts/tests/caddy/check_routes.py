@@ -191,6 +191,127 @@ def streaming(host: str, path: str) -> Callable[[], dict[str, Any]]:
     return run
 
 
+def raw(host: str, path: str, headers: dict[str, str] | None = None) -> tuple[int, dict[str, str], bytes]:
+    conn = http.client.HTTPConnection(CADDY_IP, 80, timeout=15)
+    conn.putrequest("GET", path, skip_host=True, skip_accept_encoding=True)
+    conn.putheader("Host", host)
+    for k, v in (headers or {}).items():
+        conn.putheader(k, v)
+    conn.endheaders()
+    r = conn.getresponse()
+    return r.status, {k.lower(): v for k, v in r.getheaders()}, r.read()
+
+
+BASEMAP_ARCHIVE = "/basemap/v4/test.pmtiles"  # 4096 bytes, written by make_basemap_fixture.py
+
+
+def same_origin_static(h: dict[str, str]) -> bool:
+    return (
+        h.get("x-content-type-options") == "nosniff"
+        and h.get("cross-origin-resource-policy") == "same-origin"
+        and "access-control-allow-origin" not in h
+        and "server" not in h
+    )
+
+
+def basemap_range() -> dict[str, Any]:
+    """The archive is read with HTTP Range (pmtiles://): 206, exact bytes, never encoded."""
+    status, h, body = raw("keelson.localhost", BASEMAP_ARCHIVE, {"Range": "bytes=0-126", "Accept-Encoding": "gzip, zstd"})
+    tail_status, tail_h, tail = raw("keelson.localhost", BASEMAP_ARCHIVE, {"Range": "bytes=4000-"})
+    return {
+        "ok": status == 206
+        and h.get("content-range") == "bytes 0-126/4096"
+        and len(body) == 127
+        and body.startswith(b"PMTiles\x03")
+        and "content-encoding" not in h
+        and h.get("cache-control") == "public, max-age=31536000, immutable"
+        and same_origin_static(h)
+        and tail_status == 206
+        and tail_h.get("content-range") == "bytes 4000-4095/4096"
+        and len(tail) == 96,
+        "status": status,
+        "content_range": h.get("content-range"),
+        "content_encoding": h.get("content-encoding"),
+        "cache_control": h.get("cache-control"),
+        "tail": [tail_status, tail_h.get("content-range")],
+    }
+
+
+def basemap_files() -> dict[str, Any]:
+    full_status, full_h, full = raw("keelson.localhost", BASEMAP_ARCHIVE, {"Accept-Encoding": "gzip, zstd"})
+    m_status, m_h, m_body = raw("keelson.localhost", "/basemap/manifest.json")
+    g_status, g_h, _ = raw("keelson.localhost", "/basemap/fonts/Noto%20Sans%20Regular/0-255.pbf", {"Accept-Encoding": "gzip"})
+    s_status, s_h, _ = raw("keelson.localhost", "/basemap/sprites/v4/light.json")
+    return {
+        "ok": full_status == 200
+        and full_h.get("accept-ranges") == "bytes"
+        and len(full) == 4096
+        and "content-encoding" not in full_h
+        and m_status == 200
+        and m_h.get("content-type", "").startswith("application/json")
+        and m_h.get("cache-control") == "no-cache"
+        and json.loads(m_body)["schema"] == "keelson.basemap/1"
+        and same_origin_static(m_h)
+        and g_status == 200
+        and g_h.get("content-type") == "application/x-protobuf"
+        and g_h.get("content-encoding") == "gzip"
+        and g_h.get("cache-control") == "public, max-age=86400"
+        and s_status == 200
+        and s_h.get("cache-control") == "public, max-age=86400",
+        "archive": [full_status, full_h.get("accept-ranges"), full_h.get("content-encoding")],
+        "manifest": [m_status, m_h.get("content-type"), m_h.get("cache-control")],
+        "glyphs": [g_status, g_h.get("content-type"), g_h.get("content-encoding"), g_h.get("cache-control")],
+        "sprite": [s_status, s_h.get("cache-control")],
+    }
+
+
+BASEMAP_NOT_SERVED = [
+    "/basemap/",
+    "/basemap/v4/",
+    "/basemap/.staging-1-2/partial.pmtiles",
+    "/basemap/%2estaging-1-2/partial.pmtiles",
+    "/basemap/.hidden.json",
+    "/basemap/v4/.keelson-partial.pmtiles",
+    "/basemap/missing.json",
+    "/basemap//etc/passwd",
+]
+# Dot segments (plain or percent-encoded) are decoded and cleaned before matching: the request
+# leaves /basemap/* and is an ordinary page request for keelson-web (never a file outside the root).
+BASEMAP_TRAVERSAL = [
+    "/basemap/../Caddyfile",
+    "/basemap/%2e%2e/etc/passwd",
+    "/basemap/v4/%2e%2e/%2e%2e/etc/passwd",
+    "/basemap/..%2f..%2fetc%2fpasswd",
+]
+
+
+def from_web_stub(status: int, body: bytes) -> bool:
+    try:
+        return status == 200 and json.loads(body).get("port") == 3000
+    except ValueError:
+        return False
+
+
+def basemap_hidden() -> dict[str, Any]:
+    """No listing, no dotfiles (staging), no traversal; /basemap/* never reaches keelson-web."""
+    got = {p: raw("keelson.localhost", p) for p in BASEMAP_NOT_SERVED}
+    leaked = {p: s for p, (s, _, _) in got.items() if s != 404}
+    traversal = {p: raw("keelson.localhost", p) for p in BASEMAP_TRAVERSAL}
+    escaped = {p: s for p, (s, _, b) in traversal.items() if not from_web_stub(s, b)}
+    return {"ok": not leaked and not escaped, "not_404": leaked, "traversal_not_to_web": escaped, "checked": len(got) + len(traversal)}
+
+
+def basemap_not_installed() -> dict[str, Any]:
+    """Empty volume: the manifest answers 204 (map falls back, no console 404), files 404."""
+    m_status, m_h, m_body = raw("keelson.localhost", "/basemap/manifest.json")
+    a_status = raw("keelson.localhost", BASEMAP_ARCHIVE)[0]
+    return {
+        "ok": m_status == 204 and m_body == b"" and a_status == 404 and m_h.get("cache-control") == "no-cache",
+        "manifest": m_status,
+        "archive": a_status,
+    }
+
+
 def log_probe() -> dict[str, Any]:
     """Send credential-bearing values; run.sh asserts none of them reach Caddy's log."""
     status, _, _ = req(
@@ -209,6 +330,14 @@ def log_probe() -> dict[str, Any]:
 def main() -> int:
     if MODE == "kc-admin-allowed":
         check("kc_admin_allowed_when_DEV_ALLOW_KC_ADMIN_1", kc_admin_allowed)
+        check("basemap_not_installed", basemap_not_installed)
+        return failures
+    if MODE == "basemap-dotted-root":
+        # Native mode serves BASEMAP_ROOT=<repo>/.native/data/basemap: a dot directory above the
+        # root must not hide the base map (only dotfiles inside it are hidden).
+        check("basemap_dotted_root_byte_ranges", basemap_range)
+        check("basemap_dotted_root_files_headers", basemap_files)
+        check("basemap_dotted_root_hidden_and_no_traversal", basemap_hidden)
         return failures
     check("routes", routes)
     check("forwarded_headers_and_security_headers", forwarded_headers)
@@ -222,6 +351,9 @@ def main() -> int:
     check("ndjson_unbuffered_keelson_api", streaming("keelson.localhost", "/api/runs/1/ndjson"))
     check("ndjson_unbuffered_merxa_mcp", streaming("merxa.localhost", "/mcp/ndjson"))
     check("ndjson_unbuffered_merxa_v1", streaming("merxa.localhost", "/v1/export/ndjson"))
+    check("basemap_archive_byte_ranges", basemap_range)
+    check("basemap_files_headers", basemap_files)
+    check("basemap_hidden_and_no_traversal", basemap_hidden)
     check("log_probe_sent", log_probe)
     return failures
 

@@ -91,7 +91,28 @@ export { BarChart, type BarChartProps, type BarDatum } from "./charts/BarChart";
 
 // M3 canvas visuals: helpers that do not pull in the heavy libraries (those load on demand).
 export { BlockSkeleton, lazyBlock } from "./lib/lazyBlock";
-export { configureNetworkMap, DEFAULT_NETWORK_MAP_CONFIG, networkMapConfig, type NetworkMapConfig } from "./map/config";
+export {
+  configureNetworkMap,
+  DEFAULT_NETWORK_MAP_CONFIG,
+  networkMapConfig,
+  type NetworkMapConfig,
+  type NetworkMapConfigPatch,
+} from "./map/config";
+// M8 self-hosted base map (docs/contracts/127): runtime mode, manifest schema, fallback chain.
+// The Protomaps / offline styles themselves load only inside the lazy map chunk.
+export {
+  BASEMAP_MODES,
+  basemapChain,
+  basemapManifestSchema,
+  clearBasemapManifestCache,
+  isBasemapMode,
+  loadBasemapManifest,
+  type BasemapKind,
+  type BasemapManifest,
+  type BasemapMode,
+  type InstalledBasemap,
+} from "./map/basemap";
+export { NetworkMapSettingsProvider, useNetworkMapSettings } from "./map/settings";
 export { NODE_STATUSES, statusMeta, type NodeStatus } from "./lib/status";
 export { breachShift, breachShiftText, isoWeekMonday, weekLabel, weeksBetween, type BreachShift } from "./lib/week";
 

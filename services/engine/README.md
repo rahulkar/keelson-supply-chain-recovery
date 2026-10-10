@@ -64,6 +64,7 @@ src/keelson_engine/
     mapping_eval.py    M7 safe interpreter of the mapping language + templates + read-back match (no eval)
     scn_crawl.py       M7 tier-A crawl sync (paged read tools → scn/1.0 snapshot, consistency 'crawled')
     signals_admin.py   M7 Signals admin: source subscriptions + cadence, watch regions, alert rules → hub
+    signals_clustering.py M8 platform clustering settings on the hub (read: admins; write/run: platform admins)
     repo.py            tenant-scoped domain helpers (cases, messages, scenarios, evidence, plans,
                        blocks, change sets, ledger, findings, calc, agent specs, admin_audit)
     context.py         use_tenant()/resolve_tenant() (ambient tenant for repo helpers)
@@ -83,6 +84,7 @@ src/keelson_engine/
     routes_demo.py     POST /api/demo/reset (M5), /api/demo/packs/{pack}/{action} (M6) (DEMO_MODE, presenter)
     routes_alerts.py   M6 /api/alerts*, SSE /api/alerts/events
     routes_admin_m7.py M7 /api/admin/* (change requests, users, mappings + crawl + dry-run, signals, activity, evals)
+    routes_admin_signals_m8.py M8 /api/admin/signals/clustering[/run] (docs/contracts/123)
     routes_system.py   healthz/readyz, JWKS, forward-auth, console handoff (/__keelson/*)
     shutdown.py        SIGTERM hook that ends open SSE streams at once (graceful shutdown)
 migrations/0001_init.sql   all engine tables + RLS policies
@@ -1106,6 +1108,21 @@ timeline across runs, approvals, change sets, admin changes and signals (opaque 
 `GET /api/admin/evals` (platform-admin) lists the latest eval result files with per-case scores.
 Compose mounts `./evals/results` read-only into engine-api at `/app/evals/results`
 (`EVALS_RESULTS_DIR`); the files come from the CLI runner (`evals/run_live.py`).
+
+### Signal clustering settings (M8, `core/signals_clustering.py`, `docs/contracts/123`)
+
+The Signal Hub's clustering thresholds (SimHash near-duplicates, vector attach / merge) are
+**platform-wide** (global feeds cluster once for every tenant). `GET /api/admin/signals/clustering`
+(any admin) returns the hub's `ClusteringStatus` (settings, similarity backends, 7-day counts in the
+admin tenant's scope) plus `editable` (platform admin). `PUT /api/admin/signals/clustering`
+(`ClusteringConfigUpdate {base_version, simhash, vector}`) and `POST /api/admin/signals/clustering/run`
+need a platform admin (`403 platform_admin_required` before any hub call); the engine then mints a
+**platform-scoped** service JWT (`mint_hub_token(tenant, platform=True)` adds `scope: "platform"`, the
+only claim the hub's clustering write routes honour), maps the hub's `409` to `409 stale_version`
+(`current_version`), validates the bounds itself (`422`), and writes a platform `admin_audit` row
+`signals.clustering` (before + JSON diff) / `signals.clustering_run`. Not a four-eyes guarded change
+(platform admin + audit); the embedding profile is chosen by deploy env (`SIGNALS_EMBED_*` on the hub).
+Alert details pass the hub's optional `memberships` (why each report is grouped) through unchanged.
 
 ### Agents playground, custom specialist checks, credential rotation (M7 integration)
 

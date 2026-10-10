@@ -1,0 +1,93 @@
+# TEST FIXTURE — labelled pairs that fix the local similarity thresholds of DEFAULT_CLUSTERING_CONFIG
+# (docs/contracts/123 §4). Each side is one signal (attach) or a list of member signals (merge: event
+# centroids), given by the structured fields the hub derives cluster terms from (kind, subtype,
+# location refs, the screened extraction's place/port/chokepoint mentions and companies).
+#
+#   gate: attach  — both sides located, no shared ref (300..1000 km): similarity vs vector.local.attach_bp
+#         strict  — the new signal has no refs at all (unresolved place names): vs vector.local.strict_bp
+#         merge   — two candidate events (background pass): vs vector.local.merge_bp
+#   expect: join | separate — tests/test_m8_cluster_logic.py requires every pair on the right side of its
+#   threshold with a margin of at least 300 bp.
+#
+# Sources: the shapes of the product packs (data/scenarios: typhoon-hcmc, suez-closure,
+# port-strike-syndication) plus adversarial pairs that share only generic words.
+pairs:
+  # ── must join ──
+  - id: hamburg-strike-unresolved-terminal   # port-strike-syndication step 3
+    gate: strict
+    expect: join
+    a: {kind: labor, subtype: strike, refs: [UNLOCODE:DEHAM, ISO3166:DE], mentions: [Port of Hamburg]}
+    b: {kind: labor, subtype: strike, refs: [], mentions: [Hamburg-Waltershof terminal]}
+  - id: cat-lai-closure-depot-name           # typhoon-hcmc news, renamed facility
+    gate: strict
+    expect: join
+    a: {kind: logistics, subtype: port_closure, refs: [UNLOCODE:VNSGN, ISO3166:VN], mentions: [Cat Lai terminal]}
+    b: {kind: logistics, subtype: port_closure, refs: [], mentions: [Cat Lai container depot]}
+  - id: strike-same-union-same-port-words
+    gate: strict
+    expect: join
+    a: {kind: labor, subtype: strike, refs: [UNLOCODE:DEHAM, ISO3166:DE], mentions: [Port of Hamburg], companies: [Hafenarbeiter Union]}
+    b: {kind: labor, subtype: strike, refs: [], mentions: [Hamburg docks], companies: [Hafenarbeiter Union]}
+  - id: suez-wording-variant-located
+    gate: attach
+    expect: join
+    a: {kind: geopolitical, subtype: chokepoint_closure, refs: [CHOKEPOINT:SUEZ], mentions: [Suez Canal]}
+    b: {kind: geopolitical, subtype: chokepoint_closure, refs: [CHOKEPOINT:BAB_EL_MANDEB], mentions: [Suez Canal approaches]}
+  - id: two-unresolved-reports-same-terminal  # two candidate events founded apart
+    gate: merge
+    expect: join
+    a: [{kind: labor, subtype: strike, refs: [], mentions: [Hamburg-Waltershof terminal]}]
+    b: [{kind: labor, subtype: strike, refs: [], mentions: [Waltershof terminal Hamburg]}]
+  - id: syndicated-event-vs-unresolved-event
+    gate: merge
+    expect: join
+    a:
+      - {kind: labor, subtype: strike, refs: [UNLOCODE:DEHAM, ISO3166:DE], mentions: [Port of Hamburg]}
+      - {kind: labor, subtype: strike, refs: [UNLOCODE:DEHAM, ISO3166:DE], mentions: [Port of Hamburg]}
+    b: [{kind: labor, subtype: strike, refs: [], mentions: [Hamburg-Waltershof terminal]}]
+  # ── must stay separate ──
+  - id: strikes-at-different-unresolved-terminals
+    gate: strict
+    expect: separate
+    a: {kind: labor, subtype: strike, refs: [], mentions: [Felixstowe-Trimley dock]}
+    b: {kind: labor, subtype: strike, refs: [], mentions: [Antwerp-Bruges terminal]}
+  - id: strikes-at-different-resolved-ports
+    gate: attach
+    expect: separate
+    a: {kind: labor, subtype: strike, refs: [UNLOCODE:DEHAM, ISO3166:DE], mentions: [Port of Hamburg]}
+    b: {kind: labor, subtype: strike, refs: [UNLOCODE:NLRTM, ISO3166:NL], mentions: [Rotterdam]}
+  - id: one-generic-shared-word
+    gate: strict
+    expect: separate
+    a: {kind: labor, subtype: strike, refs: [], mentions: [New Mangalore terminal]}
+    b: {kind: labor, subtype: strike, refs: [], mentions: [New Delhi inland depot]}
+  - id: half-of-a-two-word-name
+    gate: attach
+    expect: separate
+    a: {kind: logistics, subtype: port_closure, refs: [ISO3166:KR], mentions: [South Korea]}
+    b: {kind: logistics, subtype: port_closure, refs: [ISO3166:KP], mentions: [North Korea]}
+  - id: same-carrier-different-ports
+    gate: attach
+    expect: separate
+    a: {kind: labor, subtype: strike, refs: [UNLOCODE:DEHAM, ISO3166:DE], mentions: [Port of Hamburg], companies: [Maersk]}
+    b: {kind: labor, subtype: strike, refs: [], mentions: [Algeciras Isla Verde terminal], companies: [Maersk]}
+  - id: same-place-different-disruption-kind
+    gate: strict
+    expect: separate
+    a: {kind: labor, subtype: strike, refs: [UNLOCODE:DEHAM, ISO3166:DE], mentions: [Port of Hamburg]}
+    b: {kind: logistics, subtype: port_closure, refs: [], mentions: [Hamburg-Waltershof terminal]}
+  - id: kind-and-subtype-only
+    gate: strict
+    expect: separate
+    a: {kind: labor, subtype: strike, refs: [], mentions: []}
+    b: {kind: labor, subtype: strike, refs: [], mentions: []}
+  - id: typhoon-anchor-vs-port-news       # the anchor carries no place words (country refs only)
+    gate: attach
+    expect: separate
+    a: {kind: natural_hazard, subtype: tropical_cyclone, refs: [ISO3166:VN, ISO3166:KH], mentions: []}
+    b: {kind: logistics, subtype: port_closure, refs: [], mentions: [Cat Lai container depot]}
+  - id: different-events-merge-guard
+    gate: merge
+    expect: separate
+    a: [{kind: labor, subtype: strike, refs: [UNLOCODE:DEHAM, ISO3166:DE], mentions: [Port of Hamburg]}]
+    b: [{kind: labor, subtype: strike, refs: [UNLOCODE:PLGDN, ISO3166:PL], mentions: [Gdansk]}]

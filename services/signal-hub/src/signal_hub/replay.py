@@ -19,7 +19,9 @@ Step payloads (``ScenarioPackStep.payload``) per adapter:
 SimClock: ``sim_now = start_at + offset_s (+ speed × wall seconds since start when speed > 0)``.
 ``advance`` moves the offset (``seconds``, ``to_step``, or by default to the next step) and applies
 every due step in order. All ids derive from content (``uuid5``) and every timestamp from the sim
-clock, so a reset + replay reproduces the same signals, events and alerts.
+clock, so a reset + replay reproduces the same signals, events and alerts. After every applied step
+the pack's own scope gets a cluster merge pass (``signal_hub.maintenance.merge_pass``, local term
+vectors only, sim clock), so merges are part of the deterministic replay too.
 """
 
 from __future__ import annotations
@@ -44,6 +46,7 @@ from signal_hub.db import tx
 from signal_hub.gazetteer import Gazetteer
 from signal_hub.httpfetch import Fetcher
 from signal_hub.logs import get_logger
+from signal_hub.maintenance import merge_pass
 from signal_hub.models import NewsItemDraft, SourceContext
 from signal_hub.pipeline import CLUSTER_LOCK, IngestReport, Pipeline
 
@@ -315,6 +318,9 @@ class Replay:
                 for index, step in pack.due_steps(sim_now, after_index=run.last_step_index):
                     at = pack.start_at + dt.timedelta(seconds=step.t_offset_s)
                     entry = await self._apply_step(tenant, pack, index, step, at)
+                    merged = await merge_pass(self.pipeline, now=at, tenant=tenant, pack_id=pack.id)
+                    if merged:
+                        entry["result"]["merged"] = [{"source_event_id": a, "target_event_id": b} for a, b in merged]
                     run.last_step_index = index
                     run.log.append(entry)
                     applied_now.append(entry)

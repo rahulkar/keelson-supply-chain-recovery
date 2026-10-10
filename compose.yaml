@@ -440,6 +440,12 @@ services:
       SIGNALS_DATA_KEY: ${SIGNALS_DATA_KEY:-}
       SIGNALS_LLM_MAX_BUDGET: ${SIGNALS_LLM_MAX_BUDGET:-5}
       SIGNALS_LITELLM_WAIT_S: ${SIGNALS_LITELLM_WAIT_S:-180}
+      # M8 clustering (docs/contracts/123): pgvector (optional pin) + the opt-in remote embedding
+      # profile (litellm only; also adds the embed alias to the hub key's models).
+      SIGNALS_VECTOR_VERSION: ${SIGNALS_VECTOR_VERSION:-}
+      SIGNALS_EMBED_PROVIDER: ${SIGNALS_EMBED_PROVIDER:-local}
+      SIGNALS_EMBED_ALIAS: ${SIGNALS_EMBED_ALIAS:-embed-default}
+      SIGNALS_EMBED_DIMS: ${SIGNALS_EMBED_DIMS:-1536}
     depends_on:
       pg-core: { condition: service_healthy }
     networks: [app, ai]
@@ -468,6 +474,14 @@ services:
       USGS_URL: ${USGS_URL:-https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson}
       RSS_FEEDS: "${RSS_FEEDS:-rss.theloadstar=The Loadstar|https://theloadstar.com/feed/}"
       LOG_LEVEL: ${SIGNALS_LOG_LEVEL:-INFO}
+      # M8 clustering (docs/contracts/123): deterministic local term vectors by default; litellm =
+      # opt-in remote embeddings for the background merge pass (only the API embeds: the poller has
+      # no key). Thresholds are platform settings in the hub DB, not env.
+      SIGNALS_EMBED_PROVIDER: ${SIGNALS_EMBED_PROVIDER:-local}
+      SIGNALS_EMBED_ALIAS: ${SIGNALS_EMBED_ALIAS:-embed-default}
+      SIGNALS_EMBED_DIMS: ${SIGNALS_EMBED_DIMS:-1536}
+      SIGNALS_EMBED_INCLUDE_HEADLINE: ${SIGNALS_EMBED_INCLUDE_HEADLINE:-0}
+      SIGNALS_CLUSTER_MAINTENANCE_S: ${SIGNALS_CLUSTER_MAINTENANCE_S:-60}
     volumes:
       - ./data/scenarios:/app/scenarios:ro
     depends_on:

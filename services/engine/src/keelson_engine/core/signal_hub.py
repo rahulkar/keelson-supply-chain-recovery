@@ -4,7 +4,10 @@ Every call carries a short-lived **service JWT** (:func:`mint_hub_token`): HS256
 ``SIGNAL_HUB_SHARED_SECRET``, ``{iss: keelson-engine, aud: signal-hub, sub: keelson-engine, tenant,
 iat, exp, jti}``. The ``tenant`` claim scopes every tenant read/write on the hub; the engine only
 ever mints it for the tenant of the request it serves (session tenant, webhook path tenant,
-demo tenant, the tenant whose snapshot was synced).
+demo tenant, the tenant whose snapshot was synced). M8 (``docs/contracts/123``): ``platform=True``
+adds ``scope: "platform"`` — minted only after the engine's own platform-admin check, and honoured
+by the hub only on its platform clustering routes (``PUT /v1/clustering/config``,
+``POST /v1/clustering/run``).
 
 Traffic goes over the internal network (``internal_http``, no egress proxy): the hub is a
 first-party service with no public route. Ids that end up in URL paths are validated first
@@ -139,8 +142,9 @@ def is_hub_id(value: object) -> bool:
     return isinstance(value, str) and bool(_UUID_RE.fullmatch(value))
 
 
-def mint_hub_token(tenant: str, *, ttl_s: int | None = None, now: int | None = None) -> str:
-    """Service JWT for one tenant (see module docstring). Raises :class:`HubNotConfigured`."""
+def mint_hub_token(tenant: str, *, ttl_s: int | None = None, now: int | None = None, platform: bool = False) -> str:
+    """Service JWT for one tenant (see module docstring); ``platform`` adds ``scope: "platform"``
+    (callers check the platform-admin role first). Raises :class:`HubNotConfigured`."""
     st = get_settings()
     secret = st.signal_hub_shared_secret.get_secret_value()
     if not secret:
@@ -150,6 +154,8 @@ def mint_hub_token(tenant: str, *, ttl_s: int | None = None, now: int | None = N
     ttl = st.signal_hub_token_ttl_s if ttl_s is None else ttl_s
     claims = {"iss": HUB_ISSUER, "aud": HUB_AUDIENCE, "sub": HUB_ISSUER, "tenant": tenant, "iat": issued,
               "exp": issued + max(5, min(int(ttl), 600)), "jti": uuid.uuid4().hex}
+    if platform:
+        claims["scope"] = "platform"
     return jwt.encode(claims, secret, algorithm="HS256")
 
 
@@ -168,11 +174,11 @@ def _uuid_or_not_found(value: str, what: str) -> str:
 
 async def _request(method: str, path: str, *, tenant: str, json_body: Any = None,
                    params: dict[str, Any] | None = None, timeout: float | None = None,
-                   allow_empty: bool = False) -> Any:
+                   allow_empty: bool = False, platform: bool = False) -> Any:
     from keelson_engine.core.http import internal_http
 
     url = _base() + path
-    headers = {"Authorization": f"Bearer {mint_hub_token(tenant)}", "Accept": "application/json"}
+    headers = {"Authorization": f"Bearer {mint_hub_token(tenant, platform=platform)}", "Accept": "application/json"}
     t = get_settings().signal_hub_timeout_s if timeout is None else timeout
     try:
         resp = await internal_http().request(method, url, headers=headers, json=json_body, params=params,
@@ -205,12 +211,15 @@ _PATH_RE: Final = re.compile(r"/v1(/[a-z0-9][a-z0-9_.:-]*)+")
 
 
 async def request_json(method: str, path: str, *, tenant: str, json_body: Any = None,
-                       params: dict[str, Any] | None = None, allow_empty: bool = False) -> Any:
+                       params: dict[str, Any] | None = None, allow_empty: bool = False,
+                       platform: bool = False) -> Any:
     """A hub call for the engine's admin proxies (M7 Signals admin): ``path`` must be a plain
-    ``/v1/...`` path of lowercase segments (no ``..``, no query); the ``tenant`` claim scopes it."""
+    ``/v1/...`` path of lowercase segments (no ``..``, no query); the ``tenant`` claim scopes it.
+    ``platform`` mints the platform-scoped token (M8 clustering settings; platform admins only)."""
     if method not in ("GET", "PUT", "POST") or not _PATH_RE.fullmatch(path) or ".." in path:
         raise ValueError(f"invalid Signal Hub path {path[:80]!r}")
-    return await _request(method, path, tenant=tenant, json_body=json_body, params=params, allow_empty=allow_empty)
+    return await _request(method, path, tenant=tenant, json_body=json_body, params=params, allow_empty=allow_empty,
+                          platform=platform)
 
 
 def _items(body: Any) -> list[Any]:

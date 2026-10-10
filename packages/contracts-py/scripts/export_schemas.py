@@ -26,7 +26,9 @@ M5 adds the admin/API shapes ``policy.*`` (rules, rule set, context, decision, q
 alert detail/status update/rule, scenario pack, tenant network). M7 adds the back-office shapes
 ``admin.*`` (change requests, users), ``agents.*`` (custom specialist, playground), ``mapping.*``
 (tier-A read/action mappings, dry-run), ``scn.snapshot-label``, ``commit.ledger-entry`` and
-``connectors.capabilities``.
+``connectors.capabilities``. M8 signal clustering (``docs/contracts/123``) adds
+``signals.event-membership`` and the platform settings/status ``signals.clustering-*``
+(``signals.alert-detail`` gains the optional ``memberships``).
 """
 
 from __future__ import annotations
@@ -132,6 +134,14 @@ def schema_builders() -> dict[str, tuple[str, Callable[[], dict[str, Any]]]]:
     )
     for name, m7_model in m7_models:
         out[name] = (f"{m7_model.__module__}.{m7_model.__name__}", _model(m7_model))
+    m8_signals_models: tuple[tuple[str, type[BaseModel]], ...] = (
+        ("signals.event-membership", signals.EventMembership),
+        ("signals.clustering-config", signals.ClusteringConfig),
+        ("signals.clustering-config-update", signals.ClusteringConfigUpdate),
+        ("signals.clustering-status", signals.ClusteringStatus),
+    )
+    for name, m8_model in m8_signals_models:
+        out[name] = (f"{m8_model.__module__}.{m8_model.__name__}", _model(m8_model))
     for model in llm.LLM_OUTPUT_MODELS:
         out[f"llm.{_kebab(model.__name__)}"] = (
             f"keelson_contracts.llm.{model.__name__}",

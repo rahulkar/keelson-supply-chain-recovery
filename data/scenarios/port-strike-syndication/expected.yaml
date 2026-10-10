@@ -1,0 +1,55 @@
+# Expected replay outcome of port-strike-syndication for a value-fashion-eu tenant on the Merxa `full` seed
+# (reference network: ../network-value-fashion-eu.yaml). Checked exactly by data/scenarios/validate.py.
+# Members are signal keys (native ids without the tenant/pack prefix); the first one is the event lead.
+# `memberships` (clustering v2, docs/contracts/123): why each member joined; `sources`: the independent
+# sources that corroborate the event (a SimHash near-duplicate never adds one).
+# A news-only event: severity = p75 of the members' subtype priors (strike 5500); exposure radius 25 km.
+pack: port-strike-syndication
+network: network-value-fashion-eu.yaml
+checkpoints:
+  - after_step: 0
+    signals: 1
+    events:
+      - label: hamburg-strike
+        members: ["https://demo-freight-daily.example/?p=26311"]
+        memberships: {"https://demo-freight-daily.example/?p=26311": founded}
+        sources: 1
+        kind: labor
+        subtype: strike
+        severity_bp: 5500
+        radius_km: 25
+        alert: {action: alert, severity: medium}
+        exposures: &exp_hamburg
+          port: {DEHAM: intersects}
+          lane: {HAM-DE1-RD: lane_crosses, HAM-PL1-RD: lane_crosses, SGN-HAM-CAPE: lane_crosses, SGN-HAM-SEA: lane_crosses}
+  - after_step: 1   # the syndicated copy joins as a near-duplicate and does not corroborate
+    signals: 2
+    events:
+      - label: hamburg-strike
+        members: ["https://demo-freight-daily.example/?p=26311",
+                  "tag:simulated-shipping-wire.example,2026-10-06:hamburg-dock-strike"]
+        memberships:
+          "https://demo-freight-daily.example/?p=26311": founded
+          "tag:simulated-shipping-wire.example,2026-10-06:hamburg-dock-strike": near_duplicate
+        sources: 1
+        severity_bp: 5500
+        alert: {action: alert, severity: medium}
+        exposures: *exp_hamburg
+  - after_step: 2   # an unresolved terminal name joins by similar cluster terms; now 2 independent sources
+    signals: 3
+    events:
+      - label: hamburg-strike
+        members: ["https://demo-freight-daily.example/?p=26311",
+                  "tag:simulated-shipping-wire.example,2026-10-06:hamburg-dock-strike",
+                  "https://demo-port-bulletin.example/news/waltershof-joins-strike"]
+        memberships:
+          "https://demo-freight-daily.example/?p=26311": founded
+          "tag:simulated-shipping-wire.example,2026-10-06:hamburg-dock-strike": near_duplicate
+          "https://demo-port-bulletin.example/news/waltershof-joins-strike": attach_vector
+        sources: 2
+        kind: labor
+        subtype: strike
+        severity_bp: 5500
+        radius_km: 25
+        alert: {action: alert, severity: medium}
+        exposures: *exp_hamburg

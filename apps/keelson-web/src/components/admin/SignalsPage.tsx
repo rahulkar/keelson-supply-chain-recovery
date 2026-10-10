@@ -37,6 +37,7 @@ import { useSession } from "@/lib/client/session";
 import { hasAnyRole } from "@/lib/roles";
 import { DemoPacksPanel } from "../shell/DemoPacks";
 import { AdminPageHeader, AdminSection, InlineError, ResourceView } from "./common";
+import { SignalsClusteringSection } from "./SignalsClusteringSection";
 
 const KIND_LABELS: Record<string, string> = {
   natural_hazard: "Natural hazard",
@@ -565,6 +566,7 @@ export function SignalsPage() {
       <SourcesSection />
       <WatchRegionsSection />
       <AlertRulesSection />
+      <SignalsClusteringSection />
       {presenter ? (
         <AdminSection title="Demo scenarios" description="DEMO: replays recorded hazard, news and supplier updates through the real feeds. Everything they create is labelled DEMO.">
           <DemoPacksPanel active />

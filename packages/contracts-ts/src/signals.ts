@@ -4,6 +4,7 @@
  */
 import {
   signalsAlertSchema,
+  signalsEventMembershipSchema,
   signalsExposureSummarySchema,
   signalsSignalSchema,
   type SignalsExposureSummary,
@@ -32,3 +33,10 @@ export function exposedSites(summary: SignalsExposureSummary): number {
   const n = summary.nodes_by_type;
   return n.supplier + n.factory + n.port + n.dc + n.store;
 }
+
+/**
+ * Why a signal belongs to its event (M8, docs/contracts/123 §5): `anchor` | `same_hazard` | `founded` |
+ * `attach_geo` | `attach_ref` | `attach_vector` | `near_duplicate` | `absorbed` | `merged_vector`.
+ */
+export const MEMBERSHIP_METHODS = signalsEventMembershipSchema.shape.method.options;
+export type MembershipMethod = (typeof MEMBERSHIP_METHODS)[number];

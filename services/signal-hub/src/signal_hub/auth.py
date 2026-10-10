@@ -5,6 +5,11 @@ HS256 with ``SIGNAL_HUB_SHARED_SECRET``; required claims ``iss=keelson-engine``,
 Tokens must be short-lived: ``exp`` more than
 ``SIGNAL_HUB_MAX_TOKEN_TTL_S`` (900 s) in the future is rejected. The tenant claim scopes all tenant
 data (it becomes ``app.tenant_id`` for RLS); a path ``{tenant}`` must equal it (403 otherwise).
+
+M8 (``docs/contracts/123`` §7): a token the engine minted for a **platform admin** also carries
+``scope: "platform"`` (:attr:`ServicePrincipal.platform`). Only the platform clustering routes
+(``PUT /v1/clustering/config``, ``POST /v1/clustering/run``) honour it; everything else stays scoped
+by the tenant claim.
 """
 
 from __future__ import annotations
@@ -38,6 +43,11 @@ class ServicePrincipal:
     tenant: str
     subject: str | None
     claims: dict[str, Any]
+
+    @property
+    def platform(self) -> bool:
+        """The engine minted this token for a platform admin (``scope: "platform"``)."""
+        return self.claims.get("scope") == "platform"
 
 
 def verify_service_token(token: str, settings: Settings, *, now: float | None = None) -> ServicePrincipal:

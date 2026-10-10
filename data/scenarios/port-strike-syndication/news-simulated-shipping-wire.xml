@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SIMULATED demo data (Keelson pack port-strike-syndication). "Simulated Shipping Wire" is a fictional outlet
+     and the strike described here is invented for the demo; the .example domain is reserved and never resolves.
+     Shaped like an Atom 1.0 news feed. This entry is a syndicated copy of the Demo Freight Daily story (one
+     word of the headline changed): the Signal Hub's SimHash marks it a near-duplicate. -->
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+	<title>Simulated Shipping Wire</title>
+	<subtitle>Fictional news wire for Keelson demo packs. Simulated news, not real events.</subtitle>
+	<id>tag:simulated-shipping-wire.example,2026:feed</id>
+	<link rel="self" href="https://simulated-shipping-wire.example/atom.xml" />
+	<link rel="alternate" href="https://simulated-shipping-wire.example/" />
+	<updated>2026-10-06T10:00:00Z</updated>
+	<author><name>Simulated Shipping Wire</name></author>
+	<entry>
+		<title>Dockworkers strike stops container handling at the Port of Hamburg</title>
+		<link rel="alternate" type="text/html" href="https://simulated-shipping-wire.example/2026/10/06/hamburg-dock-strike" />
+		<id>tag:simulated-shipping-wire.example,2026-10-06:hamburg-dock-strike</id>
+		<published>2026-10-06T10:00:00Z</published>
+		<updated>2026-10-06T10:00:00Z</updated>
+		<summary type="html">&lt;p&gt;The dockworkers&amp;#8217; union says the walkout at all four container terminals will last at least 48 hours; vessels are waiting at anchor in the Elbe estuary.&lt;/p&gt;</summary>
+	</entry>
+</feed>

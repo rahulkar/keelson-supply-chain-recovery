@@ -22,7 +22,7 @@ import yaml
 
 HERE = Path(__file__).resolve().parent
 SCENARIOS = HERE.parent
-PACKS = ("typhoon-hcmc", "a-outerwear-trim-delay", "suez-closure")
+PACKS = ("typhoon-hcmc", "a-outerwear-trim-delay", "suez-closure", "port-strike-syndication")
 
 
 def _load(name: str, path: Path) -> Any:
@@ -488,6 +488,83 @@ def test_replayed_signals_are_simulated_and_labelled() -> None:
             assert d.source_name.endswith("(demo replay)")
             assert d.connector_id.startswith("demo.")
             assert d.source_url is None or ".example/" in d.source_url
+
+
+# ─────────────────────────────── clustering v2 (docs/contracts/123) ───────────────────────────
+
+
+@replay_only
+def test_syndication_pack_replays_near_duplicate_and_vector_attach() -> None:
+    data = yaml.safe_load((SCENARIOS / "port-strike-syndication" / "pack.yaml").read_text(encoding="utf-8"))
+    final = V.simulate(SCENARIOS / "port-strike-syndication", data, MODS["hub"], MODS, V.Report())[-1]
+    copy = final["tag:simulated-shipping-wire.example,2026-10-06:hamburg-dock-strike"]
+    assert copy.near_dup_of == "https://demo-freight-daily.example/?p=26311" and 0 < (copy.near_dup_bits or 0) <= 6
+    waltershof = final["https://demo-port-bulletin.example/news/waltershof-joins-strike"]
+    assert waltershof.draft.location_refs == [] and waltershof.draft.geometry is None and waltershof.near_dup_of is None
+
+
+@replay_only
+def test_membership_and_source_drift_is_reported(tree: Path) -> None:
+    def mutate(d: dict[str, Any]) -> None:
+        last = d["checkpoints"][2]["events"][0]
+        last["memberships"]["tag:simulated-shipping-wire.example,2026-10-06:hamburg-dock-strike"] = "attach_ref"
+        last["sources"] = 3  # the syndicated copy must not count
+
+    edit_yaml(tree / "port-strike-syndication" / "expected.yaml", mutate)
+    rep = run("port-strike-syndication")
+    assert has(rep, "memberships: expected") and has(rep, "sources: expected 3 independent source(s), replay gives 2")
+
+
+@replay_only
+def test_same_source_repost_is_dropped_by_the_replay(tree: Path) -> None:
+    """An identical re-post by the same outlet under a new id is a 'duplicate': never a signal."""
+    def mutate(d: dict[str, Any]) -> None:
+        d["steps"][1]["payload"]["connector_id"] = "rss.demo-freight-daily"
+
+    edit_yaml(tree / "port-strike-syndication" / "pack.yaml", mutate)
+    atom = tree / "port-strike-syndication" / "news-simulated-shipping-wire.xml"
+    atom.write_text(atom.read_text(encoding="utf-8").replace("strike stops container", "strike halts container"),
+                    encoding="utf-8")
+    data = yaml.safe_load((tree / "port-strike-syndication" / "pack.yaml").read_text(encoding="utf-8"))
+    final = V.simulate(tree / "port-strike-syndication", data, MODS["hub"], MODS, V.Report())[-1]
+    assert "tag:simulated-shipping-wire.example,2026-10-06:hamburg-dock-strike" not in final
+    assert has(run("port-strike-syndication"), "expected 3 current signals, the replay has 2")
+
+
+@replay_only
+def test_copy_naming_another_place_is_not_joined_as_a_near_duplicate(tree: Path) -> None:
+    """Parity with Pipeline._decide: a SimHash copy that names a place its original does not (here a
+    fictional port the gazetteer does not know) is another story: it does not join as a near-duplicate."""
+    tag = "tag:simulated-shipping-wire.example,2026-10-06:hamburg-dock-strike"
+
+    def mutate(d: dict[str, Any]) -> None:
+        d["steps"][1]["payload"]["extractions"][tag]["ports"] = ["Port of Quellhafen"]
+
+    edit_yaml(tree / "port-strike-syndication" / "pack.yaml", mutate)
+    atom = tree / "port-strike-syndication" / "news-simulated-shipping-wire.xml"
+    text = atom.read_text(encoding="utf-8").replace("strike stops", "strike halts")  # only the port differs
+    atom.write_text(text.replace("Port of Hamburg", "Port of Quellhafen"), encoding="utf-8")
+    data = yaml.safe_load((tree / "port-strike-syndication" / "pack.yaml").read_text(encoding="utf-8"))
+    final = V.simulate(tree / "port-strike-syndication", data, MODS["hub"], MODS, V.Report())[-1]
+    assert final[tag].near_dup_of == "https://demo-freight-daily.example/?p=26311"  # still a SimHash copy …
+    rep = run("port-strike-syndication")
+    assert has(rep, f"member {tag!r} would not attach (hub decision: founded)")  # … but not joined
+
+
+@replay_only
+def test_separate_events_that_would_merge_are_reported(tree: Path) -> None:
+    def mutate(d: dict[str, Any]) -> None:
+        last = d["checkpoints"][2]
+        main = last["events"][0]
+        key = "https://demo-port-bulletin.example/news/waltershof-joins-strike"
+        main["members"].remove(key)
+        del main["memberships"][key]
+        main["sources"] = 1
+        last["events"].append({"label": "waltershof", "members": [key], "memberships": {key: "founded"}})
+
+    edit_yaml(tree / "port-strike-syndication" / "expected.yaml", mutate)
+    rep = run("port-strike-syndication")
+    assert has(rep, "would merge (similar cluster terms)")
 
 
 # ─────────────────────────────── geometry helpers ───────────────────────────

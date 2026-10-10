@@ -1,5 +1,6 @@
 # Cloud Run job: signal-hub-bootstrap (compose: signal-hub-bootstrap, one-shot). Role + database
-# `signals` + PostGIS (pinned PIN_POSTGIS) with the Cloud SQL admin user, then the migrations as role
+# `signals` + PostGIS (pinned PIN_POSTGIS) + pgvector (pinned PIN_VECTOR; optional, M8 remote
+# embeddings) with the Cloud SQL admin user, then the migrations as role
 # `signals`. Executed by infra/cloudrun/signal-hub.sh after keelson-db-init, before signal-hub-api.
 # Runs as keelson-jobs: only this job can read the admin DSN (the API's account cannot).
 apiVersion: run.googleapis.com/v1
@@ -36,6 +37,8 @@ spec:
               env:
                 - name: SIGNALS_POSTGIS_VERSION
                   value: "${PIN_POSTGIS}"
+                - name: SIGNALS_VECTOR_VERSION
+                  value: "${PIN_VECTOR}"
                 - name: SIGNALS_ADMIN_DSN
                   valueFrom:
                     secretKeyRef:

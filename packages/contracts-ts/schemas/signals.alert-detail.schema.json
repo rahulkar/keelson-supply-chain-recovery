@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "``GET /v1/alerts/{id}``: the alert with its event, member signals (attribution) and exposures.",
+  "description": "``GET /v1/alerts/{id}``: the alert with its event, member signals (attribution) and exposures.\n\n``memberships`` (M8, optional): why each member signal belongs to the event. Defaults to ``[]``\nand is omitted from dumps while empty, so M6/M7 payloads are unchanged.",
   "properties": {
     "alert": {
       "additionalProperties": false,
@@ -975,6 +975,181 @@
         "type": "object"
       },
       "title": "Exposures",
+      "type": "array"
+    },
+    "memberships": {
+      "items": {
+        "additionalProperties": false,
+        "description": "Why one signal belongs to its event (``123`` §5): the method, its evidence and a\ndeterministic server-built ``explanation`` that never contains untrusted text (it is built from\nthe method, integers, place codes and the gazetteer's curated names only).\n\nEvidence per method: ``attach_ref`` names ``shared_refs``; ``attach_geo`` and ``same_hazard``\ncarry ``distance_km``; ``attach_vector`` / ``merged_vector`` carry ``similarity_bp`` +\n``similarity_profile``; ``near_duplicate`` carries ``hamming_bits`` (of 64 SimHash bits) and the\nreport it copies (``duplicate_of_signal_id``); ``absorbed`` / ``merged_vector`` name the event\nthe signal came from (``from_event_id``) and its original method (``prior_method``);\n``anchor`` / ``founded`` carry no evidence.",
+        "properties": {
+          "config_version": {
+            "minimum": 1,
+            "title": "Config Version",
+            "type": "integer"
+          },
+          "decided_at": {
+            "format": "date-time",
+            "title": "Decided At",
+            "type": "string"
+          },
+          "distance_km": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance Km"
+          },
+          "duplicate_of_signal_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duplicate Of Signal Id"
+          },
+          "event_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Event Id",
+            "type": "string"
+          },
+          "explanation": {
+            "maxLength": 400,
+            "minLength": 1,
+            "title": "Explanation",
+            "type": "string"
+          },
+          "from_event_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Event Id"
+          },
+          "hamming_bits": {
+            "anyOf": [
+              {
+                "maximum": 64,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hamming Bits"
+          },
+          "method": {
+            "enum": [
+              "anchor",
+              "same_hazard",
+              "founded",
+              "attach_geo",
+              "attach_ref",
+              "attach_vector",
+              "near_duplicate",
+              "absorbed",
+              "merged_vector"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "prior_method": {
+            "anyOf": [
+              {
+                "enum": [
+                  "anchor",
+                  "same_hazard",
+                  "founded",
+                  "attach_geo",
+                  "attach_ref",
+                  "attach_vector",
+                  "near_duplicate",
+                  "absorbed",
+                  "merged_vector"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prior Method"
+          },
+          "shared_refs": {
+            "items": {
+              "pattern": "^(UNLOCODE|ISO3166|CHOKEPOINT|REGION|SUPPLIER|FACTORY|DC|STORE|LANE):[A-Za-z0-9._>-]{1,64}$",
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Shared Refs",
+            "type": "array"
+          },
+          "signal_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Signal Id",
+            "type": "string"
+          },
+          "similarity_bp": {
+            "anyOf": [
+              {
+                "maximum": 10000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Similarity Bp"
+          },
+          "similarity_profile": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z0-9][a-z0-9.@_-]{0,63}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Similarity Profile"
+          }
+        },
+        "required": [
+          "signal_id",
+          "event_id",
+          "method",
+          "prior_method",
+          "from_event_id",
+          "distance_km",
+          "shared_refs",
+          "similarity_bp",
+          "similarity_profile",
+          "hamming_bits",
+          "duplicate_of_signal_id",
+          "config_version",
+          "explanation",
+          "decided_at"
+        ],
+        "title": "EventMembership",
+        "type": "object"
+      },
+      "maxItems": 1000,
+      "title": "Memberships",
       "type": "array"
     },
     "signals": {

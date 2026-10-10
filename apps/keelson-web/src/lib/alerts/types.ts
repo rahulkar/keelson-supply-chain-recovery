@@ -11,9 +11,11 @@ import {
   networkMapPropsSchema,
   signalsAlertDetailSchema,
   signalsAlertSchema,
+  signalsEventMembershipSchema,
   signalsSignalSchema,
   type SignalsAlert,
   type SignalsAlertDetail,
+  type SignalsEventMembership,
   type SignalsSignal,
 } from "@keelson/contracts";
 import { z } from "zod";
@@ -24,6 +26,8 @@ export type AlertDetail = SignalsAlertDetail;
 export type AlertSignal = AlertDetail["signals"][number];
 export type AlertExposure = AlertDetail["exposures"][number];
 export type AlertEvent = AlertDetail["event"];
+/** Why a member signal belongs to the event (M8 clustering, `docs/contracts/123` §5). */
+export type AlertMembership = SignalsEventMembership;
 
 /** One alert, tolerant of additive fields; keeps an optional `kind` (event kind) when the engine sends it. */
 export const alertSchema = signalsAlertSchema.extend({ kind: signalsSignalSchema.shape.kind.optional().catch(undefined) }).strip();
@@ -68,13 +72,19 @@ const detailBase = z.object({
   event: signalsAlertDetailSchema.shape.event.strip(),
   signals: z.array(z.unknown()),
   exposures: z.array(z.unknown()),
+  memberships: z.array(z.unknown()).optional(),
   map: z.unknown().optional(),
 }).loose();
 
 const signalItemSchema = signalsAlertDetailSchema.shape.signals.element.strip();
 const exposureItemSchema = signalsAlertDetailSchema.shape.exposures.element.strip();
+const membershipItemSchema = signalsEventMembershipSchema.strip();
 
-/** `GET /api/alerts/{id}`: the contract `AlertDetail` (+ optional `map`); bad sub-items are skipped. */
+/**
+ * `GET /api/alerts/{id}`: the contract `AlertDetail` (+ optional `map`); bad sub-items are skipped.
+ * `memberships` (M8, optional: an older hub sends none) keeps only valid entries of this event whose
+ * signal is in `signals`.
+ */
 export const alertDetailResponseSchema = detailBase.transform((v) => {
   const signals = v.signals.flatMap((s) => {
     const p = signalItemSchema.safeParse(s);
@@ -85,11 +95,17 @@ export const alertDetailResponseSchema = detailBase.transform((v) => {
     return p.success ? [p.data] : [];
   });
   const map = alertMapSchema.safeParse(v.map);
+  const signalIds = new Set(signals.map((s) => s.id));
+  const memberships = (v.memberships ?? []).flatMap((m) => {
+    const p = membershipItemSchema.safeParse(m);
+    return p.success && p.data.event_id === v.event.id && signalIds.has(p.data.signal_id) ? [p.data] : [];
+  });
   return {
     alert: v.alert,
     event: v.event,
     signals,
     exposures,
+    memberships,
     map: map.success ? map.data : null,
   } satisfies AlertDetail & { map: AlertMap | null };
 });

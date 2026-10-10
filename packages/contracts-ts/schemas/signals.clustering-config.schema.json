@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Platform-wide clustering settings (one versioned row on the hub; global feeds cluster once\nfor every tenant, so no tenant can change them). Immutable: the default is module state.",
+  "properties": {
+    "simhash": {
+      "additionalProperties": false,
+      "description": "Near-duplicate detection of news items (64-bit SimHash over headline + snippet).\n\n``max_hamming_bits`` <= 7 keeps the 8 x 8-bit band index exact (any pair within 7 bits shares\na band); ``reuse_extraction`` lets a cross-source copy that names every entity of its original\nreuse the original's extraction (no LLM call) after its own pattern screen.",
+      "properties": {
+        "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "max_hamming_bits": {
+          "maximum": 7,
+          "minimum": 0,
+          "title": "Max Hamming Bits",
+          "type": "integer"
+        },
+        "reuse_extraction": {
+          "title": "Reuse Extraction",
+          "type": "boolean"
+        },
+        "window_hours": {
+          "maximum": 168,
+          "minimum": 1,
+          "title": "Window Hours",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "enabled",
+        "max_hamming_bits",
+        "window_hours",
+        "reuse_extraction"
+      ],
+      "title": "SimHashSettings",
+      "type": "object"
+    },
+    "updated_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Updated At"
+    },
+    "updated_by": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Updated By"
+    },
+    "vector": {
+      "additionalProperties": false,
+      "description": "Vector attach / merge (clustering v2). ``local`` thresholds apply to the deterministic term\nvectors (ingest and replay), ``remote`` to an opt-in embedding profile (background merges).",
+      "properties": {
+        "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "local": {
+          "additionalProperties": false,
+          "description": "Similarity thresholds of one profile (basis points of cosine similarity):\n``attach_bp`` joins a signal to an event v1 could not place; ``merge_bp`` merges two candidate\nevents; ``strict_bp`` applies when there is no geometry on one side and no shared country.",
+          "properties": {
+            "attach_bp": {
+              "maximum": 10000,
+              "minimum": 0,
+              "title": "Attach Bp",
+              "type": "integer"
+            },
+            "merge_bp": {
+              "maximum": 10000,
+              "minimum": 0,
+              "title": "Merge Bp",
+              "type": "integer"
+            },
+            "strict_bp": {
+              "maximum": 10000,
+              "minimum": 0,
+              "title": "Strict Bp",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "attach_bp",
+            "merge_bp",
+            "strict_bp"
+          ],
+          "title": "VectorThresholds",
+          "type": "object"
+        },
+        "max_distance_km": {
+          "maximum": 3000,
+          "minimum": 50,
+          "title": "Max Distance Km",
+          "type": "integer"
+        },
+        "remote": {
+          "additionalProperties": false,
+          "description": "Similarity thresholds of one profile (basis points of cosine similarity):\n``attach_bp`` joins a signal to an event v1 could not place; ``merge_bp`` merges two candidate\nevents; ``strict_bp`` applies when there is no geometry on one side and no shared country.",
+          "properties": {
+            "attach_bp": {
+              "maximum": 10000,
+              "minimum": 0,
+              "title": "Attach Bp",
+              "type": "integer"
+            },
+            "merge_bp": {
+              "maximum": 10000,
+              "minimum": 0,
+              "title": "Merge Bp",
+              "type": "integer"
+            },
+            "strict_bp": {
+              "maximum": 10000,
+              "minimum": 0,
+              "title": "Strict Bp",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "attach_bp",
+            "merge_bp",
+            "strict_bp"
+          ],
+          "title": "VectorThresholds",
+          "type": "object"
+        },
+        "window_hours": {
+          "maximum": 168,
+          "minimum": 1,
+          "title": "Window Hours",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "enabled",
+        "window_hours",
+        "max_distance_km",
+        "local",
+        "remote"
+      ],
+      "title": "VectorSettings",
+      "type": "object"
+    },
+    "version": {
+      "minimum": 1,
+      "title": "Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "version",
+    "simhash",
+    "vector",
+    "updated_at",
+    "updated_by"
+  ],
+  "title": "ClusteringConfig",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.signals.ClusteringConfig"
+}

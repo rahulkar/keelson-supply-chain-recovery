@@ -66,10 +66,18 @@ __all__ = [
     "AlertStatus",
     "AlertStatusUpdate",
     "BasisPoints10k",
+    "ClusteringBackend",
+    "ClusteringConfig",
+    "ClusteringConfigUpdate",
+    "ClusteringCounts",
+    "ClusteringStatus",
     "CONNECTOR_ID_PATTERN",
     "DEFAULT_ALERT_RULES",
+    "DEFAULT_CLUSTERING_CONFIG",
     "DisruptionEvent",
     "DisruptionSignal",
+    "EmbeddingProfileStatus",
+    "EventMembership",
     "EVENT_STATUSES",
     "EventStatus",
     "EventWindow",
@@ -80,12 +88,18 @@ __all__ = [
     "GEOMETRY_TYPES",
     "Geometry",
     "GeometryCollection",
+    "LOCAL_SIMILARITY_PROFILE",
     "LOCATION_REF_PATTERN",
     "LOCATION_REF_SCHEMES",
     "LineString",
+    "MAX_ATTACH_BP",
     "MAX_GEOMETRY_POSITIONS",
+    "MAX_MEMBERSHIP_EXPLANATION",
     "MAX_PACK_STEPS",
     "MAX_RAW_TEXT_CHARS",
+    "MembershipMethod",
+    "MEMBERSHIP_METHODS",
+    "MIN_ATTACH_BP",
     "MultiLineString",
     "MultiPoint",
     "MultiPolygon",
@@ -100,10 +114,14 @@ __all__ = [
     "Point",
     "Polygon",
     "Position",
+    "RemoteEmbeddingProfile",
+    "RemoteProfileReason",
     "SIGNALS_NAMESPACE",
     "SIGNAL_KINDS",
     "SIGNAL_ORIGINS",
     "SIGNAL_PROVENANCES",
+    "SimHashSettings",
+    "SIMILARITY_PROFILE_PATTERN",
     "SOURCE_URL_PATTERN",
     "SUBTYPE_PATTERN",
     "SUBTYPE_TAXONOMY",
@@ -117,6 +135,8 @@ __all__ = [
     "TenantNetwork",
     "UUID_PATTERN",
     "Uuid",
+    "VectorSettings",
+    "VectorThresholds",
     "alert_severity_for",
     "combine_confidence_bp",
     "decide_alert_action",
@@ -700,13 +720,121 @@ class AlertStatusUpdate(ContractModel):
         return self
 
 
+# ─────────────────────── event membership (M8, ``123`` §5) ───────────────────────
+
+MembershipMethod = Literal[
+    "anchor",
+    "same_hazard",
+    "founded",
+    "attach_geo",
+    "attach_ref",
+    "attach_vector",
+    "near_duplicate",
+    "absorbed",
+    "merged_vector",
+]
+"""Why a signal is a member of its event (clustering v2, ``docs/contracts/123``):
+
+* ``anchor`` — an authoritative feed signal (GDACS, USGS) that founded the event;
+* ``same_hazard`` — a second authoritative feed reporting the same hazard (v1 rule);
+* ``founded`` — the first report of a news-only / connector event (nothing to join);
+* ``attach_ref`` / ``attach_geo`` — the v1 attach rule by shared place code / by distance;
+* ``attach_vector`` — similar cluster terms (local term vectors) where v1 found nothing;
+* ``near_duplicate`` — a syndicated copy (SimHash) of a report already in the event;
+* ``absorbed`` — moved when an official report founded an event it attaches to (v1);
+* ``merged_vector`` — moved by the background merge pass from a similar candidate event."""
+MEMBERSHIP_METHODS: Final[tuple[str, ...]] = get_args(MembershipMethod)
+_MOVED_METHODS: Final = frozenset({"absorbed", "merged_vector"})
+_NO_EVIDENCE_METHODS: Final = frozenset({"anchor", "founded"})
+
+SIMILARITY_PROFILE_PATTERN: Final = r"^[a-z0-9][a-z0-9.@_-]{0,63}$"
+"""A similarity profile id: ``local-terms-v1`` (the deterministic term vectors) or a remote
+embedding profile ``<alias>@<dims>`` (e.g. ``embed-default@1536``)."""
+SimilarityProfile = Annotated[str, Field(pattern=SIMILARITY_PROFILE_PATTERN)]
+MAX_MEMBERSHIP_EXPLANATION: Final = 400
+HammingBits = Annotated[StrictInt, Field(ge=0, le=64)]
+
+
+class EventMembership(ContractModel):
+    """Why one signal belongs to its event (``123`` §5): the method, its evidence and a
+    deterministic server-built ``explanation`` that never contains untrusted text (it is built from
+    the method, integers, place codes and the gazetteer's curated names only).
+
+    Evidence per method: ``attach_ref`` names ``shared_refs``; ``attach_geo`` and ``same_hazard``
+    carry ``distance_km``; ``attach_vector`` / ``merged_vector`` carry ``similarity_bp`` +
+    ``similarity_profile``; ``near_duplicate`` carries ``hamming_bits`` (of 64 SimHash bits) and the
+    report it copies (``duplicate_of_signal_id``); ``absorbed`` / ``merged_vector`` name the event
+    the signal came from (``from_event_id``) and its original method (``prior_method``);
+    ``anchor`` / ``founded`` carry no evidence."""
+
+    signal_id: Uuid
+    event_id: Uuid
+    method: MembershipMethod
+    prior_method: MembershipMethod | None
+    from_event_id: Uuid | None
+    distance_km: NonNegInt | None
+    shared_refs: Annotated[list[LocationRef], Field(max_length=50)]
+    similarity_bp: BasisPoints10k | None
+    similarity_profile: SimilarityProfile | None
+    hamming_bits: HammingBits | None
+    duplicate_of_signal_id: Uuid | None
+    config_version: PositiveInt
+    """``ClusteringConfig.version`` in force when the decision was made."""
+    explanation: Annotated[str, Field(min_length=1, max_length=MAX_MEMBERSHIP_EXPLANATION)]
+    decided_at: AwareDatetime
+
+    @model_validator(mode="after")
+    def _evidence(self) -> EventMembership:
+        m = self.method
+        if len(set(self.shared_refs)) != len(self.shared_refs):
+            raise ValueError("shared_refs must be unique")
+        if m in _NO_EVIDENCE_METHODS and (
+            self.distance_km is not None or self.shared_refs or self.similarity_bp is not None
+            or self.similarity_profile is not None or self.hamming_bits is not None
+            or self.duplicate_of_signal_id is not None
+        ):
+            raise ValueError(f"{m} memberships carry no evidence")
+        if m in ("attach_vector", "merged_vector") and (self.similarity_bp is None or self.similarity_profile is None):
+            raise ValueError(f"{m} memberships carry similarity_bp and similarity_profile")
+        if (self.similarity_bp is None) != (self.similarity_profile is None):
+            raise ValueError("similarity_bp and similarity_profile go together")
+        if m == "near_duplicate" and (self.hamming_bits is None or self.duplicate_of_signal_id is None):
+            raise ValueError("near_duplicate memberships carry hamming_bits and duplicate_of_signal_id")
+        if self.duplicate_of_signal_id is not None and self.duplicate_of_signal_id == self.signal_id:
+            raise ValueError("a signal is never a near-duplicate of itself")
+        if m == "attach_ref" and not self.shared_refs:
+            raise ValueError("attach_ref memberships name the shared_refs")
+        if m in ("attach_geo", "same_hazard") and self.distance_km is None:
+            raise ValueError(f"{m} memberships carry distance_km")
+        if m in _MOVED_METHODS:
+            if self.from_event_id is None or self.prior_method is None:
+                raise ValueError(f"{m} memberships name from_event_id and prior_method")
+            if self.from_event_id == self.event_id:
+                raise ValueError("from_event_id must differ from event_id")
+        elif self.from_event_id is not None or self.prior_method is not None:
+            raise ValueError("only absorbed / merged_vector memberships carry from_event_id / prior_method")
+        if self.prior_method in _MOVED_METHODS:
+            raise ValueError("prior_method is the original grouping method (never absorbed / merged_vector)")
+        return self
+
+
+def _is_empty(value: Any) -> bool:
+    return not value
+
+
 class AlertDetail(ContractModel):
-    """``GET /v1/alerts/{id}``: the alert with its event, member signals (attribution) and exposures."""
+    """``GET /v1/alerts/{id}``: the alert with its event, member signals (attribution) and exposures.
+
+    ``memberships`` (M8, optional): why each member signal belongs to the event. Defaults to ``[]``
+    and is omitted from dumps while empty, so M6/M7 payloads are unchanged."""
 
     alert: Alert
     event: DisruptionEvent
     signals: list[DisruptionSignal]
     exposures: list[Exposure]
+    memberships: Annotated[list[EventMembership], Field(max_length=1000)] = Field(
+        default_factory=list, exclude_if=_is_empty
+    )
 
     @model_validator(mode="after")
     def _consistent(self) -> AlertDetail:
@@ -717,6 +845,10 @@ class AlertDetail(ContractModel):
             raise ValueError("signals must be members of the event")
         if any(e.event_id != self.event.id or e.tenant != self.alert.tenant for e in self.exposures):
             raise ValueError("exposures must belong to the alert's event and tenant")
+        if any(m.event_id != self.event.id or m.signal_id not in members for m in self.memberships):
+            raise ValueError("memberships must belong to the event and name one of its member signals")
+        if len({m.signal_id for m in self.memberships}) != len(self.memberships):
+            raise ValueError("one membership per signal")
         return self
 
 
@@ -895,3 +1027,153 @@ class ScenarioPack(ContractModel):
     def step_ids(self) -> list[str]:
         """Deterministic id per step (:func:`pack_step_id`)."""
         return [pack_step_id(self.id, i) for i in range(len(self.steps))]
+
+
+# ──────────────────── clustering v2 settings + status (M8, ``123`` §7) ────────────────────
+
+LOCAL_SIMILARITY_PROFILE: Final = "local-terms-v1"
+"""The deterministic local similarity profile (weighted cluster-term vectors, integer cosine)."""
+MIN_ATTACH_BP: Final = 5000
+MAX_ATTACH_BP: Final = 9900
+
+
+class SimHashSettings(ContractModel):
+    """Near-duplicate detection of news items (64-bit SimHash over headline + snippet).
+
+    ``max_hamming_bits`` <= 7 keeps the 8 x 8-bit band index exact (any pair within 7 bits shares
+    a band); ``reuse_extraction`` lets a cross-source copy that names every entity of its original
+    reuse the original's extraction (no LLM call) after its own pattern screen."""
+
+    model_config = ConfigDict(frozen=True)
+
+    enabled: StrictBool
+    max_hamming_bits: Annotated[StrictInt, Field(ge=0, le=7)]
+    window_hours: Annotated[StrictInt, Field(ge=1, le=168)]
+    reuse_extraction: StrictBool
+
+
+class VectorThresholds(ContractModel):
+    """Similarity thresholds of one profile (basis points of cosine similarity):
+    ``attach_bp`` joins a signal to an event v1 could not place; ``merge_bp`` merges two candidate
+    events; ``strict_bp`` applies when there is no geometry on one side and no shared country."""
+
+    model_config = ConfigDict(frozen=True)
+
+    attach_bp: BasisPoints10k
+    merge_bp: BasisPoints10k
+    strict_bp: BasisPoints10k
+
+    @model_validator(mode="after")
+    def _ordered(self) -> VectorThresholds:
+        if not MIN_ATTACH_BP <= self.attach_bp <= MAX_ATTACH_BP:
+            raise ValueError(f"attach_bp must be between {MIN_ATTACH_BP} and {MAX_ATTACH_BP}")
+        if self.merge_bp < self.attach_bp:
+            raise ValueError("merge_bp must be >= attach_bp")
+        if self.strict_bp < self.attach_bp:
+            raise ValueError("strict_bp must be >= attach_bp")
+        return self
+
+
+class VectorSettings(ContractModel):
+    """Vector attach / merge (clustering v2). ``local`` thresholds apply to the deterministic term
+    vectors (ingest and replay), ``remote`` to an opt-in embedding profile (background merges)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    enabled: StrictBool
+    window_hours: Annotated[StrictInt, Field(ge=1, le=168)]
+    max_distance_km: Annotated[StrictInt, Field(ge=50, le=3000)]
+    local: VectorThresholds
+    remote: VectorThresholds
+
+
+class ClusteringConfig(ContractModel):
+    """Platform-wide clustering settings (one versioned row on the hub; global feeds cluster once
+    for every tenant, so no tenant can change them). Immutable: the default is module state."""
+
+    model_config = ConfigDict(frozen=True)
+
+    version: PositiveInt
+    simhash: SimHashSettings
+    vector: VectorSettings
+    updated_at: AwareDatetime | None
+    updated_by: Annotated[str, Field(min_length=1, max_length=200)] | None
+
+
+DEFAULT_CLUSTERING_CONFIG: Final = ClusteringConfig(
+    version=1,
+    simhash=SimHashSettings(enabled=True, max_hamming_bits=6, window_hours=72, reuse_extraction=True),
+    vector=VectorSettings(
+        enabled=True,
+        window_hours=72,
+        max_distance_km=1000,
+        local=VectorThresholds(attach_bp=7000, merge_bp=7500, strict_bp=7500),
+        remote=VectorThresholds(attach_bp=8500, merge_bp=9000, strict_bp=9300),
+    ),
+    updated_at=None,
+    updated_by=None,
+)
+"""Calibrated against ``services/signal-hub/tests/fixtures/m8_cluster_pairs.yaml`` (every labelled
+pair is classified correctly with >= 300 bp margin; ``123`` §4)."""
+
+
+class ClusteringConfigUpdate(ContractModel):
+    """``PUT /v1/clustering/config`` (platform scope): the whole settings, optimistic on
+    ``base_version`` (a stale base answers 409)."""
+
+    base_version: PositiveInt
+    simhash: SimHashSettings
+    vector: VectorSettings
+    updated_by: Annotated[str, Field(min_length=1, max_length=200)] | None = None
+
+
+EmbeddingProfileStatus = Literal["active", "backfilling"]
+RemoteProfileReason = Literal["provider_local", "pgvector_missing", "profile_missing", "key_missing"]
+
+
+class RemoteEmbeddingProfile(ContractModel):
+    """The active remote embedding profile (opt-in ``SIGNALS_EMBED_PROVIDER=litellm``)."""
+
+    alias: Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9-]{0,62}$")]
+    dims: Annotated[StrictInt, Field(ge=1, le=4000)]
+    storage: Annotated[str, Field(pattern=r"^(vector|halfvec)\([1-9][0-9]{0,3}\)$")]
+    status: EmbeddingProfileStatus
+    pending: NonNegInt
+
+
+class ClusteringBackend(ContractModel):
+    """Which similarity backends are available: the local term vectors always; a remote profile
+    only with pgvector, the litellm provider and a provisioned profile (else ``remote_reason``)."""
+
+    pgvector: StrictBool
+    local_profile: Literal["local-terms-v1"]
+    remote: RemoteEmbeddingProfile | None
+    remote_reason: RemoteProfileReason | None
+
+
+class ClusteringCounts(ContractModel):
+    """Counts over the status window (global rows + the caller tenant's own rows)."""
+
+    simhash_near_duplicates: NonNegInt
+    same_source_duplicates: NonNegInt
+    extractions_reused: NonNegInt
+    anchor: NonNegInt
+    same_hazard: NonNegInt
+    founded: NonNegInt
+    attach_geo: NonNegInt
+    attach_ref: NonNegInt
+    attach_vector: NonNegInt
+    near_duplicate: NonNegInt
+    absorbed: NonNegInt
+    merged_vector: NonNegInt
+    embeddings_pending: NonNegInt
+    embeddings_failed: NonNegInt
+
+
+class ClusteringStatus(ContractModel):
+    """``GET /v1/clustering``: settings, backends and the window's counts."""
+
+    config: ClusteringConfig
+    vector_backend: ClusteringBackend
+    window_days: PositiveInt
+    counts: ClusteringCounts

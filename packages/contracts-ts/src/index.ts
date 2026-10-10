@@ -65,6 +65,18 @@ export {
 } from "./generated";
 export * from "./signals";
 
+// M8 (docs/contracts/123): signal clustering — why reports are grouped, platform clustering settings.
+export {
+  signalsClusteringConfigSchema,
+  signalsClusteringConfigUpdateSchema,
+  signalsClusteringStatusSchema,
+  signalsEventMembershipSchema,
+  type SignalsClusteringConfig,
+  type SignalsClusteringConfigUpdate,
+  type SignalsClusteringStatus,
+  type SignalsEventMembership,
+} from "./generated";
+
 // M7 (docs/contracts/110): back-office — four-eyes change requests, users, custom specialists +
 // playground, tier-A read/action mappings + dry-run, per-op commit ledger, connector capabilities.
 export {

@@ -1,6 +1,7 @@
 """Signal Hub API (``signal-hub-api``, port 8300, internal only): REST ``/v1``, MCP ``/mcp``,
 demo fixture route ``/demo-feeds`` (DEMO_MODE), health. Background loops in the API process:
-pending-extraction retries (it is the process on the ``ai`` network), demo auto-advance, expiry sweep.
+pending-extraction retries (it is the process on the ``ai`` network), demo auto-advance, expiry sweep,
+cluster maintenance (M8: merge pass + opt-in embedding jobs, ``signal_hub.clustering_api``).
 """
 
 from __future__ import annotations
@@ -37,6 +38,7 @@ from keelson_contracts.signals import (
 from signal_hub import admin, queries
 from signal_hub.adapters.connector import SUPPORTED_TYPES, ConnectorEvent, parse_connector_event
 from signal_hub.auth import Principal, check_tenant
+from signal_hub.clustering_api import build_clustering_router, run_maintenance
 from signal_hub.config import Settings, load_settings
 from signal_hub.db import create_pool, tx
 from signal_hub.gazetteer import Gazetteer, load_gazetteer
@@ -49,6 +51,7 @@ from signal_hub.pipeline import Pipeline
 from signal_hub.quarantine import LiteLlmClient, LlmClient
 from signal_hub.replay import FIXTURE_TYPES, PackError, Replay, fixture_path, list_packs
 from signal_hub.timeutil import utc_now
+from signal_hub.vectors import Embedder, LiteLlmEmbedder
 
 __all__ = ["HubState", "build_state", "create_app", "refresh_llm_key", "run"]
 
@@ -74,6 +77,8 @@ class HubState:
     clock: Clock = utc_now
     clients: list[httpx.AsyncClient] = field(default_factory=list)
     llm: LlmClient | None = None
+    embedder: Embedder | None = None
+    """Remote embeddings (``SIGNALS_EMBED_PROVIDER=litellm`` only; the merge pass uses them)."""
 
 
 class BodyLimit:
@@ -602,7 +607,12 @@ def build_state(settings: Settings, pool: asyncpg.Pool, *, llm: LlmClient | Lite
     pipeline = Pipeline(pool, gaz, llm, extraction_max_attempts=settings.extraction_max_attempts)
     replay = Replay(settings.scenarios_dir, settings.demo_feeds_base_url, pipeline, gaz,
                     Fetcher(internal_client, min_interval_s=0, max_bytes=settings.http_max_bytes))
-    return HubState(settings, pool, gaz, pipeline, replay, clock, clients, llm)
+    state = HubState(settings, pool, gaz, pipeline, replay, clock, clients, llm)
+    if settings.embed_provider == "litellm":
+        state.embedder = LiteLlmEmbedder(internal_client, base_url=settings.litellm_base_url,
+                                         key=lambda: state.settings.litellm_key, alias=settings.embed_alias,
+                                         dims=settings.embed_dims, timeout_s=settings.llm_timeout_s)
+    return state
 
 
 async def refresh_llm_key(hub: HubState) -> bool:
@@ -647,6 +657,9 @@ def create_app(settings: Settings | None = None, *, state: HubState | None = Non
                                                        lambda: refresh_llm_key(hub))))
             if settings.demo_mode:
                 tasks.append(asyncio.create_task(_loop("demo", settings.demo_tick_s, lambda: hub.replay.tick(wall_now=hub.clock()))))
+            if hub.settings.cluster_maintenance_s > 0:
+                tasks.append(asyncio.create_task(_loop("cluster", hub.settings.cluster_maintenance_s,
+                                                       lambda: run_maintenance(hub))))
         async with mcp_app.router.lifespan_context(mcp_app):
             app.state.ready = True
             try:
@@ -688,6 +701,7 @@ def create_app(settings: Settings | None = None, *, state: HubState | None = Non
         return JSONResponse({"status": "ready" if ok else "not_ready"}, status_code=200 if ok else 503)
 
     app.include_router(build_router())
+    app.include_router(build_clustering_router())
     app.mount("/", mcp_app)
     app.add_middleware(BodyLimit)
     return app

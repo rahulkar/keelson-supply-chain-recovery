@@ -331,6 +331,38 @@ Submodules are imported explicitly (`from keelson_contracts.blocks import make_b
   dry-run-request|dry-run-result`, `scn.snapshot-label`, `commit.ledger-entry`,
   `connectors.capabilities`.
 
+## M8 signal clustering additions (`123-m8-signal-clustering.md`, backward compatible)
+
+- **Memberships (`signals`).** `EventMembership {signal_id, event_id, method, prior_method,
+  from_event_id, distance_km, shared_refs, similarity_bp, similarity_profile, hamming_bits,
+  duplicate_of_signal_id, config_version, explanation (1..400), decided_at}` says why one signal
+  belongs to its event; `MembershipMethod` / `MEMBERSHIP_METHODS` = `anchor`, `same_hazard`,
+  `founded`, `attach_geo`, `attach_ref`, `attach_vector`, `near_duplicate`, `absorbed`,
+  `merged_vector`. The validator enforces the evidence per method: `attach_ref` names `shared_refs`
+  (unique); `attach_geo` / `same_hazard` carry `distance_km`; `attach_vector` / `merged_vector` carry
+  `similarity_bp` + `similarity_profile` (always together; `SIMILARITY_PROFILE_PATTERN`, e.g.
+  `local-terms-v1`, `embed-default@1536`); `near_duplicate` carries `hamming_bits` (0..64) and an
+  original other than itself; `absorbed` / `merged_vector` name `from_event_id` (≠ `event_id`) and
+  the original `prior_method` (never a moved method); `anchor` / `founded` carry no evidence.
+- **Alert detail.** `AlertDetail.memberships` (<= 1000) defaults to `[]` and is **omitted from dumps
+  while empty**, so M6/M7 payloads and goldens are unchanged; when present, each entry must belong to
+  the event, name one of its member signals, and appear once per signal.
+- **Clustering settings.** Frozen `SimHashSettings {enabled, max_hamming_bits 0..7, window_hours
+  1..168, reuse_extraction}`, `VectorThresholds {attach_bp 5000..9900 (MIN_ATTACH_BP /
+  MAX_ATTACH_BP), merge_bp >= attach_bp, strict_bp >= attach_bp}`, `VectorSettings {enabled,
+  window_hours, max_distance_km 50..3000, local, remote}`, `ClusteringConfig {version, simhash,
+  vector, updated_at, updated_by}` and `DEFAULT_CLUSTERING_CONFIG` (version 1; SimHash 6 bits / 72 h;
+  local 7000 / 7500 / 7500, remote 8500 / 9000 / 9300 bp). `ClusteringConfigUpdate {base_version,
+  simhash, vector, updated_by?}` is the platform-scoped `PUT` body (stale base → 409).
+- **Status.** `ClusteringStatus {config, vector_backend, window_days, counts}`: `ClusteringBackend
+  {pgvector, local_profile (LOCAL_SIMILARITY_PROFILE = local-terms-v1), remote, remote_reason}` with
+  `RemoteEmbeddingProfile {alias, dims, storage vector(d)|halfvec(d), status active|backfilling,
+  pending}` or `null` + a reason (`provider_local`, `pgvector_missing`, `profile_missing`,
+  `key_missing`); `ClusteringCounts` (near-duplicates, same-source duplicates, reused extractions,
+  one count per method, pending / failed embedding jobs).
+- **Schemas.** `signals.event-membership|clustering-config|clustering-config-update|clustering-status`;
+  `signals.alert-detail` gains the optional `memberships`.
+
 ## Develop (inside Docker, per `docs/contracts/60-build-guide.md`)
 
 ```bash

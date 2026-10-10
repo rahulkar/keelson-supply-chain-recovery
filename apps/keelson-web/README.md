@@ -428,6 +428,33 @@ body, read test, 409, dry run), crawl snapshot status, signals (sources, regions
 launcher), audit activity (filters, cursor) and evals; axe on every page. The old M2 / M5 guarded
 field tests now expect the M7 behaviour.
 
+## M8 — signal clustering (`docs/contracts/123`)
+
+- **Why these reports are grouped** — `GroupingExplainer` in the alert drawer, between Sources and
+  Updates (`src/lib/alerts/grouping.ts` builds the rows). `alertDetailResponseSchema` reads the
+  optional `memberships` tolerantly: each entry is parsed with the generated
+  `signalsEventMembershipSchema` (unknown fields stripped); invalid entries, entries of another event
+  and entries naming a signal not in `signals` are dropped; none (an older hub) → `[]` and the section
+  is hidden. One row per current report, the first report first, then by decision time: a method chip
+  (Official report / Same hazard / First report / Nearby / Same place / Similar description /
+  Near-duplicate / Joined the official event / Merged), evidence chips (`42 km`, place codes,
+  `similarity 80 %`, `3 of 64 bits differ`), the hub's explanation sentence, and the headline as plain
+  text labelled as reported text. Syndicated near-duplicates sit under their original ("Also reported
+  by …", counted once).
+- **Signals admin → Clustering** — `SignalsClusteringSection` (own client `ClusteringApi`,
+  `src/lib/admin/signalsClustering.ts`): `GET /api/admin/signals/clustering` (backends: pgvector, the
+  local profile, the remote profile or why there is none; the last 7 days' counts), the settings form
+  (SimHash switch / Hamming bits 0–7 / window, vector switch / window / distance, percent fields per
+  profile) with client validation mirroring the contract bounds, `PUT` with `ClusteringConfigUpdate`
+  (`base_version`), a `409 stale_version` → "changed by someone else — reload", and **Run clustering
+  now** (`POST …/run`). Editable for platform admins only (`hasAnyRole(me.user, ['platform-admin'])`);
+  tenant admins see disabled inputs and a note. Hidden when the engine answers 404 (older engine).
+
+Tests: `test/m8-signals.test.tsx` with `test/fixtures/m8-signals.ts` (fixtures checked against the
+generated contracts): tolerant parsing, rows and chips, the drawer section with axe and a plain-text
+HTML-looking headline, hidden without memberships, the admin section read-only (axe) and editable
+(validation, exact PUT body, 409 message), hidden on 404.
+
 ## Develop & test (Docker only — no Node toolchain on the host)
 
 From Git Bash at the repo root, with `node_modules` and `.next` in named volumes:

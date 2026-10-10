@@ -1,6 +1,8 @@
 """Replay the product demo packs (``data/scenarios``) end to end — real adapters fetching
 ``/demo-feeds``, PostGIS exposure, alert rules — against the reference tenant network
 (``data/scenarios/network-value-fashion-eu.yaml``) and check the outcome each pack documents.
+The M6 packs give the same outcome with clustering v2 on (default) and off (``docs/contracts/123``);
+``port-strike-syndication`` shows the v2 memberships and replays identically twice.
 Skipped when the pack data is not present."""
 
 from __future__ import annotations
@@ -19,7 +21,9 @@ import yaml
 
 from conftest import GEO_DIR, REPO, T0, make_token, running_app, sea_route
 from fakes import Clock, FakeLlm
+from keelson_contracts.signals import ClusteringConfigUpdate
 from signal_hub.app import build_state, create_app
+from signal_hub.clustering_config import load_config, save_config
 from signal_hub.config import Settings
 from signal_hub.db import tx
 
@@ -56,6 +60,18 @@ def _network() -> dict[str, Any]:
             path = [list(pos[origin]), list(pos[dest])]
         lanes.append({"code": ln["code"], "mode": ln["mode"], "path": path})
     return {"nodes": nodes, "lanes": lanes}
+
+
+@pytest.fixture(params=["v2-on", "v2-off"])
+async def clustering(request: pytest.FixtureRequest, pool: asyncpg.Pool, clean: None) -> str:
+    """Clustering v2 on (the default settings) or off (SimHash and vector attach disabled)."""
+    if request.param == "v2-off":
+        async with tx(pool, None) as conn:
+            cur = await load_config(conn)
+            await save_config(conn, ClusteringConfigUpdate(
+                base_version=cur.version, simhash=cur.simhash.model_copy(update={"enabled": False}),
+                vector=cur.vector.model_copy(update={"enabled": False}), updated_by="test"), T0)
+    return str(request.param)
 
 
 @pytest.fixture
@@ -101,7 +117,7 @@ def _exposed(detail: dict[str, Any]) -> dict[tuple[str, str], str]:
     return {(e["node_type"], e["node_code"]): e["method"] for e in detail["exposures"]}
 
 
-async def test_typhoon_hcmc(client: httpx.AsyncClient, pool: asyncpg.Pool) -> None:
+async def test_typhoon_hcmc(clustering: str, client: httpx.AsyncClient, pool: asyncpg.Pool) -> None:
     (detail,) = await _replay(client, "typhoon-hcmc")
     alert, exposed = detail["alert"], _exposed(detail)
     assert alert["simulated"] is True and alert["severity"] in ("high", "critical") and alert["status"] == "new"
@@ -119,7 +135,7 @@ async def test_typhoon_hcmc(client: httpx.AsyncClient, pool: asyncpg.Pool) -> No
     assert ("renotified", "alert_and_draft_case") in changes or changes[0] == ("raised", "alert_and_draft_case")
 
 
-async def test_outerwear_trim_delay(client: httpx.AsyncClient) -> None:
+async def test_outerwear_trim_delay(clustering: str, client: httpx.AsyncClient) -> None:
     (detail,) = await _replay(client, "a-outerwear-trim-delay")
     assert detail["alert"]["severity"] == "medium" and detail["alert"]["simulated"] is True
     assert _exposed(detail).get(("supplier", "TRIM-BD-01")) == "entity_match"
@@ -128,7 +144,7 @@ async def test_outerwear_trim_delay(client: httpx.AsyncClient) -> None:
     assert sig["provenance"] == "simulated" and sig["extracted_by"] == "prebaked" and "SUPPLIER:TRIM-BD-01" in sig["location_refs"]
 
 
-async def test_suez_closure(client: httpx.AsyncClient) -> None:
+async def test_suez_closure(clustering: str, client: httpx.AsyncClient) -> None:
     (detail,) = await _replay(client, "suez-closure")
     exposed = _exposed(detail)
     lanes = {code: m for (t, code), m in exposed.items() if t == "lane"}
@@ -138,3 +154,41 @@ async def test_suez_closure(client: httpx.AsyncClient) -> None:
     event = detail["event"]
     assert event["anchor_signal_id"] is None and event["taxonomy_key"] == "LOG.chokepoint_closure"
     assert event["status"] == "confirmed" and len(detail["signals"]) == 3  # 2 outlets corroborate; duplicate dropped
+
+
+async def _memberships(pool: asyncpg.Pool) -> list[tuple[Any, ...]]:
+    async with tx(pool, TENANT) as conn:
+        rows = await conn.fetch(
+            """SELECT s.native_key, m.method, m.prior_method, m.distance_km, m.shared_refs, m.similarity_bp,
+                      m.similarity_profile, m.hamming_bits, m.duplicate_of, m.config_version, m.explanation, m.decided_at
+               FROM signal_membership m JOIN signal s ON s.id = m.signal_id WHERE s.tenant = $1 ORDER BY s.native_key""",
+            TENANT)
+    return [tuple(r.values()) for r in rows]
+
+
+async def test_port_strike_syndication(client: httpx.AsyncClient, pool: asyncpg.Pool) -> None:
+    (detail,) = await _replay(client, "port-strike-syndication")
+    exposed = _exposed(detail)
+    assert exposed.get(("port", "DEHAM")) == "intersects"  # geocoded to the port itself
+    assert {code for (t, code) in exposed if t == "lane"} == {"SGN-HAM-SEA", "SGN-HAM-CAPE", "HAM-DE1-RD", "HAM-PL1-RD"}
+    by_source = {s["source"]["connector_id"]: s for s in detail["signals"]}
+    methods = {m["signal_id"]: m for m in detail["memberships"]}
+    original = by_source["demo.rss.demo-freight-daily"]
+    copy = methods[by_source["demo.rss.simulated-shipping-wire"]["id"]]
+    vector = methods[by_source["demo.rss.demo-port-bulletin"]["id"]]
+    assert methods[original["id"]]["method"] == "founded"
+    assert copy["method"] == "near_duplicate" and copy["duplicate_of_signal_id"] == original["id"]
+    assert 0 < copy["hamming_bits"] <= 6
+    assert (vector["method"], vector["similarity_bp"], vector["similarity_profile"]) == ("attach_vector", 7977, "local-terms-v1")
+    event = detail["event"]
+    # 2 independent sources (the syndicated copy is not counted): 7000 x 8000 x 10000
+    assert event["status"] == "confirmed" and event["confidence_bp"] == 5600
+    titles = [s["title"] for s in detail["signals"]]
+    assert all(t not in m["explanation"] for m in detail["memberships"] for t in titles)
+    first = await _memberships(pool)
+    assert len(first) == 3
+    # reset clears the pack's memberships (FK cascade); a second replay is identical
+    assert (await client.post("/v1/demo/packs/port-strike-syndication/reset")).status_code == 200
+    assert await _memberships(pool) == []
+    await _replay(client, "port-strike-syndication")
+    assert await _memberships(pool) == first

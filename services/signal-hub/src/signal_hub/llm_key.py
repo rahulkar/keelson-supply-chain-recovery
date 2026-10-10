@@ -138,9 +138,13 @@ class LiteLlmAdmin:
 
 
 def key_restrictions(settings: Settings) -> dict[str, Any]:
-    """What the extraction key may do: the two extraction aliases, a small budget."""
+    """What the extraction key may do: the two extraction aliases (+ the embedding alias when the
+    opt-in remote embedding profile is on, ``SIGNALS_EMBED_PROVIDER=litellm``), a small budget."""
+    models = {settings.extract_alias, settings.guard_alias}
+    if settings.embed_provider == "litellm":
+        models.add(settings.embed_alias)
     return {
-        "models": sorted({settings.extract_alias, settings.guard_alias}),
+        "models": sorted(models),
         "max_budget": float(settings.llm_key_max_budget),
         "budget_duration": settings.llm_key_budget_duration,
     }

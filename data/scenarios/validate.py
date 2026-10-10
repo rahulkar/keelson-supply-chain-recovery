@@ -27,7 +27,12 @@ Three levels, each used when its imports are available (``--require`` makes a mi
    exposures (intersects / dwithin_km / lane_crosses / entity_match, same precedence as the hub) are
    recomputed in pure Python and compared **exactly** with the expectations. Geometric decisions closer
    than ``MARGIN_KM`` to a threshold are reported as fragile (PostGIS uses geodesics; this uses a
-   densified local projection).
+   densified local projection). Clustering v2 (``docs/contracts/123``) is replayed too: news items get
+   the hub's SimHash (a same-source identical re-post is dropped, a cross-source copy is a
+   near-duplicate), every member is placed with the hub's own ``cluster.decide`` (near-duplicate, v1
+   attach, vector attach with the local term vectors and ``DEFAULT_CLUSTERING_CONFIG``), an event's
+   optional ``memberships`` (member → method) and ``sources`` (independent corroborating sources) are
+   compared exactly, and separate events must neither attach nor vector-merge.
 
 Usage (repo root)::
 
@@ -147,10 +152,13 @@ def _try_imports() -> dict[str, Any]:
     if "contracts" in mods:
         try:
             from signal_hub import cluster as h_cluster
+            from signal_hub import embeddings as h_embeddings
+            from signal_hub import neardup as h_neardup
             from signal_hub import pipeline as h_pipeline
             from signal_hub import quarantine as h_quarantine
             from signal_hub import replay as h_replay
             from signal_hub import scoring as h_scoring
+            from signal_hub import simhash as h_simhash
             from signal_hub.adapters import connector as h_connector
             from signal_hub.adapters import gdacs as h_gdacs
             from signal_hub.adapters import rss as h_rss
@@ -162,6 +170,7 @@ def _try_imports() -> dict[str, Any]:
                 "cluster": h_cluster, "pipeline": h_pipeline, "quarantine": h_quarantine, "replay": h_replay,
                 "scoring": h_scoring, "connector": h_connector, "gdacs": h_gdacs, "rss": h_rss, "usgs": h_usgs,
                 "Gazetteer": Gazetteer, "SourceContext": SourceContext, "clip": clip,
+                "embeddings": h_embeddings, "neardup": h_neardup, "simhash": h_simhash,
             }
         except Exception as exc:  # optional level
             mods["hub_error"] = f"{type(exc).__name__}: {exc}"
@@ -395,6 +404,10 @@ class Shape:
         return not (self.polys or self.lines or self.points)
 
     def contains(self, p: Pos) -> bool:
+        """Inside a polygon, or on one of the shape's points (PostGIS ``ST_Intersects`` of two
+        identical points, e.g. a news item geocoded to the port node itself)."""
+        if any(haversine_km(p, q) < 1e-6 for q in self.points):
+            return True
         return any(point_in_ring(p, poly[0]) and not any(point_in_ring(p, h) for h in poly[1:]) for poly in self.polys)
 
     def segments(self) -> Iterable[tuple[Pos, Pos]]:
@@ -1104,6 +1117,10 @@ class SimSignal:
     key: str
     step: int
     draft: Any  # signal_hub.models.SignalDraft
+    near_dup_of: str | None = None
+    """Key of the original this news item is a cross-source SimHash near-duplicate of."""
+    near_dup_bits: int | None = None
+    order: int = 0
 
 
 def _strip_key(native_key: str, pack_id: str) -> str:
@@ -1121,6 +1138,9 @@ def simulate(pack_dir: Path, data: dict[str, Any], hub: dict[str, Any], mods: di
     current: dict[str, SimSignal] = {}
     out: list[dict[str, SimSignal]] = []
     seen_news: set[tuple[str, str]] = set()  # the hub stores a news item once (ON CONFLICT DO NOTHING)
+    cfg = c_signals.DEFAULT_CLUSTERING_CONFIG
+    originals: list[dict[str, Any]] = []  # fingerprinted news items that can be originals (Pipeline.queue_news)
+    order = 0
     for index, step in enumerate(pack.steps):
         where = f"{pack.id} step {index} (replay)"
         at = pack.start_at + dt.timedelta(seconds=step.t_offset_s)
@@ -1161,10 +1181,26 @@ def simulate(pack_dir: Path, data: dict[str, Any], hub: dict[str, Any], mods: di
         drafts = list(drafts)
         by_key = payload.get("extractions") if isinstance(payload.get("extractions"), dict) else {}
         default = payload.get("extraction") if isinstance(payload.get("extraction"), dict) else None
+        near: dict[str, tuple[str, int]] = {}  # native key → (original key, bits)
         for item in news:
             if (item.connector_id, item.native_key) in seen_news:
                 continue  # Pipeline.queue_news: a known item is neither re-stored nor re-extracted
             seen_news.add((item.connector_id, item.native_key))
+            fp = (hub["simhash"].fingerprint(item.text)
+                  if cfg.simhash.enabled and hub["neardup"].applies(item.connector_id, item.origin) else None)
+            if fp is not None:
+                window = at - dt.timedelta(hours=cfg.simhash.window_hours)
+                rows = [r for r in originals if r["retrieved_at"] >= window]
+                same, other = hub["neardup"].classify(rows, fp=fp, connector_id=item.connector_id,
+                                                      max_bits=cfg.simhash.max_hamming_bits)
+                if same is not None:
+                    continue  # an identical re-post by the same source: stored as 'duplicate', never a signal
+                if other is not None:
+                    near[item.native_key] = (other.id, other.bits)
+                else:
+                    originals.append({"id": _strip_key(item.native_key, pack.id), "connector_id": item.connector_id,
+                                      "simhash": fp.value, "at": item.published_at or item.retrieved_at,
+                                      "retrieved_at": item.retrieved_at})
             native = str(item.context.get("native_id") or "")
             prebaked = by_key.get(native) or by_key.get(item.url or "") or by_key.get(item.title) or default
             # exactly the text Pipeline.process_news screens (clip collapses whitespace, newline included)
@@ -1189,7 +1225,10 @@ def simulate(pack_dir: Path, data: dict[str, Any], hub: dict[str, Any], mods: di
             key = _strip_key(d.native_key, pack.id)
             prev = current.get(key)
             if prev is None or prev.draft.content_hash() != d.content_hash():
-                current[key] = SimSignal(key, index, d)
+                original, bits = near.get(d.native_key, (None, None))
+                order += 1
+                current[key] = SimSignal(key, index, d, near_dup_of=original, near_dup_bits=bits,
+                                         order=prev.order if prev is not None else order)
         out.append(dict(current))
     return out
 
@@ -1369,6 +1408,7 @@ def check_expected(pack_dir: Path, data: dict[str, Any], hub: dict[str, Any], mo
         if "signals" in cp and cp["signals"] != len(signals):
             rep.error(cw, f"expected {cp['signals']} current signals, the replay has {len(signals)}: {sorted(signals)}")
         event_geoms: list[tuple[str, Shape, set[str], Any]] = []
+        event_sims: list[tuple[str, list[SimSignal], Shape]] = []
         for ev in events:
             label = ev.get("label", "?")
             ew = f"{cw} event {label!r}"
@@ -1387,20 +1427,19 @@ def check_expected(pack_dir: Path, data: dict[str, Any], hub: dict[str, Any], mo
             merged: dict[str, Any] = {"type": "GeometryCollection", "geometries": [g for geo_ in geoms for g in _flatten(geo_)]}
             shape = Shape.of(merged)
             refs = sorted({r for s in sims for r in s.draft.location_refs})
-            # attach rules (cluster v1): every non-lead member must be attachable to the lead's event
-            for s in sims:
-                if s is lead:
-                    continue
-                ok_kind = cluster.kinds_compatible(s.draft.kind, lead.draft.kind)
-                ok_time = abs(s.draft.observed_at - lead.draft.observed_at) <= ATTACH_WINDOW
-                near = False
-                if s.draft.geometry and not shape.empty:
-                    sshape = Shape.of(s.draft.geometry)
-                    near = any(shape.distance_km(v) <= ATTACH_RADIUS_KM for v in sshape.vertices())
-                shared = bool(_strong(s.draft.location_refs) & _strong(lead.draft.location_refs))
-                if not (ok_kind and ok_time and (near or shared)):
-                    rep.error(ew, f"member {s.key!r} would not attach (kind ok={ok_kind}, time ok={ok_time}, "
-                                  f"within {ATTACH_RADIUS_KM:.0f} km={near}, shared ref={shared})")
+            # clustering (v1 + v2): every member, in arrival order, is placed by the hub's own decide()
+            # against the event formed by the members before it
+            copies: set[str] = set()
+            methods = _member_methods(sims, hub, mods, ew, rep, copies)
+            want_methods = ev.get("memberships")
+            if want_methods is not None and {str(k): str(v) for k, v in dict(want_methods).items()} != methods:
+                rep.error(ew, f"memberships: expected {dict(want_methods)}, replay gives {methods}")
+            # cluster.aggregate_event: a member joined as a near-duplicate of another member adds no source
+            independent = ({s.draft.connector_id for s in sims if s.key not in copies}
+                           or {s.draft.connector_id for s in sims})
+            if "sources" in ev and ev["sources"] != len(independent):
+                rep.error(ew, f"sources: expected {ev['sources']} independent source(s), replay gives "
+                              f"{len(independent)} ({sorted(independent)})")
             kind, subtype = lead.draft.kind, lead.draft.subtype
             mag = lead.draft.severity_native.get("mag") if isinstance(lead.draft.severity_native, dict) else None
             radius = cluster.radius_km(subtype, magnitude=mag)
@@ -1435,6 +1474,7 @@ def check_expected(pack_dir: Path, data: dict[str, Any], hub: dict[str, Any], mo
             if "alert" in ev and ev["alert"] != got_alert:
                 rep.error(ew, f"alert: expected {ev['alert']!r}, replay gives {got_alert!r}")
             event_geoms.append((label, shape, _strong(refs), lead))
+            event_sims.append((label, sims, shape))
         unclaimed = set(signals) - claimed
         if unclaimed:
             rep.error(cw, f"current signals not assigned to an expected event: {sorted(unclaimed)}")
@@ -1449,11 +1489,128 @@ def check_expected(pack_dir: Path, data: dict[str, Any], hub: dict[str, Any], mo
                         and any(sa.distance_km(v) <= ATTACH_RADIUS_KM for v in sb.vertices()))
                 if near or (ra & rb):
                     rep.error(cw, f"events {la!r} and {lb!r} would cluster into one event")
+        # clustering v2: separate events must not merge in the background pass either
+        for i, (la, sims_a, sa) in enumerate(event_sims):
+            for lb, sims_b, sb in event_sims[i + 1:]:
+                if _would_merge(sims_a, sa, sims_b, sb, hub, mods):
+                    rep.error(cw, f"events {la!r} and {lb!r} would merge (similar cluster terms)")
     data_steps = len(data.get("steps") or [])
     hint_steps = {i for i, s in enumerate(data.get("steps") or []) if s.get("adapter") == "chat_hint"}
     for i in range(data_steps):
         if i not in seen_steps and i not in hint_steps:
             rep.error(where, f"no checkpoint after step {i} (every ingesting step needs one)")
+
+
+def _terms(s: SimSignal, hub: dict[str, Any], gaz: Any) -> tuple[str, ...]:
+    d = s.draft
+    return tuple(hub["embeddings"].cluster_terms(kind=d.kind, subtype=d.subtype, location_refs=d.location_refs, gaz=gaz,
+                                                 mentions=d.mentions, companies=d.companies))
+
+
+def _local_vector(s: SimSignal, hub: dict[str, Any], gaz: Any) -> dict[str, int]:
+    return dict(hub["embeddings"].local_vector(_terms(s, hub, gaz)))
+
+
+def _event_candidate(members: list[SimSignal], s: SimSignal | None, hub: dict[str, Any], gaz: Any,
+                     own_vec: dict[str, int] | None, event_id: str) -> Any:
+    """A ``cluster.Candidate`` for the event formed by ``members`` as seen by signal ``s`` (or by
+    another event: ``s`` None, distance from ``own_shape`` is filled by the caller)."""
+    cluster, emb = hub["cluster"], hub["embeddings"]
+    anchors = [m for m in members if m.draft.authoritative]
+    lead = anchors[0] if anchors else min(members, key=lambda m: (m.draft.observed_at, m.key))
+    starts = min(m.draft.starts_at for m in members)
+    ends = [m.draft.ends_at for m in members]
+    window_end = None if any(e is None for e in ends) else max(e for e in ends if e is not None)
+    last = max(m.draft.observed_at for m in members)
+    distance = None
+    geoms = [m.draft.geometry for m in members if m.draft.geometry]
+    if s is not None and s.draft.geometry and geoms:
+        shape = Shape.of({"type": "GeometryCollection", "geometries": [g for geo_ in geoms for g in _flatten(geo_)]})
+        distance = min(shape.distance_km(v) for v in Shape.of(s.draft.geometry).vertices())
+    similarity = None
+    if own_vec is not None:
+        similarity = max((emb.similarity_bp(own_vec, _local_vector(m, hub, gaz)) for m in members), default=0)
+    return cluster.Candidate(
+        event_id=event_id, kind=lead.draft.kind, subtype=lead.draft.subtype, anchored=bool(anchors),
+        anchor_connector=anchors[0].draft.connector_id if anchors else None, window_start=starts, window_end=window_end,
+        last_observed=last, distance_km=distance, refs=frozenset(r for m in members for r in m.draft.location_refs),
+        similarity_bp=similarity, similarity_profile=emb.LOCAL_PROFILE if similarity is not None else None)
+
+
+def _member_methods(sims: list[SimSignal], hub: dict[str, Any], mods: dict[str, Any], where: str,
+                    rep: Report, copies: set[str] | None = None) -> dict[str, str]:
+    """Each member's membership method, decided by the hub's ``cluster.decide`` in arrival order;
+    ``copies`` collects the members joined as near-duplicates (they add no source)."""
+    cluster = hub["cluster"]
+    cfg = mods["contracts"][0].DEFAULT_CLUSTERING_CONFIG
+    gaz = hub["Gazetteer"](GEO_DIR)
+    ordered = sorted(sims, key=lambda m: (m.order, m.key))
+    out: dict[str, str] = {}
+    before: list[SimSignal] = []
+    event_id = "00000000-0000-5000-8000-000000000001"
+    for s in ordered:
+        d = s.draft
+        if not before:
+            out[s.key] = "anchor" if d.authoritative else "founded"
+            before.append(s)
+            continue
+        original = next((m for m in before if m.key == s.near_dup_of), None)
+        # Pipeline._decide: a copy that names a place its original does not is not joined as a near-duplicate
+        joins = original is not None and hub["embeddings"].names_no_other_place(_terms(s, hub, gaz),
+                                                                                _terms(original, hub, gaz))
+        features = cluster.SignalFeatures(
+            kind=d.kind, subtype=d.subtype, connector_id=d.connector_id, authoritative=d.authoritative,
+            starts_at=d.starts_at, ends_at=d.ends_at, refs=frozenset(d.location_refs),
+            near_dup_event=event_id if joins else None, near_dup_bits=s.near_dup_bits,
+            duplicate_of="00000000-0000-5000-8000-000000000002" if joins else None)
+        own = None if d.authoritative else _local_vector(s, hub, gaz)
+        event = _event_candidate(before, s, hub, gaz, own, event_id)
+        decision = cluster.decide(features, [event], cfg)
+        if decision.method == "anchor" and not event.anchored:
+            # an official report founds its own event and absorbs the news-only one (Pipeline._absorb)
+            as_signal = cluster.SignalFeatures(kind=event.kind, subtype=event.subtype, connector_id="", authoritative=False,
+                                               starts_at=event.window_start, ends_at=event.window_end or event.last_observed,
+                                               refs=event.refs)
+            anchor = dataclasses.replace(_event_candidate([s], None, hub, gaz, None, event_id), anchored=True,
+                                         distance_km=event.distance_km)
+            if cluster.choose_event(as_signal, [anchor]) != event_id:
+                rep.error(where, f"anchor {s.key!r} would not absorb the earlier reports")
+            for m in before:
+                out[m.key] = "absorbed"
+        elif decision.event_id is None:
+            rep.error(where, f"member {s.key!r} would not attach (hub decision: {decision.method})")
+        if decision.method == "near_duplicate" and copies is not None:
+            copies.add(s.key)
+        out[s.key] = decision.method
+        before.append(s)
+    return out
+
+
+def _would_merge(sims_a: list[SimSignal], sa: Shape, sims_b: list[SimSignal], sb: Shape, hub: dict[str, Any],
+                 mods: dict[str, Any]) -> bool:
+    """Whether the hub's merge pass (``cluster.choose_merge``, local profile) would merge the two
+    events either way."""
+    cluster, emb = hub["cluster"], hub["embeddings"]
+    cfg = mods["contracts"][0].DEFAULT_CLUSTERING_CONFIG
+    gaz = hub["Gazetteer"](GEO_DIR)
+    vec_a = emb.add_vectors(_local_vector(m, hub, gaz) for m in sims_a)
+    vec_b = emb.add_vectors(_local_vector(m, hub, gaz) for m in sims_b)
+    similarity = emb.similarity_bp(vec_a, vec_b)
+    distance = None
+    if not sa.empty and not sb.empty:
+        distance = min(min(sa.distance_km(v) for v in sb.vertices()), min(sb.distance_km(v) for v in sa.vertices()))
+    id_a, id_b = "00000000-0000-5000-8000-000000000003", "00000000-0000-5000-8000-000000000004"
+    for src, dst, src_id, dst_id in ((sims_a, sims_b, id_a, id_b), (sims_b, sims_a, id_b, id_a)):
+        c_src = _event_candidate(src, None, hub, gaz, None, src_id)
+        c_dst = _event_candidate(dst, None, hub, gaz, None, dst_id)
+        features = cluster.EventFeatures(event_id=c_src.event_id, kind=c_src.kind, subtype=c_src.subtype,
+                                         anchored=c_src.anchored, window_start=c_src.window_start,
+                                         window_end=c_src.window_end, last_observed=c_src.last_observed, refs=c_src.refs)
+        target = dataclasses.replace(c_dst, distance_km=distance, similarity_bp=similarity,
+                                     similarity_profile=emb.LOCAL_PROFILE)
+        if cluster.choose_merge(features, [target], cfg) is not None:
+            return True
+    return False
 
 
 # ─────────────────────────────────── main ───────────────────────────────────

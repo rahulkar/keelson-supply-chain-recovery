@@ -14,6 +14,7 @@ from keelson_engine.api import (
     routes_admin_kb,
     routes_admin_m7,
     routes_admin_playground,
+    routes_admin_signals_m8,
     routes_alerts,
     routes_auth,
     routes_cases,
@@ -115,6 +116,7 @@ def create_app(*, manage_resources: bool = True) -> FastAPI:
         routes_admin_kb.router,
         routes_admin_m7.router,
         routes_admin_playground.router,
+        routes_admin_signals_m8.router,
         routes_webhooks.router,
     ):
         application.include_router(router)

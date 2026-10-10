@@ -4,6 +4,7 @@
  */
 import { jsonEqual } from "@keelson/ui";
 import { hasAnyRole } from "../roles";
+import { normalizePlanning, planningIssues } from "./planning";
 import { MODEL_ROLES, PROMPT_MAX_CHARS, PROMPT_ROLES, type AgentCatalog, type AgentSpec, type CatalogTool, type ModelRole, type PromptRole } from "./types";
 
 type Json = unknown;
@@ -116,6 +117,7 @@ export function normalizeSpec(spec: AgentSpec): AgentSpec {
     const { display_name: _drop, ...rest } = sp;
     return rest;
   });
+  normalizePlanning(out); // M8
   return out;
 }
 
@@ -286,6 +288,7 @@ export function validateDraft(draft: AgentSpec, catalog: AgentCatalog | null, ba
   int("policy.auto_max_units", draft.policy.auto_max_units, 0);
   int("policy.approval_quorum", draft.policy.approval_quorum, 1);
   int("policy.auto_confirm_max_matched", draft.policy.auto_confirm_max_matched, 0);
+  Object.assign(issues, planningIssues(draft)); // M8 planning solver settings
   return issues;
 }
 

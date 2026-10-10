@@ -18,6 +18,7 @@ import {
   scorecardColumns,
   type ScorecardMetric,
 } from "../compare/model";
+import { integerNote } from "../compare/integer";
 import type { BlockComponentProps } from "../types";
 import { AdvisoryBadge, AdvisoryNote } from "./Advisory";
 import { BlockFrame } from "./BlockFrame";
@@ -76,6 +77,11 @@ export function ScorecardTable({
           <span className="text-caption font-normal text-fg-subtle">
             {o.levers.length ? o.levers.map(leverLabel).join(" + ") : "No changes"}
           </span>
+          {o.integer ? (
+            <span className="text-caption font-normal text-fg-subtle" data-integer-method={o.integer.method}>
+              {integerNote(o.integer)}
+            </span>
+          ) : null}
         </span>
       ),
     },
@@ -110,7 +116,8 @@ export function ScorecardTable({
 /**
  * `scenario_compare@1` (canvas) — every candidate plan on a Pareto scatter (by default extra
  * cost vs lost units; recommended = diamond, guide-only = dashed ring, frontier = dashed line)
- * plus the full scorecard table with the recommended and guide-only markers and their reasons.
+ * plus the full scorecard table with the recommended and guide-only markers and their reasons
+ * (M8: and, for CP-SAT plans, how each option's whole units were found).
  */
 export function ScenarioCompare({ props, envelope }: BlockComponentProps<ScenarioCompareProps>) {
   const theme = useDocumentTheme();

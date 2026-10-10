@@ -121,6 +121,73 @@
             "title": "Id",
             "type": "string"
           },
+          "integer": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "description": "M8 (125): how a ``cpsat`` option found its whole units. ``cpsat_optimal`` /\n``cpsat_feasible``: the buys and splits come from CP-SAT (proven optimal for the planning\nmodel, or the best found within ``gap_bp`` of the best bound); ``lp_rounding``: CP-SAT fell\nback to the LP rounding and repair for ``fallback_reason``.",
+                "properties": {
+                  "fallback_reason": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "no_candidates",
+                          "model_too_large",
+                          "objective_overflow",
+                          "time_limit_no_solution",
+                          "infeasible",
+                          "model_invalid",
+                          "wall_clock_guard",
+                          "budget_exhausted",
+                          "no_improvement",
+                          "simulator_not_better",
+                          "solver_error"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Fallback Reason"
+                  },
+                  "gap_bp": {
+                    "anyOf": [
+                      {
+                        "maximum": 10000,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Gap Bp"
+                  },
+                  "method": {
+                    "enum": [
+                      "cpsat_optimal",
+                      "cpsat_feasible",
+                      "lp_rounding"
+                    ],
+                    "title": "Method",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "method"
+                ],
+                "title": "CompareInteger",
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "levers": {
             "items": {
               "minLength": 1,

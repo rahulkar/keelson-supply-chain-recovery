@@ -43,10 +43,12 @@ import {
 } from "@/lib/admin/spec";
 import { ACCESS_LABELS, TRUST_LABELS, label as fmtLabel } from "@/lib/admin/tools";
 import { MODEL_ROLES, PROMPT_MAX_CHARS, type AgentCatalog, type AgentSpec, type ModelRole, type SpecEnvelope } from "@/lib/admin/types";
+import { blockedFactoriesMessage, blockedFactoriesRemoved } from "@/lib/admin/planning";
 import { useAdminApi, useResource } from "@/lib/admin/useAdmin";
 import { useSession } from "@/lib/client/session";
 import { AgentsSubnav } from "./AgentsSubnav";
 import { AdminPageHeader, AdminSection, InlineError, ResourceView } from "./common";
+import { PlanningSolverSection } from "./PlanningSolverSection";
 import { SecondAdminBanner, announceChangeRequest } from "./SecondAdmin";
 
 const DIFF_IGNORE = ["version", "tenant"] as const;
@@ -402,6 +404,12 @@ function SpecEditor({ base, catalog, onSaved }: { base: SpecEnvelope; catalog: A
   const issues = validateDraft(draft, catalog, base.spec);
   // M7 four-eyes: a tenant admin may still save a loosened guarded field; it becomes a change request.
   const loosened = platform ? [] : guardedChanges(base.spec, draft);
+  // M8: taking a factory off the compliance block list is guarded the same way.
+  const unblocked = platform ? [] : blockedFactoriesRemoved(base.spec, draft);
+  const guardReasons = [
+    ...loosened.map((f) => guardedMessage(base.spec, f)),
+    ...(unblocked.length ? [blockedFactoriesMessage(unblocked)] : []),
+  ];
   // Compared and patched in normal form: an emptied addendum / display name means "none".
   const baseNorm = normalizeSpec(base.spec);
   const draftNorm = normalizeSpec(draft);
@@ -597,6 +605,13 @@ function SpecEditor({ base, catalog, onSaved }: { base: SpecEnvelope; catalog: A
           />
         </div>
       </AdminSection>
+
+      <PlanningSolverSection
+        draft={draft}
+        issues={issues}
+        setDraft={setDraft}
+        guardNote={platform ? undefined : "Removing a factory needs a second admin; adding one applies right away."}
+      />
       </Fragment>
 
       <div
@@ -605,7 +620,7 @@ function SpecEditor({ base, catalog, onSaved }: { base: SpecEnvelope; catalog: A
         aria-label="Save changes"
       >
         <div className="flex min-w-0 flex-1 basis-72 flex-col gap-2">
-          <SecondAdminBanner reasons={loosened.map((f) => guardedMessage(base.spec, f))} />
+          <SecondAdminBanner reasons={guardReasons} />
           <p className="text-caption text-fg-muted" aria-live="polite">
             {dirty ? `Unsaved changes: ${patchSummary(patch)}.` : "No unsaved changes."}
             {dirty && blocked ? " Fix the highlighted fields to save." : ""}
@@ -623,16 +638,16 @@ function SpecEditor({ base, catalog, onSaved }: { base: SpecEnvelope; catalog: A
           Discard
         </Button>
         <Button size="sm" variant="primary" icon={<Save className="size-4" />} disabled={!dirty || blocked} loading={saving} onClick={() => setReviewOpen(true)}>
-          {loosened.length ? "Review and request approval" : "Review and save"}
+          {guardReasons.length ? "Review and request approval" : "Review and save"}
         </Button>
       </div>
 
       <Dialog
         open={reviewOpen}
         onOpenChange={setReviewOpen}
-        title={loosened.length ? "Request approval for a new version?" : "Save a new version?"}
+        title={guardReasons.length ? "Request approval for a new version?" : "Save a new version?"}
         description={
-          loosened.length
+          guardReasons.length
             ? `Based on ${base.version}. Another admin must approve it on Pending changes before new runs use it.`
             : `Based on ${base.version}. New runs use the new version; runs in progress keep theirs.`
         }
@@ -643,7 +658,7 @@ function SpecEditor({ base, catalog, onSaved }: { base: SpecEnvelope; catalog: A
               Keep editing
             </Button>
             <Button size="sm" variant="primary" loading={saving} onClick={() => void save()}>
-              {loosened.length ? "Send for approval" : "Save version"}
+              {guardReasons.length ? "Send for approval" : "Save version"}
             </Button>
           </>
         }

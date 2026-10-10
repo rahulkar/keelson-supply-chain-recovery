@@ -375,6 +375,18 @@ Not run by the workstream (the integrator runs it on the full stack); syntax-che
 
 | `api_m8_sidecar.py` | **none** | **Generic tier A·B·C·W proof** on northwind-test with the CSV-backed demo ERP "Fernhill": sidecar reset (anonymous reset and `/mcp` → 401); `fernhill` registered by ava (static header `X-Adapter-Key`, third party, key never echoed) → test: tier `[A,B,C,W]`, the 13 sidecar tools, suggested classification from the annotations (reads trusted/read/internal, create/add/validate write + idempotency enforced, apply/rollback destructive + enforced) → approved as suggested, activated without a change request; the capability table says `change_set` mode with both ops read from the `add_change_set_items` op enum. **Tier B**: worker sync → consistent snapshot, row counts equal to the sidecar's `/v1/admin/stats`, same watermark; `poll_changes` → False. **Commit harness** (test-only, in-process, the commit nodes' building blocks): `transfer_order.create` FH-RTM → FH-LDS (2 SKUs) + `allocation.set_qty` (version from the snapshot) → dry run as preparer, `preview_hash == H`; a receipt for Merxa's audience → `invalid_receipt` (`wrong_audience`), set still validated; the policy receipt through `_credentials` / `_receipt_target` (`aud http://fernhill.localhost/mcp`, `ext_iss` the origin, `ext_sub connector:fernhill`) → applied; reconcile → verified, one transfer order `created_via change_set:<code>`; the CSV rows read back (reserved / in transit / allocation qty + version); the same idempotency key replays the identical body. **Tier C**: `changes_since(<old watermark>)` lists the rows, `poll_changes` → the worker resyncs and the new snapshot holds the new allocation, transfer lines and reserved units. **Rollback** with nora's user receipt → compensating change set, business columns restored, the transfer order removed. Clean-up (also on failure): Fernhill reset, connector disabled. |
 
+## M8 CP-SAT (`docs/contracts/125`): `api_m8_cpsat_offline.py`
+
+Runs **inside the engine image** like the M5–M7 offline scripts (`docker compose run --rm --no-deps -T
+-e LOG_LEVEL=warning -v <repo>/e2e:/e2e:ro engine-api python -u /e2e/api_m8_cpsat_offline.py`); needs
+pg-core, the optimizer and merxa-api up. No chat, no run, **no model call**: the engine's own runtime
+builds ProblemData from the current demo-retail snapshot (a sync is requested through the admin API
+when there is none) and calls the real optimizer through its optimizer client.
+
+| script | model calls | what it proves |
+|---|---|---|
+| `api_m8_cpsat_offline.py` | **none** | ProblemData with the tenant's planning defaults plus the M8 sourcing terms (case packs of 6, MOQ per style-colour, one capacity per factory) and the TRIM-BD-01 +7 d delay; the derived sources carry the terms. opt-C and opt-D in `repair` and `cpsat` mode: OPTIMAL/FEASIBLE; every `po.create` line a multiple of 6, every style at least the effective MOQ, within the source and factory capacity, one op per PO line; `cpsat` net benefit ≥ `repair`; `repair` responses carry no stages; `cpsat` responses carry stages with the planning seed and one CP-SAT worker, `integer_method` in the params, and a second identical call is identical except `solve_ms`; `repair` < 5 s, `cpsat` < 10 s per call. |
+
 ## `api_m3_levers.py` — M3 levers through the API
 
 Same container, command shape and options as `api_thin_slice.py` (it imports that script's

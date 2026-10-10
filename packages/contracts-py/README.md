@@ -422,6 +422,20 @@ Submodules are imported explicitly (`from keelson_contracts.blocks import make_b
   exactly for `crawled`) plus a `label` property (`SnapshotLabel`); Merxa manifests parse unchanged.
   Not exported to JSON Schema (no contracts-ts change).
 
+## M8 CP-SAT additions (`125-m8-optimizer-cpsat.md`, backward compatible)
+
+Every field is omitted from dumps at its default, so earlier payloads and `inputs_hash` values are
+unchanged: `SolverOptions.integer_stage` (`IntegerStage`: `repair` | `cpsat`), `AltSource`
+`order_multiple_units` (≥ 1; `moq_effective = ceil(moq / m) * m`), `moq_basis` (`MoqBasis`: `po` |
+`style`), `capacity_group`, `max_orders`; `ResourceAltSupplierParams.max_buys_per_line`;
+`ResequenceProductionParams.frozen_days` / `lateness_cents_per_unit_day`; `SolverInfo.stages`
+(`SolverStage {name, solver, status (SolverStageStatus), used, seed, model_hash (sha256 hex),
+objective, bound, det_time_limit_ms, det_time_ms, num_workers, num_variables, num_constraints,
+fallback_reason (IntegerFallbackReason)}`, no wall times). Blocks: `CompareOption.integer`
+(`CompareInteger {method: cpsat_optimal|cpsat_feasible|lp_rounding, gap_bp ≤ 10000,
+fallback_reason}`; a gap only for CP-SAT methods, a reason only for `lp_rounding`). Admin:
+`GuardReasonCode` `compliance_block_removed` (kind `agent_spec`).
+
 ## Develop (inside Docker, per `docs/contracts/60-build-guide.md`)
 
 ```bash

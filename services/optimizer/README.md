@@ -20,7 +20,9 @@ Modules: `scn` (normalise + perturb), `impact` (PAB simulator), `tts` (TTS LP, T
 bottlenecks), `graph` (impact graph), `plan` (a plan's physical ledger), `planner` (one pass
 over all levers), `levers/composed` (the LP), `levers/reallocate` (M1 formulation + solver
 helpers), `levers/resequence` (factory-line sequencing), `service` (responses, scorecard,
-actions), `wire_m5` (M5 request/response extensions).
+actions), `wire_m5` (M5 request/response extensions); M8: `cpsat` (shared CP-SAT runner,
+budgets, per-solve records), `levers/alt_integer` (sourcing terms in the repair, whole-unit
+CP-SAT stage), `levers/resequence_cpsat` (resequencing v2).
 
 ## Auth (M1)
 `Authorization: Bearer <JWT>`, HS256 signed with `OPTIMIZER_SHARED_SECRET` (env or
@@ -258,6 +260,70 @@ Determinism: sorted iteration everywhere, single-threaded GLOP with `random_seed
 CP-SAT with one worker and a deterministic time limit; identical requests give identical
 responses except `solver.solve_ms` (and impact `computed_at`), across processes and hash seeds.
 
+## M8 CP-SAT integer stages (`125-m8-optimizer-cpsat.md`)
+`SolverOptions.integer_stage` is **opt-in**: `"repair"` (default, omitted from dumps) is the path
+above, byte for byte (same responses, goldens and `inputs_hash`); `"cpsat"` adds:
+
+* **Sourcing terms** (`AltSource.order_multiple_units`, `moq_basis`, `capacity_group`,
+  `max_orders`; `ResourceAltSupplierParams.max_buys_per_line`; all omitted at their defaults).
+  The LP gets one row per capacity group and arrival week; the other terms are integer rules.
+  When any term is set the repair (both modes) applies them in `levers/alt_integer.repair_terms`:
+  buys per line → whole cases per `po.create` line → orders per source → group capacity → MOQ
+  per basis (`ceil(moq/m)·m`, top up in cases or drop, by recomputed net benefit). Without a
+  term the M7 `_moq_repair` runs unchanged.
+* **Whole-unit CP-SAT stage** (`levers/alt_integer.solve_integer`, only with
+  `resource_alt_supplier`): one model over every phase-1 buy and the splits competing for the same
+  PO lines - at most one op per line, open quantities, lane capacity per booking week net of the
+  bookings and the repair's other splits, budgets, purchase-order bools with capacity and MOQ per
+  basis, cases, group capacity, orders per source, buys per line - with the phase-1 LP objective on
+  the touched DC × SKU pairs (transfers fixed) in exact integers (× 40 000, `composed.OBJ_SCALE`).
+  The repair is the complete hint and its objective the acceptance bound. Its units are used only
+  when the simulator agrees: on the pairs either decision set touches (phase-1 transfers), then on
+  the whole plan against the repair's own phase 2 (both with `prioritize_allocation` applied on
+  copies) - first with the CP-SAT units on the repair completion's transfers (no LP solve; a loss
+  ends the stage), then with their own phase 2 (CP-SAT buys *and* splits fixed). Otherwise the
+  repair plan is returned unchanged; `solver.params.integer_method` = `cpsat_optimal` /
+  `cpsat_feasible` / `lp_rounding` (+ `integer_gap_bp`, `integer_fallback`). Technical fallbacks
+  (`model_too_large`, `objective_overflow`, `time_limit_no_solution`, `infeasible`,
+  `model_invalid`, `wall_clock_guard`, `budget_exhausted`, `solver_error`) add a warning; a
+  failing stage never fails the request. In compare mode (resequence + LP levers) both candidates
+  are completed by the repair's phase 2 and compared after the allocations (the phase-1 nets chose
+  the resequence wrongly on the full-profile D options with the v2 sequence); the integer stage
+  then runs once, for the winner.
+* **Resequencing v2** (`levers/resequence_cpsat`, every line): time-indexed CP-SAT over completion
+  days priced by the simulator per arrival week (closure-aware; days that lose the receipt are out;
+  a capacity-booked PO line may only take days that keep its eta, so the rest of the line can still
+  move - M3 rejects the whole line), fluid cumulative capacity per release threshold, due dates
+  (`lateness_cents_per_unit_day` × units × days after the PO line's ex-factory), then a
+  lexicographic tie-break (fewest units × days late, then the smallest change). Kept only when the
+  simulator rates the back-to-back sequence strictly better than the M3 one (ties: M3). Lines over
+  400 orders, 400 days or 60 000 order-days use the M3 path (`model_too_large`).
+  `ResequenceProductionParams.frozen_days` (both modes) keeps the orders starting before
+  `as_of + frozen_days` at the head of the line.
+* **Per-solve records** `solver.stages` (cpsat only): every GLOP solve and every M8 CP-SAT solve, in
+  solve order, with `used` (in the returned plan: a dropped resequence and a do-nothing fallback are
+  unused), the request seed, `model_hash` (sha256 of the request `inputs_hash`, the stage name and
+  its own inputs), CP-SAT objective / bound, deterministic limit and time, workers, sizes and the
+  fallback reason - no wall times (`solve_ms` stays the only volatile field). The M3 comparator's own
+  CP-SAT (`resequence._cpsat`) is not recorded.
+
+Determinism: one worker (`CPSAT_NUM_WORKERS`, default 1; more is allowed but recorded as
+`cpsat_deterministic=false` with a warning), `random_seed` = the request seed, every solve stops on
+`max_deterministic_time` (code constants: integer 0.15, resequence `min(0.15, 0.02 + 0.0007·n)` per
+line and 0.3 per request, 0.6 per request in all). `OPTIMIZER_CPSAT_WALL_GUARD_MS` (default 3000,
+never above `time_limit_s`) is a safety cap only: a solve it stops is discarded
+(`wall_clock_guard`; decided on the deterministic time, `cpsat.stopped_by_wall_clock`). Measured
+det/wall: integer stage 0.15 det-s ≈ 0.6-1.3 s wall, the 180-order VN line 0.146 det-s ≈ 0.75-0.9 s
+(5-8×); larger time-indexed lines cost more per det-second (a 200-order synthetic line, ~34 000
+variables: 0.149 det-s ≈ 2.7-3.0 s, ~20×, so the 3000 ms cap can fire on it under load).
+
+Full profile, `cpsat` vs `repair` net benefit (`tests/fixtures/full_problem.cpsat.golden.json`):
+C (BD story) 16.13 M vs 13.85 M cents, C (VN) 6.35 M vs 5.51 M, C (BD+VN) 22.48 M vs 19.57 M,
+D (VN) 8.01 M vs 7.98 M; A, B and D (BD, BD+VN) unchanged (D: the simulator rejects the CP-SAT
+units). Time (`tests/test_perf_m8.py`, shared 6-CPU test host at load ~6, 2026-10-09): all levers
+`cpsat` 3.8 s (BD), 5.6 s (VN), 6.9 s (BD+VN), 7.9 s over HTTP, against 2.2 / 2.7 / 2.9 s for
+`repair` in the same run; the `cpsat` budget is 10 s (`repair` keeps 5 s).
+
 ## Build, run, test
 ```bash
 # image (context = repo root)
@@ -281,7 +347,8 @@ Golden fixtures: `tests/fixtures/small_problem.json` (M1 small story; regenerate
 lines; options A-D summarised exactly in `full_problem.golden.json`). Refresh after an
 intentional model change with
 `KEELSON_UPDATE_GOLDEN=1 pytest tests/test_optimize.py tests/test_full_options.py -k golden`.
-Crafted lever cases: `tests/network.py`.
+Crafted lever cases: `tests/network.py`; M8: `tests/network_m8.py` (sourcing terms, random
+networks, plan invariants) and `full_problem.cpsat.golden.json` (`tests/test_full_options_m8.py`).
 
 Performance (S4, `tests/test_perf.py`, test image at 512 MB / 1.5 CPU, 2026-10-07): full profile,
 **all five levers** in one request: validate 0.27 s + optimize 2.55 s = **2.8 s** in-process (LP
@@ -292,6 +359,7 @@ profile, the seeded sea-air POs booked, CGP-UK1-SA cut to 30 %, all five levers 
 decision, `tests/test_replan_m5.py`): 2.8 s in-process at 512 MB / 1.5 CPU (two LP solves). The tests fail above 5 s.
 
 Env: `PORT` (8200), `OPTIMIZER_SHARED_SECRET`, `LOG_LEVEL` (INFO), `OPTIMIZER_JWT_LEEWAY_S` (5),
-`OPTIMIZER_MAX_BODY_BYTES` (33554432), `OPTIMIZER_MAX_CONCURRENCY` (1).
+`OPTIMIZER_MAX_BODY_BYTES` (33554432), `OPTIMIZER_MAX_CONCURRENCY` (1), `CPSAT_NUM_WORKERS` (1),
+`OPTIMIZER_CPSAT_WALL_GUARD_MS` (3000; M8 safety cap, see above).
 Logs: one JSON object per line with `trace_id` (from W3C `traceparent`, `x-trace-id` or
 `x-request-id`; echoed as response header `x-trace-id`).

@@ -23,6 +23,14 @@ the M1 subset defined here is used. The local models (:class:`LeadTimeShift`,
 structurally identical to the shapes in ``40-optimizer.md``; any other ``op`` is
 accepted as :class:`OtherPerturbation` and ignored (with a warning) by the optimizer.
 Target kinds the optimizer resolves are listed in :data:`TARGET_KINDS_BY_OP`.
+
+M8 CP-SAT additions (``docs/contracts/125-m8-optimizer-cpsat.md``) are omitted from dumps at
+their defaults, so every earlier payload and ``inputs_hash`` is unchanged: the opt-in
+``SolverOptions.integer_stage`` (``"repair"`` = M7 LP rounding, ``"cpsat"`` = whole-unit CP-SAT
+stages), sourcing terms on :class:`AltSource` (``order_multiple_units``, ``moq_basis``,
+``capacity_group``, ``max_orders``), ``ResourceAltSupplierParams.max_buys_per_line``,
+``ResequenceProductionParams.frozen_days`` / ``lateness_cents_per_unit_day`` and the per-solve
+records ``SolverInfo.stages`` (:class:`SolverStage`, emitted in ``cpsat`` mode only).
 """
 
 from __future__ import annotations
@@ -95,6 +103,8 @@ __all__ = [
     "ImpactResponse",
     "InboundLane",
     "InboundMode",
+    "IntegerFallbackReason",
+    "IntegerStage",
     "InventoryPosition",
     "KpiDelta",
     "Lane",
@@ -109,6 +119,7 @@ __all__ = [
     "LocationKind",
     "LonE6",
     "M1Perturbation",
+    "MoqBasis",
     "NodeStatus",
     "OptimizeRequest",
     "OptimizeResponse",
@@ -140,6 +151,8 @@ __all__ = [
     "ScorecardMetric",
     "Sku",
     "SolverInfo",
+    "SolverStage",
+    "SolverStageStatus",
     "SolverOptions",
     "TargetKind",
     "TimelinePoint",
@@ -195,6 +208,10 @@ LaneCode = Annotated[str, StringConstraints(pattern=r"^[^>\s]+>[^>\s]+$")]
 
 Prov = Literal["fact", "inference", "assumption", "simulated", "decision", "committed"]
 
+MoqBasis = Literal["po", "style"]
+"""What an alternate source's MOQ counts (M8): the whole purchase order (``po``) or each
+style-colour within it (``style``)."""
+
 
 def lane_code(from_dc: str, to_dc: str) -> str:
     """Canonical lane identifier used in perturbation targets and lever params."""
@@ -229,6 +246,12 @@ def _m3_optional() -> Any:
     """An additive (M3) optional field: defaults to ``None`` and is omitted from dumps while
     ``None``."""
     return Field(default=None, exclude_if=_is_none)
+
+
+def _omitted_at(default: Any) -> Any:
+    """An additive scalar field (M8 CP-SAT terms) with a non-``None`` default that is omitted
+    from dumps while it equals that default, so earlier payloads and hashes are unchanged."""
+    return Field(default=default, exclude_if=lambda v: v == default)
 
 
 class _Model(BaseModel):
@@ -384,7 +407,15 @@ class InboundLane(_Model):
 
 class AltSource(_Model):
     """An alternate (e.g. near-shore) source for ``resource_alt_supplier``; only
-    ``approved and compliance_ok`` sources may be used. Its lane fixes the destination DC."""
+    ``approved and compliance_ok`` sources may be used. Its lane fixes the destination DC.
+
+    M8 sourcing terms (omitted from dumps at their defaults): ``order_multiple_units`` (case
+    pack: every ``po.create`` line quantity is a multiple of it, so the effective MOQ is
+    ``ceil(moq_units / m) * m``), ``moq_basis`` (``style``: the MOQ applies to each
+    style-colour within a purchase order), ``capacity_group`` (rows with the same group share
+    one weekly capacity, the smallest of their ``weekly_capacity_units`` - e.g. one factory
+    shipping on two lanes) and ``max_orders`` (at most this many purchase orders, i.e.
+    distinct arrival weeks, from this row over the horizon)."""
 
     supplier_code: Code
     factory_code: Code
@@ -396,10 +427,20 @@ class AltSource(_Model):
     approved: StrictBool
     compliance_ok: StrictBool
     lane_code: Code
+    order_multiple_units: PosInt = _omitted_at(1)
+    moq_basis: MoqBasis = _omitted_at("po")
+    capacity_group: Code | None = _m3_optional()
+    max_orders: PosInt | None = _m3_optional()
 
     @property
     def usable(self) -> bool:
         return self.approved and self.compliance_ok
+
+    @property
+    def moq_effective(self) -> int:
+        """The MOQ rounded up to whole order multiples."""
+        m = self.order_multiple_units
+        return -(-self.moq_units // m) * m
 
 
 class ProductionOrder(_Model):
@@ -883,6 +924,9 @@ class ResourceAltSupplierParams(_Model):
     max_units_total: NonNegInt | None = None
     max_premium_cents: NonNegInt | None = None
     """Budget for the total near-shore unit-cost premium (``None`` = unbounded)."""
+    max_buys_per_line: PosInt | None = _m3_optional()
+    """M8: at most this many buys (distinct source x arrival week) replace one PO line
+    (``None`` = unbounded; omitted from dumps while unset)."""
 
     @model_validator(mode="after")
     def _unique(self) -> ResourceAltSupplierParams:
@@ -917,6 +961,13 @@ class ResequenceProductionParams(_Model):
     """Factory lines the lever may resequence; ``None`` = every line in ``production``."""
     max_orders_per_line: PosInt | None = None
     """Lines with more movable orders are left unchanged (``None`` = solver default)."""
+    frozen_days: NonNegInt = _omitted_at(0)
+    """M8: movable orders whose reference start is before ``as_of + frozen_days`` keep their
+    place at the head of the sequence (``0`` = no frozen zone; omitted from dumps at 0)."""
+    lateness_cents_per_unit_day: NonNegInt = _omitted_at(0)
+    """M8 (``integer_stage="cpsat"``): cost of one unit finishing one day after its PO line's
+    ex-factory date, added to the lost margin the sequence is chosen by (``0`` = lateness only
+    breaks ties; omitted from dumps at 0)."""
 
     @model_validator(mode="after")
     def _unique(self) -> ResequenceProductionParams:
@@ -1049,9 +1100,17 @@ class PlanSpec(_Model):
     weights: PlanWeights = Field(default_factory=PlanWeights)
 
 
+IntegerStage = Literal["repair", "cpsat"]
+"""How whole units are found (M8): ``repair`` = the M7 LP rounding and repair (default),
+``cpsat`` = the CP-SAT stages (whole-unit buys and splits, resequencing v2)."""
+
+
 class SolverOptions(_Model):
     time_limit_s: Annotated[int, Strict(), Field(ge=1, le=120)] = 5
     seed: NonNegInt = 0
+    integer_stage: IntegerStage = _omitted_at("repair")
+    """M8 opt-in: ``cpsat`` adds the CP-SAT integer stages and ``SolverInfo.stages``
+    (omitted from dumps while ``repair``, so M7 requests and hashes are unchanged)."""
 
 
 class OptimizeRequest(_Model):
@@ -1306,6 +1365,59 @@ class Explain(_Model):
     binding_constraints: list[BindingConstraint]
 
 
+SolverStageStatus = Literal["OPTIMAL", "FEASIBLE", "INFEASIBLE", "UNKNOWN", "MODEL_INVALID", "SKIPPED"]
+"""A solve's own status (``SKIPPED``: the stage was not solved, see ``fallback_reason``)."""
+
+IntegerFallbackReason = Literal[
+    "no_candidates",
+    "model_too_large",
+    "objective_overflow",
+    "time_limit_no_solution",
+    "infeasible",
+    "model_invalid",
+    "wall_clock_guard",
+    "budget_exhausted",
+    "no_improvement",
+    "simulator_not_better",
+    "solver_error",
+]
+"""Why a CP-SAT stage's result was not used (the LP rounding / M3 sequence is kept instead)."""
+
+_Sha256Hex = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
+_StageName = Annotated[str, StringConstraints(min_length=1, max_length=160)]
+"""A stage name embeds a line code (``Code``, up to 128 characters) between ``resequence:`` and
+``:tiebreak``."""
+
+
+class SolverStage(_Model):
+    """One solve of an ``integer_stage="cpsat"`` request (M8; plan §9: every solve records its
+    parameters, seed, version and input hash). ``name``: ``booking_decision``, ``resequence:<line_code>``
+    (+ ``resequence:<line_code>:tiebreak``), ``lp_phase1``, ``lp_phase1:no_resequence``,
+    ``lp_phase2``, ``lp_phase2:no_resequence``, ``integer`` or ``lp_phase2:cpsat``; ``solver``:
+    ``GLOP`` or ``CP-SAT``. ``model_hash`` = sha256 of the request's ``inputs_hash``, the stage name
+    and the stage's own inputs (fixed decisions, locked lines), never of the solver's model.
+    Deterministic fields only: no wall times (``SolverInfo.solve_ms`` stays the one volatile
+    field). ``objective`` / ``bound`` are CP-SAT's integer objective and best bound (``None`` for LP
+    stages)."""
+
+    name: _StageName
+    solver: Code
+    status: SolverStageStatus
+    used: StrictBool
+    """The stage's result is part of the returned plan."""
+    seed: NonNegInt | None = None
+    model_hash: _Sha256Hex | None = None
+    objective: Int | None = None
+    bound: Int | None = None
+    det_time_limit_ms: NonNegInt | None = None
+    """CP-SAT ``max_deterministic_time`` (ms of deterministic time, not wall time)."""
+    det_time_ms: NonNegInt | None = None
+    num_workers: PosInt | None = None
+    num_variables: NonNegInt = 0
+    num_constraints: NonNegInt = 0
+    fallback_reason: IntegerFallbackReason | None = None
+
+
 class SolverInfo(_Model):
     name: str
     ortools: str
@@ -1315,6 +1427,9 @@ class SolverInfo(_Model):
     solve_ms: NonNegInt
     status_detail: str | None = None
     """Additive: raw solver status when it is not OPTIMAL (e.g. time limit)."""
+    stages: list[SolverStage] = _m3_list()
+    """M8: one record per solve, in solve order; only ``integer_stage="cpsat"`` requests carry
+    them (omitted from dumps while empty)."""
 
 
 class OptimizeResponse(_Model):

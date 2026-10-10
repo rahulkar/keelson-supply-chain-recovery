@@ -39,6 +39,19 @@ baseline (first-come-first-served, see ``scn``) on the PO lines it changes, else
 baseline choice is used; the do-nothing fallback still cancels the bookings that do not
 fit (the baseline's), because the capacity cut leaves no plan that keeps them. A plan
 spec without levers stays the pure baseline (no actions).
+
+M8 (``SolverOptions.integer_stage="cpsat"``, ``docs/contracts/125-m8-optimizer-cpsat.md``): right
+before phase 2, the whole-unit CP-SAT stage (:mod:`keelson_opt.levers.alt_integer`) re-decides
+the buys and the splits competing for their PO lines over every phase-1 candidate, hinted with
+the repair above. Its units are used only when the simulator agrees: first on the DC x SKU
+pairs either decision set touches (phase-1 transfers), then on the whole plan against the
+repair's own phase 2 - screened with the CP-SAT units on that completion's transfers, then with
+their own phase 2 (the CP-SAT units fixed - buys *and* splits, so only the transfers move);
+otherwise the repair plan is kept, byte for byte, and
+the reason is recorded (``integer_fallback``, ``SolverInfo.stages``). In compare mode it runs
+once, for the winning phase-1 plan. The resequence uses its CP-SAT v2 per line
+(:mod:`keelson_opt.levers.resequence_cpsat`). ``integer_stage="repair"`` (the default) is the M7
+path, unchanged.
 """
 
 from __future__ import annotations
@@ -47,24 +60,28 @@ import logging
 import math
 import time
 from collections import defaultdict
-from collections.abc import Callable
-from dataclasses import dataclass, field
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field, replace
 from fractions import Fraction
+from functools import partial
 
 from keelson_contracts.optimizer import (
     LEVER_CODES,
     Allocation,
     BindingConstraint,
+    IntegerFallbackReason,
     OptimizeStatus,
     PlanSpec,
     PrioritizeAllocationParams,
     SolverOptions,
+    SolverStage,
 )
 
+from keelson_opt.cpsat import StageLog, cpsat_workers
 from keelson_opt.impact import SimResult, lost_margin, simulate
-from keelson_opt.levers import composed
+from keelson_opt.levers import alt_integer, composed
 from keelson_opt.levers.composed import AltCand, ExpCand, Fixed, LeverParams, LpOut, keep_candidates
-from keelson_opt.levers.resequence import cpsat_workers, plan_resequence
+from keelson_opt.levers.resequence import plan_resequence
 from keelson_opt.plan import (
     AllocChange,
     AltBuy,
@@ -99,6 +116,16 @@ class PlanOutcome:
     solve_ms: int
     solver_name: str
     warnings: list[str] = field(default_factory=list)
+    stages: list[SolverStage] = field(default_factory=list)
+    """M8: per-solve records (``integer_stage="cpsat"`` only)."""
+
+
+_TECHNICAL_FALLBACKS: frozenset[str] = frozenset(
+    {"model_too_large", "objective_overflow", "time_limit_no_solution", "infeasible", "model_invalid",
+     "wall_clock_guard", "budget_exhausted", "solver_error"}
+)
+"""Integer-stage fallbacks that also add a warning (``no_improvement`` / ``simulator_not_better``
+are normal outcomes: recorded in the params and stages only)."""
 
 
 def weighted_net(scn: Scenario, plan: Plan, spec: PlanSpec, margin_before: int) -> int:
@@ -125,11 +152,20 @@ def evaluate(
     )
 
 
-def make_plan(scn: Scenario, spec: PlanSpec, options: SolverOptions, margin_before: int) -> PlanOutcome:
+def make_plan(
+    scn: Scenario, spec: PlanSpec, options: SolverOptions, margin_before: int, *, inputs_hash: str = ""
+) -> PlanOutcome:
     levers = {lv.code: lv.params for lv in spec.levers}
     params: dict[str, int | str | bool] = {"levers": ",".join(lv.code for lv in spec.levers) or "none"}
     warnings: list[str] = []
     plan = Plan()
+    cp = _Cpsat(
+        StageLog(enabled=options.integer_stage == "cpsat", seed=options.seed, inputs_hash=inputs_hash),
+        margin_before,
+        levers.get("prioritize_allocation"),  # type: ignore[arg-type]
+    )
+    if cp.on:
+        params["integer_stage"] = "cpsat"
     if not levers:
         return PlanOutcome("OPTIMAL", None, plan, [], params, 0, "none", warnings)
 
@@ -153,6 +189,8 @@ def make_plan(scn: Scenario, spec: PlanSpec, options: SolverOptions, margin_befo
             # every booked PO line is an already-applied decision (not only the over-booked
             # cells' lines): moving one would make it miss its booked departure
             pinned=scn.booked_refs,
+            stages=cp.stages,
+            time_limit_s=options.time_limit_s,
         )
         solve_ms += round((time.perf_counter() - t0) * 1000)
         plan.moves, plan.sequences = rs.moves, rs.sequences
@@ -177,7 +215,7 @@ def make_plan(scn: Scenario, spec: PlanSpec, options: SolverOptions, margin_befo
     booked = set(scn.booked_refs)
     if scn.decidable:
         kept, k_ms, k_warn = _decide_bookings(
-            scn, apply_moves(lines0, plan.moves), lp_levers, spec, options, set(plan.moves) | booked
+            scn, apply_moves(lines0, plan.moves), lp_levers, spec, options, set(plan.moves) | booked, cp
         )
         plan.rebook = make_rebook(scn, kept)
         solve_ms += k_ms
@@ -200,30 +238,56 @@ def make_plan(scn: Scenario, spec: PlanSpec, options: SolverOptions, margin_befo
             plan,
             not compare,
             load,
+            cp,
         )
         if compare and lp.ok:
             # Resequenced PO lines are locked for expedite / re-sourcing (one op per PO line):
             # keep the resequence only if the (phase-1) plan is at least as good as the other
             # levers acting on those lines instead; phase 2 then runs for the winner only.
             other = Plan(rebook=plan.rebook)
-            lp2 = _lp_pass(scn, lines0, lp_levers, spec, options, set(booked), other, False, load)
-            if lp2.ok and weighted_net(scn, other, spec, margin_before) > weighted_net(scn, plan, spec, margin_before):
+            lp2 = _lp_pass(
+                scn, lines0, lp_levers, spec, options, set(booked), other, False, load, cp, "lp_phase1:no_resequence"
+            )
+            completed: dict[str, _Completion] = {}
+            if cp.on and lp2.ok:
+                # M8: both candidates are completed by the repair's phase 2 and compared after
+                # the allocations - a bare phase-1 plan hides what phase 2 recovers on the lines
+                # the resequence leaves unlocked, which decided the full-profile D options wrongly.
+                completed["plan"] = _repair_completion(scn, lp_levers, spec, options, plan, lp, cp, "lp_phase2")
+                completed["other"] = _repair_completion(
+                    scn, lp_levers, spec, options, other, lp2, cp, "lp_phase2:no_resequence"
+                )
+                net_other, net_plan = _lookahead(scn, spec, completed["other"].plan, completed["plan"].plan, cp)
+                drop = net_other > net_plan
+            else:
+                drop = lp2.ok and weighted_net(scn, other, spec, margin_before) > weighted_net(
+                    scn, plan, spec, margin_before
+                )
+            if drop:
                 warnings.append(
                     "resequence_production: dropped; the other levers recover more on the PO lines it would lock"
                 )
                 params["resequence_dropped"] = True
                 lp2.solve_ms += lp.solve_ms
                 plan, lp, reseq_name = other, lp2, None
+                cp.stages.mark("lp_phase1", used=False)
+                cp.stages.mark("lp_phase2", used=False)
             else:
                 lp.solve_ms += lp2.solve_ms
-            _phase2(scn, lp_levers, spec, options, plan, lp)
+                cp.stages.mark("lp_phase1:no_resequence", used=False)
+                cp.stages.mark("lp_phase2:no_resequence", used=False)
+            _phase2(scn, lp_levers, spec, options, plan, lp, cp, completed.get("other" if drop else "plan"))
         solve_ms += lp.solve_ms
         warnings.extend(lp.warnings)
+        warnings.extend(cp.warnings)
         params.update(lp.params)
+        params.update(cp.params)
         status, detail, binding = lp.status, lp.status_detail, lp.binding
         if not lp.ok:
             plan = Plan(rebook=plan.rebook)  # no usable LP solution: nothing from any lever
-    if reseq_name is not None:
+        elif str(cp.params.get("integer_method", "")).startswith("cpsat"):
+            names.append("CP-SAT")
+    if reseq_name is not None and reseq_name not in names:
         names.append(reseq_name)
     prio = levers.get("prioritize_allocation")
     if prio is not None and status in ("OPTIMAL", "FEASIBLE"):
@@ -237,7 +301,68 @@ def make_plan(scn: Scenario, spec: PlanSpec, options: SolverOptions, margin_befo
     if scn.decidable:
         params["bookings_decidable"] = len(scn.decidable)
         params["bookings_cancelled"] = len(plan.rebook.cancelled) if plan.rebook is not None else 0
-    return PlanOutcome(status, detail, plan, binding, params, solve_ms, "+".join(names) or "none", warnings)
+    if cp.on and (cp.stages.cpsat_runs or "cpsat_num_workers" in params):
+        workers = cpsat_workers()
+        params["cpsat_num_workers"] = workers
+        params["cpsat_deterministic"] = workers == 1
+        if workers > 1:
+            warnings.append(
+                f"CPSAT_NUM_WORKERS={workers}: CP-SAT ran with several workers, so this plan may differ between "
+                "identical requests (use 1 for deterministic plans)"
+            )
+    if cp.on:
+        _settle_stages(cp.stages, plan, params)
+    return PlanOutcome(
+        status, detail, plan, binding, params, solve_ms, "+".join(names) or "none", warnings, cp.stages.stages
+    )
+
+
+def _settle_stages(log: StageLog, plan: Plan, params: Mapping[str, int | str | bool]) -> None:
+    """``used`` against the returned plan: a line's resequence stages are unused when the plan does
+    not keep its sequence (compare mode dropped the resequence, the simulator check or the
+    never-worse pruning rejected it), and every stage is unused when the do-nothing plan is
+    returned. (The pruning may still drop a whole LP lever; its stages keep ``used``.)"""
+    if params.get("plan_fallback") == "do_nothing":
+        log.unuse(lambda _name: True)
+        return
+    kept = {f"resequence:{s.line_code}" for s in plan.sequences}
+    kept |= {f"{name}:tiebreak" for name in kept}
+    log.unuse(lambda name: name.startswith("resequence:") and name not in kept)
+
+
+@dataclass(slots=True)
+class _Cpsat:
+    """Per-request state of the M8 stages (inert in ``repair`` mode: ``on`` is false and the stage
+    log records nothing)."""
+
+    stages: StageLog
+    margin_before: int
+    prio: PrioritizeAllocationParams | None
+    params: dict[str, int | str | bool] = field(default_factory=dict)
+    """The integer stage's ``integer_method`` / ``integer_gap_bp`` / ``integer_fallback``."""
+    warnings: list[str] = field(default_factory=list)
+    """The integer stage's fallback warnings."""
+
+    @property
+    def on(self) -> bool:
+        return self.stages.enabled
+
+
+def _lookahead(scn: Scenario, spec: PlanSpec, a: Plan, b: Plan, cp: _Cpsat) -> tuple[int, int]:
+    """``cpsat`` mode's measure when two candidate plans compete: their weighted net benefits
+    once ``prioritize_allocation`` ran on copies, on the DC x SKU pairs either touches (pairs are
+    independent in the simulator, so the difference is exact). Bare plans hide what the
+    allocations add to one of them (the lever pruning of step 5 runs on the chosen plan only)."""
+    trials: list[Plan] = []
+    for plan in (a, b):
+        trial = plan.without("")
+        if cp.prio is not None:
+            _allocations(scn, trial, cp.prio, [])
+        trials.append(trial)
+    keys = touched_keys(trials[0], scn) | touched_keys(trials[1], scn)
+    w = spec.weights
+    nets = [-w.lost_margin * lost_margin(evaluate(scn, t, keys)) - w.transfer_cost * t.incremental_cost for t in trials]
+    return nets[0], nets[1]
 
 
 @dataclass(slots=True)
@@ -269,6 +394,8 @@ def _lp_pass(
     plan: Plan,
     phase2: bool = True,
     load: dict[tuple[str, int], int] | None = None,
+    cp: _Cpsat | None = None,
+    stage: str = "lp_phase1",
 ) -> _LpPass:
     """The LP levers on ``lines`` (``locked`` PO lines excluded, ``load`` = lane capacity
     drawn by the bookings that fly): phase 1 and the integer repair, then (``phase2``) the
@@ -276,6 +403,9 @@ def _lp_pass(
     ``plan``."""
     load = load or {}
     out = composed.solve_composed(scn, lines, lp_levers, spec.weights, options, locked=locked, load=load)
+    if cp is not None and cp.on:
+        payload = {"locked": sorted(locked), "load": _load_payload(load), "moves": _moves_payload(plan)}
+        cp.stages.lp(stage, out.status, out.params, payload)
     lp = _LpPass(
         out.status, out.status_detail, [], dict(out.params), list(out.warnings), out.solve_ms, lines, locked, load
     )
@@ -285,8 +415,16 @@ def _lp_pass(
     lp.alt = _alt_decisions(scn, out, spec, plan, lp_levers)
     _write(plan, lp)
     if phase2:
-        _phase2(scn, lp_levers, spec, options, plan, lp)
+        _phase2(scn, lp_levers, spec, options, plan, lp, cp)
     return lp
+
+
+def _load_payload(load: dict[tuple[str, int], int]) -> list[list[object]]:
+    return [[lane, t, q] for (lane, t), q in sorted(load.items())]
+
+
+def _moves_payload(plan: Plan) -> list[list[object]]:
+    return [[ref, m.week] for ref, m in sorted(plan.moves.items())]
 
 
 def _write(plan: Plan, lp: _LpPass) -> None:
@@ -299,7 +437,80 @@ def _write(plan: Plan, lp: _LpPass) -> None:
 
 
 def _phase2(
-    scn: Scenario, lp_levers: LeverParams, spec: PlanSpec, options: SolverOptions, plan: Plan, lp: _LpPass
+    scn: Scenario,
+    lp_levers: LeverParams,
+    spec: PlanSpec,
+    options: SolverOptions,
+    plan: Plan,
+    lp: _LpPass,
+    cp: _Cpsat | None = None,
+    done: _Completion | None = None,
+) -> None:
+    """Phase 2 (``integer_stage="cpsat"``: after the whole-unit CP-SAT stage, which may replace
+    it by its own completion, see :func:`_integer_stage`; ``done`` = the repair's phase 2 already
+    computed on copies, compare mode)."""
+    if (
+        cp is not None
+        and cp.on
+        and lp_levers.alt is not None
+        and lp.out is not None
+        and _integer_stage(scn, lp_levers, spec, options, plan, lp, cp, done)
+    ):
+        return  # a completion was written inside the integer stage
+    if done is not None:
+        _adopt(plan, lp, done)
+        return
+    _lp_phase2(scn, lp_levers, spec, options, plan, lp, cp)
+
+
+@dataclass(slots=True)
+class _Completion:
+    """A candidate plan after the repair's phase 2, computed on copies (the pre-phase-2 plan
+    stays as it was, for the integer stage)."""
+
+    plan: Plan
+    lp: _LpPass
+    stage: str
+    """Its ``SolverInfo.stages`` name."""
+    base_ms: int
+    """``lp.solve_ms`` when the copies were taken."""
+
+
+def _repair_completion(
+    scn: Scenario,
+    lp_levers: LeverParams,
+    spec: PlanSpec,
+    options: SolverOptions,
+    plan: Plan,
+    lp: _LpPass,
+    cp: _Cpsat,
+    stage: str,
+) -> _Completion:
+    done = _Completion(
+        plan.without(""), replace(lp, params=dict(lp.params), warnings=list(lp.warnings)), stage, lp.solve_ms
+    )
+    _lp_phase2(scn, lp_levers, spec, options, done.plan, done.lp, cp, stage)
+    return done
+
+
+def _adopt(plan: Plan, lp: _LpPass, done: _Completion) -> None:
+    """Write a completion back into the request's plan and LP pass."""
+    plan.transfers, plan.alt, plan.expedites = done.plan.transfers, done.plan.alt, done.plan.expedites
+    lp.out, lp.binding, lp.alt = done.lp.out, done.lp.binding, done.lp.alt
+    lp.status, lp.status_detail = done.lp.status, done.lp.status_detail
+    lp.params, lp.warnings = done.lp.params, done.lp.warnings
+    lp.solve_ms += done.lp.solve_ms - done.base_ms
+
+
+def _lp_phase2(
+    scn: Scenario,
+    lp_levers: LeverParams,
+    spec: PlanSpec,
+    options: SolverOptions,
+    plan: Plan,
+    lp: _LpPass,
+    cp: _Cpsat | None = None,
+    stage: str = "lp_phase2",
 ) -> None:
     """Phase 2: alternate buys fixed to their repaired integers, expedite and transfers
     re-optimised around them (lines bought elsewhere cannot split)."""
@@ -309,6 +520,8 @@ def _phase2(
     out2 = composed.solve_composed(
         scn, lp.lines, lp_levers, spec.weights, options, locked=lp.locked, fixed=fixed, load=lp.load
     )
+    if cp is not None and cp.on:
+        cp.stages.lp(stage, out2.status, out2.params, _fixed_payload(fixed))
     lp.solve_ms += out2.solve_ms
     lp.params["phase2"] = True
     if out2.status in ("OPTIMAL", "FEASIBLE"):
@@ -317,6 +530,194 @@ def _phase2(
         _write(plan, lp)
     else:
         lp.warnings.append(f"phase-2 re-solve failed ({out2.status_detail}); phase-1 decisions kept")
+
+
+def _fixed_payload(fixed: Fixed) -> dict[str, object]:
+    return {
+        "alt": [[*s, ref, w, q] for (s, ref, w), q in sorted(fixed.alt.items())],
+        "exp": None if fixed.exp is None else [[ref, lane, q] for (ref, lane), q in sorted(fixed.exp.items())],
+        "blocked": sorted(fixed.exp_blocked),
+    }
+
+
+# ───────────────────────────── whole-unit CP-SAT stage (M8) ─────────────────────────────
+
+
+def _integer_stage(
+    scn: Scenario,
+    lp_levers: LeverParams,
+    spec: PlanSpec,
+    options: SolverOptions,
+    plan: Plan,
+    lp: _LpPass,
+    cp: _Cpsat,
+    done: _Completion | None = None,
+) -> bool:
+    """``integer_stage="cpsat"``: re-decide the buys and the competing splits in whole units
+    (:func:`keelson_opt.levers.alt_integer.solve_integer`, hinted with the repair already in
+    ``plan``). The CP-SAT units are used only when (1) they differ from the repair's and are
+    not worse by the CP-SAT objective, (2) the simulator rates them higher on the pairs either
+    set touches (phase-1 transfers; ties: the lower CP-SAT objective) and (3) their completion
+    beats the repair's own completion (:func:`_complete`). Returns whether a completion was
+    written here (once (3) was reached); otherwise the caller completes the repair plan exactly
+    as in ``repair`` mode. Exceptions become the ``solver_error`` fallback, never a failed
+    request."""
+    out = lp.out
+    assert out is not None
+    repair_alt = {a.key: q for a, q in lp.alt}
+    repair_exp = {(e.ref, e.lane.code): e.qty for e in plan.expedites}
+    payload = {
+        "transfers": [[tr.lane.code, tr.sku, tr.ship_week, tr.qty] for tr in out.transfers],
+        "alt": [[*s, ref, w, q] for (s, ref, w), q in sorted(repair_alt.items())],
+        "exp": [[ref, lane, q] for (ref, lane), q in sorted(repair_exp.items())],
+        "locked": sorted(lp.locked),
+    }
+    t0 = time.perf_counter()
+    try:
+        res = alt_integer.solve_integer(
+            scn, out, lp.lines, lp_levers, spec.weights, repair_alt=repair_alt, repair_exp=repair_exp,
+            load=lp.load, seed=options.seed, time_limit_s=options.time_limit_s, budget=cp.stages.budget,
+        )  # fmt: skip
+    except Exception:  # noqa: BLE001 - a failing stage falls back to the repair, never fails the request
+        log.exception("whole-unit CP-SAT stage failed; LP rounding kept")
+        res = alt_integer.IntegerOutcome("solver_error")
+    lp.solve_ms += round((time.perf_counter() - t0) * 1000)
+    if res.run is not None:
+        cp.stages.cpsat_runs += 1
+    reason: IntegerFallbackReason | None = res.fallback
+    run = res.run
+    if reason is None and run is not None:
+        better_obj = res.hint_objective is None or (run.objective is not None and run.objective < res.hint_objective)
+        if (res.alt, res.exp) == (repair_alt, repair_exp) or (
+            res.hint_objective is not None and run.objective is not None and run.objective > res.hint_objective
+        ):
+            reason = "no_improvement"
+        else:
+            keys = _pairs(out, res.alt, res.exp) | _pairs(out, repair_alt, repair_exp)
+            v_cp = _decision_net(scn, spec, plan, out, res.alt, res.exp, keys)
+            v_rep = _decision_net(scn, spec, plan, out, repair_alt, repair_exp, keys)
+            if v_cp < v_rep:
+                reason = "simulator_not_better"
+            elif v_cp == v_rep and not better_obj:
+                reason = "no_improvement"
+    completed = reason is None
+    # Recorded now, in solve order (the completion's LP solves follow), and settled once they decide.
+    cp.stages.cp("integer", run, payload, used=False, fallback=reason, det_limit=res.det_limit, size=res.size)
+    if completed:
+        reason = _complete(scn, lp_levers, spec, options, plan, lp, cp, res, done)
+        cp.stages.settle("integer", used=reason is None, fallback=reason)
+    used = reason is None
+    if reason == "no_candidates":
+        return False
+    # Recorded on the request state, not on ``lp``: a fallback before the completion adopts the
+    # repair completion computed on copies (compare mode), which replaces ``lp.params``.
+    if used and run is not None:
+        cp.params["integer_method"] = "cpsat_optimal" if run.status == "OPTIMAL" else "cpsat_feasible"
+        cp.params["integer_gap_bp"] = run.gap_bp
+    else:
+        cp.params["integer_method"] = "lp_rounding"
+        cp.params["integer_fallback"] = str(reason)
+        if reason in _TECHNICAL_FALLBACKS:
+            cp.warnings.append(f"resource_alt_supplier: whole-unit CP-SAT stage fell back to LP rounding ({reason})")
+    return completed
+
+
+def _complete(
+    scn: Scenario,
+    lp_levers: LeverParams,
+    spec: PlanSpec,
+    options: SolverOptions,
+    plan: Plan,
+    lp: _LpPass,
+    cp: _Cpsat,
+    res: alt_integer.IntegerOutcome,
+    done: _Completion | None,
+) -> IntegerFallbackReason | None:
+    """Both completions - phase 2 with every CP-SAT unit fixed (buys *and* splits: only the
+    transfers move) and the repair's own phase 2 (``done`` when compare mode computed it
+    already) - compared through :func:`_lookahead`; the better one is written into ``plan`` /
+    ``lp`` (``None`` = the CP-SAT completion, else why the repair completion was kept, exactly
+    as in ``repair`` mode). A screen first puts the CP-SAT units on the repair completion's
+    transfers (feasible for any buys and splits: transfers are reserved at the source) and skips
+    the second LP solve when that already loses to the repair completion."""
+    out = lp.out
+    assert out is not None
+    repaired = done or _repair_completion(scn, lp_levers, spec, options, plan, lp, cp, "lp_phase2")
+    screen = repaired.plan.without("")
+    screen.alt = [_alt(out.alt_cands[k], q) for k, q in sorted(res.alt.items())]
+    screen.expedites = [_expedite(out.exp_cands[k], q) for k, q in sorted(res.exp.items())]
+    net_s, net_r = _lookahead(scn, spec, screen, repaired.plan, cp)
+    if net_s <= net_r:
+        cp.stages.mark(repaired.stage, used=True)
+        _adopt(plan, lp, repaired)
+        return "simulator_not_better" if net_s < net_r else "no_improvement"
+    plan_c, lp_c = plan.without(""), replace(lp, params=dict(lp.params), warnings=list(lp.warnings))
+    lp_c.alt = [(out.alt_cands[k], q) for k, q in sorted(res.alt.items())]
+    fixed = Fixed(alt=dict(res.alt), exp_blocked={k[1] for k in res.alt}, exp=dict(res.exp))
+    out2 = composed.solve_composed(
+        scn, lp.lines, lp_levers, spec.weights, options, locked=lp.locked, fixed=fixed, load=lp.load
+    )
+    lp.solve_ms += out2.solve_ms
+    lp_c.params["phase2"] = True
+    ok = out2.status in ("OPTIMAL", "FEASIBLE")
+    if ok:
+        lp_c.out, lp_c.binding = out2, out2.binding
+        lp_c.status, lp_c.status_detail = out2.status, out2.status_detail
+        _write(plan_c, lp_c)
+        ok = {(e.ref, e.lane.code): e.qty for e in plan_c.expedites} == res.exp and {
+            a.key: q for a, q in lp_c.alt
+        } == res.alt
+        if not ok:
+            log.error("phase 2 with the CP-SAT units fixed did not reproduce them; LP rounding kept")
+    reason: IntegerFallbackReason | None = None
+    if not ok:
+        reason = "solver_error"
+    else:
+        net_c, net_r = _lookahead(scn, spec, plan_c, repaired.plan, cp)
+        if net_c < net_r:
+            reason = "simulator_not_better"
+        elif net_c == net_r:
+            reason = "no_improvement"
+    cp.stages.lp("lp_phase2:cpsat", out2.status, out2.params, _fixed_payload(fixed), used=reason is None)
+    cp.stages.mark(repaired.stage, used=reason is not None)
+    if reason is None:
+        plan.transfers, plan.alt, plan.expedites = plan_c.transfers, plan_c.alt, plan_c.expedites
+        lp.out, lp.binding, lp.alt = lp_c.out, lp_c.binding, lp_c.alt
+        lp.status, lp.status_detail = lp_c.status, lp_c.status_detail
+        lp.params, lp.warnings = lp_c.params, lp_c.warnings
+        lp.solve_ms += repaired.lp.solve_ms - repaired.base_ms
+    else:
+        _adopt(plan, lp, repaired)
+    return reason
+
+
+def _pairs(out: LpOut, alt: Mapping[AltKey, int], exp: Mapping[tuple[str, str], int]) -> set[tuple[str, str]]:
+    keys = {(out.alt_cands[k].dc, out.alt_cands[k].sku) for k in alt}
+    keys |= {(out.exp_cands[k].dc, out.exp_cands[k].sku) for k in exp}
+    return keys
+
+
+def _decision_net(
+    scn: Scenario,
+    spec: PlanSpec,
+    plan: Plan,
+    out: LpOut,
+    alt: Mapping[AltKey, int],
+    exp: Mapping[tuple[str, str], int],
+    keys: set[tuple[str, str]],
+) -> int:
+    """Weighted net of a set of buys and splits with the phase-1 transfers, on ``keys``."""
+    trial = Plan(
+        transfers=out.transfers,
+        expedites=[_expedite(out.exp_cands[k], q) for k, q in sorted(exp.items())],
+        alt=[_alt(out.alt_cands[k], q) for k, q in sorted(alt.items())],
+        moves=plan.moves,
+        sequences=plan.sequences,
+        rebook=plan.rebook,
+    )
+    margin = lost_margin(evaluate(scn, trial, keys))
+    cost = trial.expedite_premium + trial.nearshore_premium
+    return -spec.weights.lost_margin * margin - spec.weights.transfer_cost * cost
 
 
 # ───────────────────────────── capacity bookings (M5) ─────────────────────────────
@@ -329,6 +730,7 @@ def _decide_bookings(
     spec: PlanSpec,
     options: SolverOptions,
     locked: set[str],
+    cp: _Cpsat | None = None,
 ) -> tuple[frozenset[str], int, list[str]]:
     """Which decidable bookings fly: the plan LP (every chosen lever) with a kept share per
     booking, then integer rounding per over-booked cell - each order below keeps every
@@ -353,6 +755,9 @@ def _decide_bookings(
         keep=cands,
         load=scn.booking_load(frozenset()),
     )
+    if cp is not None and cp.on:
+        payload = {"locked": sorted(locked), "decidable": list(scn.decidable)}
+        cp.stages.lp("booking_decision", out.status, out.params, payload)
     warnings = list(out.warnings)
     if out.status not in ("OPTIMAL", "FEASIBLE"):
         warnings.append(
@@ -434,7 +839,14 @@ def _alt_decisions(
     for (_s, ref, _w), q in alt_q.items():
         per_ref[ref] += q
     alt_q = {k: q for k, q in alt_q.items() if per_ref[k[1]] > exp.get(k[1], 0)}
-    alt_q = _moq_repair(scn, out, spec, plan, lp_levers, exp, alt_q)
+    if alt_integer.has_terms(out, lp_levers.alt):
+        # M8 sourcing terms (multiples, MOQ per style, split limits, capacity groups)
+        score = partial(_partial_net, scn, spec, plan, out, exp)
+        alt_q = alt_integer.repair_terms(
+            scn, out, lp_levers.alt, exp, alt_q, score, expedite=lp_levers.expedite is not None
+        )
+    else:
+        alt_q = _moq_repair(scn, out, spec, plan, lp_levers, exp, alt_q)
     return [(out.alt_cands[k], q) for k, q in sorted(alt_q.items())]
 
 

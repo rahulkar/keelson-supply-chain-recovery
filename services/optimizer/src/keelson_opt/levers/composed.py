@@ -27,7 +27,10 @@ with only that lever the model is built row for row identically). On top of the 
   weekly_capacity_units``; per line ``sum e + sum n <= open qty``; budgets. Cost:
   ``max(0, unit_cost(a) + cost(a.lane) - unit_cost(sku) - cost(line's lane))`` per unit.
   The MOQ is enforced after the solve by a deterministic repair (see
-  :mod:`keelson_opt.planner`).
+  :mod:`keelson_opt.planner`). M8: sources sharing a ``capacity_group`` get one row per group
+  and arrival week (``sum n <=`` the smallest weekly capacity of the group's rows); the other
+  M8 sourcing terms (order multiples, MOQ per style, ``max_orders``, ``max_buys_per_line``) are
+  integer rules, applied by the repair or the CP-SAT stage (:mod:`keelson_opt.levers.alt_integer`).
 
 Candidates are PO lines with a disrupted receipt (delayed or lost) unless the params list
 them explicitly, never lines locked by another lever (Merxa accepts one op per PO line per
@@ -74,6 +77,21 @@ log = logging.getLogger(__name__)
 
 EPS_UNIT = 0.01
 _ROUND_TOL = 1e-6
+OBJ_SCALE = 40_000
+"""Integer scale of the LP objective used by the CP-SAT stage (M8): every coefficient of the LP
+(``margin * w_lost``, ``0.25 * margin * w_lost`` for buffers, ``w_cost * premium + 0.01``, with
+weights in basis points / 10000) times 40000 is an exact integer."""
+
+
+def unit_cost(w_tr: float, premium: int) -> float:
+    """LP objective cost of one expedited or re-sourced unit (weighted cents)."""
+    return w_tr * premium + EPS_UNIT
+
+
+def unit_cost_scaled(transfer_cost_bp: int, premium: int) -> int:
+    """:func:`unit_cost` x :data:`OBJ_SCALE` in exact integers (the CP-SAT stage's coefficient):
+    ``40000 * (bp / 10000 * premium + 0.01) = 4 * bp * premium + 400``."""
+    return 4 * transfer_cost_bp * premium + round(OBJ_SCALE * EPS_UNIT)
 
 
 @dataclass(frozen=True, slots=True)
@@ -171,10 +189,13 @@ class LeverParams:
 @dataclass(slots=True)
 class Fixed:
     """Phase 2: only these alternate-source variables exist (fixed to the repaired integer
-    quantities); expedite stays free except on the PO lines in ``exp_blocked``."""
+    quantities); expedite stays free except on the PO lines in ``exp_blocked``. M8: with
+    ``exp`` (the CP-SAT stage's whole-unit splits) only those expedite variables exist too,
+    fixed like the buys, so only the transfers are re-optimised."""
 
     alt: dict[tuple[tuple[str, str, str], str, int], int] = field(default_factory=dict)
     exp_blocked: set[str] = field(default_factory=set)
+    exp: dict[tuple[str, str], int] | None = None
 
 
 @dataclass(slots=True)
@@ -294,6 +315,17 @@ def _departure(
     return None
 
 
+def capacity_groups(scn: Scenario) -> dict[str, int]:
+    """M8: weekly capacity per ``AltSource.capacity_group`` = the smallest
+    ``weekly_capacity_units`` of the group's rows (every row, usable or not)."""
+    out: dict[str, int] = {}
+    for src in scn.data.alt_sources if scn.data is not None else ():
+        if src.capacity_group is not None:
+            cap = out.get(src.capacity_group)
+            out[src.capacity_group] = src.weekly_capacity_units if cap is None else min(cap, src.weekly_capacity_units)
+    return out
+
+
 def alt_candidates(
     scn: Scenario, params: ResourceAltSupplierParams, lines: list[RLine], locked: set[str]
 ) -> tuple[list[AltCand], list[str]]:
@@ -399,6 +431,8 @@ def solve_composed(
         warnings.extend(cand_warnings)
     if fixed is not None:
         exp_cands = [c for c in exp_cands if c.ref not in fixed.exp_blocked]
+        if fixed.exp is not None:
+            exp_cands = [c for c in exp_cands if fixed.exp.get(c.key, 0) > 0]
         alt_cands = [c for c in alt_cands if fixed.alt.get(c.key, 0) > 0]
 
     reqs = _r._requirements(scn)
@@ -460,7 +494,12 @@ def solve_composed(
     e_vars: dict[tuple[str, str], int] = {}
     n_vars: dict[tuple[tuple[str, str, str], str, int], int] = {}
     for c in exp_cands:
-        v = lp.var(float(c.ub), w_tr * c.premium + EPS_UNIT)
+        if fixed is not None and fixed.exp is not None:
+            q = float(fixed.exp[c.key])
+            v = lp.var(q, unit_cost(w_tr, c.premium))
+            model.helper.set_var_lower_bound(v, q)
+        else:
+            v = lp.var(float(c.ub), unit_cost(w_tr, c.premium))
         e_vars[c.key] = v
         plus[(c.dc, c.sku, c.arrive_week)].append(v)
         if c.from_week is not None:
@@ -468,10 +507,10 @@ def solve_composed(
     for a in alt_cands:
         if fixed is not None:
             q = float(fixed.alt[a.key])
-            v = lp.var(q, w_tr * a.premium + EPS_UNIT)
+            v = lp.var(q, unit_cost(w_tr, a.premium))
             model.helper.set_var_lower_bound(v, q)
         else:
-            v = lp.var(float(a.ub), w_tr * a.premium + EPS_UNIT)
+            v = lp.var(float(a.ub), unit_cost(w_tr, a.premium))
         n_vars[a.key] = v
         plus[(a.dc, a.sku, a.week)].append(v)
         if a.from_week is not None:
@@ -575,6 +614,17 @@ def solve_composed(
             f"alt source {skey[1]}>{skey[2]} cap {short_week(scn.weeks[w])}",
             [n_vars[a.key] for a in cands],
             float(cands[0].source.weekly_capacity_units),
+        )
+    group_caps = capacity_groups(scn)
+    by_group_week: dict[tuple[str, int], list[AltCand]] = defaultdict(list)
+    for a in alt_cands:
+        if a.source.capacity_group is not None:
+            by_group_week[(a.source.capacity_group, a.week)].append(a)
+    for (group, w), cands in sorted(by_group_week.items()):
+        cap_row(
+            f"alt group {group} cap {short_week(scn.weeks[w])}",
+            [n_vars[a.key] for a in cands],
+            float(group_caps[group]),
         )
     per_ref_e: dict[str, list[ExpCand]] = defaultdict(list)
     for c in exp_cands:

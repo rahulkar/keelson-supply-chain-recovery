@@ -102,7 +102,7 @@ def run_optimize(req: OptimizeRequest) -> OptimizeResponseM5:
     res_before = simulate(scn)
     before = kpis(res_before)
 
-    outcome = make_plan(scn, spec, req.solver, before.margin_at_risk_cents)
+    outcome = make_plan(scn, spec, req.solver, before.margin_at_risk_cents, inputs_hash=inputs_hash)
     warnings.extend(outcome.warnings)
     plan = outcome.plan
     res_after = _simulate_plan(scn, plan)
@@ -135,6 +135,7 @@ def run_optimize(req: OptimizeRequest) -> OptimizeResponseM5:
             inputs_hash=inputs_hash,
             solve_ms=outcome.solve_ms,
             status_detail=outcome.status_detail,
+            stages=outcome.stages,
         ),
         warnings=warnings,
         scorecard=scorecard(scn, plan, res_before, res_after, before, after, len(actions), seed=req.solver.seed),

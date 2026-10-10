@@ -506,6 +506,23 @@ in editor → diagnostics → save with `proposal_id`, action draft → 202 bann
 earlier proposals + discard, errors, Explain (SQL disclosure, axe), staged preview (statistics, FK
 examples, disabled without staged data) and the connector call to action.
 
+## M8 — planning solver settings (`docs/contracts/125`)
+
+- **Agents → Planning solver** (`components/admin/PlanningSolverSection.tsx`, helpers in
+  `lib/admin/planning.ts`): whole units (LP rounding | CP-SAT, `planning.solver_integer_stage`),
+  minimum order, MOQ per purchase order or per style-colour, case pack, orders per source, one
+  capacity per factory, and the compliance block list (`planning.alt_sourcing.*`). Saved through
+  the merge patch like the other settings; the engine omits each M8 setting at its default, so the
+  draft drops it again when set back. `validateDraft` rejects a case pack < 1, a negative MOQ and
+  orders per source outside 1..52. Taking a factory **off** the block list is guarded
+  (`compliance_block_removed`): a tenant admin's save becomes a change request (second-admin
+  banner); adding a factory applies right away.
+- Scenario compare: the whole-unit note under each CP-SAT option (from `@keelson/viz`).
+
+Tests: `src/lib/admin/planning.test.ts` (schema, merge patch, defaults dropped, validation, the
+block-list guard) and `test/admin-planning.test.tsx` (the card saves its patch, a case pack of 0
+blocks saving, tenant vs platform admin on the block list, axe).
+
 ## Develop & test (Docker only — no Node toolchain on the host)
 
 From Git Bash at the repo root, with `node_modules` and `.next` in named volumes:

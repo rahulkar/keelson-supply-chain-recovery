@@ -38,7 +38,7 @@ import structlog
 from google.adk.agents.context import Context
 from keelson_contracts.blocks import NarrativeProps, PlanVersionLink, ReplanBanner
 from keelson_contracts.common import Provenance
-from keelson_contracts.optimizer import OptimizeRequest, PlanSpec, ProblemData, SolverOptions
+from keelson_contracts.optimizer import OptimizeRequest, PlanSpec, ProblemData
 from keelson_contracts.scenario import CapacityScale, Selector, Window
 
 from ..candidates import DO_NOTHING_ID, capability_table, lever_specs
@@ -49,7 +49,14 @@ from ..optimizer_client import get_optimizer
 from ..remediation import applied_items, delta_actions, lane_label, plan_dependencies, remediation_mix
 from .common import ENGINE_COMPOSE, as_of, block_event, input_dict, progress_event, routed, say
 from .framing import ROUTE_DONE, SNAPSHOT_ERRORS, SNAPSHOT_STATE_KEY, load_case_bundle, load_problem, resimulate_payload
-from .planning import default_recommendation, option_from, plan_diff_props, plan_summary, what_changed_line
+from .planning import (
+    default_recommendation,
+    option_from,
+    plan_diff_props,
+    plan_summary,
+    solver_options,
+    what_changed_line,
+)
 
 __all__ = ["REPLAN_SIGNALS", "ROUTE_COMPILE", "LaneSignal", "parse_lane_signal", "prepare_replan", "scale_lane"]
 
@@ -318,7 +325,7 @@ async def prepare_replan(ctx: Context, node_input: Any) -> AsyncGenerator[Any]:
     capacity, mode = _lane_capacity(problem, parsed.lane_code, parsed.factor_bp, fresh=fresh)
     label = lane_label(mode)
     planning = run.spec.planning
-    solver = SolverOptions(time_limit_s=planning.solver_time_limit_s, seed=planning.solver_seed)
+    solver = solver_options(planning)
     options = [dict(o) for o in plan.get("options") or []]
     committed_ids = list(dict.fromkeys(str(i.get("option_id")) for i in applied if i.get("option_id")))
     previous_version = int(plan["version"])

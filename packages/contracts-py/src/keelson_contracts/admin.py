@@ -288,6 +288,7 @@ GuardReasonCode = Literal[
     "approver_changed",
     "quorum_lowered",
     "planning_connector_changed",
+    "compliance_block_removed",
     "auto_rule_added",
     "policy_rule_removed",
     "policy_rule_weakened",
@@ -316,7 +317,7 @@ _POLICY_REASONS: Final = frozenset(
     }
 )
 GUARD_REASONS_BY_KIND: Final[Mapping[str, frozenset[str]]] = {
-    "agent_spec": _POLICY_REASONS | {"planning_connector_changed"},
+    "agent_spec": _POLICY_REASONS | {"planning_connector_changed", "compliance_block_removed"},
     "policy_set": _POLICY_REASONS,
     "connector_tool": frozenset({"tool_reclassified_read", "tool_reclassified_trusted"}),
     "tool_binding": frozenset({"auto_binding_on_write"}),

@@ -100,6 +100,20 @@ def test_llm_violations_list_what_the_engine_drops() -> None:
     assert {"lookups[0]", "lookups[1]", "lookups[2]"} <= set(where)
 
 
+def test_llm_violations_never_raise_on_malformed_lookups() -> None:
+    """A record lookup has no value, but a model may still send one, even outside the grammar: it is
+    ignored (as the engine ignores it), never parsed — a raise here would fail the whole proposal
+    instead of dropping one item and keeping the rule-based draft."""
+    for value in (None, "(", "1.5", "lookup('x', $.y)", "first($.qty)"):
+        out = _llm(lookups=[{"name": "rec", "kind": "record", "source_ref": "S1", "key": "$.code", "value": value,
+                             "values": []}])
+        assert mapping_proposal_llm_violations(out, profiles=[PROFILE], tools=TOOLS) == [], value
+    for key in ("(", "field('rec', $.code, '$.x')"):
+        out = _llm(lookups=[{"name": "rec", "kind": "record", "source_ref": "S1", "key": key, "value": "(",
+                             "values": []}])
+        assert [w for w, _p in mapping_proposal_llm_violations(out, profiles=[PROFILE], tools=TOOLS)] == ["lookups[0]"]
+
+
 def test_llm_args() -> None:
     args = llm_args(MappingProposalLlm.model_validate({"entities": [], "lookups": [], "ops": [_op()],
                                                        "injection_suspected": False}).ops[0].args)

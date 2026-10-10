@@ -562,7 +562,8 @@ def _lookup_problem(lk: LlmProposedLookup, refs: set[str]) -> str | None:
         return f"key: {p if lk.key is not None else 'missing'}"
     if lk.kind == "source" and (lk.value is None or (p := _expr_problem(lk.value))):
         return f"value: {p if lk.value is not None else 'missing'}"
-    asts = [parse_expression(t) for t in (lk.key, lk.value) if t is not None]
+    # a record table holds whole items: a value the model sent anyway is ignored (never parsed)
+    asts = [parse_expression(t) for t in (lk.key, lk.value if lk.kind == "source" else None) if t is not None]
     if any(expression_lookups(a) or expression_records(a) or is_aggregate(a) for a in asts):
         return "a lookup's key/value may not call lookup() or field()"
     return None

@@ -264,18 +264,28 @@ def _param(name: str, schema: Any, required: bool, notes: Notes, tool: str) -> C
     types, branches = _schema_types(schema)
     enum: list[str] = []
     minimum = maximum = None
+    flagged_enum = False
     for b in branches:
         for v in b.get("enum") or ():
-            if isinstance(v, str) and v not in enum:
+            # enum values are vendor text the model sees: like sampled examples, only shape-safe codes
+            # that pass the injection screen are kept (free text is dropped, instructions are flagged)
+            if not isinstance(v, str) or v in enum:
+                continue
+            if _flagged(clean_text(v, MAX_PARAM_DESCRIPTION)):
+                flagged_enum = True
+            elif _CODE_RE.fullmatch(v):
                 enum.append(v)
         minimum = minimum if minimum is not None else _int_or_none(b.get("minimum"))
         maximum = maximum if maximum is not None else _int_or_none(b.get("maximum"))
     desc = clean_text(schema.get("description"), MAX_PARAM_DESCRIPTION) or None
-    if desc and _flagged(desc):
+    flagged_desc = bool(desc and _flagged(desc))
+    if flagged_desc or flagged_enum:
+        what = " and ".join(w for w, f in (("description", flagged_desc), ("allowed values", flagged_enum)) if f)
         notes.add("description_flagged", f"{tool}.{name}"[:200],
-                  f"the description of parameter {name} of {tool} looks like instructions; it was dropped",
+                  f"text that looks like instructions was dropped from the {what} of parameter {name} of {tool}",
                   severity="warning")
         notes.flagged.append(f"{tool}.{name}")
+    if flagged_desc:
         desc = None
     default = schema.get("default")
     if not isinstance(default, (str, int, bool)) or isinstance(default, float):

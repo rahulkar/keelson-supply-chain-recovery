@@ -41,7 +41,9 @@ import datetime as dt
 import hashlib
 import json
 from collections.abc import AsyncGenerator, Mapping, Sequence
+from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlsplit
 
 import structlog
 from google.adk.agents.context import Context
@@ -958,6 +960,36 @@ async def _credentials(run: RunContext, connector: str, approval: Mapping[str, A
     return principal, token, token_subject(token)
 
 
+@dataclass(frozen=True)
+class ReceiptTarget:
+    """Who an approval receipt is for (M8, ``122-m8-adapter-sidecar.md`` §8): ``aud`` / ``ext_iss``.
+    ``None`` keeps Merxa's (the platform connector: receipts byte-identical to M1–M7)."""
+
+    audience: str | None = None
+    ext_iss: str | None = None
+
+    def claims(self) -> dict[str, str]:
+        """``ApprovalReceiptClaims.issue`` overrides (empty for the platform connector)."""
+        out: dict[str, str] = {}
+        if self.audience is not None:
+            out["aud"] = self.audience
+        if self.ext_iss is not None:
+            out["ext_iss"] = self.ext_iss
+        return out
+
+
+async def _receipt_target(run: RunContext, connector: str) -> ReceiptTarget:
+    """A non-platform connector (static header / client credentials, e.g. an adapter sidecar) gets
+    receipts bound to **its own** MCP URL (``aud``) and issuer (``ext_iss``: the connector's issuer,
+    else the URL's origin), so a receipt minted for one system is refused by every other one."""
+    info = await get_gateway().usable_info(tenant=run.tenant, connector=connector)
+    if info.auth_kind == PLATFORM_AUTH_KIND or not info.url:
+        return ReceiptTarget()
+    url = info.url.rstrip("/")
+    parts = urlsplit(url)
+    return ReceiptTarget(audience=url, ext_iss=(info.issuer or f"{parts.scheme}://{parts.netloc}").rstrip("/"))
+
+
 def _approver_claims(approval: Mapping[str, Any], initiator: Actor) -> tuple[str, str, str | None, list[str]]:
     """``(keelson_sub, approved_by, approver_name, co_approved_by)`` for the receipt."""
     if approval.get("outcome") == "auto":
@@ -1014,6 +1046,7 @@ async def _apply_one(run: RunContext, ctx: Context, change_set_id: str, *, bundl
             return
     principal, token, ext_sub = await _credentials(run, change_set.connector, approval)
     keelson_sub, approved_by, approver_name, co_approved = _approver_claims(approval, initiator)
+    target = await _receipt_target(run, change_set.connector)
     receipt, claims = mint_receipt(
         run.deps.crypto,
         change_set=change_set,
@@ -1025,6 +1058,8 @@ async def _apply_one(run: RunContext, ctx: Context, change_set_id: str, *, bundl
         initiated_by=initiator.name or initiator.username,
         policy_version=str(approval.get("policy_version") or run.spec.policy.version),
         co_approved_by=co_approved,
+        audience=target.audience,
+        ext_iss=target.ext_iss,
     )
     await repo.update_change_set(
         tenant=run.tenant, change_set_id=change_set_id, status="applying",
@@ -1514,11 +1549,13 @@ async def _execute_rollback(ctx: Context, run: RunContext) -> AsyncGenerator[Any
     approval_ref = rollback_approval_id(change_set, attempt)
     from keelson_contracts.receipts import ApprovalReceiptClaims  # noqa: PLC0415
 
+    target = await _receipt_target(run, change_set.connector)
     claims = ApprovalReceiptClaims.issue(
         approval_id=approval_ref, change_set_ref=ext_id, change_set_hash=change_set.hash, tenant=change_set.tenant,
         keelson_sub=keelson_sub, ext_sub=ext_sub, approved_by=approved_by, approver_name=approver_name,
         initiated_by=initiator.name or initiator.username,
         policy_version=str(approval.get("policy_version") or run.spec.policy.version), co_approved_by=co_approved,
+        **target.claims(),
     )
     receipt = run.deps.crypto.sign_approval_receipt(claims)
     if status in UNDOABLE:

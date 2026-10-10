@@ -152,12 +152,21 @@ class ApprovalReceiptClaims(ContractModel):
         now: int | None = None,
         jti: str | None = None,
         co_approved_by: Sequence[str] = (),
+        aud: str = RECEIPT_AUDIENCE,
+        ext_iss: str = MERXA_ISSUER,
     ) -> ApprovalReceiptClaims:
         """Claims with ``iat=now``, ``exp=now+ttl_s`` and a fresh ``jti`` (uuid4).
 
-        ``co_approved_by`` (M5) lists the other quorum members (``user:<username>``)."""
+        ``co_approved_by`` (M5) lists the other quorum members (``user:<username>``).
+
+        ``aud`` / ``ext_iss`` (M8, ``122-m8-adapter-sidecar.md`` §8): the system the receipt is for.
+        The defaults are Merxa's, so platform receipts stay byte-identical; a non-platform connector
+        (e.g. an adapter sidecar) gets its own MCP URL and issuer, so a receipt minted for one
+        system is refused by every other (audience binding)."""
         iat = int(time.time()) if now is None else now
         return cls(
+            aud=aud,
+            ext_iss=ext_iss,
             iat=iat,
             exp=iat + ttl_s,
             jti=jti or str(uuid.uuid4()),

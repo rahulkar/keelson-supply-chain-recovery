@@ -870,12 +870,17 @@ async def _open_and_export(conn: Any, sid: uuid.UUID) -> tuple[scn.SnapshotManif
 
 
 async def _note_source(tenant: str, sid: uuid.UUID, manifest: scn.SnapshotManifest) -> None:
+    """Record the source's snapshot id, as-of and watermark. M8 (``122`` §8): a source that is not
+    point-in-time (an adapter sidecar crawling a REST API) says ``consistency: crawled`` with its
+    ``as_of_range``; the snapshot is then labelled like a tier-A crawl (plans on it are advisory)."""
+    rng = manifest.as_of_range
     async with tenant_session(tenant) as s:
         await s.execute(
-            text("UPDATE scn_snapshot SET source_snapshot_id = :src, as_of = :a, watermark = :w "
-                 "WHERE tenant = :t AND id = :i"),
+            text("UPDATE scn_snapshot SET source_snapshot_id = :src, as_of = :a, watermark = :w, consistency = :k, "
+                 "as_of_from = :f, as_of_to = :to WHERE tenant = :t AND id = :i"),
             {"t": tenant, "i": sid, "src": manifest.snapshot_id[:200], "a": manifest.as_of,
-             "w": manifest.watermark[:200]},
+             "w": manifest.watermark[:200], "k": manifest.consistency, "f": rng.from_ if rng else None,
+             "to": rng.to if rng else None},
         )
 
 

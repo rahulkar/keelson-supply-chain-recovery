@@ -324,6 +324,19 @@ script needs a stack started with `LLM_REPLAY_MODE=replay` (fail-closed: no prov
 # Git Bash, repo root; the whole stack is up with LLM_REPLAY_MODE=replay
 docker compose --profile evals up -d evals-runner
 MSYS_NO_PATHCONV=1 docker compose run --rm --no-deps -T -e LOG_LEVEL=warning   -v D:/keelson-supply-chain-recovery/e2e:/e2e:ro   -v D:/keelson-supply-chain-recovery/evals/tests/fixtures:/fixtures:ro   engine-api python -u /e2e/api_m8_evals_offline.py
+
+## M8 adapter sidecar (`docs/contracts/122`): `api_m8_sidecar.py`
+
+Runs **inside the engine image** like the M5–M7 scripts, with the compose profile `adapters` up. The
+sidecar's keys are never in the engine's environment, so the repo's `.env` is mounted read-only and the
+script reads `FERNHILL_API_KEY` / `FERNHILL_ADMIN_KEY` from it (or from its own environment):
+
+```bash
+# Git Bash, repo root; the whole stack is up
+docker compose --profile adapters up -d fernhill-sidecar
+MSYS_NO_PATHCONV=1 docker compose run --rm --no-deps -T -e LOG_LEVEL=warning \
+  -v D:/keelson-supply-chain-recovery/e2e:/e2e:ro -v D:/keelson-supply-chain-recovery/.env:/run/keelson.env:ro \
+  engine-api python -u /e2e/api_m8_sidecar.py   # --keep leaves the connector active and the data as is
 ```
 
 | script | model calls | what it proves |
@@ -359,6 +372,8 @@ offline helpers (register `merxa-lite`, install the pack, crawl, Merxa's own tot
 
 Not run by the workstream (the integrator runs it on the full stack); syntax-checked with
 `python -m py_compile` in the engine image.
+
+| `api_m8_sidecar.py` | **none** | **Generic tier A·B·C·W proof** on northwind-test with the CSV-backed demo ERP "Fernhill": sidecar reset (anonymous reset and `/mcp` → 401); `fernhill` registered by ava (static header `X-Adapter-Key`, third party, key never echoed) → test: tier `[A,B,C,W]`, the 13 sidecar tools, suggested classification from the annotations (reads trusted/read/internal, create/add/validate write + idempotency enforced, apply/rollback destructive + enforced) → approved as suggested, activated without a change request; the capability table says `change_set` mode with both ops read from the `add_change_set_items` op enum. **Tier B**: worker sync → consistent snapshot, row counts equal to the sidecar's `/v1/admin/stats`, same watermark; `poll_changes` → False. **Commit harness** (test-only, in-process, the commit nodes' building blocks): `transfer_order.create` FH-RTM → FH-LDS (2 SKUs) + `allocation.set_qty` (version from the snapshot) → dry run as preparer, `preview_hash == H`; a receipt for Merxa's audience → `invalid_receipt` (`wrong_audience`), set still validated; the policy receipt through `_credentials` / `_receipt_target` (`aud http://fernhill.localhost/mcp`, `ext_iss` the origin, `ext_sub connector:fernhill`) → applied; reconcile → verified, one transfer order `created_via change_set:<code>`; the CSV rows read back (reserved / in transit / allocation qty + version); the same idempotency key replays the identical body. **Tier C**: `changes_since(<old watermark>)` lists the rows, `poll_changes` → the worker resyncs and the new snapshot holds the new allocation, transfer lines and reserved units. **Rollback** with nora's user receipt → compensating change set, business columns restored, the transfer order removed. Clean-up (also on failure): Fernhill reset, connector disabled. |
 
 ## `api_m3_levers.py` — M3 levers through the API
 

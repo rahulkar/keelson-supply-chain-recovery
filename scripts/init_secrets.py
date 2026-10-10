@@ -114,6 +114,10 @@ ENV_SPEC: tuple[EnvVar, ...] = (
     EnvVar("SIGNAL_HUB_SHARED_SECRET", _token(48), "engine -> signal-hub service JWT secret (HS256)"),
     EnvVar("SIGNALS_DB_PASSWORD", _token(32), "pg-core role signals (signal-hub database)"),
     EnvVar("EVALS_RUNNER_TOKEN", _token(48), "engine <-> evals-runner job API bearer token (M8 Evals UI, profile evals)"),
+    # ── M8 adapter sidecar demo (profile adapters, docs/contracts/122) ───────────
+    EnvVar("FERNHILL_API_KEY", _token(40), "Fernhill sidecar static key (X-Adapter-Key) Keelson stores when registering it"),
+    EnvVar("FERNHILL_ADMIN_KEY", _token(40), "Fernhill sidecar admin key (/v1/admin/*: demo reset, e2e read-back); never given to Keelson"),
+    EnvVar("FERNHILL_SNAPSHOT_SECRET", _token(48), "HMAC secret for the Fernhill sidecar's signed Parquet part URLs"),
 )
 
 #: Never written to .env (taken from the host environment by compose).

@@ -73,6 +73,10 @@ def routes() -> dict[str, Any]:
         ("merxa.localhost", "/mcp-lite"): 8100,
         ("merxa.localhost", "/mcp-lite/x"): 8100,
         ("merxa.localhost", "/.well-known/oauth-protected-resource/mcp"): 8100,
+        ("fernhill.localhost", "/mcp"): 8400,
+        ("fernhill.localhost", "/v1/snapshots/x/allocation/part-0001.parquet"): 8400,
+        ("fernhill.localhost", "/v1/admin/stats"): 8400,
+        ("fernhill.localhost", "/healthz"): 8400,
         ("auth.localhost", "/realms/keelson/.well-known/openid-configuration"): 8080,
         ("auth.localhost", "/resources/x/login/keycloak.v2/css/login.css"): 8080,
     }
@@ -354,6 +358,7 @@ def main() -> int:
     check("basemap_archive_byte_ranges", basemap_range)
     check("basemap_files_headers", basemap_files)
     check("basemap_hidden_and_no_traversal", basemap_hidden)
+    check("sse_unbuffered_fernhill_mcp", streaming("fernhill.localhost", "/mcp/stream"))
     check("log_probe_sent", log_probe)
     return failures
 

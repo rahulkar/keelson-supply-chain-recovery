@@ -42,6 +42,9 @@ SECRETISH = re.compile(r"(SECRET|PASSWORD|_KEY$|DATABASE_URL$|^VALKEY_URL$|^PGPA
 COMPOSE_ONLY_SECRETS = {"SIGNALS_DATA_KEY"}
 COMPOSE_ONLY_ENGINE_ENV = {"EVALS_RESULTS_DIR"}
 COMPOSE_ONLY_ENGINE_MOUNTS = {"/app/evals/results"}
+# Caddy hosts of optional local compose profiles that are never deployed to Cloud Run
+# (M8: the adapter sidecar demo "Fernhill ERP", profile adapters, docs/contracts/122).
+LOCAL_ONLY_HOSTS = {"fernhill"}
 
 
 # ───────────────────────────── helpers ─────────────────────────────
@@ -623,12 +626,12 @@ def test_basemap_csp_build_arg_only_when_set(dry: subprocess.CompletedProcess[st
 
 
 def test_caddy_routes_covered() -> None:
-    """Every host Caddy serves has a URL map host rule."""
+    """Every host Caddy serves has a URL map host rule (local-only profile hosts excepted)."""
     caddy = (ROOT / "infra" / "caddy" / "Caddyfile").read_text(encoding="utf-8")
     caddy_hosts = {h.split(".")[0] for h in re.findall(r"^http://([a-z]+)\.localhost", caddy, re.M)}
     um = (CR / "lb" / "url-map.yaml").read_text(encoding="utf-8")
     um_hosts = set(re.findall(r"hosts: \[([a-z]+)\.\$\{DOMAIN\}\]", um))
-    assert caddy_hosts == um_hosts
+    assert caddy_hosts - LOCAL_ONLY_HOSTS == um_hosts
 
 
 # ───────────────────────────── overlay images ─────────────────────────────

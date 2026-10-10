@@ -379,6 +379,10 @@ def check_egress() -> dict[str, Any]:
 
     merxa = _via_proxy("http://merxa.localhost/")
     merxa_other_port = _via_proxy("http://merxa.localhost:443/")  # dev exception is port 80 only
+    # M8 adapter sidecar demo (profile adapters): Caddy answers (502 while the profile is off)
+    fernhill = _via_proxy("http://fernhill.localhost/healthz")
+    fernhill_other_port = _via_proxy("http://fernhill.localhost:443/")
+    fernhill_direct = _via_proxy("http://fernhill-sidecar:8400/healthz")  # service names stay denied
     merxa_as = _via_proxy(f"{AUTH}/realms/merxa/.well-known/openid-configuration")
     keelson_as = _via_proxy(f"{AUTH}/realms/keelson/.well-known/openid-configuration")
     pg = _via_proxy("http://pg-core:5432/")
@@ -389,6 +393,9 @@ def check_egress() -> dict[str, Any]:
     details = {
         "merxa.localhost": [merxa.status, merxa.headers.get("x-squid-error", "")],
         "merxa.localhost:443": [merxa_other_port.status, merxa_other_port.headers.get("x-squid-error", "")],
+        "fernhill.localhost": [fernhill.status, fernhill.headers.get("x-squid-error", "")],
+        "fernhill.localhost:443": [fernhill_other_port.status, fernhill_other_port.headers.get("x-squid-error", "")],
+        "fernhill-sidecar:8400": [fernhill_direct.status, fernhill_direct.headers.get("x-squid-error", "")],
         "auth.localhost/realms/merxa": merxa_as.status,
         "auth.localhost/realms/keelson": [keelson_as.status, keelson_as.headers.get("x-squid-error", "")],
         "pg-core:5432": [pg.status, pg.headers.get("x-squid-error", "")],
@@ -400,6 +407,9 @@ def check_egress() -> dict[str, Any]:
     ok = (
         "x-squid-error" not in merxa.headers  # answered by Caddy (any status)
         and denied(merxa_other_port)
+        and "x-squid-error" not in fernhill.headers  # answered by Caddy (any status)
+        and denied(fernhill_other_port)
+        and denied(fernhill_direct)
         and merxa_as.status == 200
         and denied(keelson_as)
         and denied(pg)

@@ -21,7 +21,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
 
-PORTS = (8000, 3000, 8100, 3001, 8080, 4000, 6006)
+PORTS = (8000, 3000, 8100, 3001, 8080, 4000, 6006, 8400)
 
 
 class Handler(BaseHTTPRequestHandler):

@@ -1226,6 +1226,27 @@ data, answers the strict `MappingProposalLlm`, and every item is re-validated de
 (grammar, paths in the sample, shapes, approved tools and access, idempotency from the confirmed
 classification); `injection_suspected` discards the whole answer. No write tool is ever called.
 
+## Adapter sidecar connectors (M8, `docs/contracts/122-m8-adapter-sidecar.md` §8) — runtime + platform
+
+A Keelson adapter sidecar (`services/adapter-sidecar`) is an ordinary third-party connector: the
+registry, tier detection (A·B·C·W from its tool names), tier-B sync, the tier-C poll, the capability
+table (ops from the `add_change_set_items` op enum) and reconcile work unchanged. Two additive changes:
+
+* **Receipt target per connector.** `runtime/nodes/commit_nodes._receipt_target(run, connector)` →
+  `ReceiptTarget(audience, ext_iss)`: the platform connector keeps Merxa's (`None`, claims byte-identical
+  to M1–M7); any other connector gets `aud` = its registered `mcp_url` and `ext_iss` = its issuer, else
+  the URL's origin. `_apply_one` passes it to `runtime/commit.mint_receipt(…, audience=, ext_iss=)` and
+  `_execute_rollback` to `ApprovalReceiptClaims.issue(**target.claims())`
+  (`core.crypto.quorum_receipt_claims` takes `aud` / `ext_iss` too). With `_credentials` (principal
+  `autocommit`, `ext_sub connector:<slug>` for non-platform connectors) a receipt minted for one system
+  is refused by every other.
+* **Crawled tier-B manifests.** `core/scn_sync._note_source` stores the manifest's `consistency`,
+  `as_of_from`, `as_of_to`: a sidecar exporting from a REST API (`consistency: crawled` + `as_of_range`)
+  gets the same advisory label as a tier-A crawl. Manifests without the fields stay `consistent`.
+
+Tests: `tests/runtime/test_m8_receipt_audience.py`, `tests/platform/test_m8_manifest_consistency.py`;
+real stack: `e2e/api_m8_sidecar.py`.
+
 ## Tests
 
 Platform tests need a throwaway Postgres 18 (superuser DSN; each session creates a non-superuser

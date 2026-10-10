@@ -1,0 +1,13 @@
+code,name,country,city,lat,lon,grade,cluster,climate,home_wh,rev
+FH-S01,Fernhill Leeds Briggate,GB,Leeds,53.7984,-1.5426,A,FH-LDS-A,cool,FH-LDS,1
+FH-S02,Fernhill Manchester Arndale,GB,Manchester,53.4831,-2.2399,A,FH-LDS-A,cool,FH-LDS,1
+FH-S03,Fernhill Edinburgh Princes St,GB,Edinburgh,55.9521,-3.1965,A,FH-LDS-A,cool,FH-LDS,1
+FH-S04,Fernhill York Coney St,GB,York,53.9597,-1.0842,B,FH-LDS-BC,cool,FH-LDS,1
+FH-S05,Fernhill Sheffield Fargate,GB,Sheffield,53.3817,-1.4691,B,FH-LDS-BC,cool,FH-LDS,1
+FH-S06,Fernhill Harrogate,GB,Harrogate,53.9921,-1.5418,C,FH-LDS-BC,cool,FH-LDS,1
+FH-S07,Fernhill Rotterdam Lijnbaan,NL,Rotterdam,51.9198,4.4747,A,FH-RTM-A,mild,FH-RTM,1
+FH-S08,Fernhill Amsterdam Kalverstraat,NL,Amsterdam,52.3702,4.8913,A,FH-RTM-A,mild,FH-RTM,1
+FH-S09,Fernhill Antwerpen Meir,BE,Antwerp,51.2182,4.4096,A,FH-RTM-A,mild,FH-RTM,1
+FH-S10,Fernhill Utrecht Oudegracht,NL,Utrecht,52.0907,5.1214,B,FH-RTM-BC,mild,FH-RTM,1
+FH-S11,Fernhill Den Haag Spuistraat,NL,The Hague,52.0786,4.3109,B,FH-RTM-BC,mild,FH-RTM,1
+FH-S12,Fernhill Eindhoven,NL,Eindhoven,51.4416,5.4697,C,FH-RTM-BC,mild,FH-RTM,1

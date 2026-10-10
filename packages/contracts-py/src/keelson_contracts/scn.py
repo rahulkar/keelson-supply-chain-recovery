@@ -515,7 +515,12 @@ class SnapshotEntityManifest(_ToolResult):
 
 
 class SnapshotManifest(_ToolResult):
-    """``scn.snapshot_open`` result."""
+    """``scn.snapshot_open`` result.
+
+    M8 (``122-m8-adapter-sidecar.md`` §8), additive: a source that cannot read one point in time
+    (an adapter sidecar crawling a REST API) says ``consistency: crawled`` with the
+    ``as_of_range`` it read; Keelson then labels the snapshot like a tier-A crawl (advisory).
+    Both default to a consistent export without a range, so Merxa manifests parse unchanged."""
 
     snapshot_id: Code
     as_of: AwareDatetime
@@ -523,13 +528,21 @@ class SnapshotManifest(_ToolResult):
     canonical_model: Literal["scn/1.0"]
     expires_at: AwareDatetime
     entities: dict[str, SnapshotEntityManifest]
+    consistency: SnapshotConsistency = "consistent"
+    as_of_range: AsOfRange | None = None
 
     @model_validator(mode="after")
     def _known_entities(self) -> SnapshotManifest:
         unknown = sorted(set(self.entities) - set(SCN_ENTITIES))
         if unknown:
             raise ValueError(f"unknown scn/1.0 entities in manifest: {unknown}")
+        if (self.consistency == "crawled") != (self.as_of_range is not None):
+            raise ValueError("as_of_range is set exactly for crawled snapshots")
         return self
+
+    @property
+    def label(self) -> SnapshotLabel:
+        return SnapshotLabel(consistency=self.consistency, as_of_range=self.as_of_range)
 
 
 _URI_FORBIDDEN_CHARS: Final = frozenset("\\ \t\r\n\x00")

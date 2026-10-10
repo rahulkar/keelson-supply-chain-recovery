@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.7.1@sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e
 # basemap-fetch: one-shot tool that fills the `basemap` volume with a self-hosted Protomaps base map
 # (archive + glyphs + sprites + licences + manifest.json). docs/contracts/127-m8-basemap.md.
 #
@@ -12,7 +12,7 @@
 # script runs on Node 24 (no npm dependencies) as uid 10001.
 
 ARG PMTILES_IMAGE=protomaps/go-pmtiles:v1.31.2@sha256:06574f01f55a78f78f887bc7ebf729a5c093c0d6e17d9876300cfcb0758b59d3
-ARG NODE_IMAGE=node:24-slim
+ARG NODE_IMAGE=node:24.21.0-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20
 
 FROM ${PMTILES_IMAGE} AS pmtiles
 

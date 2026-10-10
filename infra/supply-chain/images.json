@@ -166,6 +166,42 @@
       "deploy_var": "IMAGE_KC_CONFIG",
       "domain_overlay": true,
       "comment": "realm files rewritten to the public domain; built only when KEELSON_PUBLIC_DOMAIN is set"
+    },
+    {
+      "name": "adapter-sidecar",
+      "dockerfile": "services/adapter-sidecar/Dockerfile",
+      "context": ".",
+      "target": "runtime",
+      "release": false,
+      "comment": "M8 adapter sidecar template + Fernhill demo ERP (compose profile adapters, docs/contracts/122); local only, never deployed to Cloud Run",
+      "suites": [
+        {
+          "id": "adapter-sidecar",
+          "target": "test",
+          "db": "pg-core",
+          "memory": "1g",
+          "env": {"SIDECAR_TEST_PG_DSN": "postgresql://postgres:test@e1-test-pg:5432/postgres"}
+        }
+      ]
+    },
+    {
+      "name": "evals-runner",
+      "dockerfile": "evals/Dockerfile",
+      "context": ".",
+      "target": null,
+      "release": false,
+      "comment": "M8 in-app eval runner (compose profile evals, docs/contracts/128); its Python package is covered by the evals tool suite"
+    },
+    {
+      "name": "basemap-fetch",
+      "dockerfile": "infra/basemap/Dockerfile",
+      "context": ".",
+      "target": "runtime",
+      "release": false,
+      "comment": "M8 Protomaps base map fetch tool (compose profile basemap, docs/contracts/127)",
+      "suites": [
+        {"id": "basemap", "kind": "build", "target": "test", "comment": "scripts/basemap node:test suite, run at build time"}
+      ]
     }
   ],
   "suites": [

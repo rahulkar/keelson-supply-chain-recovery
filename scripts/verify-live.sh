@@ -23,7 +23,7 @@
 set -uo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$root"
+cd "$root" || exit 1
 export MSYS_NO_PATHCONV=1
 ALL_STEPS=(m4-thin-slice m4-whatif m4-followup evals playwright m5-act3 m5-autocommit m6-act1 m7-foreign-erp m7-hub-key reset)
 ONLY=""

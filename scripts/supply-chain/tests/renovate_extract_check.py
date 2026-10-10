@@ -42,7 +42,7 @@ def main(argv: list[str]) -> int:
     def check(name: str, ok: bool, detail: str = "") -> None:
         nonlocal failed
         failed += not ok
-        print(json.dumps({"check": name, "ok": ok, "detail": detail[:600]}))
+        print(json.dumps({"check": name, "ok": ok, "detail": "" if ok else detail[:600]}))
 
     check("extraction_logged", bool(package_files), "no 'Extracted dependencies' line in the log")
     check("no_renovate_errors", not errors, "; ".join(errors))

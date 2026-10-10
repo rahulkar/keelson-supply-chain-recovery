@@ -19,7 +19,7 @@ failed=0
 part() { echo "== $1" >&2; }
 
 part shellcheck
-docker run --rm --memory 128m -v "$ROOT:/mnt:ro" -w /mnt "$SHELLCHECK_IMAGE" -x \
+docker run --rm --memory 384m -v "$ROOT:/mnt:ro" -w /mnt "$SHELLCHECK_IMAGE" -x \
   scripts/cloudrun/deploy.sh scripts/cloudrun/parity-check.sh scripts/cloudrun/tests/run.sh \
   scripts/cloudrun/tests/dbinit.sh scripts/cloudrun/tests/overlays.sh infra/cloudrun/images/rewrite-hosts.sh \
   infra/cloudrun/images/db-init/db-init.sh infra/cloudrun/signal-hub.sh scripts/supply-chain/lib/verify.sh \

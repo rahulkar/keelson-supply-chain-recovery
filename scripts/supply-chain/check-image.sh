@@ -12,6 +12,7 @@
 #   no_secrets   no .env, *.pem, *.key, id_rsa or id_ed25519 under /app, /src, /repo or /work
 #   labels       (--require-labels) org.opencontainers.image.source and .revision are set
 # Output: one JSON line per check. Exit status = number of failed checks (2 for usage errors).
+# shellcheck disable=SC2319  # "[ cond ]; result <name> $?" reports the condition status on purpose
 set -uo pipefail
 
 usage() { sed -n '2,/^set -uo/p' "${BASH_SOURCE[0]}" | sed '$d' | sed 's/^# \{0,1\}//'; }
@@ -33,14 +34,15 @@ fail=0
 result() {  # check ok(0/1) detail
   local ok=true detail
   [ "$2" -eq 0 ] || { ok=false; fail=$((fail + 1)); }
-  detail="$(printf '%s' "$3" | tr '\n"\\' '  /' | cut -c1-300)"
+  detail="$(printf '%s' "$3" | tr '\n"' '  ' | tr -d '\134' | cut -c1-300)"  # JSON-safe: no quotes/backslashes
   printf '{"image":"%s","check":"%s","ok":%s,"detail":"%s"}\n' "$IMAGE" "$1" "$ok" "$detail"
 }
 
 docker image inspect "$IMAGE" >/dev/null 2>&1 || { echo "check-image.sh: image $IMAGE not found locally" >&2; exit 2; }
 WORK="$(mktemp -d)"
 CID=""
-cleanup() { [ -n "$CID" ] && docker rm -f "$CID" >/dev/null 2>&1; rm -rf "$WORK"; }
+# shellcheck disable=SC2329  # invoked by the EXIT trap
+cleanup() { if [ -n "$CID" ]; then docker rm -f "$CID" >/dev/null 2>&1; fi; rm -rf "$WORK"; }
 trap cleanup EXIT
 CID="$(docker create "$IMAGE" /nonexistent 2>/dev/null)" || { echo "check-image.sh: docker create failed" >&2; exit 2; }
 docker export "$CID" | tar -tf - 2>/dev/null | sed 's#^\./##; s#^/##' >"$WORK/files" || { echo "check-image.sh: export failed" >&2; exit 2; }

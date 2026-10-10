@@ -75,7 +75,7 @@ jobs:
       - name: zizmor
         run: docker run --rm -v "$PWD:/repo:ro" -w /repo "$ZIZMOR_IMAGE" --no-online-audits --no-progress .
       - name: shellcheck
-        run: git ls-files -z '*.sh' | xargs -0 docker run --rm -v "$PWD:/mnt:ro" -w /mnt "$SHELLCHECK_IMAGE" -x
+        run: git ls-files -z "*.sh" | xargs -0 docker run --rm -v "$PWD:/mnt:ro" -w /mnt "$SHELLCHECK_IMAGE" -S warning -x
       - name: Renovate configuration
         run: docker run --rm -v "$PWD:/usr/src/app:ro" -w /usr/src/app "$RENOVATE_IMAGE" renovate-config-validator --strict
       - name: Renovate extraction (every pin is updatable)

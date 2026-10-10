@@ -1,4 +1,5 @@
 # shellcheck shell=bash
+# shellcheck disable=SC2034  # the SC_* result variables are read by the scripts that source this library
 # Sigstore verification helpers (docs/supply-chain.md, docs/contracts/129-m8-supply-chain.md §6).
 #
 # Sourced by scripts/supply-chain/verify-images.sh, scripts/supply-chain/compose-release.sh and
@@ -15,7 +16,7 @@
 #                                      associative array SC_RELEASE (RELEASE_* keys)
 #   sc_json_line ...                   one JSON result line (verify-images.sh / deploy.sh output)
 #
-# cosign: $COSIGN_BIN, else `cosign` on PATH, else `docker run $COSIGN_IMAGE` with every file argument
+# cosign: $COSIGN_BIN, else `cosign` on PATH, else (or with COSIGN_DOCKER=1) `docker run $COSIGN_IMAGE` with every file argument
 # mounted read-only (COSIGN_DOCKER_NETWORK optionally names the container network, e.g. for a local
 # registry in the e2e test). SC_TRACE=1 echoes each cosign command as `+ cosign ...` (deploy.sh).
 
@@ -86,7 +87,7 @@ sc_cosign() {  # cosign ARGS... (stdout/stderr pass through)
     "$COSIGN_BIN" "$@" </dev/null
     return
   fi
-  if command -v cosign >/dev/null 2>&1; then
+  if [ "${COSIGN_DOCKER:-0}" != 1 ] && command -v cosign >/dev/null 2>&1; then
     cosign "$@" </dev/null
     return
   fi

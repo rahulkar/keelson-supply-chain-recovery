@@ -179,9 +179,10 @@ release_preflight() {  # verify the release + every image it deploys; fills RELE
     RELEASE_FILE="$(mktemp -d "${TMPDIR:-/tmp}/keelson-release.XXXXXX")/keelson-release.env"
     url="https://github.com/${SC_SIGNER_REPOSITORY}/releases/download/${RELEASE_TAG}"
     show curl -fsSL --proto =https -o "$RELEASE_FILE" "$url/keelson-release.env"
-    curl -fsSL --proto '=https' --max-time 120 -o "$RELEASE_FILE" "$url/keelson-release.env" </dev/null &&
-      curl -fsSL --proto '=https' --max-time 120 -o "$RELEASE_FILE.sigstore.json" "$url/keelson-release.env.sigstore.json" </dev/null ||
+    if ! curl -fsSL --proto '=https' --max-time 120 -o "$RELEASE_FILE" "$url/keelson-release.env" </dev/null ||
+      ! curl -fsSL --proto '=https' --max-time 120 -o "$RELEASE_FILE.sigstore.json" "$url/keelson-release.env.sigstore.json" </dev/null; then
       die "cannot download release $RELEASE_TAG from $url"
+    fi
   fi
   SC_TRACE=1
   sc_verify_release "$RELEASE_FILE" || die "refusing release $RELEASE_FILE: $SC_ERROR"

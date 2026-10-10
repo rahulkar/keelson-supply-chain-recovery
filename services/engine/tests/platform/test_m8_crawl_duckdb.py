@@ -185,6 +185,19 @@ async def test_truncation_and_the_raw_byte_cap(admin: Browser, lite: LiteServer,
     assert "SCN_RAW_MAX_BYTES" in (failed.error or "") and await _rows(failed.id) == {}
 
 
+async def test_a_page_postgres_cannot_store_fails_items_invalid(admin: Browser, lite: LiteServer,
+                                                               dev_hosts: None) -> None:
+    """A NUL character in a vendor value cannot be stored as Postgres JSON: the crawl fails with the
+    documented ``items_invalid`` (not an internal error) and writes nothing."""
+    await _setup(admin, lite)
+    lite.data["dc"][0]["name"] = "Hamburg\x00DC"
+    try:
+        failed = await _fails("items_invalid")
+    finally:
+        lite.data["dc"] = copy.deepcopy(LITE_DATA["dc"])
+    assert "cannot be stored as JSON" in (failed.error or "") and await _rows(failed.id) == {}
+
+
 async def test_explain_and_previews(admin: Browser, lite: LiteServer, dev_hosts: None) -> None:
     await _setup(admin, lite)
     assert (await admin.post(f"{BASE}/mappings/read/preview", json={"source": "staged"})).json()["code"] == \

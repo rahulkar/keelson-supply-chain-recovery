@@ -66,6 +66,20 @@ def _iso(value: dt.datetime | None) -> str | None:
     return value.isoformat() if value else None
 
 
+def _data_exception(exc: Exception) -> bool:
+    """Whether a database error is a Postgres *data exception* (SQLSTATE class ``22``)."""
+    from sqlalchemy.exc import DataError
+
+    if isinstance(exc, DataError):
+        return True
+    orig = getattr(exc, "orig", None)
+    for err in (orig, getattr(orig, "__cause__", None)):
+        state = getattr(err, "sqlstate", None) or getattr(err, "pgcode", None)
+        if isinstance(state, str) and state.startswith("22"):
+            return True
+    return False
+
+
 class StagingWriter:
     """Buffers fetched pages and inserts them in short transactions."""
 
@@ -92,7 +106,7 @@ class StagingWriter:
     async def flush(self) -> None:
         if not self._buffer:
             return
-        from sqlalchemy.exc import DataError
+        from sqlalchemy.exc import DBAPIError
 
         from keelson_engine.core.scn_crawl import CrawlError
 
@@ -102,8 +116,13 @@ class StagingWriter:
                 await s.execute(text(
                     "INSERT INTO scn_raw_page (tenant, snapshot_id, source_key, page_no, item_count, bytes, items) "
                     "VALUES (:t, :s, :k, :p, :n, :b, CAST(:i AS jsonb))"), rows)
-        except DataError as exc:  # e.g. NaN / NUL in a vendor value: not storable as Postgres JSON
-            raise CrawlError("items_invalid", f"a fetched page cannot be stored as JSON ({type(exc.orig).__name__})") from None
+        except DBAPIError as exc:
+            # SQLSTATE class 22 (data exception), e.g. NaN or a NUL character (22P05) in a vendor value:
+            # not storable as Postgres JSON. asyncpg's errors reach us as a plain DBAPIError, not DataError.
+            if not _data_exception(exc):
+                raise
+            cause = exc.orig.__cause__ if exc.orig is not None and exc.orig.__cause__ is not None else exc.orig
+            raise CrawlError("items_invalid", f"a fetched page cannot be stored as JSON ({type(cause).__name__})") from None
 
     async def finish(self, status: str, *, sources: Sequence[dict[str, Any]], fetched_from: dt.datetime | None,
                      fetched_to: dt.datetime | None) -> None:

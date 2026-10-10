@@ -4,9 +4,11 @@ re-crawl, tiers A·B·C without write tools."""
 
 from __future__ import annotations
 
+import base64
 import copy
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qs
 
 import httpx
 import pytest
@@ -21,6 +23,8 @@ from keelson_contracts.scn import SnapshotManifest
 
 BASE = "http://erp.example.test"
 TOKEN = "erp_api_token_0123456789abcdefghijklmn"
+CLIENT_ID = "keelson-sidecar"
+CLIENT_SECRET = "erp_client_secret_0123456789abcdefghij"
 
 
 class FakeErpApi:
@@ -44,6 +48,8 @@ class FakeErpApi:
         self.requests: list[httpx.Request] = []
         self.next_link: str | None = None
         self.oversize = False
+        self.bearer: str | None = None
+        """When set, requests must carry ``Authorization: Bearer <bearer>`` (client credentials)."""
 
     def install(self, router: respx.Router) -> None:
         router.get(f"{BASE}/api/v1/warehouses").mock(side_effect=self._warehouses)
@@ -53,7 +59,10 @@ class FakeErpApi:
 
     def _seen(self, request: httpx.Request) -> None:
         self.requests.append(request)
-        assert request.headers.get("X-Api-Key") == TOKEN
+        if self.bearer is not None:
+            assert request.headers.get("Authorization") == f"Bearer {self.bearer}"
+        else:
+            assert request.headers.get("X-Api-Key") == TOKEN
 
     def _warehouses(self, request: httpx.Request) -> httpx.Response:
         self._seen(request)
@@ -108,6 +117,7 @@ async def boot(tmp_path: Path, api: FakeErpApi, router: respx.Router, **rest: An
 
     api.install(router)
     settings = Settings.from_env(sidecar_env(tmp_path, None, config(tmp_path, **rest), ERP_API_TOKEN=TOKEN,
+                                             ERP_CLIENT_ID=CLIENT_ID, ERP_CLIENT_SECRET=CLIENT_SECRET,
                                              DEMO_MODE="0"))
     sidecar = Sidecar(settings)
     app, shutdown = await start_app(settings, sidecar)
@@ -212,6 +222,30 @@ async def test_redirects_are_not_followed(tmp_path: Path, api: FakeErpApi) -> No
                 with pytest.raises(ToolError, match="HTTP 302"):
                     await c.call_tool("scn.snapshot_open", {"entities": ["inventory_position"]})
             assert not any(call.request.url.host == "169.254.169.254" for call in router.calls)
+        finally:
+            await shutdown()
+
+
+async def test_client_credentials_auth(tmp_path: Path, api: FakeErpApi) -> None:
+    """``auth.kind: oauth_client_credentials``: ``token_url`` is a plain URL (not an inline secret),
+    the token is fetched with the client id / secret from the environment, cached, and every API
+    request carries it."""
+    api.bearer = "erp-access-token-1"
+    auth = {"kind": "oauth_client_credentials", "token_url": f"{BASE}/oauth/token", "client_id_env": "ERP_CLIENT_ID",
+            "client_secret_env": "ERP_CLIENT_SECRET", "scope": "erp.read"}
+    with respx.mock(assert_all_called=False) as router:
+        token_route = router.post(f"{BASE}/oauth/token").mock(return_value=httpx.Response(
+            200, json={"access_token": api.bearer, "token_type": "Bearer", "expires_in": 3600}))
+        run, shutdown = await boot(tmp_path, api, router, auth=auth)
+        try:
+            async with run.client() as c:
+                m = await call(c, "scn.snapshot_open", {"entities": ["location", "inventory_position"]})
+            assert m["entities"]["location"]["rows"] == 3 and m["entities"]["inventory_position"]["rows"] == 12
+            assert token_route.call_count == 1  # cached for expires_in
+            sent = token_route.calls[0].request
+            assert sent.headers["Authorization"] == "Basic " + base64.b64encode(
+                f"{CLIENT_ID}:{CLIENT_SECRET}".encode()).decode()
+            assert parse_qs(sent.content.decode()) == {"grant_type": ["client_credentials"], "scope": ["erp.read"]}
         finally:
             await shutdown()
 

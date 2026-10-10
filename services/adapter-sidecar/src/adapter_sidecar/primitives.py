@@ -498,9 +498,15 @@ class Executor:
     async def revert(self, effects: Sequence[Effect]) -> tuple[list[Effect], list[dict[str, Any]]]:
         """Undo ``effects`` newest first. Each row must still equal the effect's after-image (else a
         conflict and nothing is changed for it); an update restores the before-image's columns and
-        bumps the version, an insert is deleted. Returns ``(new effects, conflicts)``."""
+        bumps the version, an insert is deleted. Returns ``(new effects, conflicts)``.
+
+        A row changed by several effects is checked once, against the after-image of its newest
+        effect: the effects of one apply follow each other in one transaction (each one's
+        before-image is the previous one's after-image), so once the newest is undone the row holds
+        the next one's after-image — apart from the version column, which keeps counting up."""
         done: list[Effect] = []
         conflicts: list[dict[str, Any]] = []
+        checked: set[str] = set()
         for eff in reversed(effects):
             t = self.cfg.tables.get(eff.table)
             if t is None or eff.kind == "delete":
@@ -509,11 +515,13 @@ class Executor:
             vcol = t.version_col
             expected_v = (eff.after or {}).get(vcol) if vcol else None
             ref = f"{eff.table}:{key_text(t, eff.key)}"
+            first_look = ref not in checked
+            checked.add(ref)
             if current is None:
                 conflicts.append({"seq": eff.item_seq, "target_ref": ref, "expected_version": expected_v,
                                   "actual_version": None, "reason": "not_found"})
                 continue
-            if current != eff.after:
+            if first_look and current != eff.after:
                 conflicts.append({"seq": eff.item_seq, "target_ref": ref, "expected_version": expected_v,
                                   "actual_version": current.get(vcol) if vcol else None, "reason": "row_changed"})
                 continue

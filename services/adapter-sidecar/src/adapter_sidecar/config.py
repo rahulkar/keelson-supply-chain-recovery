@@ -861,7 +861,9 @@ def _raw_problems(node: Any, path: str = "") -> list[str]:
     if isinstance(node, dict):
         for k, v in node.items():
             key = str(k)
-            if _SECRET_KEY_RE.search(key) and not key.endswith("_env") and isinstance(v, str | int):
+            # ``*_url`` keys (``token_url``) name an endpoint, not a credential; the URL fields refuse
+            # userinfo and query strings (``_http_url``), so no secret can ride along in them.
+            if _SECRET_KEY_RE.search(key) and not key.endswith(("_env", "_url")) and isinstance(v, str | int):
                 out.append(f"{path}/{key}: secrets are never inline; name an environment variable with {key}_env")
             out += _raw_problems(v, f"{path}/{key}")
         return out

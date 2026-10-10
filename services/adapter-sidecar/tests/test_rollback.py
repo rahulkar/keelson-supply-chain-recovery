@@ -41,6 +41,33 @@ async def test_rollback_restores_business_columns(any_backend: Running, keelson:
     assert len((await run.sidecar.rows("transfer_lines", {}))["items"]) == 2
 
 
+async def test_rollback_of_a_row_changed_twice(any_backend: Running, keelson: FakeKeelson) -> None:
+    """Two items of one change set adjust the same versioned stock rows (two transfers of one SKU):
+    the rollback undoes both effects newest first — its own first undo is not a conflict."""
+    run = any_backend
+    business = ("on_hand", "allocated", "reserved", "in_transit")
+    rtm0 = await row(run, "stock", site="FH-RTM", sku="FH-PARKA-NVY-M")
+    lds0 = await row(run, "stock", site="FH-LDS", sku="FH-PARKA-NVY-M")
+    first = {**TO_ITEM, "payload": {**TO_ITEM["payload"], "lines": [{"sku": "FH-PARKA-NVY-M", "qty": 3}]}}
+    second = {**TO_ITEM, "payload": {**TO_ITEM["payload"], "ship_date": "2026-10-27",
+                                     "lines": [{"sku": "FH-PARKA-NVY-M", "qty": 2}]}}
+    async with run.client() as c:
+        v = await prepare(c, [first, second])
+        assert v["status"] == "validated"
+        assert (await apply(c, keelson, v))["status"] == "applied"
+        rtm1 = await row(run, "stock", site="FH-RTM", sku="FH-PARKA-NVY-M")
+        assert int(rtm1["reserved"]) == int(rtm0["reserved"]) + 5 and int(rtm1["rev"]) == int(rtm0["rev"]) + 2
+        out = await rollback(c, keelson, v)
+        assert out["status"] == "rolled_back", out
+        assert out["applied"] == 8  # 2 × (header, line, source stock, destination stock)
+        assert [t["code"] for t in (await call(c, "list_transfer_orders", {}))["items"]] == ["TR-00001"]
+    rtm = await row(run, "stock", site="FH-RTM", sku="FH-PARKA-NVY-M")
+    lds = await row(run, "stock", site="FH-LDS", sku="FH-PARKA-NVY-M")
+    assert {k: rtm[k] for k in business} == {k: rtm0[k] for k in business}
+    assert {k: lds[k] for k in business} == {k: lds0[k] for k in business}
+    assert int(rtm["rev"]) == int(rtm0["rev"]) + 4 and int(lds["rev"]) == int(lds0["rev"]) + 4
+
+
 async def test_rollback_conflicts_when_changed_since(any_backend: Running, keelson: FakeKeelson) -> None:
     run = any_backend
     async with run.client() as c:

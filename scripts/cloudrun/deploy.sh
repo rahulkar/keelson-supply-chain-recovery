@@ -459,8 +459,15 @@ fi
 if [ "$RELEASE_MODE" != 1 ] || [ "$ENABLE_PHOENIX" = 1 ]; then
   run gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
 fi
-digest_of() {  # image:tag -> repo@sha256:... after push (dry-run: image:tag)
-  query "$1" docker inspect --format='{{index .RepoDigests 0}}' "$1"
+digest_of() {  # image:tag -> repo@sha256:... of THAT repository after push (dry-run: image:tag)
+  # RepoDigests is sorted, and an image pulled by digest (mirror) keeps its source registry's entry, which
+  # may sort first (arizephoenix/... < <region>-docker.pkg.dev/...): pick the pushed repository's digest.
+  local d
+  [ "$DRY_RUN" = 1 ] && { printf '%s' "$1"; return 0; }
+  d="$(docker inspect --format='{{range .RepoDigests}}{{println .}}{{end}}' "$1" </dev/null |
+    awk -v p="${1%:*}@sha256:" 'index($0, p) == 1 { print; exit }')"
+  [ -n "$d" ] || die "no registry digest of ${1%:*} for $1 after the push"
+  printf '%s' "$d"
 }
 build_push() {  # VAR dockerfile context [build args...]  (a signed release builds nothing)
   local var="$1" file="$2" ctx="$3" ref; shift 3
@@ -565,7 +572,9 @@ if [ "$ENABLE_PHOENIX" = 1 ]; then
   PHOENIX_DB_PASSWORD="$(env_get PHOENIX_DB_PASSWORD)"
   [ -n "$PHOENIX_DB_PASSWORD" ] || PHOENIX_DB_PASSWORD="$(secret_value keelson-phoenix-db-password)"
   if [ -z "$PHOENIX_DB_PASSWORD" ] && [ "$DRY_RUN" != 1 ]; then
-    PHOENIX_DB_PASSWORD="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 40)"
+    # (pipefail off in this subshell: tr ends with SIGPIPE once head has its 40 bytes, which would abort set -e)
+    PHOENIX_DB_PASSWORD="$(set +o pipefail; LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 40)"
+    [ "${#PHOENIX_DB_PASSWORD}" = 40 ] || die "could not generate the Phoenix database password"
   fi
   put_secret keelson-phoenix-db-password "generated once" "$PHOENIX_DB_PASSWORD"
   put_secret keelson-phoenix-database-url "derived: phoenix@${CORE_SQL}" \

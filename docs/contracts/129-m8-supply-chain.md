@@ -251,16 +251,17 @@ None (120 §2 allocates no migration to this workstream).
 
 | Suite | Command | Result (2026-10-10) |
 |---|---|---|
-| Tooling: check_pins, shellcheck (all scripts), pytest (`scripts/supply-chain/tests` + `scripts/cloudrun/tests` + `scripts/tests/test_init_secrets.py`), actionlint, zizmor | `scripts/supply-chain/tests/run.sh` | 0 failed parts; pytest 277 passed (after the review fixes) |
+| Tooling: check_pins, shellcheck (all scripts), pytest (`scripts/supply-chain/tests` + `scripts/cloudrun/tests` + `scripts/tests/test_init_secrets.py`), actionlint, zizmor | `scripts/supply-chain/tests/run.sh` | 0 failed parts; pytest 278 passed (after the review fixes) |
 | Renovate validator + extraction (every pinned image extracted once, no manager duplicates, uv/npm projects, actions, nothing from fixtures) | `run.sh --with-renovate` | pass |
 | Offline cosign e2e: local registry, real cosign v3.1.3 key mode: signed passes; unsigned / wrong key / tag / other `git_sha` fail; deploy.sh `--verify-only` accepts the signed release and refuses an unsigned image and a tampered file with no gcloud call; compose-release writes only for the good release and its override renders with `compose.yaml` | `run.sh --with-docker` (`tests/e2e_sign_verify.sh`) | 14/14 checks |
-| Cloud Run: shellcheck, pytest 100 (incl. the new release-gate and `--release-tag` download tests), dbinit against Postgres 18 with the pinned images, parity self-test | `scripts/cloudrun/tests/run.sh` | pass (dbinit needs `keelson-pg-core:latest`, built for the run) |
+| Cloud Run: shellcheck, pytest 101 (incl. the new release-gate, `--release-tag` download and Phoenix-mirror tests), dbinit against Postgres 18 with the pinned images, parity self-test | `scripts/cloudrun/tests/run.sh` | pass (dbinit needs `keelson-pg-core:latest`, built for the run) |
 | `ci_run_suite.py optimizer` (pinned optimizer Dockerfile built, suite run, cleanup) | through a docker-CLI container | build OK, 209 passed, 4 wall-clock budget tests (5 s) failed under shared-host load; the same 4 fail in the shared m8 harness on unchanged optimizer code (§10) |
 | `workspace-test` commands + frozen installs with `minimumReleaseAge` | m8-js harness: `pnpm fetch/install --frozen-lockfile`, `gen-zod --check`, `gen-tokens --check`, `packages/*` typecheck + test | pass (251 viz tests among them); a stale generated module makes `gen-zod --check` fail. The `docker build --target workspace-test` itself was not run on this shared host (full pnpm fetch); CI's `web (web-packages)` job builds it |
 | Live pins / key | `pin-image.sh --verify` equivalent over all 21 pinned refs; `verify-images.sh --compose` | all digests current; LiteLLM signature PASS |
 | CI database sizing (review) | `ci_run_suite.py`'s pg-core + Valkey settings, engine suites run against them with the m8 harness image | engine-platform 464 passed / 2 skipped / 3 deselected (120 §5); engine-runtime 894 passed; pg peak ~520 MiB (356 MiB tmpfs), hence the 1 GiB cap |
 | Web (review) | m8-js harness | `@keelson/web` typecheck + lint + 468 tests; packages 84 + 165 + 75 + 251 tests; merxa-web typecheck + lint + 211 tests; `pnpm config get minimumReleaseAge` = 4320 in both projects; contracts `--check` clean |
 | Simulated integration (review) | `git merge-tree` with `m8-post-demo`, conflict resolved and basemap fixed as §11 | check_pins 0 findings; shellcheck clean; supply-chain + Cloud Run + init-secrets pytest pass (2 basemap tests need `--allow-unsigned`, §11) |
+| Service + tool suites (review) | m8 harness (`M8_SLOT=18`); the `contracts-py` / `evals` commands of `images.json` exactly as `ci_run_suite.py` runs them (read-only mount) | merxa-api 205 passed; signal-hub 261 passed + the 120 §5 known failure; optimizer 213 passed; contracts-py 1435 passed + mypy clean + schemas up to date; evals tests + `run_live.py --dry-run` pass |
 
 Unit tests per tool: `test_check_pins.py` (pass + fail fixture per rule, exit code, real repo clean),
 `test_ci_run_suite.py` (dry-run command lines, fake docker: exit status, health wait, cleanup on
@@ -287,7 +288,10 @@ From the design brief:
    hash-pinned archives stay manual (deferred item).
 7. Phoenix is mirrored with `docker pull/tag/push` of the digest-pinned reference (unchanged code
    path, works in `--allow-unsigned` too) rather than `cosign copy`; the deployed digest is the pushed
-   linux/amd64 manifest of the pinned image.
+   linux/amd64 manifest of the pinned image. (Review fixes in that M7 path: `digest_of` now takes the
+   RepoDigest of the pushed Artifact Registry repository — the pulled-by-digest source keeps its Docker
+   Hub entry, which sorts first and was deployed instead — and the one-time Phoenix database password is
+   generated without a pipefail SIGPIPE abort, which stopped every first `--enable-phoenix` deploy.)
 8. merxa-web gets its own settings-only `pnpm-workspace.yaml` (pnpm 10 reads `minimumReleaseAge` there;
    verified that frozen installs and `pnpm add` are unaffected) instead of an `.npmrc`.
 9. zizmor's `self-repository` audit is disabled (`.github/zizmor.yml`): actionlint 1.7.12 does not
@@ -333,7 +337,8 @@ From the design brief:
   mode refuses (use `--allow-unsigned`).
 * `scripts/cloudrun/tests/dbinit.sh` needs a local `keelson-pg-core:latest` (pre-existing; CI builds it).
 * Optimizer wall-clock budget tests (5 s, `test_perf.py`, `test_replan_m5.py`) fail on this shared,
-  heavily loaded host in both the CI-style container and the m8 harness; not related to this change.
+  heavily loaded host in both the CI-style container and the m8 harness; not related to this change
+  (they passed in the review's quieter harness run: 213 passed). Slow CI runners may hit the same budget.
 * `ci_run_suite.py` tool suites bind-mount the checkout, so they need a host docker CLI (not
   docker-outside-of-docker from a container).
 * Image suites run the Dockerfile `test` targets, which contain only the files those stages copy:

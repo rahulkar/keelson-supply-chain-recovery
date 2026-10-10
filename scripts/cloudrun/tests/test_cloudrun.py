@@ -597,7 +597,11 @@ exit 0
 FAKE_DOCKER = r"""#!/bin/sh
 echo "docker $*" >> "$FAKE_DIR/calls.log"
 if [ "$1" = inspect ]; then
+  # RepoDigests, sorted like Docker's (lexically); $FAKE_DOCKER_OTHER_DIGEST is a digest of another
+  # repository that sorts first (an image pulled by digest keeps its source registry's RepoDigest)
   for last; do :; done
+  [ -z "${FAKE_DOCKER_OTHER_DIGEST:-}" ] || echo "$FAKE_DOCKER_OTHER_DIGEST"
+  case "$*" in *"index .RepoDigests 0"*) [ -z "${FAKE_DOCKER_OTHER_DIGEST:-}" ] || exit 0 ;; esac
   echo "${last%:*}@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 fi
 exit 0
@@ -1008,3 +1012,20 @@ def test_versions_env_images_are_pinned_and_match_the_overlays() -> None:
         defaults.update(re.findall(r"^ARG ([A-Z_]+_IMAGE)=(\S+)$", df.read_text(encoding="utf-8"), re.M))
     for k in ("KEYCLOAK_IMAGE", "LITELLM_IMAGE", "KC_CONFIG_IMAGE", "POSTGRES_CLIENT_IMAGE"):
         assert defaults[k] == images[k], k
+
+
+def test_phoenix_is_deployed_from_the_artifact_registry_mirror(tmp_path: Path,
+                                                               fake_env: tuple[Path, Path, dict[str, str]]) -> None:
+    """mirror() pulls the digest-pinned versions.env image, so it keeps its Docker Hub RepoDigest, which sorts
+    before `<region>-docker.pkg.dev/...`: the deployed reference is the one of the pushed mirror."""
+    env_file, sd, values = fake_env
+    hub = "arizephoenix/phoenix@sha256:" + "ab" * 32
+    res, _, _ = apply_with_fakes(tmp_path, env_file, sd, values, {"FAKE_DOCKER_OTHER_DIGEST": hub},
+                                 args=("--allow-unsigned", "--enable-phoenix"))
+    assert res.returncode == 0, res.stdout[-2000:] + res.stderr[-2000:]
+    work = Path(re.search(r"^# rendered manifests: (\S+)", res.stdout, re.M).group(1))
+    phoenix = yaml.safe_load((work / "services" / "phoenix.yaml").read_text(encoding="utf-8"))
+    assert containers(phoenix)[0]["image"] == \
+        f"{REGION}-docker.pkg.dev/{PROJECT}/keelson/phoenix@sha256:" + "0123456789abcdef" * 4
+    engine = yaml.safe_load((work / "services" / "engine-api.yaml").read_text(encoding="utf-8"))
+    assert containers(engine)[0]["image"].startswith(f"{REGION}-docker.pkg.dev/{PROJECT}/keelson/engine@sha256:")

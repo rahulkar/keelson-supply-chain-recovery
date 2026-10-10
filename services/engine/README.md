@@ -1158,7 +1158,8 @@ gains `engine, mapping_version, mapping_hash, sources[], checks[], skipped{}`.
 
 **Untrusted-text boundary** (`core/mapping_profile.py`): untrusted read tools are never sampled or
 described; vendor descriptions are cleaned, cut to 300 chars and screened (flagged ones dropped,
-note + audit `untrusted_text.flagged`); sampled items are reduced to per-path shapes and counts,
+note + audit `untrusted_text.flagged`), parameter `enum` values are kept only as shape-safe codes that
+pass the same screen; sampled items are reduced to per-path shapes and counts,
 examples only for shape-safe values (codes without whitespace, numbers, dates, weeks, booleans)
 that pass the screen; raw samples are never stored. The model gets that profile block fenced as
 data, answers the strict `MappingProposalLlm`, and every item is re-validated deterministically

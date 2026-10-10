@@ -543,7 +543,12 @@ async def run_crawl(conn: Any, sid: uuid.UUID, t0: float) -> Any:
 
     tenant, connector = conn.tenant, conn.slug
     row = await connector_mappings.get_mapping(tenant, connector, "read")
-    mapping = await connector_mappings.get_read_mapping(tenant, connector) if row is not None else None
+    mapping: ReadMapping | None = None
+    if row is not None:  # one read: the recorded mapping_version is the version that is crawled
+        try:
+            mapping = ReadMapping.model_validate(row["mapping"])
+        except ValidationError as exc:
+            log.warning("stored read mapping is invalid", tenant=tenant, connector=connector, error=str(exc)[:300])
     if row is None or mapping is None:
         raise CrawlError("mapping_missing", f"connector {connector!r} has no valid read mapping")
     problems = connector_mappings.violations(mapping, await connector_mappings.approved_classifications(tenant, connector))

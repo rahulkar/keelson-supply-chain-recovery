@@ -590,11 +590,12 @@ async def run_crawl(conn: Any, sid: uuid.UUID, t0: float) -> Any:
     except BaseException:
         await asyncio.shield(_purge_quietly(tenant, sid))
         raise
-    if stats.engine == "duckdb":
-        try:
-            await scn_staging.keep_only(tenant, connector, sid)
-        except Exception as exc:  # noqa: BLE001 - the next crawl start drops stale sets again
-            log.warning("scn raw staging cleanup failed", tenant=tenant, connector=connector, error=type(exc).__name__)
+    # both engines: the sets of earlier attempts go (an interpreter crawl stages nothing, so a compiled
+    # crawl's set it supersedes must not stay "the last crawl" of a staged preview)
+    try:
+        await scn_staging.keep_only(tenant, connector, sid)
+    except Exception as exc:  # noqa: BLE001 - the next crawl start drops stale sets again
+        log.warning("scn raw staging cleanup failed", tenant=tenant, connector=connector, error=type(exc).__name__)
     log.info("scn crawl loaded", tenant=tenant, connector=connector, snapshot=str(sid), pages=stats.pages,
              rows=sum(counts.values()), truncated=stats.truncated, engine=stats.engine)
     crawl = {**stats.to_json(), **meta}

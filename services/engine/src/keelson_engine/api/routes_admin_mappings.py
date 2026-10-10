@@ -115,7 +115,7 @@ async def mappings_read_preview(slug: str, body: ReadPreviewRequest, ctx: AdminW
         result = await mapping_exec.preview(
             ctx.tenant, mapping, source=body.source, conn=conn, max_pages=body.max_pages,
             max_items=min(body.max_items_per_source, settings.mapping_preview_max_items), sample=body.sample)
-    except LookupError:
+    except mapping_exec.NoStagedData:
         raise ApiError(404, "no_staged_data", "no crawl of this connector has staged data yet: crawl it once, or "
                                               "preview live") from None
     finally:

@@ -121,6 +121,14 @@ async def test_both_engines_load_identical_rows(admin: Browser, lite: LiteServer
     assert [(s["sid"], s["status"]) for s in sets] == [(m8.id, "complete")]
     assert sets[0]["n"] == sets[0]["pages"] == 9 and sets[0]["items"] == sum(len(v) for k, v in LITE_DATA.items()
                                                                                if k != "transfer_order")
+    # the kill switch: a crawl by the interpreter supersedes the compiled one, whose raw set must not
+    # live on as "the last crawl" of a staged preview
+    monkeypatch.setattr(settings, "scn_mapping_engine", "interpreter")
+    back = await scn_sync.sync_connector(TENANT_B, SLUG, reason="test")
+    assert back.crawl is not None and back.crawl["engine"] == "interpreter"
+    assert await _raw_sets() == []
+    r = await admin.post(f"{BASE}/mappings/read/preview", json={"source": "staged"})
+    assert r.status_code == 404 and r.json()["code"] == "no_staged_data"
 
 
 async def test_raw_set_retention_and_failures_write_nothing(admin: Browser, lite: LiteServer,

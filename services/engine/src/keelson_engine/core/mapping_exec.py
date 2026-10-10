@@ -28,7 +28,7 @@ import datetime as dt
 import json
 import types
 from collections.abc import AsyncIterator, Callable, Iterator, Sequence
-from contextlib import suppress
+from contextlib import aclosing, suppress
 from typing import Annotated, Any, Final, Literal, TypeVar, Union, get_args, get_origin
 
 from pydantic import ValidationError
@@ -66,13 +66,21 @@ from keelson_engine.core.scn_crawl import (
     validate_row,
 )
 
-__all__ = ["CompiledRun", "compiled_rows", "crawl", "preview"]
+__all__ = ["EXAMPLE_CHARS", "CompiledRun", "NoStagedData", "compiled_rows", "crawl", "preview"]
 
 log = get_logger(__name__)
 
 T = TypeVar("T")
 
 _DISAGREE: Final = "the DuckDB compiler and the interpreter disagree on this item (please report it)"
+EXAMPLE_CHARS: Final = 300
+"""Characters of one check example (``ReadPreviewCheck.examples``)."""
+
+
+class NoStagedData(Exception):
+    """A staged preview of a connector without a complete raw set (API: 404 ``no_staged_data``).
+    Deliberately not a ``LookupError``: a ``KeyError`` or ``ConnectorDisabled`` inside a preview is
+    never mistaken for it."""
 
 
 # ───────────────────────────── typed output tables ─────────────────────────────
@@ -392,7 +400,7 @@ class CompiledRun:
             n = int(self.s.execute(f"SELECT count(*) FROM ({base})").fetchone()[0])
             if not n:
                 continue
-            examples = [str(r[0]) for r in self.s.execute(f"{base} ORDER BY 1 LIMIT 5").fetchall()]
+            examples = self._examples(base)
             if fail:
                 raise CrawlError("data_invalid", f"{entity}: duplicate source_id {', '.join(examples)} "
                                                  "(mark derived rows dedupe)")
@@ -414,12 +422,17 @@ class CompiledRun:
             n = int(self.s.execute(f"SELECT count(*) FROM ({base})").fetchone()[0])
             if not n:
                 continue
-            examples = [str(r[0]) for r in self.s.execute(f"{base} ORDER BY 1 LIMIT 5").fetchall()]
+            examples = self._examples(base)
             if fail and fk.severity == "error":
                 raise CrawlError("fk_violation", f"{fk.label}: {', '.join(examples)}{hint}")
             found.append({"code": "fk", "label": fk.label, "entity": fk.entity, "severity": fk.severity,
                           "violations": n, "examples": examples})
         return found
+
+    def _examples(self, base: str) -> list[str]:
+        """The first violations of a check (``scn/1.0`` codes are unbounded: each is cut to
+        :data:`EXAMPLE_CHARS`, the ``ReadPreviewCheck`` limit)."""
+        return [str(r[0])[:EXAMPLE_CHARS] for r in self.s.execute(f"{base} ORDER BY 1 LIMIT 5").fetchall()]
 
     # ── output ──
     def out_batches(self, entity: str) -> Iterator[list[tuple[Any, ...]]]:
@@ -634,7 +647,7 @@ async def preview(tenant: str, mapping: ReadMapping, *, source: Literal["live", 
     """A read preview (``ReadPreview`` JSON): ``live`` pages at most ``max_pages`` page(s) per
     distinct source through ``conn`` (reader principal, egress proxy); ``staged`` maps the newest
     complete raw set of the connector (no vendor call), at most ``max_items`` items per source.
-    Nothing is stored. Raises ``LookupError`` when ``staged`` has no raw set."""
+    Nothing is stored. Raises :class:`NoStagedData` when ``staged`` has no raw set."""
     from keelson_engine.core import scn_staging
 
     st = _settings()
@@ -652,7 +665,7 @@ async def preview(tenant: str, mapping: ReadMapping, *, source: Literal["live", 
             else:
                 staged = await scn_staging.latest_set(tenant, conn.slug)
                 if staged is None:
-                    raise LookupError("no staged crawl data")
+                    raise NoStagedData("no staged crawl data")
                 capped = await _ingest_staged(run, tenant, staged, limit)
             await _blocking(session, run.build_lookups)
         except CrawlError as exc:
@@ -674,15 +687,19 @@ async def _ingest_staged(run: CompiledRun, tenant: str, staged: dict[str, Any], 
             raise CrawlError("not_staged", f"{cs.used_by[0]}: the last crawl did not read {cs.source.tool} with these "
                                            "arguments; preview it live or crawl once")
         pages = 0
-        async for items in read_pages(tenant, staged["snapshot_id"], str(found["key"]), max_pages=cs.source.max_pages):
-            room = limit - run.items[cs.key]
-            if room <= 0:
-                capped = True
-                break
-            if len(items) > room:
-                items, capped = items[:room], True
-            await _blocking(run.s, run.ingest, cs.key, items)
-            pages += 1
+        # aclosing: leaving early (the cap) closes the server-side cursor and its transaction now, in
+        # this task, instead of whenever the abandoned generator is collected
+        async with aclosing(read_pages(tenant, staged["snapshot_id"], str(found["key"]),
+                                       max_pages=cs.source.max_pages)) as staged_pages:
+            async for items in staged_pages:
+                room = limit - run.items[cs.key]
+                if room <= 0:
+                    capped = True
+                    break
+                if len(items) > room:
+                    items, capped = items[:room], True
+                await _blocking(run.s, run.ingest, cs.key, items)
+                pages += 1
         run.stats.pages += pages
         if found.get("truncated"):
             run.stats.truncated.extend(cs.used_by)

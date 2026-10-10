@@ -167,6 +167,45 @@ async def test_duplicate_source_id_fails_before_load() -> None:
 
 
 @aio
+async def test_preview_check_examples_fit_the_contract(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``scn/1.0`` codes have no length limit, ``ReadPreviewCheck.examples`` holds ≤ 300 characters
+    each: a long duplicate ``source_id`` or dangling reference is shown cut, never a 500."""
+    from contextlib import asynccontextmanager
+    from types import SimpleNamespace
+
+    from keelson_engine.core import mapping_exec
+
+    long_dc, long_store = "D" * 400, "S" * 400
+    data = {"dc": [{"code": long_dc}, {"code": long_dc}],
+            "inventory": [{"location_code": long_store, "sku_code": "SKU-1", "on_hand": 1}]}
+
+    @asynccontextmanager
+    async def caller(_conn: Any) -> Any:
+        async def call(_tool: str, args: dict[str, Any]) -> Any:
+            return {"items": data[args["type"]]}
+
+        yield call
+
+    monkeypatch.setattr(mapping_exec, "session_caller", caller)
+    src = {"tool": "list_items", "page_param": None, "page_size": 50, "items_path": "$.items", "cursor_path": None,
+           "max_pages": 1}
+    mapping = ReadMapping.model_validate({"entities": [
+        {"entity": "location", "source": {**src, "args": {"type": "dc"}},
+         "fields": {"source_id": "'dc:' + $.code", "kind": "'dc'", "code": "$.code", "src_version": "1"}},
+        {"entity": "inventory_position", "source": {**src, "args": {"type": "inventory"}},
+         "fields": {"source_id": "$.location_code + '/' + $.sku_code", "location_kind": "'store'",
+                    "location_code": "$.location_code", "sku_code": "$.sku_code", "on_hand": "$.on_hand",
+                    "allocated": "0", "reserved": "0", "in_transit": "0", "src_version": "1"}}]})
+    out = await mapping_exec.preview("t1", mapping, source="live", conn=SimpleNamespace(slug="lite"))
+    checks = {c["code"]: c for c in out["checks"]}
+    assert set(checks) == {"duplicate_source_id", "fk"} and out["ok"] is True  # a live page: warnings only
+    for c in checks.values():
+        assert c["violations"] == 1 and len(c["examples"]) == 1 and len(c["examples"][0]) == 300
+    assert checks["duplicate_source_id"]["examples"][0].startswith("dc:DDD")
+    assert checks["fk"]["examples"][0].startswith("store:SSS")
+
+
+@aio
 async def test_too_many_rows_and_bytes(monkeypatch: pytest.MonkeyPatch) -> None:
     from keelson_engine.core import scn_crawl
 

@@ -87,6 +87,18 @@
 }
 
 /*
+ * React Flow's attribution link (impact graph, workflow graph) on tokens: @xyflow/react draws it #999
+ * on a translucent panel, below 4.5:1 (axe color-contrast on /dev/blocks, M8 integration). One more
+ * class than @xyflow/react's own selectors, whose stylesheet loads later with the lazy graph chunks.
+ */
+.react-flow .react-flow__attribution {
+  background: var(--k-surface);
+}
+.react-flow .react-flow__attribution a {
+  color: var(--k-fg-muted);
+}
+
+/*
  * MapLibre controls of the network map on tokens (docs/contracts/127-m8-basemap.md): the
  * attribution stays expanded, opaque and ≥ 4.5:1 (fg-muted on surface) over any base map, in
  * both themes; zoom buttons follow the surface / border tokens and show the app's focus ring.

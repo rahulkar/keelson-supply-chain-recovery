@@ -1,0 +1,2 @@
+# Recorded-shape OFAC exports: keep the CRLF line ends and the trailing 0x1A byte exactly as published.
+*.CSV -text

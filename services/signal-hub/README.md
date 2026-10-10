@@ -1,8 +1,9 @@
 # Signal Hub (`services/signal-hub`)
 
-Proactive disruption detection for Keelson (contract `docs/contracts/100-m6-signals.md`, plan §15).
-It ingests public hazard feeds (GDACS, USGS), trade-press RSS and tenant connector events (Merxa
-webhooks forwarded by the engine). It normalises everything into `DisruptionSignal`s
+Proactive disruption detection for Keelson (contract `docs/contracts/100-m6-signals.md`, plan §15;
+M8 feeds `docs/contracts/124-m8-signal-feeds.md`). It ingests public hazard feeds (GDACS, USGS, NHC,
+Copernicus EMS, MeteoAlarm), the OFAC SDN list, trade-press RSS, GDELT's machine-coded news events and
+tenant connector events (Merxa webhooks forwarded by the engine). It normalises everything into `DisruptionSignal`s
 (`keelson_contracts.signals`) and clusters them into `DisruptionEvent`s. It then matches events
 against each tenant's network in PostGIS and raises alerts by per-tenant rules. Demo packs replay
 deterministically through the real adapters.
@@ -21,6 +22,11 @@ case.
 `python -m signal_hub.poller --once --adapter gdacs|usgs|rss|extraction|sweep|cluster [--connector rss.x]`
 runs one adapter and exits (exit 1 when a fetch failed). Cloud Run Jobs use this form; see "Cloud Run"
 below. `cluster` runs one cluster maintenance round (only needed where the API's loop does not run).
+
+`python -m signal_hub.poller --once --adapter gdacs|usgs|rss|nhc|copernicus_ems|ofac|gdelt|meteoalarm|extraction|sweep
+[--connector rss.x|meteoalarm.<country>]` runs one adapter and exits (exit 1 when a fetch failed; a
+feed adapter outside `SIGNAL_ADAPTERS` and a paused source are skipped with exit 0). Cloud Run Jobs use
+this form; see "Cloud Run" below.
 
 The API has no Caddy route (internal only). Every `/v1` and `/mcp` call needs an engine **service
 JWT**: HS256 with `SIGNAL_HUB_SHARED_SECRET`, claims `iss=keelson-engine`, `aud=signal-hub`,
@@ -55,6 +61,13 @@ sets `app.tenant_id` for each transaction:
   only in the system context; `signal_vec_<profile id>` tables (created at runtime, only with
   pgvector + the litellm provider) are mixed like `signal`.
 
+* `hub_secret` (the encrypted extraction key) and `source_snapshot` (M8: the last OFAC SDN snapshot,
+  one hash per organisation) are readable only in the system context.
+* M8 (migration `0005_m8_more_feeds.sql`): `signal.match_keys` holds the public organisation-name keys
+  a global signal names (OFAC); `network_node.name_key` the key of each tenant node name, computed by
+  `Pipeline.put_network`. Nodes pushed before the migration keep `NULL` until the engine's next network
+  push (it re-pushes after every scn sync). The two only ever meet inside a tenant's RLS context.
+
 A tenant's connector signal may attach to a **global** event. It then counts only for that tenant's
 member list and exposure: global aggregates are computed in the system context from global members
 only, so nothing leaks to other tenants.
@@ -67,12 +80,25 @@ only, so nothing leaks to other tenants.
 | USGS summary GeoJSON | `usgs.parse_usgs` | fact | feature `id` | public domain; depth dropped; country from the `place` tail (names only) |
 | trade-press RSS 2.0 / Atom (`RSS_FEEDS`) | `rss.parse_feed` | inference after quarantine | guid, else canonical link | headline + <= 300-char plain-text snippet + link only (`content:encoded` is never read); `defusedxml`; a future `pubDate` is capped at the retrieval time |
 | connector events (`POST /v1/ingest/connector-event`) | `connector.parse_connector_event` | fact (structured) / inference (free text) | `<tenant>/<type-specific id>` | `sailing.updated`, `lane.capacity_changed`, `po_line.updated`, `supplier_message.received`; other types → `202 {accepted:false}` |
+| **M8** NHC `CurrentStorms.json` (+ cone / track KMZ) | `nhc.parse_nhc`, `kml` | fact, anchor | storm id (each advisory a new version) | public domain; GIS only from `www.nhc.noaa.gov` over https, at most `NHC_MAX_GIS_FETCHES` per poll and once per advisory (an unchanged one reuses the stored footprint; products left over by the cap or a failed download are fetched by the next poll, which reads the feed in full instead of a 304, and the storm keeps its last footprint meanwhile); a storm that leaves the feed is withdrawn |
+| **M8** Copernicus EMS `public-activations-info` | `copernicus_ems.parse_ems` | fact, anchor | activation code | © EU, attribution required; centroid point + countries; unmapped categories skipped; an activation already expired at the poll is only ingested to close a signal the hub holds |
+| **M8** OFAC SDN / ALT / ADD CSV | `ofac.parse_entities`, `ofac.publication_draft` | fact, anchor | `sdn:<newest Last-Modified of the three files>` (later than the last delta's) | public domain; organisations only; first poll = silent baseline (`source_snapshot`), then one signal per publication with new or changed organisations, no geometry or refs, `match_keys` of their names and aliases |
+| **M8** GDELT 2.0 15-min event export | `gdelt.matching_rows`, `gdelt.drafts_for` | inference (`gdelt-cameo`, no LLM) | `<day>:<subtype>:<SCHEME>:<code>` | open, citation required; `lastupdate.txt` → the export on `data.gdeltproject.org` (path pattern, size and MD5 checked); CAMEO + articles + city-level + port / chokepoint filters; per-day aggregates in the cursor; capped below the alert threshold; tenant **opt-in** |
+| **M8** MeteoAlarm legacy Atom per country (+ CAP documents) | `meteoalarm.parse_atom`, `parse_cap_detail`, `parse_meteoalarm` | fact | `<CAP identifier>#<EMMA_ID>` | redistribution terms apply: off by default (`SIGNAL_ADAPTERS`) **and** tenant opt-in; orange and red only; CAP polygons from `feeds.meteoalarm.org` only, at most `METEOALARM_MAX_DETAIL_FETCHES` per poll (the rest follow on the next polls, which read the feed in full while any is pending); a cancelled or vanished warning is withdrawn |
+
+The source registry (`sources.py`) defines every adapter once (catalogue kind, provenance, licence and
+licence class, attribution, terms link, cadence limits, authority, opt-in, coverage); the admin
+catalogue, the cadence limits, the poller's adapter list and the feed runner's dispatch derive from it.
+The M8 pollers live in `feeds_more.py`; their demo-pack steps in `replay_feeds.py`. Archives go
+through `safezip.read_member` (one member, size and ratio caps, no traversal or encryption) and XML
+through `defusedxml`.
 
 All feed HTTP goes through `httpfetch.Fetcher`:
 
 * conditional GET with `If-None-Match` / `If-Modified-Since` (304 = not modified);
 * per-source rate limit (`SIGNALS_MIN_INTERVAL_S`, default 5 s);
-* connect/read timeouts and a 12 MiB response cap;
+* connect/read timeouts and a 12 MiB response cap (one call may change it: OFAC reads up to
+  `OFAC_MAX_BYTES`, GDELT exports up to 32 MiB);
 * the egress proxy, with `trust_env` off;
 * a destination guard on every request **and every redirect hop** (`httpfetch.destination_guard`):
   only `http(s)` to public host names or public IP literals. Single-label and internal names
@@ -85,7 +111,8 @@ An unexpected error inside one source's poll (a feed shape no parser foresaw, a 
 recorded as a failed poll with backoff. It never ends the poller loop.
 
 Cursors persist in `source_cursor`. On failure the next poll backs off to cadence × 2^failures,
-capped at 1 h. Cadences: GDACS 600 s, USGS 300 s, RSS 900 s (`CADENCE_*_S`).
+capped at 1 h. Cadences: GDACS 600 s, USGS 300 s, RSS 900 s, NHC 900 s, Copernicus EMS 1800 s, OFAC
+3600 s, GDELT 900 s, MeteoAlarm 900 s (`CADENCE_*_S`).
 
 A version bump happens when a re-polled item's content hash changes (`SignalDraft.content_hash`:
 observable fields, not retrieval times). The new version gets `supersedes`, the old one becomes
@@ -185,9 +212,11 @@ leading "the"/"port of" and a trailing "port"/"terminal".
 
 ## Clustering v1 (`cluster.py`)
 
-* GDACS and USGS signals are **anchors**. Each anchor founds an event with id
-  `event_id(connector, native_key)`, stable across versions. A second authoritative feed reporting
-  the same hazard (same subtype, <= 100 km, starts within 6 h) joins that event.
+* GDACS, USGS, NHC, Copernicus EMS and OFAC signals are **anchors**. Each anchor founds an event with
+  id `event_id(connector, native_key)`, stable across versions. A second authoritative feed reporting
+  the same hazard (same subtype, <= 100 km, starts within `same_hazard_window`: 72 h for storms,
+  floods and wildfires — feeds date them differently — else 6 h) joins that event: an NHC advisory
+  joins the GDACS cyclone, an EMS flood the GDACS flood.
 * Any other signal attaches to an open event when all of these hold:
   * the kind is compatible (`COMPATIBLE`, e.g. natural_hazard ↔ logistics);
   * the windows overlap within ±72 h;
@@ -210,7 +239,7 @@ Event fields (`aggregate_event`, current versions only):
 | geometry | merged footprint |
 | window | the members' window |
 | status | `resolved` when every member expired (or merged), `monitoring` when nothing new for 48 h, `confirmed` with an anchor or >= 2 sources, else `candidate` |
-| `radius_km` | TC 300; EQ 250 if M >= 6.5, else 100; FL 50; port closure 10; strike/chokepoint 25; else 50 |
+| `radius_km` | an explicit entry first (M8: wind storm, coastal flood, heavy rain, snow/ice, heat, cold, wildfire 25; thunderstorm, landslide 10; volcano 100), then TC 300; EQ 250 if M >= 6.5, else 100; FL 50; port closure 10; strike/chokepoint 25; else 50 |
 | taxonomy key | `taxonomy_key_for(subtype)` |
 
 Known v1 limitation: when a candidate event is absorbed, only members of the same scope move. A
@@ -291,6 +320,19 @@ skipped. A news-only event's title is its first headline, which is untrusted.
     and its syndicated copy stays a 1-source `candidate`);
   * recency: 10000 up to 24 h, linear down to 5000 at 7 days.
 * **Event severity**: the maximum over current anchors, else the p75 (nearest rank) of current members.
+* **M8 feeds**:
+  * NHC by maximum sustained wind: < 34 kt 3000; tropical storm 34–49 kt 5000, 50–63 kt 5500;
+    hurricane category 1 6500, 2 7500, 3 8500, 4 9200, 5 9700. `starts_at` = issuance − 6 h × (advisory
+    number − 1); `expires_at` = issuance + 12 h.
+  * Copernicus EMS by category: flood 6500, storm (wind storm) 6500, earthquake 7000, volcano 6000,
+    wildfire 5000, mass movement (landslide) 5000; `expires_at` = activation + `COPERNICUS_EMS_TTL_DAYS`
+    (14), or the last update once closed.
+  * MeteoAlarm by awareness level: yellow 3000, orange 6000, red 8500.
+  * OFAC SDN publication 8000 (an exposed supplier/factory drafts a case under the default rules);
+    `expires_at` + `OFAC_EVENT_TTL_DAYS` (30).
+  * GDELT: a subtype prior (`GDELT_PRIOR`: strike 5500, blockade 6000, armed conflict 6500, …) capped
+    at `GDELT_MAX_SEVERITY_BP` (3900), below the default alert threshold; counts in powers of two.
+  * Authority: NHC/OFAC 9500, Copernicus EMS/MeteoAlarm 9000, GDELT 4000.
 
 ## Exposure (`exposure.py`, PostGIS, per tenant)
 
@@ -300,6 +342,7 @@ skipped. A news-only event's title is its first headline, which is untrusted.
 | `dwithin_km` | node within `radius_km` | 10000 → 2000 linear |
 | `lane_crosses` | lane path crosses the footprint (weight 9000), or passes within 25 km of it (weight 7000) | 9000 / 7000 |
 | `entity_match` | current members' refs name a tenant node or lane (`UNLOCODE`→port, `SUPPLIER`, `FACTORY`, `DC`, `STORE`, `LANE`) | 10000 |
+| `entity_match` (M8) | a current member's public `match_keys` (OFAC organisation names) equal a tenant supplier's or factory's `name_key` (`names.match_key`: NFKD/ASCII, `&` → and, a leading "the" and trailing legal forms dropped, ≥ 2 words and 6 characters; exact, never fuzzy) | 10000 |
 
 Watch regions (M7, below) add matches:
 
@@ -320,19 +363,28 @@ The `updated_by` columns take the token's `sub`.
 
 ### Sources
 
-The catalogue is the configured feeds: GDACS, USGS and each `RSS_FEEDS` entry. Each shows its
-licence, authority, host and cadence limits. A tenant subscription in `source_subscription` (no row
+The catalogue is the configured feeds (`sources.catalogue`): GDACS, USGS, each `RSS_FEEDS` entry, NHC,
+Copernicus EMS, OFAC, GDELT and each `METEOALARM_COUNTRIES` entry. Each shows its licence, licence
+class, attribution, terms link, authority, host, cadence limits, catalogue kind (`hazard`, `weather`,
+`regulatory`, `news`), provenance, coverage, description, `opt_in` and `polled` (whether
+`SIGNAL_ADAPTERS` lets the poller run it). A tenant subscription in `source_subscription` (no row
 means subscribed, default cadence) can:
 
 * **Disable a source.** An event whose current members all come from disabled sources gets no
   exposure for that tenant. Its open alert resolves (`resolved` in the change feed), and
   re-enabling raises it again. The tenant's own signals always count (connector events, demo packs).
   Global data stays readable through MCP and search.
-* **Ask for a cadence** within `CADENCE_LIMITS`: GDACS 300 s–1 d, USGS 120 s–1 d, RSS 600 s–1 d
+* **Opt in** (M8) to an **opt-in** source (GDELT, MeteoAlarm): there no row means *not* subscribed, the
+  source stays paused until at least one tenant enabled it, its members count for a tenant only with
+  an `enabled` row, and the engine's whole-map sync puts an unlisted one back to off. Enabling it
+  cannot open egress the operator did not allow (`SIGNAL_ADAPTERS`), so it is not a four-eyes change.
+* **Ask for a cadence** within `CADENCE_LIMITS`: GDACS 300 s–1 d, USGS 120 s–1 d, RSS 600 s–1 d, NHC
+  300 s–1 d, Copernicus EMS 900 s–1 d, OFAC 1800 s–1 d, GDELT 900 s–1 d, MeteoAlarm 600 s–1 d
   (a configured default below the floor stays valid). Polling is shared:
   * the poll cadence is the fastest cadence any subscribed tenant wants, and a tenant without an
     override counts as the default (`source_schedule`, rebuilt under a lock after every change);
-  * a source every registered tenant disabled is **paused** (the loop and `--once` skip it).
+  * a source every registered tenant disabled is **paused** (the loop and `--once` skip it); neither
+    ever polls an adapter outside `SIGNAL_ADAPTERS`.
 
   The poller re-reads the schedule every loop. A lowered cadence applies from the last poll
   (`FeedRunner.due`).
@@ -438,6 +490,10 @@ payloads:
 | `rss` | `{fixture, connector_id?, source_name?, extraction? \| extractions?: {<guid\|link\|title>: NewsExtraction}}` |
 | `merxa_inject` | `{event: {type, id, timestamp?, data}} \| {fixture}` (+ `extraction?` for the free text) |
 | `chat_hint` | `{text}` (logged for the presenter) |
+| `nhc` (M8) | `{fixture, gis?: {<storm id>: [<file>.kml\|.kmz, …]}}` |
+| `copernicus_ems` (M8) | `{fixture}` |
+| `meteoalarm` (M8) | `{fixture, connector_id?: meteoalarm.<country>, details?: {<CAP identifier>: <file>.xml}}` |
+| `gdelt` (M8) | `{fixture: <file>.CSV\|.zip}` (the code-default GDELT filter, whatever the deployment's `GDELT_*`) |
 
 The SimClock gives `sim_now = start_at + offset (+ speed × wall seconds)`. Each step is applied at
 `start_at + t_offset_s`. Everything is tenant-scoped, `origin demo` and `provenance simulated`, and
@@ -459,7 +515,13 @@ alerts are `simulated: true`. Ids are uuid5 of content, so reset + replay is ide
 | `SIGNALS_LITELLM_WAIT_S`, `SIGNALS_LLM_KEY_REFRESH_S` | 180, 300 | bootstrap wait for LiteLLM; API re-read interval |
 | `HTTPS_PROXY` / `HTTP_PROXY` | unset | egress proxy for feeds (compose poller: `http://egress:3128`) |
 | `GDACS_URL`, `USGS_URL`, `RSS_FEEDS` | contract URLs; `rss.theloadstar=The Loadstar\|https://theloadstar.com/feed/` | `RSS_FEEDS` = comma list of `<id>=<name>\|<url>` |
-| `SIGNAL_ADAPTERS` | `gdacs,usgs,rss` | enabled poller adapters |
+| `SIGNAL_ADAPTERS` | `gdacs,usgs,rss,nhc,copernicus_ems,ofac,gdelt` | the operator's allow-list of poller adapters (add `meteoalarm` once its terms were reviewed) |
+| `NHC_URL`, `NHC_FETCH_GIS`, `NHC_MAX_GIS_FETCHES` | `https://www.nhc.noaa.gov/CurrentStorms.json`, on, 6 | NHC (M8; a cap below 2, one storm's cone + track, means no GIS) |
+| `COPERNICUS_EMS_URL`, `COPERNICUS_EMS_TTL_DAYS` | dashboard `public-activations-info/?limit=50`, 14 | Copernicus EMS (M8) |
+| `OFAC_SDN_URL` / `_ALT_URL` / `_ADD_URL`, `OFAC_MAX_BYTES`, `OFAC_EVENT_TTL_DAYS` | Sanctions List Service exports, 32 MiB, 30 | OFAC (M8) |
+| `GDELT_LASTUPDATE_URL`, `GDELT_EVENT_CODES`, `GDELT_MIN_ARTICLES`, `GDELT_PORT_RADIUS_KM`, `GDELT_CHOKEPOINT_BUFFER_KM`, `GDELT_MAX_SEVERITY_BP`, `GDELT_MAX_BACKFILL` | `https://data.gdeltproject.org/gdeltv2/lastupdate.txt`, `143,144,145,163,1724,190,191,193,194,195,196`, 3, 30, 50, 3900, 4 | GDELT (M8; codes must be ones the adapter maps) |
+| `METEOALARM_COUNTRIES`, `METEOALARM_URL_TEMPLATE`, `METEOALARM_MIN_LEVEL`, `METEOALARM_MAX_DETAIL_FETCHES` | empty, `…/meteoalarm-legacy-atom-{country}`, 3 (orange), 4 | MeteoAlarm (M8; slugs `^[a-z][a-z-]{1,40}$`; 0 CAP fetches = no polygons) |
+| `CADENCE_NHC_S` / `_COPERNICUS_EMS_S` / `_OFAC_S` / `_GDELT_S` / `_METEOALARM_S` | 900 / 1800 / 3600 / 900 / 900 | M8 schedules |
 | `CADENCE_GDACS_S` / `_USGS_S` / `_RSS_S`, `SIGNALS_MIN_INTERVAL_S` | 600 / 300 / 900, 5 | schedules and rate limit |
 | `DEMO_MODE`, `DEMO_TENANTS`, `SCENARIOS_DIR`, `DEMO_FEEDS_BASE_URL` | off, any, `/app/scenarios`, `http://127.0.0.1:8300/demo-feeds` | demo replay |
 | `GEO_DIR` | `/app/geo` | gazetteer data |
@@ -483,6 +545,15 @@ for a throwaway server and are skipped otherwise). The M8 remote-embedding tests
 need the `vector` extension: use the pg-core image (`docker build -t keelson-pg-core infra/postgres/core`)
 instead of `postgis/postgis:18-3.6` (they skip there). No test calls an LLM or the internet.
 
+mock LiteLLM in `tests/fakes.py`) plus PostGIS tests (`-m postgis`; they need `SIGNAL_HUB_TEST_ADMIN_DSN`
+for a throwaway `postgis/postgis:18-3.6` and are skipped otherwise). No test calls an LLM or the
+internet. M8: `test_m8_parsers.py` / `test_m8_logic.py` (recorded-shape fixtures of all five feeds,
+safezip, match keys, golden content hashes, clustering, registry), `test_db_m8_feeds.py` (a mock
+upstream per feed, opt-in, OFAC tenant isolation, the `feeds-test` pack in
+`tests/fixtures/scenarios-m8`) and `test_db_real_packs.py::test_hurricane_cape_route`.
+`tests/test_live_feeds.py` re-checks the parsers against today's real feeds and runs only with
+`SIGNAL_HUB_LIVE=1 pytest -m live tests/test_live_feeds.py` (through `HTTPS_PROXY` when set).
+
 ```bash
 docker network create keelson_m6_sh_net
 docker run -d --name keelson_m6_sh_pg --network keelson_m6_sh_net --tmpfs /var/lib/postgresql \
@@ -499,6 +570,6 @@ docker rm -fv keelson_m6_sh_pg && docker network rm keelson_m6_sh_net
 |---|---|
 | `infra/cloudrun/signal-hub/signal-hub-api.yaml` | internal-ingress Service, minScale 1 so the extraction/sweep loops run |
 | `infra/cloudrun/signal-hub/signal-hub-bootstrap.yaml` | migrations Job |
-| `infra/cloudrun/signal-hub/signal-hub-poll.yaml` | template: one Job per adapter (`--once --adapter X`) triggered by Cloud Scheduler |
+| `infra/cloudrun/signal-hub/signal-hub-poll.yaml` | template: one Job per adapter (`--once --adapter X`) triggered by Cloud Scheduler; feed adapters only when in `SIGNAL_ADAPTERS` (MeteoAlarm also needs `METEOALARM_COUNTRIES`), plus `extraction` and `sweep` |
 
 `infra/cloudrun/signal-hub.sh` holds the deploy steps that `scripts/cloudrun/deploy.sh` sources.

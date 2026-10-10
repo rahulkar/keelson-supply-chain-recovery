@@ -4,12 +4,15 @@
   Postgres advisory lock held on a dedicated connection; followers wait and retry. The leader polls
   every enabled source whose ``next_poll_at`` is due (GDACS 10 min, USGS 5 min, RSS 15 min; backoff on
   failure) and sweeps expiries every minute. Outbound HTTP goes only through the egress proxy.
-* ``--once --adapter gdacs|usgs|rss|extraction|sweep|cluster`` (Cloud Run Jobs triggered by Cloud
-  Scheduler): one run, then exit (0 = ok, 1 = the run failed). ``extraction`` retries pending news
-  extraction (needs LiteLLM: run it where the gateway is reachable; it reads the provisioned
-  extraction key unless ``LITELLM_SIGNALS_KEY`` is set, :mod:`signal_hub.llm_key`). ``cluster`` runs
-  one cluster maintenance round (merge pass; with ``SIGNALS_EMBED_PROVIDER=litellm`` also the
-  embedding jobs, with the same key) — only needed where the API's loop does not run.
+* ``--once --adapter gdacs|usgs|rss|nhc|copernicus_ems|ofac|gdelt|meteoalarm|extraction|sweep|cluster``
+  (Cloud Run Jobs triggered by Cloud Scheduler; the feed adapters come from
+  :data:`signal_hub.sources.ADAPTERS`): one run, then exit (0 = ok, 1 = the run failed); a feed
+  adapter outside ``SIGNAL_ADAPTERS`` and a paused source (every tenant disabled it, or an opt-in
+  source nobody enabled) are skipped with exit 0. ``extraction`` retries pending news extraction
+  (needs LiteLLM: run it where the gateway is reachable; it reads the provisioned extraction key
+  unless ``LITELLM_SIGNALS_KEY`` is set, :mod:`signal_hub.llm_key`). ``cluster`` runs one cluster
+  maintenance round (merge pass; with ``SIGNALS_EMBED_PROVIDER=litellm`` also the embedding jobs,
+  with the same key) — only needed where the API's loop does not run.
 * Tenant subscriptions (``110`` §5) shape the schedule: the cadence is the fastest one a subscribed
   tenant asked for (within limits), and a source every registered tenant disabled is not polled.
 
@@ -28,6 +31,7 @@ from typing import Any, Final
 
 import asyncpg
 
+from signal_hub import sources
 from signal_hub.config import Settings, load_settings
 from signal_hub.db import create_pool
 from signal_hub.feeds import FeedRunner
@@ -45,7 +49,7 @@ __all__ = ["LEADER_LOCK", "main", "run_loop", "run_once"]
 
 log = get_logger("signal_hub.poller")
 LEADER_LOCK: Final = 0x5348_504F_4C4C  # "SHPOLL"
-ADAPTERS: Final = ("gdacs", "usgs", "rss", "extraction", "sweep", "cluster")
+ADAPTERS: Final = (*sources.ADAPTERS, "extraction", "sweep", "cluster")
 
 
 async def _adapter_lock(conn: Any, adapter: str) -> bool:
@@ -59,6 +63,11 @@ async def _adapter_unlock(conn: Any, adapter: str) -> None:
 async def run_once(settings: Settings, adapter: str, *, connector: str | None = None) -> int:
     if adapter not in ADAPTERS:
         raise SystemExit(f"unknown adapter {adapter!r} (one of {', '.join(ADAPTERS)})")
+    if adapter in sources.ADAPTERS and adapter not in settings.enabled_adapters:
+        # the operator's allow-list holds for every run (124 §2.2): a scheduled job of an adapter the
+        # deployment does not allow never fetches, whatever tenants subscribed to
+        log.info("adapter not in SIGNAL_ADAPTERS; skipping", extra={"adapter": adapter})
+        return 0
     pool = await create_pool(settings.database_url, max_size=3)
     feed_client = build_feed_client(settings)
     internal = build_internal_client(settings)
@@ -104,11 +113,11 @@ async def run_once(settings: Settings, adapter: str, *, connector: str | None = 
                     return 0
                 await runner.refresh_schedule()
                 results = []
-                for _adapter, cid, _cadence in runner.connectors(include_disabled_adapters=True):
+                for _adapter, cid, _cadence in runner.connectors():
                     if _adapter != adapter or connector not in (None, cid):
                         continue
                     if cid in runner.paused:
-                        log.info("source paused: every tenant disabled it", extra={"connector": cid})
+                        log.info("source paused: no tenant subscribes to it", extra={"connector": cid})
                         continue
                     results += await runner.poll(adapter, now=now, connector_id=cid)
                 for r in results:
@@ -154,7 +163,8 @@ async def run_loop(settings: Settings, stop: asyncio.Event) -> None:
                         if cid in runner.paused:
                             continue
                         if await runner.due(cid, now, cadence):
-                            results = await runner.poll(adapter, now=utc_now(), connector_id=cid if adapter == "rss" else None)
+                            results = await runner.poll(adapter, now=utc_now(),
+                                                        connector_id=cid if adapter in sources.MULTI_CONNECTOR else None)
                             for r in results:
                                 log.info("poll", extra=r.summary())
                     if loop.time() - last_sweep >= 60:
@@ -181,7 +191,7 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="signal_hub.poller")
     parser.add_argument("--once", action="store_true", help="run one adapter once and exit")
     parser.add_argument("--adapter", choices=ADAPTERS)
-    parser.add_argument("--connector", help="rss: only this feed (connector id)")
+    parser.add_argument("--connector", help="rss / meteoalarm: only this source (connector id, e.g. meteoalarm.netherlands)")
     args = parser.parse_args(argv)
     settings = load_settings()
     configure_logging(settings.log_level)

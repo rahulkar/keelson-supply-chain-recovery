@@ -150,7 +150,7 @@ class SignalDraft:
     retrieved_at: dt.datetime
     native_id: str
     authoritative: bool = False
-    """Anchor-capable (GDACS/USGS): becomes the anchor of its event."""
+    """Anchor-capable (GDACS/USGS; M8: NHC, Copernicus EMS, OFAC): becomes the anchor of its event."""
     pack_id: str | None = None
     # Clustering v2 (docs/contracts/123). Not part of content_hash: adding them re-versions nothing.
     mentions: tuple[str, ...] = ()
@@ -159,6 +159,10 @@ class SignalDraft:
     near_duplicate_of: str | None = None
     """The original signal of a SimHash near-duplicate news item."""
     near_duplicate_bits: int | None = None
+    match_keys: list[str] = field(default_factory=list)
+    """Public organisation-name keys (:func:`signal_hub.names.match_key`) a global signal names
+    (OFAC SDN entities): matched against tenant node names inside each tenant's RLS context
+    (``signal.match_keys``, :mod:`signal_hub.exposure`). Not part of the contract model."""
 
     def content_hash(self) -> str:
         """Hash of the observable content (not ``retrieved_at``/``observed_at``): a re-poll with
@@ -171,6 +175,8 @@ class SignalDraft:
             "provenance": self.provenance, "extracted_by": self.extracted_by, "source_url": self.source_url,
             "native_id": self.native_id, "license": self.license,
         }
+        if self.match_keys:  # only when set: the hashes of every earlier signal stay byte-identical
+            payload["match_keys"] = sorted(self.match_keys)
         return hashlib.sha256(canonical_json(_jsonable(payload)).encode("utf-8")).hexdigest()
 
     def to_signal(

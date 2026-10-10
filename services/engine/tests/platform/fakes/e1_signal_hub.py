@@ -250,7 +250,7 @@ class FakeHub:
                 return httpx.Response(403, json={"detail": "tenant mismatch"})
             subs = {s["connector_id"]: s for s in self.subscriptions.get(tenant, [])}
             return httpx.Response(200, json={"tenant": tenant, "items": [
-                {**c, "enabled": subs.get(c["connector_id"], {}).get("enabled", True),
+                {**c, "enabled": subs.get(c["connector_id"], {}).get("enabled", not c.get("opt_in", False)),
                  "cadence_s": subs.get(c["connector_id"], {}).get("cadence_s"),
                  "effective_cadence_s": subs.get(c["connector_id"], {}).get("cadence_s") or c["default_cadence_s"],
                  "paused": False,

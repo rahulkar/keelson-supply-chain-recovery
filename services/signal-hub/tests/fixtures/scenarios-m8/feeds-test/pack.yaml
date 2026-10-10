@@ -1,0 +1,29 @@
+# TEST FIXTURE pack (signal-hub tests only; kept apart from tests/fixtures/scenarios so the M6/M7
+# pack tests keep their single typhoon-test pack): one step per M8 feed adapter, replayed through the
+# real parsers (docs/contracts/124-m8-signal-feeds.md §5).
+id: feeds-test
+title: M8 feeds test pack (simulated)
+description: SIMULATED. An NHC hurricane with its cone, Copernicus EMS activations, MeteoAlarm warnings with a CAP polygon, and a GDELT export.
+start_at: "2026-10-07T00:00:00Z"
+steps:
+  - t_offset_s: 0
+    adapter: nhc
+    payload:
+      fixture: nhc-1.json
+      gis: {al142026: [nhc-1-cone.kml]}
+    note: "NHC: Hurricane Tern, advisory 12, with the forecast cone"
+  - t_offset_s: 0
+    adapter: copernicus_ems
+    payload: {fixture: ems-1.json}
+    note: "Copernicus EMS: flood, storm, wildfire and landslide activations"
+  - t_offset_s: 43200
+    adapter: meteoalarm
+    payload:
+      fixture: meteoalarm-1.atom
+      connector_id: meteoalarm.netherlands
+      details: {"2.49.0.0.528.0.NL.20261007091503.test-orange-wind_3": meteoalarm-1-cap.xml}
+    note: "MeteoAlarm: orange wind (CAP polygon + circle), red coastal event, orange rain"
+  - t_offset_s: 43200
+    adapter: gdelt
+    payload: {fixture: gdelt-1.CSV}
+    note: "GDELT: one 15-minute export (strikes near Chittagong and Rotterdam, a Bab-el-Mandeb blockade)"

@@ -252,7 +252,10 @@ def build_router() -> APIRouter:
                                           "last_error": None, "consecutive_failures": 0, "next_poll_at": None,
                                           "items_total": 0})
             item.update(name=info.name, license=info.license, authority_bp=info.authority_bp,
-                        cadence_s=schedule[cid].cadence_s, paused=schedule[cid].paused, polled=info.polled)
+                        cadence_s=schedule[cid].cadence_s, paused=schedule[cid].paused, polled=info.polled,
+                        kind=info.kind, provenance=info.provenance, licence_class=info.licence_class,
+                        attribution=info.attribution, terms_url=info.terms_url, opt_in=info.opt_in,
+                        coverage=info.coverage, description=info.description)
         return {"sources": [by_id[k] for k in sorted(by_id)],
                 "pending_extraction": pending, "llm_configured": bool(hub.settings.litellm_key),
                 "llm_key_source": hub.settings.llm_key_source,

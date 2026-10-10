@@ -1,0 +1,133 @@
+{
+  "_fixture": "TEST FIXTURE (fictional storms Tern, Petrel and Fifteen): shaped like https://www.nhc.noaa.gov/CurrentStorms.json as recorded 2026-10-08 (activeStorms objects with numeric and text positions, string intensity/pressure, per-product {advNum, issuance, fileUpdateTime, url | kmzFile, zipFile}, null products). Not NHC data.",
+  "activeStorms": [
+    {
+      "id": "al142026",
+      "binNumber": "AT1",
+      "name": "Tern",
+      "classification": "HU",
+      "intensity": "105",
+      "pressure": "955",
+      "latitude": "24.5N",
+      "longitude": "71.2W",
+      "latitudeNumeric": 24.5,
+      "longitudeNumeric": -71.2,
+      "movementDir": 315,
+      "movementSpeed": 11,
+      "lastUpdate": "2026-10-06T21:00:00.000Z",
+      "publicAdvisory": {
+        "advNum": "012",
+        "issuance": "2026-10-06T21:00:00.000Z",
+        "fileUpdateTime": "2026-10-06T20:54:41.933Z",
+        "url": "https://www.nhc.noaa.gov/text/MIATCPAT1.shtml"
+      },
+      "forecastAdvisory": {
+        "advNum": "012",
+        "issuance": "2026-10-06T21:00:00.000Z",
+        "fileUpdateTime": "2026-10-06T20:53:42.346Z",
+        "url": "https://www.nhc.noaa.gov/text/MIATCMAT1.shtml"
+      },
+      "forecastTrack": {
+        "advNum": "012",
+        "issuance": "2026-10-06T21:00:00.000Z",
+        "fileUpdateTime": "2026-10-06T21:01:09.733Z",
+        "zipFile": "https://www.nhc.noaa.gov/gis/forecast/archive/al142026_5day_012.zip",
+        "kmzFile": "https://www.nhc.noaa.gov/storm_graphics/api/AL142026_012adv_TRACK.kmz"
+      },
+      "windWatchesWarnings": null,
+      "trackCone": {
+        "advNum": "012",
+        "issuance": "2026-10-06T21:00:00.000Z",
+        "fileUpdateTime": "2026-10-06T21:01:03.862Z",
+        "zipFile": "https://www.nhc.noaa.gov/gis/forecast/archive/al142026_5day_012.zip",
+        "kmzFile": "https://www.nhc.noaa.gov/storm_graphics/api/AL142026_012adv_CONE.kmz"
+      },
+      "initialWindExtent": {
+        "advNum": "012",
+        "issuance": "2026-10-06T21:00:00.000Z",
+        "fileUpdateTime": "2026-10-06T21:01:42.445Z",
+        "zipFile": "https://www.nhc.noaa.gov/gis/forecast/archive/al142026_fcst_012.zip",
+        "kmzFile": "https://www.nhc.noaa.gov/storm_graphics/api/AL142026_initialradii_012adv.kmz"
+      },
+      "peakSurgeKML": null
+    },
+    {
+      "id": "ep192026",
+      "binNumber": "EP4",
+      "name": "Petrel",
+      "classification": "TS",
+      "intensity": "45",
+      "pressure": "1001",
+      "latitude": "15.1N",
+      "longitude": "108.4W",
+      "latitudeNumeric": 15.1,
+      "longitudeNumeric": -108.4,
+      "movementDir": 280,
+      "movementSpeed": 9,
+      "lastUpdate": "2026-10-06T21:00:00.000Z",
+      "publicAdvisory": {
+        "advNum": "004",
+        "issuance": "2026-10-06T21:00:00.000Z",
+        "fileUpdateTime": "2026-10-06T20:43:25.893Z",
+        "url": "https://www.nhc.noaa.gov/text/MIATCPEP4.shtml"
+      },
+      "forecastTrack": {
+        "advNum": "004",
+        "issuance": "2026-10-06T21:00:00.000Z",
+        "fileUpdateTime": "2026-10-06T20:58:00.000Z",
+        "zipFile": "https://www.nhc.noaa.gov/gis/forecast/archive/ep192026_5day_004.zip",
+        "kmzFile": "https://www.nhc.noaa.gov/storm_graphics/api/EP192026_004adv_TRACK.kmz"
+      },
+      "trackCone": {
+        "advNum": "004",
+        "issuance": "2026-10-06T21:00:00.000Z",
+        "fileUpdateTime": "2026-10-06T20:57:18.828Z",
+        "zipFile": "https://www.nhc.noaa.gov/gis/forecast/archive/ep192026_5day_004.zip",
+        "kmzFile": "https://www.nhc.noaa.gov/storm_graphics/api/EP192026_004adv_CONE.kmz"
+      },
+      "windWatchesWarnings": null,
+      "stormSurgeWatchWarningGIS": null
+    },
+    {
+      "id": "al152026",
+      "binNumber": "AT2",
+      "name": "Fifteen",
+      "classification": "PTC",
+      "intensity": "35",
+      "pressure": "1006",
+      "latitude": "13.0N",
+      "longitude": "60.1W",
+      "latitudeNumeric": 13.0,
+      "longitudeNumeric": -60.1,
+      "movementDir": 290,
+      "movementSpeed": 15,
+      "lastUpdate": "2026-10-06T21:00:00.000Z",
+      "publicAdvisory": {
+        "advNum": "002A",
+        "issuance": "2026-10-06T21:00:00.000Z",
+        "fileUpdateTime": "2026-10-06T20:50:00.000Z",
+        "url": "https://www.nhc.noaa.gov/text/MIATCPAT2.shtml"
+      },
+      "trackCone": {
+        "advNum": "002",
+        "issuance": "2026-10-06T15:00:00.000Z",
+        "fileUpdateTime": "2026-10-06T15:01:00.000Z",
+        "zipFile": "https://www.nhc.noaa.gov/gis/forecast/archive/al152026_5day_002.zip",
+        "kmzFile": "https://gis.example.net/storm_graphics/api/AL152026_002adv_CONE.kmz"
+      },
+      "forecastTrack": {
+        "advNum": "002",
+        "issuance": "2026-10-06T15:00:00.000Z",
+        "fileUpdateTime": "2026-10-06T15:01:00.000Z",
+        "zipFile": "https://www.nhc.noaa.gov/gis/forecast/archive/al152026_5day_002.zip",
+        "kmzFile": "http://www.nhc.noaa.gov/storm_graphics/api/AL152026_002adv_TRACK.kmz"
+      }
+    },
+    {
+      "id": "invest-90",
+      "name": "Not a storm id",
+      "classification": "LO",
+      "intensity": "25"
+    }
+  ]
+}

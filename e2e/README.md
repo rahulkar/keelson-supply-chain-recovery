@@ -333,6 +333,18 @@ MSYS_NO_PATHCONV=1 docker compose run --rm --no-deps -T -e LOG_LEVEL=warning   -
 
 The runner resets Merxa's demo data for every case: never run it against a stack you are presenting
 from.
+## M8 signal feeds (`docs/contracts/124`): `api_m8_feeds_offline.py`
+
+Runs inside the engine image like the M6/M7 offline scripts (`docker compose run --rm --no-deps -T -v
+<repo>/e2e:/e2e:ro engine-api python -u /e2e/api_m8_feeds_offline.py`); **no model and no internet**.
+Demo reset; the Sources catalogue lists NHC, Copernicus EMS and OFAC as polled `fact` sources with their
+licences and https terms links (the OFAC awareness disclaimer included) and GDELT as an opt-in
+`inference` source, unsubscribed and paused; subscribing GDELT un-pauses it at the hub (900 s) and
+unsubscribing pauses it again; the presenter's `hurricane-cape-route` pack raises exactly one simulated
+alert exposing only the four CAPE-routed lanes (`lane_crosses`, attributed to "NOAA National Hurricane
+Center (demo replay)"), re-notified as critical at the category-3 advisory with the action still `alert`
+(no case drafted); a final demo reset clears it (`--skip-final-reset` keeps it). `scripts/verify-live.sh`
+step `m8-feeds` polls the real NHC / EMS / OFAC / GDELT feeds once through the poller's egress.
 
 ## `api_m3_levers.py` — M3 levers through the API
 

@@ -1,8 +1,10 @@
 """Clustering v1 (``100`` §4) — pure decision logic, unit-tested without a database.
 
-* Authoritative feed signals (GDACS, USGS) are **anchors**: each one founds its own event (id
-  ``event_id(connector, native_key)``, stable across versions). A second authoritative feed reporting
-  the *same* hazard (same subtype, <= 100 km, starts within 6 h, different connector) joins that event.
+* Authoritative feed signals (GDACS, USGS; M8: NHC, Copernicus EMS, OFAC) are **anchors**: each one
+  founds its own event (id ``event_id(connector, native_key)``, stable across versions). A second
+  authoritative feed reporting the *same* hazard (same subtype, <= 100 km, different connector, starts
+  within :func:`same_hazard_window`: 72 h for storms, floods and wildfires, whose feeds date the
+  hazard differently, else 6 h) joins that event.
 * Every other signal (news, connector, chat) **attaches** to an open event when the kind is
   compatible (:data:`COMPATIBLE`), the time windows overlap within ±72 h, and the geometry is within
   300 km or a ``location_ref`` matches. Ranking: anchored events first, then most shared specific refs
@@ -58,12 +60,17 @@ __all__ = [
     "km",
     "merge_target_possible",
     "radius_km",
+    "same_hazard_window",
 ]
 
 ATTACH_WINDOW: Final = dt.timedelta(hours=72)
 ATTACH_RADIUS_KM: Final = 300.0
 SAME_HAZARD_RADIUS_KM: Final = 100.0
 SAME_HAZARD_WINDOW: Final = dt.timedelta(hours=6)
+LONG_HAZARD_WINDOW: Final = dt.timedelta(hours=72)
+"""Storms, floods and wildfires: GDACS dates a cyclone from genesis, NHC from its advisory history,
+Copernicus EMS from the flood peak — the same hazard starts up to days apart in different feeds."""
+_LONG_HAZARDS: Final = frozenset({"flood", "wildfire"})
 MONITORING_AFTER: Final = dt.timedelta(hours=48)
 STRONG_SCHEMES: Final = frozenset({"UNLOCODE", "CHOKEPOINT", "SUPPLIER", "FACTORY", "DC", "STORE", "LANE"})
 
@@ -93,6 +100,17 @@ _RADIUS: Final[dict[str, int]] = {
     "port_closure": 10,
     "strike": 25,
     "chokepoint_closure": 25,
+    # M8 weather / hazard feeds (124 §1): explicit entries win over the storm rule below
+    "wind_storm": 25,
+    "coastal_flood": 25,
+    "heavy_rain": 25,
+    "snow_ice": 25,
+    "heat": 25,
+    "cold": 25,
+    "thunderstorm": 10,
+    "wildfire": 25,
+    "landslide": 10,
+    "volcano": 100,
 }
 DEFAULT_RADIUS_KM: Final = 50
 
@@ -105,12 +123,23 @@ def kinds_compatible(a: str, b: str) -> bool:
 
 def radius_km(subtype: str, *, magnitude: float | None = None) -> int:
     """Kind-specific exposure radius (``100`` §5): TC 300 km of track/cone, EQ >= 6.5 → 250 km else
-    100 km, FL 50 km, port events 10 km (the port node, plus entity match), else 50 km."""
+    100 km, FL 50 km, port events 10 km (the port node, plus entity match), else 50 km. An explicit
+    :data:`_RADIUS` entry wins over the storm rule (a ``wind_storm`` warning polygon is 25 km, not a
+    cyclone's 300 km)."""
+    if subtype in _RADIUS:
+        return _RADIUS[subtype]
     if subtype in _STORM or taxonomy_key_for(subtype) == "NAT.storm":
         return 300
     if subtype == "earthquake":
         return 250 if magnitude is not None and magnitude >= 6.5 else 100
-    return _RADIUS.get(subtype, DEFAULT_RADIUS_KM)
+    return DEFAULT_RADIUS_KM
+
+
+def same_hazard_window(subtype: str) -> dt.timedelta:
+    """How far apart two authoritative feeds may date the start of the same hazard."""
+    if subtype in _STORM or subtype in _LONG_HAZARDS or taxonomy_key_for(subtype) == "NAT.storm":
+        return LONG_HAZARD_WINDOW
+    return SAME_HAZARD_WINDOW
 
 
 @dataclass(frozen=True, slots=True)
@@ -193,7 +222,7 @@ def _same_hazard(sig: SignalFeatures, candidates: Sequence[Candidate]) -> Candid
         c for c in candidates
         if c.anchored and c.anchor_connector not in (None, sig.connector_id) and c.subtype == sig.subtype
         and c.distance_km is not None and c.distance_km <= SAME_HAZARD_RADIUS_KM
-        and abs((c.window_start - sig.starts_at).total_seconds()) <= SAME_HAZARD_WINDOW.total_seconds()
+        and abs((c.window_start - sig.starts_at).total_seconds()) <= same_hazard_window(sig.subtype).total_seconds()
     ]
     same.sort(key=lambda c: (c.distance_km or 0.0, c.event_id))
     return same[0] if same else None

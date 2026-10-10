@@ -109,7 +109,7 @@ def test_watch_region_model() -> None:
 def test_source_catalogue_limits() -> None:
     s = Settings(rss_feeds=(RssFeed("rss.x", "X Daily", "https://x.example/feed"),), cadence_usgs_s=60)
     cat = {c.connector_id: c for c in admin.source_catalogue(s)}
-    assert list(cat) == ["gdacs", "usgs", "rss.x"]
+    assert list(cat) == ["gdacs", "usgs", "rss.x", "nhc", "copernicus_ems", "ofac", "gdelt"]  # M8: 124 §0
     assert (cat["gdacs"].min_cadence_s, cat["gdacs"].max_cadence_s, cat["gdacs"].default_cadence_s) == (300, 86400, 600)
     assert cat["usgs"].min_cadence_s == 60  # a configured default below the floor stays valid
     assert cat["rss.x"].license.startswith("Headline") and cat["rss.x"].host == "x.example" and cat["rss.x"].polled

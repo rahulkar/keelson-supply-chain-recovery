@@ -1,0 +1,29 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!-- SIMULATED demo data (Keelson pack hurricane-cape-route): forecast cone of the fictional Hurricane
+     ALBATROSS, advisory 7, shaped like an NHC 5-day cone KML. Not an NHC product. -->
+<kml xmlns='http://earth.google.com/kml/2.1'>
+<Document>
+<name>Hurricane Albatross (Advisory #7) - Forecast Track Uncertainty (SIMULATED)</name>
+    <Style id='120'>
+            <LineStyle><color>ffff7b00</color><width>2</width></LineStyle>
+            <PolyStyle><color>33eae12e</color></PolyStyle>
+    </Style>
+    <Placemark>
+      <styleUrl>#120</styleUrl>
+        <Polygon>
+            <outerBoundaryIs><LinearRing>
+                <coordinates>
+                    -22.448,18.600,0 -22.385,18.144,0 -22.201,17.718,0 -20.247,14.412,0 -19.039,12.825,0 -18.885,12.629,0 -17.519,11.288,0 -17.367,11.173,0 -15.928,10.108,0 -14.514,9.104,0 -14.459,9.082,0 -14.400,9.074,0 -14.341,9.082,0 -14.286,9.104,0 -14.239,9.140,0 -14.203,9.187,0 -14.180,9.241,0 -14.172,9.300,0 -14.180,9.359,0 -14.203,9.413,0 -18.999,19.482,0 -19.293,19.847,0 -19.676,20.127,0 -20.122,20.303,0 -20.600,20.364,0 -21.078,20.303,0 -21.524,20.127,0 -21.907,19.847,0 -22.201,19.482,0 -22.385,19.056,0 -22.448,18.600,0
+                </coordinates>
+            </LinearRing></outerBoundaryIs>
+        </Polygon>
+        <ExtendedData>
+            <Data name="stormType"><value>HU</value></Data>
+            <Data name="basin"><value>AL</value></Data>
+            <Data name="atcfid"><value>AL992026</value></Data>
+            <Data name="advisoryNum"><value>7</value></Data>
+            <Data name="stormName"><value>Albatross</value></Data>
+        </ExtendedData>
+    </Placemark>
+</Document>
+</kml>

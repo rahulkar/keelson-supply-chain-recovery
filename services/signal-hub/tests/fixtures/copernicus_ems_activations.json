@@ -1,0 +1,92 @@
+{
+  "_fixture": "TEST FIXTURE (fictional activations EMSR990-EMSR995): shaped like https://rapidmapping.emergency.copernicus.eu/backend/dashboard-api/public-activations-info/?limit=50 as recorded 2026-10-08 (country names, naive-UTC times, WKT centroids). Not Copernicus EMS data.",
+  "count": 6,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "code": "EMSR995",
+      "countries": ["Greece"],
+      "eventTime": "2026-10-05T07:00:00",
+      "name": "Flood in Thessaly, Greece",
+      "centroid": "POINT (22.4191 39.6390)",
+      "activationTime": "2026-10-05T11:02:00",
+      "category": "Flood",
+      "lastUpdate": "2026-10-06T15:56:27.013005",
+      "closed": false,
+      "gdacsId": "FL1104200",
+      "n_aois": 8,
+      "n_products": 14
+    },
+    {
+      "code": "EMSR994",
+      "countries": ["Italy"],
+      "eventTime": "2026-10-04T13:00:00",
+      "name": "Storm in Liguria, Italy.",
+      "centroid": "POINT (8.9463 44.4056)",
+      "activationTime": "2026-10-04T18:44:00",
+      "category": "Storm",
+      "lastUpdate": "2026-10-06T14:01:14.382140",
+      "closed": false,
+      "gdacsId": null,
+      "n_aois": 2,
+      "n_products": 3
+    },
+    {
+      "code": "EMSR993",
+      "countries": ["Spain", "Portugal"],
+      "eventTime": "2026-09-15T13:00:00",
+      "name": "Wildfire in Huelva Province, Spain\u0007",
+      "centroid": "POINT (-7.213497 37.789542)",
+      "activationTime": "2026-09-15T16:58:00",
+      "category": "Wildfire",
+      "lastUpdate": "2026-09-17T12:50:19.784825",
+      "closed": true,
+      "gdacsId": null,
+      "n_aois": 1,
+      "n_products": 1
+    },
+    {
+      "code": "EMSR992",
+      "countries": ["Germany"],
+      "eventTime": "2026-10-03T22:00:00",
+      "name": "Industrial accident in Ludwigshafen, Germany",
+      "centroid": "POINT (8.4353 49.4774)",
+      "activationTime": "2026-10-04T06:10:00",
+      "category": "Industrial accident",
+      "lastUpdate": "2026-10-05T09:00:00.000000",
+      "closed": false,
+      "gdacsId": null,
+      "n_aois": 1,
+      "n_products": 2
+    },
+    {
+      "code": "EMSR991",
+      "countries": ["Viet Nam"],
+      "eventTime": "2026-10-02T00:00:00",
+      "name": "Mass movement in Lao Cai, Viet Nam",
+      "centroid": "POINT (104 22.5 bad)",
+      "activationTime": "2026-10-02T08:00:00",
+      "category": "Mass movement",
+      "lastUpdate": "2026-10-03T08:00:00.000000",
+      "closed": false,
+      "gdacsId": null,
+      "n_aois": 3,
+      "n_products": 4
+    },
+    {
+      "code": "NOT-A-CODE",
+      "countries": ["Chile"],
+      "eventTime": "2026-10-01T00:00:00",
+      "name": "Earthquake",
+      "centroid": "POINT (-70 -33)",
+      "activationTime": "2026-10-01T08:00:00",
+      "category": "Earthquake",
+      "lastUpdate": "2026-10-01T09:00:00.000000",
+      "closed": false,
+      "gdacsId": null,
+      "n_aois": 1,
+      "n_products": 1
+    }
+  ]
+}

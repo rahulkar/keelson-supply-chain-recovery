@@ -332,7 +332,8 @@ def test_manifest_set(rendered: dict[str, dict]) -> None:
         "jobs/keelson-db-init-keelson-pg.yaml", "lb/url-map.yaml", "lb/http-redirect.yaml",
         # M6 Signal Hub (infra/cloudrun/signal-hub.sh): API service, bootstrap job, one poll job per adapter
         "signal-hub/signal-hub-api.yaml", "signal-hub/signal-hub-bootstrap.yaml",
-        *(f"signal-hub/signal-hub-poll-{a}.yaml" for a in ("gdacs", "usgs", "rss", "extraction", "sweep")),
+        *(f"signal-hub/signal-hub-poll-{a}.yaml" for a in ("gdacs", "usgs", "rss", "nhc", "copernicus_ems", "ofac",
+                                                             "gdelt", "extraction", "sweep")),  # M8 feeds (124)
     }
     for name, doc in rendered.items():
         if name.startswith("services/"):
@@ -341,6 +342,30 @@ def test_manifest_set(rendered: dict[str, dict]) -> None:
             assert doc["metadata"]["labels"]["cloud.googleapis.com/location"] == REGION
     assert rendered["workerpools/engine-worker.yaml"]["kind"] == "WorkerPool"
     assert rendered["workerpools/engine-worker.yaml"]["apiVersion"] == "run.googleapis.com/v1"
+
+
+def test_signal_hub_poll_jobs_follow_the_adapter_allow_list(tmp_path: Path, fakebin: tuple[Path, Path]) -> None:
+    """M8 feeds (124 §7): a poll job only for the feed adapters the operator allows (``SIGNAL_ADAPTERS``),
+    MeteoAlarm only with both its allow-list entry and ``METEOALARM_COUNTRIES``; every job and the API
+    get the same allow-list (the hub's ``--once`` honours it too)."""
+
+    def jobs(name: str, **env: str) -> dict[str, dict]:
+        out = tmp_path / name
+        deploy("--project", PROJECT, "--region", REGION, "--domain", DOMAIN, "--tag", "t1", "--render-only", str(out),
+               fakebin=fakebin, env_file=tmp_path / "none.env", extra_env=env)
+        api = yaml.safe_load((out / "signal-hub" / "signal-hub-api.yaml").read_text(encoding="utf-8"))
+        assert env_of(api)["SIGNAL_ADAPTERS"]["value"] == env["SIGNAL_ADAPTERS"]
+        return {p.stem.removeprefix("signal-hub-poll-"): yaml.safe_load(p.read_text(encoding="utf-8"))
+                for p in sorted((out / "signal-hub").glob("signal-hub-poll-*.yaml"))}
+
+    (tmp_path / "none.env").write_text("", encoding="utf-8")
+    some = jobs("some", SIGNAL_ADAPTERS="gdacs,usgs,ofac", METEOALARM_COUNTRIES="netherlands")
+    assert set(some) == {"gdacs", "usgs", "ofac", "extraction", "sweep"}  # countries alone never enable MeteoAlarm
+    assert {env_of(doc)["SIGNAL_ADAPTERS"]["value"] for doc in some.values()} == {"gdacs,usgs,ofac"}
+    meteo = jobs("meteo", SIGNAL_ADAPTERS="gdacs,meteoalarm", METEOALARM_COUNTRIES="netherlands,germany")
+    assert set(meteo) == {"gdacs", "meteoalarm", "extraction", "sweep"}
+    assert env_of(meteo["meteoalarm"])["METEOALARM_COUNTRIES"]["value"] == "netherlands,germany"
+    assert set(jobs("no-countries", SIGNAL_ADAPTERS="gdacs,meteoalarm")) == {"gdacs", "extraction", "sweep"}
 
 
 def test_ingress(rendered: dict[str, dict]) -> None:

@@ -10,7 +10,9 @@ Three levels, each used when its imports are available (``--require`` makes a mi
 
 1. **shape** (stdlib + PyYAML): pack keys, step order, per-adapter payload keys, fixture files and
    their real-feed shapes (GDACS event list + embedded footprints, USGS summary GeoJSON, RSS 2.0 / Atom,
-   Merxa ``supplier_message.received`` webhook body), GeoJSON validity (closed, simple, counter-clockwise
+   Merxa ``supplier_message.received`` webhook body, M8: NHC ``CurrentStorms.json`` + cone / track
+   KML, and the SIMULATED / ``.example`` labelling of Copernicus EMS, MeteoAlarm and GDELT fixtures),
+   GeoJSON validity (closed, simple, counter-clockwise
    rings, 2D WGS84), only reserved ``.example`` hosts (clearly fictional), every news / free-text item
    covered by a pre-baked extraction whose mentions appear verbatim in the item text, nothing in the
    future of the step's sim time, and the "simulated" labelling. Real-feed details the hub's parsers
@@ -20,7 +22,8 @@ Three levels, each used when its imports are available (``--require`` makes a mi
 2. **contract** (``keelson_contracts``): ``ScenarioPack`` and ``NewsExtraction`` (+
    ``news_extraction_violations``) validation.
 3. **replay** (``signal_hub``): every step is parsed by the hub's real adapters (``parse_gdacs``,
-   ``parse_usgs``, ``parse_feed``, ``parse_connector_event``) with the real gazetteer, pre-baked
+   ``parse_usgs``, ``parse_feed``, ``parse_connector_event``; M8: ``signal_hub.replay_feeds.parse_step``
+   for ``nhc`` / ``copernicus_ems`` / ``meteoalarm`` / ``gdelt``) with the real gazetteer, pre-baked
    extractions go through the real quarantine screen (``run_quarantine``) and ``draft_from_extraction``,
    every draft becomes a contract ``DisruptionSignal``; then, at each checkpoint of ``expected.yaml``, the
    events (members, attach rules), severities, kind radii, alert actions (``DEFAULT_ALERT_RULES``) and
@@ -75,20 +78,35 @@ NETWORK_DEFAULT: Final = "network-value-fashion-eu.yaml"
 PACK_KEYS: Final = {"id", "title", "description", "start_at", "steps"}
 STEP_KEYS: Final = {"t_offset_s", "adapter", "payload", "note"}
 PACK_ID_RE: Final = re.compile(r"^[a-z0-9][a-z0-9-]{0,62}$")
-ADAPTERS: Final = ("gdacs", "usgs", "rss", "merxa_inject", "chat_hint")
+ADAPTERS: Final = ("gdacs", "usgs", "rss", "merxa_inject", "chat_hint", "nhc", "copernicus_ems", "meteoalarm", "gdelt")
 PAYLOAD_KEYS: Final[dict[str, set[str]]] = {
     "gdacs": {"fixture"},
     "usgs": {"fixture"},
     "rss": {"fixture", "connector_id", "source_name", "extraction", "extractions"},
     "merxa_inject": {"event", "fixture", "extraction"},
     "chat_hint": {"text"},
+    # M8 feeds (docs/contracts/124 §5, signal_hub.replay_feeds)
+    "nhc": {"fixture", "gis"},
+    "copernicus_ems": {"fixture"},
+    "meteoalarm": {"fixture", "connector_id", "details"},
+    "gdelt": {"fixture"},
 }
 FIXTURE_SUFFIXES: Final[dict[str, tuple[str, ...]]] = {
     "gdacs": (".geojson", ".json"),
     "usgs": (".geojson", ".json"),
     "rss": (".xml", ".rss", ".atom"),
     "merxa_inject": (".json",),
+    "nhc": (".json",),
+    "copernicus_ems": (".json",),
+    "meteoalarm": (".atom", ".xml"),
+    "gdelt": (".csv", ".zip"),
 }
+FIXTURE_REQUIRED: Final = ("gdacs", "usgs", "rss", "nhc", "copernicus_ems", "meteoalarm", "gdelt")
+NHC_ID_RE: Final = re.compile(r"^(al|ep|cp)\d{6}$")
+NHC_ADV_RE: Final = re.compile(r"^\d{3}[A-Z]?$")
+NHC_CLASSES: Final = ("TD", "STD", "TS", "STS", "HU", "MH", "PTC", "PC", "EX", "RL")
+GIS_SUFFIXES: Final = (".kml", ".kmz")
+_URL_RE: Final = re.compile(r"https?://[^\s\"'<>]+")
 PACK_SIDE_FILES: Final = {"pack.yaml", "README.md", "expected.yaml"}
 EXTRACTION_KEYS: Final = ("kind", "subtype", "places", "companies", "ports", "chokepoints", "dates_text",
                           "injection_suspected")
@@ -157,6 +175,7 @@ def _try_imports() -> dict[str, Any]:
             from signal_hub import pipeline as h_pipeline
             from signal_hub import quarantine as h_quarantine
             from signal_hub import replay as h_replay
+            from signal_hub import replay_feeds as h_replay_feeds
             from signal_hub import scoring as h_scoring
             from signal_hub import simhash as h_simhash
             from signal_hub.adapters import connector as h_connector
@@ -169,6 +188,7 @@ def _try_imports() -> dict[str, Any]:
             mods["hub"] = {
                 "cluster": h_cluster, "pipeline": h_pipeline, "quarantine": h_quarantine, "replay": h_replay,
                 "scoring": h_scoring, "connector": h_connector, "gdacs": h_gdacs, "rss": h_rss, "usgs": h_usgs,
+                "replay_feeds": h_replay_feeds,
                 "Gazetteer": Gazetteer, "SourceContext": SourceContext, "clip": clip,
                 "embeddings": h_embeddings, "neardup": h_neardup, "simhash": h_simhash,
             }
@@ -626,7 +646,7 @@ def check_pack(pack_dir: Path, rep: Report, mods: dict[str, Any]) -> dict[str, A
             rep.error(sw, f"unknown payload keys for {adapter}: {sorted(extra)}")
         at = start_at + dt.timedelta(seconds=off) if start_at else None
         fixture = payload.get("fixture")
-        if fixture is not None or adapter in ("gdacs", "usgs", "rss"):
+        if fixture is not None or adapter in FIXTURE_REQUIRED:
             fpath = _check_fixture_name(sw, pack_dir, adapter, fixture, rep)
             if fpath is not None:
                 referenced.add(fpath.name)
@@ -658,6 +678,11 @@ def check_pack(pack_dir: Path, rep: Report, mods: dict[str, Any]) -> dict[str, A
             text = payload.get("text")
             if not isinstance(text, str) or not 1 <= len(text) <= MAX_NOTE:
                 rep.error(sw, f"chat_hint needs text (1..{MAX_NOTE} characters)")
+        elif adapter == "nhc" and fpath:
+            referenced.update(_check_nhc(sw, pack_dir, fpath, payload.get("gis"), at, rep))
+        elif adapter in ("copernicus_ems", "meteoalarm", "gdelt") and fpath:
+            extra = payload.get("details") if adapter == "meteoalarm" else None
+            referenced.update(_check_feed_fixtures(sw, pack_dir, fpath, extra, rep))
     if offsets != sorted(offsets):
         rep.error(where, "steps must be ordered by t_offset_s")
     for f in sorted(pack_dir.iterdir()):
@@ -690,6 +715,108 @@ def _check_fixture_name(where: str, pack_dir: Path, adapter: str, name: Any, rep
         rep.error(where, f"fixture {name!r} does not exist")
         return None
     return path
+
+
+def _check_simulated_text(where: str, body: bytes, rep: Report) -> None:
+    """A SIMULATED note and only reserved ``.example`` links (namespace URIs aside)."""
+    if b"SIMULATED" not in body:
+        rep.error(where, "the fixture must carry a 'SIMULATED' note")
+    text = body.decode("utf-8", errors="replace")
+    for url in _URL_RE.findall(text):
+        host = urlsplit(url.rstrip(".,;)")).hostname or ""
+        if host in ("earth.google.com", "www.opengis.net", "www.google.com", "www.w3.org") or \
+                url.startswith("urn:"):
+            continue  # XML namespaces, not links
+        if not fictional_url(url.rstrip(".,;)")):
+            rep.error(where, f"link {url[:80]!r} must be on a reserved .example host")
+
+
+def _check_nhc(where: str, pack_dir: Path, path: Path, gis: Any, at: dt.datetime | None, rep: Report) -> set[str]:
+    """NHC ``CurrentStorms.json`` shape (as recorded from the live feed) + the cone / track KML files
+    named in ``payload.gis`` → the GIS file names (referenced)."""
+    w = f"{where} {path.name}"
+    referenced: set[str] = set()
+    body = path.read_bytes()
+    _check_simulated_text(w, body, rep)
+    try:
+        doc = json.loads(body)
+    except json.JSONDecodeError as exc:
+        rep.error(w, f"not valid JSON: {exc}")
+        return referenced
+    storms = doc.get("activeStorms") if isinstance(doc, dict) else None
+    if not isinstance(storms, list) or not storms:
+        rep.error(w, "must be {activeStorms: [storm…]} (CurrentStorms.json shape)")
+        return referenced
+    ids: set[str] = set()
+    for i, st in enumerate(storms):
+        sw = f"{w} storm {i}"
+        if not isinstance(st, dict):
+            rep.error(sw, "must be an object")
+            continue
+        sid = st.get("id")
+        if not isinstance(sid, str) or not NHC_ID_RE.match(sid):
+            rep.error(sw, "id must look like al092026 (basin + number + year)")
+            continue
+        ids.add(sid)
+        for key in ("name", "classification", "intensity", "pressure", "latitude", "longitude", "latitudeNumeric",
+                    "longitudeNumeric", "movementDir", "movementSpeed", "lastUpdate", "publicAdvisory"):
+            if key not in st:
+                rep.error(sw, f"NHC storm field '{key}' is missing")
+        if st.get("classification") not in NHC_CLASSES:
+            rep.error(sw, f"classification must be one of {NHC_CLASSES}")
+        for key in ("intensity", "pressure"):
+            if not (isinstance(st.get(key), str) and st[key].isdigit()):
+                rep.error(sw, f"{key} must be a digit string (NHC sends e.g. \"70\")")
+        if not (is_number(st.get("latitudeNumeric")) and is_number(st.get("longitudeNumeric"))):
+            rep.error(sw, "latitudeNumeric / longitudeNumeric must be numbers")
+        adv = st.get("publicAdvisory") if isinstance(st.get("publicAdvisory"), dict) else {}
+        if not NHC_ADV_RE.match(str(adv.get("advNum") or "")):
+            rep.error(sw, "publicAdvisory.advNum must look like '007' (or '012A')")
+        for label, value in (("lastUpdate", st.get("lastUpdate")), ("publicAdvisory.issuance", adv.get("issuance"))):
+            t = parse_iso(value)
+            if t is None:
+                rep.error(sw, f"{label} must be an ISO 8601 UTC time")
+            elif at and t > at:
+                rep.error(sw, f"{label} {t:%Y-%m-%dT%H:%M}Z is after the step's sim time {at:%Y-%m-%dT%H:%M}Z")
+    if gis is None:
+        return referenced
+    if not isinstance(gis, dict):
+        rep.error(where, "payload.gis must map storm ids to lists of KML/KMZ file names")
+        return referenced
+    for sid, files in gis.items():
+        if sid not in ids:
+            rep.error(where, f"payload.gis names {sid!r}, which is not a storm of {path.name}")
+        for name in files if isinstance(files, list) else [None]:
+            if not isinstance(name, str) or "/" in name or "\\" in name or name.startswith(".") or \
+                    not name.lower().endswith(GIS_SUFFIXES) or not (pack_dir / name).is_file():
+                rep.error(where, f"payload.gis file {name!r} must be a .kml/.kmz file in the pack directory")
+                continue
+            referenced.add(name)
+            gis_body = (pack_dir / name).read_bytes()
+            if name.lower().endswith(".kml"):
+                _check_simulated_text(f"{where} {name}", gis_body, rep)
+                try:
+                    root = _xml_root(gis_body)
+                except Exception as exc:  # malformed XML
+                    rep.error(f"{where} {name}", f"not well-formed KML ({type(exc).__name__})")
+                    continue
+                if _local(root.tag) != "kml":
+                    rep.error(f"{where} {name}", "root element must be <kml>")
+    return referenced
+
+
+def _check_feed_fixtures(where: str, pack_dir: Path, path: Path, extra: Any, rep: Report) -> set[str]:
+    """Copernicus EMS / MeteoAlarm / GDELT fixtures: SIMULATED, ``.example`` links only (their shapes
+    are checked by the real adapters at the replay level) → extra file names (referenced)."""
+    _check_simulated_text(f"{where} {path.name}", path.read_bytes(), rep)
+    referenced: set[str] = set()
+    for name in (extra or {}).values() if isinstance(extra, dict) else []:
+        if not isinstance(name, str) or not (pack_dir / name).is_file():
+            rep.error(where, f"payload.details file {name!r} does not exist")
+            continue
+        referenced.add(name)
+        _check_simulated_text(f"{where} {name}", (pack_dir / name).read_bytes(), rep)
+    return referenced
 
 
 def _check_gdacs(where: str, path: Path, at: dt.datetime | None, rep: Report) -> None:
@@ -1170,11 +1297,15 @@ def simulate(pack_dir: Path, data: dict[str, Any], hub: dict[str, Any], mods: di
                     raw = json.loads(fixture_bytes(payload.get("fixture")))
                 event = hub["connector"].ConnectorEvent.model_validate(raw)
                 drafts, news = hub["connector"].parse_connector_event(event, ctx)
+            elif step.adapter in hub["replay_feeds"].ADAPTERS:  # M8 feeds: the replay's own step parser
+                names = hub["replay_feeds"].fixture_names(step.adapter, payload)
+                drafts = hub["replay_feeds"].parse_step(step.adapter, payload, {n: fixture_bytes(n) for n in names},
+                                                        ctx, gaz)
         except Exception as exc:  # report any adapter failure
             rep.error(where, f"the real {step.adapter} adapter failed: {type(exc).__name__}: {exc}")
             out.append(dict(current))
             continue
-        if step.adapter in ("gdacs", "usgs", "rss") and not (drafts or news):
+        if step.adapter in FIXTURE_REQUIRED and not (drafts or news):
             rep.error(where, f"the real {step.adapter} adapter produced nothing from the fixture")
         if step.adapter == "merxa_inject" and not (drafts or news):
             rep.error(where, "the connector adapter produced neither a fact signal nor a free-text item")

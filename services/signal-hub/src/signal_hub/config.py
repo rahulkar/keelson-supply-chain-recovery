@@ -6,6 +6,7 @@ Secrets follow the repo convention: ``/run/secrets/<name>`` first, then env ``<N
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -19,6 +20,23 @@ DEFAULT_GDACS_URL = (
 DEFAULT_USGS_URL = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson"
 DEFAULT_RSS_FEEDS = "rss.theloadstar=The Loadstar|https://theloadstar.com/feed/"
 DEFAULT_USER_AGENT = "KeelsonSignalHub/0.1 (+https://keelson.localhost)"
+# M8 feeds (docs/contracts/124-m8-signal-feeds.md §2)
+DEFAULT_ADAPTERS = "gdacs,usgs,rss,nhc,copernicus_ems,ofac,gdelt"
+"""``SIGNAL_ADAPTERS`` default: MeteoAlarm is left out until an operator has reviewed its
+redistribution terms; GDELT is listed but stays paused until a tenant subscribes (opt-in)."""
+DEFAULT_NHC_URL = "https://www.nhc.noaa.gov/CurrentStorms.json"
+DEFAULT_COPERNICUS_EMS_URL = (
+    "https://rapidmapping.emergency.copernicus.eu/backend/dashboard-api/public-activations-info/?limit=50"
+)
+_OFAC_EXPORTS = "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports"
+DEFAULT_OFAC_SDN_URL = f"{_OFAC_EXPORTS}/SDN.CSV"
+DEFAULT_OFAC_ALT_URL = f"{_OFAC_EXPORTS}/ALT.CSV"
+DEFAULT_OFAC_ADD_URL = f"{_OFAC_EXPORTS}/ADD.CSV"
+DEFAULT_GDELT_LASTUPDATE_URL = "https://data.gdeltproject.org/gdeltv2/lastupdate.txt"
+DEFAULT_GDELT_EVENT_CODES = "143,144,145,163,1724,190,191,193,194,195,196"
+DEFAULT_METEOALARM_URL_TEMPLATE = "https://feeds.meteoalarm.org/feeds/meteoalarm-legacy-atom-{country}"
+_COUNTRY_SLUG_RE = re.compile(r"^[a-z][a-z-]{1,40}$")
+_CAMEO_RE = re.compile(r"^[0-9]{2,4}$")
 
 
 def read_secret(name: str) -> str | None:
@@ -86,6 +104,38 @@ def parse_rss_feeds(raw: str) -> tuple[RssFeed, ...]:
     return tuple(feeds)
 
 
+def parse_meteoalarm_countries(raw: str) -> tuple[str, ...]:
+    """``METEOALARM_COUNTRIES``: comma-separated MeteoAlarm feed slugs (``netherlands``,
+    ``united-kingdom`` …), one source ``meteoalarm.<slug>`` each. Empty = no MeteoAlarm source."""
+    out: list[str] = []
+    for slug in (s.strip().lower() for s in raw.split(",")):
+        if not slug:
+            continue
+        if not _COUNTRY_SLUG_RE.match(slug):
+            raise ValueError(f"METEOALARM_COUNTRIES entry {slug!r} must match {_COUNTRY_SLUG_RE.pattern}")
+        if slug not in out:
+            out.append(slug)
+    return tuple(out)
+
+
+def parse_cameo_codes(raw: str) -> tuple[str, ...]:
+    """``GDELT_EVENT_CODES``: comma-separated CAMEO event-code prefixes (2-4 digits); each must be
+    one the GDELT adapter maps to a subtype (:data:`signal_hub.adapters.gdelt.CAMEO`)."""
+    from signal_hub.adapters.gdelt import CAMEO  # the adapter owns the mapping
+
+    out: list[str] = []
+    for code in (c.strip() for c in raw.split(",")):
+        if not code:
+            continue
+        if not _CAMEO_RE.match(code) or code not in CAMEO:
+            raise ValueError(f"GDELT_EVENT_CODES entry {code!r} is not a mapped CAMEO code ({', '.join(CAMEO)})")
+        if code not in out:
+            out.append(code)
+    if not out:
+        raise ValueError("GDELT_EVENT_CODES must name at least one CAMEO code")
+    return tuple(out)
+
+
 @dataclass(frozen=True, slots=True)
 class Settings:
     port: int = 8300
@@ -140,7 +190,36 @@ class Settings:
     cadence_rss_s: int = 900
     min_interval_s: float = 5.0
     """Per-source rate limit: at least this many seconds between two requests to one source."""
-    enabled_adapters: tuple[str, ...] = ("gdacs", "usgs", "rss")
+    enabled_adapters: tuple[str, ...] = tuple(DEFAULT_ADAPTERS.split(","))
+
+    # M8 feeds (124 §2): NHC, Copernicus EMS, OFAC SDN, GDELT 2.0 events, MeteoAlarm
+    nhc_url: str = DEFAULT_NHC_URL
+    nhc_fetch_gis: bool = True
+    nhc_max_gis_fetches: int = 6
+    """Cone / track KMZ downloads per poll (once per advisory; an unchanged one reuses the stored footprint)."""
+    cadence_nhc_s: int = 900
+    copernicus_ems_url: str = DEFAULT_COPERNICUS_EMS_URL
+    copernicus_ems_ttl_days: int = 14
+    cadence_copernicus_ems_s: int = 1800
+    ofac_sdn_url: str = DEFAULT_OFAC_SDN_URL
+    ofac_alt_url: str = DEFAULT_OFAC_ALT_URL
+    ofac_add_url: str = DEFAULT_OFAC_ADD_URL
+    ofac_max_bytes: int = 32 * 1024 * 1024
+    ofac_event_ttl_days: int = 30
+    cadence_ofac_s: int = 3600
+    gdelt_lastupdate_url: str = DEFAULT_GDELT_LASTUPDATE_URL
+    gdelt_event_codes: tuple[str, ...] = tuple(DEFAULT_GDELT_EVENT_CODES.split(","))
+    gdelt_min_articles: int = 3
+    gdelt_port_radius_km: int = 30
+    gdelt_chokepoint_buffer_km: int = 50
+    gdelt_max_severity_bp: int = 3900
+    gdelt_max_backfill: int = 4
+    cadence_gdelt_s: int = 900
+    meteoalarm_countries: tuple[str, ...] = ()
+    meteoalarm_url_template: str = DEFAULT_METEOALARM_URL_TEMPLATE
+    meteoalarm_min_level: int = 3
+    meteoalarm_max_detail_fetches: int = 4
+    cadence_meteoalarm_s: int = 900
 
     # demo packs
     demo_mode: bool = False
@@ -206,7 +285,7 @@ def load_settings() -> Settings:
     proxy = (os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
              or os.environ.get("HTTP_PROXY") or os.environ.get("http_proxy") or "").strip()
     env_key = _optional_key(read_secret("LITELLM_SIGNALS_KEY"))
-    adapters = tuple(a.strip() for a in os.environ.get("SIGNAL_ADAPTERS", "gdacs,usgs,rss").split(",") if a.strip())
+    adapters = tuple(a.strip() for a in (os.environ.get("SIGNAL_ADAPTERS") or DEFAULT_ADAPTERS).split(",") if a.strip())
     return Settings(
         port=port,
         database_url=read_secret("SIGNALS_DATABASE_URL") or "",
@@ -243,6 +322,32 @@ def load_settings() -> Settings:
         cadence_rss_s=_int("CADENCE_RSS_S", 900),
         min_interval_s=_float("SIGNALS_MIN_INTERVAL_S", 5.0),
         enabled_adapters=adapters,
+        nhc_url=os.environ.get("NHC_URL") or DEFAULT_NHC_URL,
+        nhc_fetch_gis=_bool("NHC_FETCH_GIS", True),
+        nhc_max_gis_fetches=_int("NHC_MAX_GIS_FETCHES", 6),
+        cadence_nhc_s=_int("CADENCE_NHC_S", 900),
+        copernicus_ems_url=os.environ.get("COPERNICUS_EMS_URL") or DEFAULT_COPERNICUS_EMS_URL,
+        copernicus_ems_ttl_days=_int("COPERNICUS_EMS_TTL_DAYS", 14),
+        cadence_copernicus_ems_s=_int("CADENCE_COPERNICUS_EMS_S", 1800),
+        ofac_sdn_url=os.environ.get("OFAC_SDN_URL") or DEFAULT_OFAC_SDN_URL,
+        ofac_alt_url=os.environ.get("OFAC_ALT_URL") or DEFAULT_OFAC_ALT_URL,
+        ofac_add_url=os.environ.get("OFAC_ADD_URL") or DEFAULT_OFAC_ADD_URL,
+        ofac_max_bytes=_int("OFAC_MAX_BYTES", 32 * 1024 * 1024),
+        ofac_event_ttl_days=_int("OFAC_EVENT_TTL_DAYS", 30),
+        cadence_ofac_s=_int("CADENCE_OFAC_S", 3600),
+        gdelt_lastupdate_url=os.environ.get("GDELT_LASTUPDATE_URL") or DEFAULT_GDELT_LASTUPDATE_URL,
+        gdelt_event_codes=parse_cameo_codes(os.environ.get("GDELT_EVENT_CODES") or DEFAULT_GDELT_EVENT_CODES),
+        gdelt_min_articles=_int("GDELT_MIN_ARTICLES", 3),
+        gdelt_port_radius_km=_int("GDELT_PORT_RADIUS_KM", 30),
+        gdelt_chokepoint_buffer_km=_int("GDELT_CHOKEPOINT_BUFFER_KM", 50),
+        gdelt_max_severity_bp=_int("GDELT_MAX_SEVERITY_BP", 3900),
+        gdelt_max_backfill=_int("GDELT_MAX_BACKFILL", 4),
+        cadence_gdelt_s=_int("CADENCE_GDELT_S", 900),
+        meteoalarm_countries=parse_meteoalarm_countries(os.environ.get("METEOALARM_COUNTRIES", "")),
+        meteoalarm_url_template=os.environ.get("METEOALARM_URL_TEMPLATE") or DEFAULT_METEOALARM_URL_TEMPLATE,
+        meteoalarm_min_level=_int("METEOALARM_MIN_LEVEL", 3),
+        meteoalarm_max_detail_fetches=_int("METEOALARM_MAX_DETAIL_FETCHES", 4),
+        cadence_meteoalarm_s=_int("CADENCE_METEOALARM_S", 900),
         demo_mode=_bool("DEMO_MODE", False),
         demo_tenants=tuple(t.strip() for t in os.environ.get("DEMO_TENANTS", "").split(",") if t.strip()),
         scenarios_dir=_default_scenarios_dir(),

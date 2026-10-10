@@ -107,7 +107,7 @@ async def pool(db_dsn: str) -> AsyncIterator[asyncpg.Pool]:
 
 TABLES = ("alert_change", "alert", "exposure", "event", "signal", "news_item", "network_node", "network_lane",
           "alert_rule_set", "demo_run", "tenant_registry", "source_cursor", "source_subscription", "source_schedule",
-          "watch_region", "hub_secret",
+          "watch_region", "hub_secret", "source_snapshot",
           # M8 clustering (123): memberships, settings, embedding profiles/jobs (CASCADE: signal_vec_* tables)
           "signal_membership", "cluster_config", "embedding_job", "embedding_profile")
 

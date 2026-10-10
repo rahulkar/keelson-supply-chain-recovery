@@ -8,15 +8,22 @@ dropped.
 
 from __future__ import annotations
 
+import itertools
 import math
+from collections.abc import Sequence
 from typing import Any, Final
 
 __all__ = [
+    "EARTH_RADIUS_KM",
     "MAX_POSITIONS_PER_GEOMETRY",
+    "circle_polygon",
     "clean_geometry",
     "count_positions",
+    "distance_to_ring_km",
     "flatten",
+    "haversine_km",
     "merge",
+    "point_in_ring",
 ]
 
 MAX_POSITIONS_PER_GEOMETRY: Final = 4000
@@ -148,3 +155,54 @@ def merge(geometries: list[dict[str, Any]], *, max_positions: int = MAX_MERGED_P
         return None
     merged = parts[0] if len(parts) == 1 else {"type": "GeometryCollection", "geometries": parts}
     return clean_geometry(merged, max_positions=max_positions)
+
+
+# ───────────── point / ring helpers (M8 feeds, ``124`` §1; pure Python, no PostGIS) ─────────────
+
+EARTH_RADIUS_KM: Final = 6371.0088
+
+
+def haversine_km(lon1: float, lat1: float, lon2: float, lat2: float) -> float:
+    """Great-circle distance between two WGS84 positions."""
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp, dl = p2 - p1, math.radians(lon2 - lon1)
+    h = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * EARTH_RADIUS_KM * math.asin(min(1.0, math.sqrt(h)))
+
+
+def point_in_ring(lon: float, lat: float, ring: Sequence[Sequence[float]]) -> bool:
+    """Even-odd test of a position against a closed ``[[lon, lat], …]`` ring (planar, small rings)."""
+    inside = False
+    for (x1, y1), (x2, y2) in itertools.pairwise((p[0], p[1]) for p in ring):
+        if (y1 > lat) != (y2 > lat) and lon < (x2 - x1) * (lat - y1) / (y2 - y1) + x1:
+            inside = not inside
+    return inside
+
+
+def distance_to_ring_km(lon: float, lat: float, ring: Sequence[Sequence[float]]) -> float:
+    """0 inside the ring, else the distance to its nearest edge (local equirectangular projection
+    centred on the position: accurate to well under 1 % at the tens-of-km buffers it is used for)."""
+    if point_in_ring(lon, lat, ring):
+        return 0.0
+    kx, ky = 111.320 * math.cos(math.radians(lat)), 110.574
+    best = math.inf
+    for (x1, y1), (x2, y2) in itertools.pairwise((p[0], p[1]) for p in ring):
+        ax, ay, bx, by = (x1 - lon) * kx, (y1 - lat) * ky, (x2 - lon) * kx, (y2 - lat) * ky
+        dx, dy = bx - ax, by - ay
+        length2 = dx * dx + dy * dy
+        t = 0.0 if length2 == 0 else max(0.0, min(1.0, -(ax * dx + ay * dy) / length2))
+        best = min(best, math.hypot(ax + t * dx, ay + t * dy))
+    return best
+
+
+def circle_polygon(lon: float, lat: float, radius_km: float, *, vertices: int = 32) -> dict[str, Any] | None:
+    """A counter-clockwise closed ``vertices``-gon approximating a circle (CAP ``<circle>``)."""
+    if not (math.isfinite(radius_km) and 0 < radius_km <= 2000) or not (-90 < lat < 90):
+        return None
+    kx, ky = 111.320 * math.cos(math.radians(lat)), 110.574
+    ring = []
+    for i in range(vertices):
+        a = 2 * math.pi * i / vertices
+        ring.append([round(lon + radius_km * math.cos(a) / kx, 5), round(lat + radius_km * math.sin(a) / ky, 5)])
+    ring.append(ring[0])
+    return clean_geometry({"type": "Polygon", "coordinates": [ring]})

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<!-- TEST FIXTURE (fictional warning): shaped like a MeteoAlarm CAP 1.2 document
+     (https://feeds.meteoalarm.org/api/v1/warnings/feeds-netherlands/<uuid>) as recorded 2026-10-08:
+     one info per language, awareness_level / awareness_type parameters, areas with a polygon
+     (lat,lon pairs) or a circle (lat,lon radius_km) and the EMMA_ID geocode. Not MeteoAlarm data. -->
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>2.49.0.0.528.0.NL.20261007091503.test-orange-wind_3</identifier>
+  <sender>noreply@knmi.example</sender>
+  <sent>2026-10-07T09:15:03+00:00</sent>
+  <status>Actual</status>
+  <msgType>Update</msgType>
+  <scope>Public</scope>
+  <info>
+    <language>nl-NL</language>
+    <category>Met</category>
+    <event>Zware Wind</event>
+    <urgency>Expected</urgency>
+    <severity>Severe</severity>
+    <certainty>Likely</certainty>
+    <onset>2026-10-07T18:00:00+00:00</onset>
+    <expires>2026-10-08T06:00:00+00:00</expires>
+    <headline>Zware windstoten</headline>
+    <parameter><valueName>awareness_level</valueName><value>3; orange; Severe</value></parameter>
+    <parameter><valueName>awareness_type</valueName><value>1; Wind</value></parameter>
+    <area>
+      <areaDesc>Zierikzee</areaDesc>
+      <polygon>51.85,4.06 51.75,4.35 51.62,4.16 51.53,4.07 51.36,4.22 51.37,3.96 51.41,3.50 51.60,3.58 51.76,3.83 51.85,4.06</polygon>
+      <geocode><valueName>EMMA_ID</valueName><value>NL812</value></geocode>
+    </area>
+  </info>
+  <info>
+    <language>en-GB</language>
+    <category>Met</category>
+    <event>Severe Wind</event>
+    <responseType>Prepare</responseType>
+    <urgency>Expected</urgency>
+    <severity>Severe</severity>
+    <certainty>Likely</certainty>
+    <onset>2026-10-07T18:00:00+00:00</onset>
+    <expires>2026-10-08T06:00:00+00:00</expires>
+    <headline>Severe gusts of wind</headline>
+    <description>Severe gusts of wind from the south-west.</description>
+    <parameter><valueName>awareness_level</valueName><value>3; orange; Severe</value></parameter>
+    <parameter><valueName>awareness_type</valueName><value>1; Wind</value></parameter>
+    <parameter><valueName>use_polygon_over_geocode</valueName><value>True</value></parameter>
+    <area>
+      <areaDesc>Zierikzee</areaDesc>
+      <polygon>51.85,4.06 51.75,4.35 51.62,4.16 51.53,4.07 51.36,4.22 51.37,3.96 51.41,3.50 51.60,3.58 51.76,3.83 51.85,4.06</polygon>
+      <geocode><valueName>EMMA_ID</valueName><value>NL812</value></geocode>
+    </area>
+    <area>
+      <areaDesc>Marken</areaDesc>
+      <circle>52.46,5.10 8</circle>
+      <geocode><valueName>EMMA_ID</valueName><value>NL811</value></geocode>
+    </area>
+  </info>
+</alert>

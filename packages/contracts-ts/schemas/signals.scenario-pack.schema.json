@@ -29,7 +29,11 @@
               "usgs",
               "rss",
               "merxa_inject",
-              "chat_hint"
+              "chat_hint",
+              "nhc",
+              "copernicus_ems",
+              "meteoalarm",
+              "gdelt"
             ],
             "title": "Adapter",
             "type": "string"

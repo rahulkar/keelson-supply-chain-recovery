@@ -12,8 +12,11 @@ from typing import Any
 
 import pytest
 from fakes.harness import Harness
+from fakes.m5 import ALL_M5_OPS, SIGNALS, seed_plan
+from fakes.m5 import option as m5_option
 from fakes.merxa_stub import MerxaStub
 from fakes.optimizer_stub import OptimizerStub
+from test_m5_flows import TO_STUB
 from fakes.scripts import chat_flow_script
 from keelson_contracts.blocks import CompareInteger, parse_block
 from keelson_contracts.optimizer import (
@@ -226,5 +229,30 @@ async def test_default_spec_requests_carry_no_integer_stage(tmp_path: Path) -> N
         assert all("solver" not in o for o in plan["options"])
         compare = h.core.repo.blocks_of("scenario_compare")[-1]
         assert all("integer" not in o for o in compare["props"]["options"])
+    finally:
+        await h.close()
+
+
+@pytest.mark.parametrize("stage", ["cpsat", None])
+async def test_the_replan_flow_carries_the_integer_stage(tmp_path: Path, stage: str | None) -> None:
+    """Review addition (brief test plan: "for both the planning and replan paths"): a lane signal
+    re-plans the open plan through ``prepare_replan``, whose optimizer requests carry the tenant's
+    ``integer_stage`` (and none at the default); ``cpsat`` re-planned options get the solver summary."""
+    h = await Harness(tmp=tmp_path, merxa=MerxaStub(supported_ops=ALL_M5_OPS)).setup()
+    try:
+        planning = {"as_of": dt.date(2026, 10, 5)} | ({"solver_integer_stage": stage} if stage else {})
+        h.spec = lambda tenant: AgentSpec(tenant=tenant, planning=PlanningDefaults(**planning))  # type: ignore[method-assign]
+        await seed_plan(h, [m5_option("opt-A", [TO_STUB])])
+        signal_id = h.core.signals.add("lane.capacity_changed", {"lane_code": "DE1>NL1", "factor_bp": 0})
+        assert await h.run(h.row("signal", {"signal_id": signal_id}, SIGNALS)) == "succeeded"
+        assert h.core.repo.plans[h.case_id][-1]["version"] == 2
+        bodies = [body for path, body in h.optimizer.requests if path == "/v1/optimize"]
+        assert bodies
+        if stage:
+            assert all(body["solver"]["integer_stage"] == "cpsat" for body in bodies)
+        else:
+            assert all("integer_stage" not in body["solver"] for body in bodies)
+        replanned = [o for o in h.core.repo.plans[h.case_id][-1]["options"] if o["id"] != "do-nothing"]
+        assert replanned and all(("solver" in o) is bool(stage) for o in replanned)
     finally:
         await h.close()

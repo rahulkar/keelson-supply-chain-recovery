@@ -290,9 +290,10 @@ equal (the D integer stage is rejected by the simulator guard). Resequence only,
    2.2 / 2.7 / 2.9 s for `repair` in the same run (the unchanged M7 perf tests themselves exceeded
    5 s in another run under higher load). `tests/test_perf_m8.py` and the e2e use **10 s** (twice
    S4); `repair` keeps the 5 s. `cpsat` is opt-in and not the demo default (§10). Review re-run on
-   the same shared host (2026-10-10, three runs): `cpsat` 4.3-5.2 s (BD), 7.4-8.5 s (VN),
-   9.2-10.8 s (BD+VN) and 10.8-15.7 s over HTTP, against 3.4-5.5 s for `repair` BD+VN (base commit
-   and branch alike) - so the 10 s `cpsat` perf tests failed there too (BD+VN and HTTP). Profile of
+   the same shared host (2026-10-10, four runs): `cpsat` 4.3-5.2 s (BD), 6.3-8.5 s (VN),
+   8.4-10.8 s (BD+VN) and 9.5-15.7 s over HTTP, against 3.4-5.5 s for `repair` BD+VN (base commit
+   and branch alike) - the 10 s `cpsat` perf tests failed in three of the four runs (BD+VN and
+   HTTP). Profile of
    one BD+VN request (cProfile): 4 GLOP solves (2 more than `repair`), ~1.3 s of `_lookahead`
    simulations, the integer stage ~0.85 s wall for 0.15 det-s, resequence v2 ~1.1 s wall for 0.16
    det-s plus ~0.7 s of value-table simulations. Meeting 5 s needs a design change (e.g. one shared
@@ -346,7 +347,8 @@ equal (the D integer stage is rejected by the simulator guard). Resequence only,
 
 * Timing under host load: the `cpsat` perf tests (10 s) and the M7 perf tests (5 s) are wall-clock
   checks; on an overloaded host they can fail without a functional regression. On the shared M8
-  test host the `cpsat` BD+VN and HTTP cases failed the 10 s in the review's runs (§9.1); rerun them
+  test host the `cpsat` BD+VN and HTTP cases failed the 10 s in three of the review's four runs
+  (§9.1); rerun them
   on a quiet host (the integrator) - the brief's 5 s is not met by design (§9.1).
 * Wall time per deterministic second grows with the time-indexed model: the 180-order VN line
   (~4 900 variables) runs at 5-8×, a 200-order synthetic line (~34 000 variables) at ~20× (0.149

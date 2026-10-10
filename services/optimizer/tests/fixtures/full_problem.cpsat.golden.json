@@ -7,7 +7,7 @@
   ],
   "net_benefit_cents": 22484819,
   "resequence": "FL-VN01-A:cpsat_v2_feasible",
-  "response_sha256": "b0d73ea21ecca2ea793a5d30d3ed994f1f8dd4e9edf67631efbe6c734e01964c",
+  "response_sha256": "97e0d10da95c3346f1cd8058f0e5fb6f7fe7cee69ba91e12da753a3a08a5e6c3",
   "solver": "GLOP+CP-SAT",
   "stages": [
    [
@@ -74,17 +74,17 @@
     null
    ],
    [
-    "lp_phase2:cpsat",
-    "OPTIMAL",
-    true,
-    null,
-    null
-   ],
-   [
     "integer",
     "OPTIMAL",
     true,
     197707022000,
+    null
+   ],
+   [
+    "lp_phase2:cpsat",
+    "OPTIMAL",
+    true,
+    null,
     null
    ]
   ],
@@ -102,7 +102,7 @@
   ],
   "net_benefit_cents": 27356798,
   "resequence": "FL-VN01-A:cpsat_v2_feasible",
-  "response_sha256": "dad261b4b5a23db73ef2611a608c639bb40a4f7e23a0943708c36e08b24604e9",
+  "response_sha256": "2e343bc0e20df60d0e8b0c541752d77380421eda7f5f7c585b04dbd914fe3866",
   "solver": "GLOP+priority-split",
   "stages": [
    [
@@ -136,7 +136,7 @@
    [
     "resequence:FL-VN01-A",
     "FEASIBLE",
-    true,
+    false,
     34974800000,
     null
    ],
@@ -240,7 +240,7 @@
   ],
   "net_benefit_cents": 16133139,
   "resequence": null,
-  "response_sha256": "843b18b770a0c68abf5207ab28f74b05064ec1d91d21fe71088d8e643d884e8a",
+  "response_sha256": "4821106d8dc9690f646cc1131ccc9cc947a31ca1b228c0dbcf76f25b65437c2f",
   "solver": "GLOP+CP-SAT",
   "stages": [
    [
@@ -279,6 +279,13 @@
     null
    ],
    [
+    "integer",
+    "OPTIMAL",
+    true,
+    152170142000,
+    null
+   ],
+   [
     "lp_phase2",
     "OPTIMAL",
     false,
@@ -290,13 +297,6 @@
     "OPTIMAL",
     true,
     null,
-    null
-   ],
-   [
-    "integer",
-    "OPTIMAL",
-    true,
-    152170142000,
     null
    ]
   ],
@@ -314,7 +314,7 @@
   ],
   "net_benefit_cents": 19379566,
   "resequence": null,
-  "response_sha256": "904b5b422e2f085ade6bcd9a090e8b9bc3f43abf1f25e461a5c5b8041ad87d9b",
+  "response_sha256": "2f26ad5b85f6983ae13c798be5b081e5adc8829f67be3bc25e07e4362ef2b4aa",
   "solver": "GLOP+priority-split",
   "stages": [
    [
@@ -353,18 +353,18 @@
     null
    ],
    [
-    "lp_phase2",
-    "OPTIMAL",
-    true,
-    null,
-    null
-   ],
-   [
     "integer",
     "FEASIBLE",
     false,
     8920994000,
     "simulator_not_better"
+   ],
+   [
+    "lp_phase2",
+    "OPTIMAL",
+    true,
+    null,
+    null
    ]
   ],
   "status": "OPTIMAL",
@@ -381,7 +381,7 @@
   ],
   "net_benefit_cents": 6351680,
   "resequence": "FL-VN01-A:cpsat_v2_feasible",
-  "response_sha256": "4335f34f5dfd22780cbb54143df59dfa08fb0c7885ba21b92d84e87c7cc103e4",
+  "response_sha256": "3b0990a811e1b4c59474a3c6032f8c1bd2fac29bc3ef96cfa56e8d83ece75b4d",
   "solver": "GLOP+CP-SAT",
   "stages": [
    [
@@ -420,17 +420,17 @@
     null
    ],
    [
-    "lp_phase2:cpsat",
-    "OPTIMAL",
-    true,
-    null,
-    null
-   ],
-   [
     "integer",
     "OPTIMAL",
     true,
     45536880000,
+    null
+   ],
+   [
+    "lp_phase2:cpsat",
+    "OPTIMAL",
+    true,
+    null,
     null
    ]
   ],
@@ -448,13 +448,13 @@
   ],
   "net_benefit_cents": 8009677,
   "resequence": "FL-VN01-A:cpsat_v2_feasible",
-  "response_sha256": "e515f941d25d3ca44c809fafa1f9b2c2909ec153df15c156c2413498011c4921",
+  "response_sha256": "4421335ecee6bbc3e8a73e3eacaf0b0f7b86e4ce7c83517bd3cc73c80fdf3a2e",
   "solver": "GLOP+CP-SAT+priority-split",
   "stages": [
    [
     "resequence:FL-VN01-A",
     "FEASIBLE",
-    true,
+    false,
     34974800000,
     null
    ],
@@ -480,17 +480,17 @@
     null
    ],
    [
-    "lp_phase2:cpsat",
-    "OPTIMAL",
-    true,
-    null,
-    null
-   ],
-   [
     "integer",
     "FEASIBLE",
     true,
     49427929600,
+    null
+   ],
+   [
+    "lp_phase2:cpsat",
+    "OPTIMAL",
+    true,
+    null,
     null
    ]
   ],

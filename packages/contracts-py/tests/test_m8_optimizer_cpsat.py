@@ -98,6 +98,12 @@ def test_solver_stages() -> None:
     skipped = opt.SolverStage.model_validate(_stage(status="SKIPPED", used=False, fallback_reason="model_too_large"))
     assert skipped.fallback_reason == "model_too_large"
     assert not [k for k in opt.SolverStage.model_fields if "wall" in k]
+    # review fix: a name embeds a line code (``Code``, up to 128 characters) with its prefix and
+    # suffix, so the longest valid line code still gets its records
+    longest = f"resequence:{'L' * 128}:tiebreak"
+    assert opt.SolverStage.model_validate(_stage(name=longest)).name == longest
+    with pytest.raises(ValidationError):
+        opt.SolverStage.model_validate(_stage(name=""))
 
 
 @pytest.mark.parametrize(

@@ -310,9 +310,24 @@ def make_plan(
                 f"CPSAT_NUM_WORKERS={workers}: CP-SAT ran with several workers, so this plan may differ between "
                 "identical requests (use 1 for deterministic plans)"
             )
+    if cp.on:
+        _settle_stages(cp.stages, plan, params)
     return PlanOutcome(
         status, detail, plan, binding, params, solve_ms, "+".join(names) or "none", warnings, cp.stages.stages
     )
+
+
+def _settle_stages(log: StageLog, plan: Plan, params: Mapping[str, int | str | bool]) -> None:
+    """``used`` against the returned plan: a line's resequence stages are unused when the plan does
+    not keep its sequence (compare mode dropped the resequence, the simulator check or the
+    never-worse pruning rejected it), and every stage is unused when the do-nothing plan is
+    returned. (The pruning may still drop a whole LP lever; its stages keep ``used``.)"""
+    if params.get("plan_fallback") == "do_nothing":
+        log.unuse(lambda _name: True)
+        return
+    kept = {f"resequence:{s.line_code}" for s in plan.sequences}
+    kept |= {f"{name}:tiebreak" for name in kept}
+    log.unuse(lambda name: name.startswith("resequence:") and name not in kept)
 
 
 @dataclass(slots=True)
@@ -586,10 +601,12 @@ def _integer_stage(
             elif v_cp == v_rep and not better_obj:
                 reason = "no_improvement"
     completed = reason is None
+    # Recorded now, in solve order (the completion's LP solves follow), and settled once they decide.
+    cp.stages.cp("integer", run, payload, used=False, fallback=reason, det_limit=res.det_limit, size=res.size)
     if completed:
         reason = _complete(scn, lp_levers, spec, options, plan, lp, cp, res, done)
+        cp.stages.settle("integer", used=reason is None, fallback=reason)
     used = reason is None
-    cp.stages.cp("integer", run, payload, used=used, fallback=reason, det_limit=res.det_limit, size=res.size)
     if reason == "no_candidates":
         return False
     # Recorded on the request state, not on ``lp``: a fallback before the completion adopts the

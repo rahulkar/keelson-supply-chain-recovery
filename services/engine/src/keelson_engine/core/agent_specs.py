@@ -345,8 +345,8 @@ class _SpecGuard:
         return GuardedChange(tenant=self.tenant, actor=self.actor, kind=self.kind, target=target, reasons=reasons,
                              payload=self.payload, diff=diff, base_version=self.base_version,
                              message="raising automatic-approval thresholds, weakening refuse or approval rules, "
-                                     "changing the approver role or quorum and re-pointing the planning connector "
-                                     "need a second admin")
+                                     "changing the approver role or quorum, re-pointing the planning connector and "
+                                     "removing a factory from the compliance block list need a second admin")
 
 
 def _specialist_bindings(spec: dict[str, Any]) -> dict[str, tuple[str, list[str]]]:

@@ -60,6 +60,20 @@ def test_cpsat_never_worse_than_repair_and_invariants_hold(story: str, option: s
     assert all(s.num_workers in (None, 1) for s in cps.solver.stages)
 
 
+@pytest.mark.parametrize(("story", "option"), [c for c in CASES if c[1] in ("C", "D")])
+def test_resequence_stages_are_used_only_when_the_plan_keeps_the_line(story: str, option: str) -> None:
+    """Review fix: a v2 sequence that compare mode dropped (``resequence_dropped``) kept
+    ``used=true`` on its stage although the returned plan has no resequence."""
+    resp = solved(story, option)
+    lines = {a.payload.line_code for a in resp.actions if a.op == "production_order.resequence"}
+    for s in resp.solver.stages:
+        if s.name.startswith("resequence:"):
+            line = s.name.removeprefix("resequence:").removesuffix(":tiebreak")
+            assert s.used == (line in lines and s.fallback_reason is None), s
+    if resp.solver.params.get("resequence_dropped"):
+        assert not lines and not [s for s in resp.solver.stages if s.name.startswith("resequence:") and s.used]
+
+
 def test_option_c_gains_from_whole_unit_buys() -> None:
     rep, cps = solved("bd", "C", "repair"), solved("bd", "C")
     assert cps.solver.params["integer_method"] in ("cpsat_optimal", "cpsat_feasible")

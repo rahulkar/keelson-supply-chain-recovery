@@ -26,7 +26,7 @@ from __future__ import annotations
 import logging
 import math
 import os
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -346,6 +346,20 @@ class StageLog:
             if self.stages[i].name == name:
                 self.stages[i] = self.stages[i].model_copy(update={"used": used})
                 return
+
+    def settle(self, name: str, *, used: bool, fallback: IntegerFallbackReason | None) -> None:
+        """The outcome of the latest stage called ``name``, once later solves decided it (a stage is
+        recorded when it is solved, so the records stay in solve order)."""
+        for i in range(len(self.stages) - 1, -1, -1):
+            if self.stages[i].name == name:
+                self.stages[i] = self.stages[i].model_copy(update={"used": used, "fallback_reason": fallback})
+                return
+
+    def unuse(self, names: Callable[[str], bool]) -> None:
+        """``used=False`` on every stage whose name matches (results the returned plan does not keep)."""
+        for i, stage in enumerate(self.stages):
+            if stage.used and names(stage.name):
+                self.stages[i] = stage.model_copy(update={"used": False})
 
 
 __all__ = [

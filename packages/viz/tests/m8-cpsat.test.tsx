@@ -41,6 +41,9 @@ describe("M8 whole-unit note in the scenario compare (125)", () => {
     expect(integerNote({ method: "lp_rounding", gap_bp: null, fallback_reason: "no_improvement" })).toBe(
       "Whole units: rounded from the LP (CP-SAT found nothing better)",
     );
+    expect(integerNote({ method: "lp_rounding", gap_bp: null, fallback_reason: "simulator_not_better" })).toBe(
+      "Whole units: rounded from the LP (CP-SAT result simulated worse)",
+    );
     expect(integerNote({ method: "lp_rounding", gap_bp: null, fallback_reason: null })).toBe("Whole units: rounded from the LP");
     expect(integerNote(null)).toBeNull();
     expect(Object.keys(INTEGER_FALLBACK_TEXT)).toHaveLength(11);

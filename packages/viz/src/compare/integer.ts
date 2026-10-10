@@ -4,11 +4,14 @@ import type { CompareOption } from "@keelson/contracts";
 export type CompareInteger = NonNullable<CompareOption["integer"]>;
 export type IntegerFallbackReason = NonNullable<CompareInteger["fallback_reason"]>;
 
-/** Plain-language reasons for an LP-rounding fallback (the CP-SAT stage ran but was not used). */
+/**
+ * Plain-language reasons for an LP-rounding fallback (the CP-SAT stage ran but was not used); each
+ * reads after "CP-SAT" in the caption ("… (CP-SAT result simulated worse)").
+ */
 export const INTEGER_FALLBACK_TEXT: Record<IntegerFallbackReason, string> = {
-  no_candidates: "nothing to re-source",
+  no_candidates: "had nothing to re-source",
   no_improvement: "found nothing better",
-  simulator_not_better: "its units simulated worse",
+  simulator_not_better: "result simulated worse",
   model_too_large: "fallback: model too large",
   objective_overflow: "fallback: numbers too large",
   time_limit_no_solution: "fallback: time limit",

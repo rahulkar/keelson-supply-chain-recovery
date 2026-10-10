@@ -1384,19 +1384,23 @@ IntegerFallbackReason = Literal[
 """Why a CP-SAT stage's result was not used (the LP rounding / M3 sequence is kept instead)."""
 
 _Sha256Hex = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
+_StageName = Annotated[str, StringConstraints(min_length=1, max_length=160)]
+"""A stage name embeds a line code (``Code``, up to 128 characters) between ``resequence:`` and
+``:tiebreak``."""
 
 
 class SolverStage(_Model):
     """One solve of an ``integer_stage="cpsat"`` request (M8; plan §9: every solve records its
-    parameters, seed, version and input hash). ``name``: ``booking_decision``, ``lp_phase1``,
-    ``lp_phase1:no_resequence``, ``integer``, ``lp_phase2`` or ``resequence:<line_code>``;
-    ``solver``: ``GLOP``, ``CP-SAT`` or ``repair``. ``model_hash`` = sha256 of the request's
-    ``inputs_hash``, the stage name and the stage's own inputs (fixed decisions, locked lines),
-    never of the solver's model. Deterministic fields only: no wall times (``SolverInfo.solve_ms``
-    stays the one volatile field). ``objective`` / ``bound`` are CP-SAT's integer objective and
-    best bound (``None`` for LP stages)."""
+    parameters, seed, version and input hash). ``name``: ``booking_decision``, ``resequence:<line_code>``
+    (+ ``resequence:<line_code>:tiebreak``), ``lp_phase1``, ``lp_phase1:no_resequence``,
+    ``lp_phase2``, ``lp_phase2:no_resequence``, ``integer`` or ``lp_phase2:cpsat``; ``solver``:
+    ``GLOP`` or ``CP-SAT``. ``model_hash`` = sha256 of the request's ``inputs_hash``, the stage name
+    and the stage's own inputs (fixed decisions, locked lines), never of the solver's model.
+    Deterministic fields only: no wall times (``SolverInfo.solve_ms`` stays the one volatile
+    field). ``objective`` / ``bound`` are CP-SAT's integer objective and best bound (``None`` for LP
+    stages)."""
 
-    name: Code
+    name: _StageName
     solver: Code
     status: SolverStageStatus
     used: StrictBool

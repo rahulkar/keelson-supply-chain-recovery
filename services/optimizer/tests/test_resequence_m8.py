@@ -256,6 +256,21 @@ def test_lines_beyond_the_size_limits_use_the_m3_path(monkeypatch: pytest.Monkey
     assert sequence(resp) == ["MO-3", "MO-1", "MO-2"]
 
 
+def test_the_longest_line_code_gets_its_stage_records() -> None:
+    """Review fix: ``resequence:<line_code>:tiebreak`` with a 128-character line code (the longest
+    ``Code``) failed the ``SolverStage`` validation and with it the whole request."""
+    raw = reseq_problem()
+    code = "L" * 128
+    raw["data"]["production"][0]["line_code"] = code
+    resp = optimize(raw)
+    assert resp.solver.params["resequence_methods"] == f"{code}:wspt"
+    assert [s.name for s in resp.solver.stages if s.name.startswith("resequence:")] == [
+        f"resequence:{code}",
+        f"resequence:{code}:tiebreak",
+    ]
+    assert sequence(resp) == ["MO-3", "MO-1", "MO-2"]
+
+
 def test_a_failing_v2_solve_keeps_the_m3_sequence(monkeypatch: pytest.MonkeyPatch) -> None:
     def boom(*_a: Any, **_k: Any) -> None:
         raise RuntimeError("synthetic failure")

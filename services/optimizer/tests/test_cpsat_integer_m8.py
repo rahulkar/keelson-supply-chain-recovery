@@ -103,6 +103,34 @@ def test_cpsat_records_every_solve_without_wall_times() -> None:
     assert resp.status == "OPTIMAL"
 
 
+def test_stages_are_in_solve_order() -> None:
+    """Review fix: the integer stage was appended after the completions it triggers (the repair's
+    phase 2 and the CP-SAT units' own phase 2), against the "in solve order" contract."""
+    resp = optimize(request(BOTH))
+    assert [(s.name, s.used) for s in resp.solver.stages] == [
+        ("lp_phase1", True),
+        ("integer", True),
+        ("lp_phase2", False),
+        ("lp_phase2:cpsat", True),
+    ]
+
+
+def test_a_do_nothing_fallback_uses_no_stage(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review fix: when the never-worse guard returns the do-nothing plan, no solve's result is in
+    the returned plan, so no stage may claim ``used``."""
+    from keelson_opt import planner
+    from keelson_opt.plan import Plan
+
+    def do_nothing(_scn: Any, _spec: Any, _plan: Any, _m: int, params: dict[str, Any], _w: list[str]) -> Plan:
+        params["plan_fallback"] = "do_nothing"
+        return Plan()
+
+    monkeypatch.setattr(planner, "_keep_improving", do_nothing)
+    resp = run_optimize(OptimizeRequest.model_validate(request(BOTH)))
+    assert resp.actions == [] and resp.solver.params["plan_fallback"] == "do_nothing"
+    assert resp.solver.stages and not [s.name for s in resp.solver.stages if s.used]
+
+
 def test_cpsat_requests_are_deterministic() -> None:
     raw = request(BOTH)
     assert body(optimize(raw)) == body(optimize(json.loads(json.dumps(raw))))

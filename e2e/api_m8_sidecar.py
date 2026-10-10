@@ -4,14 +4,16 @@ Runs inside the engine image with the engine's own environment, like the M5–M7
 compose profile ``adapters`` up (``fernhill-sidecar`` behind ``http://fernhill.localhost``)::
 
     docker compose --profile adapters up -d fernhill-sidecar
-    docker compose run --rm --no-deps -T -e LOG_LEVEL=warning \
+    set -a; . <(grep -E '^FERNHILL_(API|ADMIN)_KEY=' .env | tr -d '\\r'); set +a
+    docker compose run --rm --no-deps -T -e LOG_LEVEL=warning -e FERNHILL_API_KEY -e FERNHILL_ADMIN_KEY \
       -v D:/keelson-supply-chain-recovery/e2e:/e2e:ro \
-      -v D:/keelson-supply-chain-recovery/.env:/run/keelson.env:ro \
       engine-api python -u /e2e/api_m8_sidecar.py
 
 The sidecar's keys (``FERNHILL_API_KEY``, ``FERNHILL_ADMIN_KEY``) are never given to the engine
-containers: the script takes them from its environment, else from the dotenv file named by
-``--env-file`` (default ``/run/keelson.env``, the repo's ``.env`` mounted read-only). HTTP goes
+services: the script takes them from its own environment (``-e NAME`` passes them by name, values never
+on the command line), else from the dotenv file named by ``--env-file`` (default ``/run/keelson.env``;
+the engine image runs as uid 10001, which cannot read the owner-only ``.env`` that ``scripts/init``
+writes, so mounting it fails with "Permission denied"). HTTP goes
 through Caddy like a browser (Keelson admin API as ``ava``; the sidecar's ``/v1/admin/*`` with the
 admin key), and the commit harness (step 7) runs the engine's own runtime functions in-process — the
 same building blocks the commit nodes run after an approval (northwind-test has no approver persona
@@ -133,7 +135,7 @@ def fernhill_keys(env_file: str) -> tuple[str, str]:
         found = {k: v or dotenv.get(k, "") for k, v in found.items()}
     missing = [k for k, v in found.items() if not v]
     if missing:
-        print(f"ENV: {missing} not set (environment or {env_file}); run scripts/init and mount .env", file=sys.stderr)
+        print(f"ENV: {missing} not set (environment or {env_file}); run scripts/init and pass them with -e (see e2e/README.md)", file=sys.stderr)
         raise SystemExit(2)
     return found["FERNHILL_API_KEY"], found["FERNHILL_ADMIN_KEY"]
 
@@ -436,8 +438,9 @@ class Harness:
                f"dry run {result.status}: preview_hash {result.preview_hash} != H {cs.hash}")
         expect(all(i.get("ok") for i in result.items) and len(result.items) == 2, f"validated items {result.items}")
         units = sum(x["qty"] for x in TO_LINES) + abs(ALLOCATION_DELTA)
-        expect(result.totals.get("lines") == len(TO_LINES) + 1 and result.totals.get("units_moved") == units,
-               f"totals {result.totals} (expected {len(TO_LINES) + 1} lines, {units} units)")
+        # totals.lines counts change-set items like Merxa's validate (one transfer order + one allocation)
+        expect(result.totals.get("lines") == len(result.items) and result.totals.get("units_moved") == units,
+               f"totals {result.totals} (expected {len(result.items)} lines, {units} units)")
         db(self.deps.repo.update_change_set(
             tenant=NW, change_set_id=self.cs_id, status="validated", ext_change_set_id=result.ext_change_set_id,
             ext_code=result.ext_code,

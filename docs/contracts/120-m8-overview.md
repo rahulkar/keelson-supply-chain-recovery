@@ -123,3 +123,47 @@ Branches merge into `m8-post-demo` in dependency-light order (9, 7, 8, 3, 4, 1, 
 chain is regenerated, all suites run, the images are built with Docker, the stack is brought up and the
 M8 offline e2e scripts plus the M5–M7 offline e2e scripts are run. The root README status table marks
 M8 accordingly.
+
+## 7. Integration record (2026-10-10)
+
+All nine workstreams were built, reviewed adversarially per workstream (every verdict "ready with
+issues", findings fixed on the branches), merged into `m8-post-demo` in the §6 order, and reviewed
+once more across the seams. Integration fixes (commits "M8 integration: …"):
+
+- **Merge seams.** Planning and re-plan build every request with `OptimizeInputs` (126) and pass
+  `solver=solver_options(planning)` (125); a dropped `SolverOptions` import from that merge was caught
+  by the cross-workstream review and is covered by a seam test. Signal Hub keeps clustering's
+  refactored same-hazard helper with the feeds' per-subtype window, and its explanations name the window
+  applied and the new authoritative feeds. The viz fixture order (CP-SAT note, then the robust compare
+  and KPI strip) is the order the dev-blocks e2e expects.
+- **Supply chain.** The three Dockerfiles added by other workstreams (adapter-sidecar, evals-runner,
+  basemap-fetch) are pinned to the repo's tag@digest base images and registered in
+  `infra/supply-chain/images.json` (`check_pins.py`: 0 violations). Cloud Run parity: the engine runs
+  `MAPPING_PROPOSER=auto` there; the evals runner and the compose-only DuckDB cap stay local.
+- **Test images.** The engine test stage names `GEO_DIR` / `TAXONOMY_DIR` / `EMISSIONS_DIR` (the
+  non-editable install hid the source-tree fallback; latent since M6), and a signal-hub test locates its
+  migrations like the service does.
+- **e2e.** `api_m8_sidecar.py` takes the Fernhill keys from its environment (the engine image cannot read
+  the owner-only `.env`), and expects `totals.lines` to count change-set items like Merxa's validate.
+
+**Verification** (Docker only; `scripts/supply-chain/ci_run_suite.py`, i.e. each Dockerfile `test`
+target with a throwaway Postgres/Valkey, exactly as CI): engine-platform 640, engine-runtime 984,
+signal-hub 429, optimizer 384, merxa-api 205, adapter-sidecar 140, contracts-py 1625 (+ mypy), evals 127,
+supply-chain 285, keelson-web 558 (typecheck + lint + vitest), web packages (viz 360 + contracts / tokens
+checks), merxa-web 211, basemap (node:test) — all passing (the §5 environment failures are deselected).
+All compose images build (`--profile adapters --profile evals --profile basemap`). On the full stack
+(`LLM_REPLAY_MODE=replay`, profiles `adapters` + `evals`): `api_m5_offline`, `api_m6_offline`,
+`api_m7_offline` and all seven M8 offline scripts (`api_m8_mappings_offline`, `api_m8_sidecar`,
+`api_m8_clustering_offline`, `api_m8_feeds_offline`, `api_m8_cpsat_offline`,
+`api_m8_robustness_offline`, `api_m8_evals_offline`) pass. Live (model-backed) checks remain for
+`scripts/verify-live.sh` once credits are available.
+
+**Open issues carried forward** (details in each spec's Known issues): CP-SAT mode misses the 5 s solve
+budget under host load (6.9–7.9 s worst case; its perf tests allow 10 s; the default `repair` mode is
+unaffected) and resequencing v2 can hit its wall-clock guard on very large lines (it then falls back with
+the reason recorded); emission factors are indicative, not verified against the official GLEC tables;
+MeteoAlarm stays off until an operator accepts its terms; opt-in feeds can still shape global events
+other tenants see; the clustering merge pass is O(n²) over at most 500 open candidates per interval;
+demo-pack expectations assume the default clustering settings; the sidecar's OAuth inbound mode accepts
+RS256 only and its SQL backend settles an in-doubt apply at restart; evals results-folder imports match
+by file name; two engine tests that read files outside the test image are skipped in the CI image.

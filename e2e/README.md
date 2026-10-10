@@ -324,19 +324,6 @@ script needs a stack started with `LLM_REPLAY_MODE=replay` (fail-closed: no prov
 # Git Bash, repo root; the whole stack is up with LLM_REPLAY_MODE=replay
 docker compose --profile evals up -d evals-runner
 MSYS_NO_PATHCONV=1 docker compose run --rm --no-deps -T -e LOG_LEVEL=warning   -v D:/keelson-supply-chain-recovery/e2e:/e2e:ro   -v D:/keelson-supply-chain-recovery/evals/tests/fixtures:/fixtures:ro   engine-api python -u /e2e/api_m8_evals_offline.py
-
-## M8 adapter sidecar (`docs/contracts/122`): `api_m8_sidecar.py`
-
-Runs **inside the engine image** like the M5–M7 scripts, with the compose profile `adapters` up. The
-sidecar's keys are never in the engine's environment, so the repo's `.env` is mounted read-only and the
-script reads `FERNHILL_API_KEY` / `FERNHILL_ADMIN_KEY` from it (or from its own environment):
-
-```bash
-# Git Bash, repo root; the whole stack is up
-docker compose --profile adapters up -d fernhill-sidecar
-MSYS_NO_PATHCONV=1 docker compose run --rm --no-deps -T -e LOG_LEVEL=warning \
-  -v D:/keelson-supply-chain-recovery/e2e:/e2e:ro -v D:/keelson-supply-chain-recovery/.env:/run/keelson.env:ro \
-  engine-api python -u /e2e/api_m8_sidecar.py   # --keep leaves the connector active and the data as is
 ```
 
 | script | model calls | what it proves |
@@ -346,6 +333,27 @@ MSYS_NO_PATHCONV=1 docker compose run --rm --no-deps -T -e LOG_LEVEL=warning \
 
 The runner resets Merxa's demo data for every case: never run it against a stack you are presenting
 from.
+
+## M8 adapter sidecar (`docs/contracts/122`): `api_m8_sidecar.py`
+
+Runs **inside the engine image** like the M5–M7 scripts, with the compose profile `adapters` up. The
+sidecar's keys are never in the engine's environment: export `FERNHILL_API_KEY` / `FERNHILL_ADMIN_KEY` from
+`.env` in the shell and pass them **by name** (`-e NAME`, values never on the command line). Mounting `.env`
+does not work: the engine image runs as uid 10001 and `scripts/init` writes `.env` owner-only.
+
+```bash
+# Git Bash, repo root; the whole stack is up
+docker compose --profile adapters up -d fernhill-sidecar
+set -a; . <(grep -E '^FERNHILL_(API|ADMIN)_KEY=' .env | tr -d '\r'); set +a
+MSYS_NO_PATHCONV=1 docker compose run --rm --no-deps -T -e LOG_LEVEL=warning -e FERNHILL_API_KEY -e FERNHILL_ADMIN_KEY \
+  -v D:/keelson-supply-chain-recovery/e2e:/e2e:ro \
+  engine-api python -u /e2e/api_m8_sidecar.py   # --keep leaves the connector active and the data as is
+```
+
+| script | model calls | what it proves |
+|---|---|---|
+| `api_m8_sidecar.py` | **none** | **Generic tier A·B·C·W proof** on northwind-test with the CSV-backed demo ERP "Fernhill": sidecar reset (anonymous reset and `/mcp` → 401); `fernhill` registered by ava (static header `X-Adapter-Key`, third party, key never echoed) → test: tier `[A,B,C,W]`, the 13 sidecar tools, suggested classification from the annotations (reads trusted/read/internal, create/add/validate write + idempotency enforced, apply/rollback destructive + enforced) → approved as suggested, activated without a change request; the capability table says `change_set` mode with both ops read from the `add_change_set_items` op enum. **Tier B**: worker sync → consistent snapshot, row counts equal to the sidecar's `/v1/admin/stats`, same watermark; `poll_changes` → False. **Commit harness** (test-only, in-process, the commit nodes' building blocks): `transfer_order.create` FH-RTM → FH-LDS (2 SKUs) + `allocation.set_qty` (version from the snapshot) → dry run as preparer, `preview_hash == H`; a receipt for Merxa's audience → `invalid_receipt` (`wrong_audience`), set still validated; the policy receipt through `_credentials` / `_receipt_target` (`aud http://fernhill.localhost/mcp`, `ext_iss` the origin, `ext_sub connector:fernhill`) → applied; reconcile → verified, one transfer order `created_via change_set:<code>`; the CSV rows read back (reserved / in transit / allocation qty + version); the same idempotency key replays the identical body. **Tier C**: `changes_since(<old watermark>)` lists the rows, `poll_changes` → the worker resyncs and the new snapshot holds the new allocation, transfer lines and reserved units. **Rollback** with nora's user receipt → compensating change set, business columns restored, the transfer order removed. Clean-up (also on failure): Fernhill reset, connector disabled. |
+
 ## M8 signal feeds (`docs/contracts/124`): `api_m8_feeds_offline.py`
 
 Runs inside the engine image like the M6/M7 offline scripts (`docker compose run --rm --no-deps -T -v
@@ -362,7 +370,7 @@ step `m8-feeds` polls the real NHC / EMS / OFAC / GDELT feeds once through the p
 ## M8 (`docs/contracts/121`): `api_m8_mappings_offline.py`
 
 Runs **inside the engine image** like the M7 offline script (`docker compose run --rm --no-deps -T -e
-LOG_LEVEL=warning -v D:/primark/e2e:/e2e:ro engine-api python -u /e2e/api_m8_mappings_offline.py`),
+LOG_LEVEL=warning -v D:/keelson-supply-chain-recovery/e2e:/e2e:ro engine-api python -u /e2e/api_m8_mappings_offline.py`),
 against a stack started with `MAPPING_PROPOSER=heuristic` (the compose default). It imports the M7
 offline helpers (register `merxa-lite`, install the pack, crawl, Merxa's own totals).
 
@@ -370,10 +378,7 @@ offline helpers (register `merxa-lite`, install the pack, crawl, Merxa's own tot
 |---|---|---|
 | `api_m8_mappings_offline.py` | **none** | Demo reset; `merxa-lite` registered on northwind-test as in M7. **Proposed mappings**: `POST …/mappings/proposals {kinds: [read, action], proposer: auto}` answers `proposer: heuristic` with an `llm_disabled` note, shape-only profiles (no DC names or cities in the answer), a read draft that validates against the catalogue and covers location / item / po_line / inventory_position / demand_forecast / allocation with every required column, and an action draft mapping `transfer_order.create` → `create_transfer_order` and `allocation.set_qty` → `update_item` (best_effort, request id, read-back); Merxa saw **no write** (allocation versions and the transfer-order count unchanged); list / get. The read draft saved with `proposal_id` → `origin: proposal`, proposal `accepted`. **Explain** of the pack mapping: fewer distinct reads than uses, the two blocking FK checks, SQL per column. **Compiled crawl**: pack installed (`origin: pack`), worker crawl with `crawl.engine = duckdb`, per-source stats and the mapping hash, row counts equal to Merxa's own totals (the M7 assertion). **Staged preview** with `merxa-lite` disabled: `GET …/staged`, an edited mapping mapped against the staged pages (rows equal the crawl's unless capped at `MAPPING_PREVIEW_MAX_ITEMS`), a live preview → 409. **Four-eyes** (demo-retail, which has a second admin): ava registers a second `/mcp-lite` connector, sam proposes and saves the action draft with `proposal_id` → 202 `connector_mapping` (nothing applied), sam's own approve → 403 `self_approval`, ava rejects with a reason; that connector is deleted again. Clean-up: merxa-lite disabled; a final demo reset unless `--skip-final-reset`. |
 
-Not run by the workstream (the integrator runs it on the full stack); syntax-checked with
-`python -m py_compile` in the engine image.
-
-| `api_m8_sidecar.py` | **none** | **Generic tier A·B·C·W proof** on northwind-test with the CSV-backed demo ERP "Fernhill": sidecar reset (anonymous reset and `/mcp` → 401); `fernhill` registered by ava (static header `X-Adapter-Key`, third party, key never echoed) → test: tier `[A,B,C,W]`, the 13 sidecar tools, suggested classification from the annotations (reads trusted/read/internal, create/add/validate write + idempotency enforced, apply/rollback destructive + enforced) → approved as suggested, activated without a change request; the capability table says `change_set` mode with both ops read from the `add_change_set_items` op enum. **Tier B**: worker sync → consistent snapshot, row counts equal to the sidecar's `/v1/admin/stats`, same watermark; `poll_changes` → False. **Commit harness** (test-only, in-process, the commit nodes' building blocks): `transfer_order.create` FH-RTM → FH-LDS (2 SKUs) + `allocation.set_qty` (version from the snapshot) → dry run as preparer, `preview_hash == H`; a receipt for Merxa's audience → `invalid_receipt` (`wrong_audience`), set still validated; the policy receipt through `_credentials` / `_receipt_target` (`aud http://fernhill.localhost/mcp`, `ext_iss` the origin, `ext_sub connector:fernhill`) → applied; reconcile → verified, one transfer order `created_via change_set:<code>`; the CSV rows read back (reserved / in transit / allocation qty + version); the same idempotency key replays the identical body. **Tier C**: `changes_since(<old watermark>)` lists the rows, `poll_changes` → the worker resyncs and the new snapshot holds the new allocation, transfer lines and reserved units. **Rollback** with nora's user receipt → compensating change set, business columns restored, the transfer order removed. Clean-up (also on failure): Fernhill reset, connector disabled. |
+Run on the integrated M8 stack (`LLM_REPLAY_MODE=replay`): PASS.
 
 ## M8 CP-SAT (`docs/contracts/125`): `api_m8_cpsat_offline.py`
 

@@ -121,6 +121,8 @@ RUNNER_ACTOR = {"sub": "evals-runner", "username": "evals-runner"}
 """The audit actor of what the runner does (finishing a run)."""
 MAX_EVENTS_PER_POST = 50
 MAX_EVENTS_PER_RUN = 5000
+EVENT_DATA_MAX_BYTES = 16384
+"""``eval_run_event.data``'s size check (``octet_length(data::text)``)."""
 EVENTS_PAGE = 200
 RUNNER_ROWS_KEPT_DAYS = 7
 TERMINAL = ("succeeded", "failed", "cancelled")
@@ -145,6 +147,11 @@ _RUN_SELECT = (
 def _j(value: Any) -> Any:
     """A json / jsonb value as Python (the driver may hand back text)."""
     return json.loads(value) if isinstance(value, str) else value
+
+
+def _jsonb_text_bytes(value: Any) -> int:
+    """UTF-8 size of ``value`` as Postgres prints a jsonb (``", "`` / ``": "`` separators)."""
+    return len(json.dumps(value, ensure_ascii=False, separators=(", ", ": ")).encode("utf-8"))
 
 
 def _utc_now() -> dt.datetime:
@@ -552,7 +559,9 @@ async def claim(runner_id: str) -> EvalRunnerJob | None:
 
 
 async def _owned(s: AsyncSession, run_id: str, runner_id: str) -> dict[str, Any]:
-    """The running run held by ``runner_id`` (row-locked; lease renewed), else 409."""
+    """The running run held by ``runner_id`` (row-locked; lease renewed), else 409. The call is
+    also the runner's sign of life: the loop only heartbeats between runs, and a live run can take
+    an hour, so the status must not call a working runner offline."""
     _uuid(run_id)
     row = await _fetch_run(s, run_id, lock=True)
     if row is None or row["status"] != "running" or row["runner_id"] != runner_id:
@@ -560,6 +569,7 @@ async def _owned(s: AsyncSession, run_id: str, runner_id: str) -> dict[str, Any]
     renewed = (await s.execute(text(
         "UPDATE eval_run SET lease_expires_at = now() + make_interval(secs => :lease), updated_at = now() "
         "WHERE id = :id RETURNING lease_expires_at"), {"id": run_id, "lease": get_settings().evals_lease_s})).scalar_one()
+    await s.execute(text("UPDATE eval_runner SET last_seen_at = now() WHERE id = :w"), {"w": runner_id})
     row["lease_expires_at"] = renewed
     return row
 
@@ -568,19 +578,22 @@ async def runner_events(run_id: str, runner_id: str, events: Sequence[EvalRunEve
     """Append progress events (``seq`` assigned here), renew the lease, answer the run's flags."""
     if len(events) > MAX_EVENTS_PER_POST:
         raise AdminError(422, "too_many_events", f"at most {MAX_EVENTS_PER_POST} events per call")
+    payloads = [{k: clean_text(v, 300) if isinstance(v, str) else v for k, v in ev.data.items()} for ev in events]
+    if any(_jsonb_text_bytes(p) > EVENT_DATA_MAX_BYTES for p in payloads):
+        # 300 characters per value can still be 4 bytes each: refuse what the table would (a 422, not a 500)
+        raise AdminError(422, "event_too_large", f"an event's data exceeds {EVENT_DATA_MAX_BYTES} bytes")
     async with system_session() as s:
         row = await _owned(s, run_id, runner_id)
         if events:
             last = int((await s.execute(text("SELECT coalesce(max(seq), 0) FROM eval_run_event WHERE run_id = :r"),
                                         {"r": run_id})).scalar_one())
             room = max(0, MAX_EVENTS_PER_RUN - last)
-            for i, ev in enumerate(list(events)[:room], start=1):
+            for i, (ev, data) in enumerate(list(zip(events, payloads, strict=True))[:room], start=1):
                 await s.execute(text(
                     "INSERT INTO eval_run_event (tenant, run_id, seq, type, case_id, turn_id, data) "
                     "VALUES (:t, :r, :seq, :type, :c, :turn, CAST(:d AS jsonb))"),
                     {"t": row["tenant"], "r": run_id, "seq": last + i, "type": ev.type, "c": ev.case_id,
-                     "turn": clean_text(ev.turn_id, 64) if ev.turn_id else None,
-                     "d": dumps({k: clean_text(v, 300) if isinstance(v, str) else v for k, v in ev.data.items()})})
+                     "turn": clean_text(ev.turn_id, 64) if ev.turn_id else None, "d": dumps(data)})
     return {"cancel_requested": bool(row["cancel_requested"]), "budget_exhausted": _live_budget_exhausted(row),
             "lease_expires_at": row["lease_expires_at"].isoformat()}
 
@@ -837,7 +850,7 @@ async def import_folder(*, tenant: str, actor: Mapping[str, Any], only: str | No
         try:
             doc = await asyncio.to_thread(_read_results_file, path, limit)
             run_id, duplicate = await import_doc(doc, tenant=tenant, actor=actor, file_name=path.name)
-        except (OSError, ValueError) as exc:
+        except (OSError, ValueError, RecursionError) as exc:  # RecursionError: pathological JSON nesting
             errors.append({"file": path.name, "error": f"unreadable: {type(exc).__name__}"})
             continue
         except AdminError as exc:

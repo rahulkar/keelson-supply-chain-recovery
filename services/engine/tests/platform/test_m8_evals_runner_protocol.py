@@ -188,6 +188,23 @@ async def test_events_need_the_lease_holder_and_are_capped(api: httpx.AsyncClien
     assert ok.status_code == 200
     [event] = (await ava.get(f"/api/admin/evals/runs/{rid}/events")).json()["items"]
     assert event["data"]["text"] == "ab"
+    # 20 keys x 300 four-byte characters pass the model but not the table's 16 KiB: a 422, never a 500
+    big = await runner_call(api, "POST", f"/runs/{rid}/events", {"runner_id": RUNNER, "events": [
+        {"type": "note", "data": {f"k{i}": "\U0001f600" * 300 for i in range(20)}}]})
+    assert big.status_code == 422 and big.json()["code"] == "event_too_large", big.text
+    assert len((await ava.get(f"/api/admin/evals/runs/{rid}/events")).json()["items"]) == 1
+
+
+async def test_a_runner_working_on_a_run_stays_online(api: httpx.AsyncClient, ava: Browser) -> None:
+    """A long run sends no heartbeat (the loop heartbeats between runs): every call on the run
+    counts as a sign of life, so the status does not call a busy runner offline."""
+    run = await _queue(api, ava)
+    await _claim(api)
+    async with system_session() as s:
+        await s.execute(text("UPDATE eval_runner SET last_seen_at = now() - interval '10 minutes'"))
+    assert (await ava.get("/api/admin/evals/status")).json()["runner"]["online"] is False
+    await runner_call(api, "POST", f"/runs/{run['id']}/events", {"runner_id": RUNNER, "events": []})
+    assert (await ava.get("/api/admin/evals/status")).json()["runner"]["online"] is True
 
 
 # ───────────────────────────── cancel & budget ─────────────────────────────
@@ -326,3 +343,8 @@ async def test_results_are_sanitised_and_merged_with_the_engine_accounting(api: 
                          headers={"Authorization": f"Bearer {RUNNER_TOKEN}", "Origin": PUBLIC,
                                   "Content-Type": "application/json"})
     assert huge.status_code == 413
+    deep = await api.put(f"/api/internal/evals/runner/runs/{rid}/cases/trim_delay_actual/result",
+                         content=b'{"runner_id": "runner-1", "result": ' + b"[" * 100_000 + b"]" * 100_000 + b"}",
+                         headers={"Authorization": f"Bearer {RUNNER_TOKEN}", "Origin": PUBLIC,
+                                  "Content-Type": "application/json"})
+    assert deep.status_code == 422 and deep.json()["code"] == "invalid_result", deep.text

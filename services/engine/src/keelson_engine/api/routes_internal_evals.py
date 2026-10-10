@@ -136,7 +136,7 @@ async def result(run_id: str, eval_case_id: str, request: Request) -> dict[str, 
         chunks.append(chunk)
     try:
         payload = json.loads(b"".join(chunks).decode("utf-8"))
-    except (UnicodeDecodeError, ValueError):
+    except (UnicodeDecodeError, ValueError, RecursionError):  # RecursionError: pathological nesting
         raise ApiError(422, "invalid_result", "the body is not JSON") from None
     if not isinstance(payload, dict) or set(payload) != {"runner_id", "result"}:
         raise ApiError(422, "invalid_result", "the body is {runner_id, result}")

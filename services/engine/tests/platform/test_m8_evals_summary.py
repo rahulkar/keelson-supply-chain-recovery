@@ -101,6 +101,15 @@ def test_summary_rates_skip_unevaluated_cases_and_use_exact_usage() -> None:
     assert empty.cases == 0 and empty.pass_rate_bp is None and empty.tokens_source is None
 
 
+def test_summary_survives_inconsistent_untrusted_usage() -> None:
+    """An imported file / runner report claiming more replayed calls than calls must not crash the
+    summary (an import would answer 500, a finish could never complete and the lease reaper would
+    fail on every read)."""
+    usage = {"runs": 1, "total": {"calls": 1, "replayed": 5, "total_tokens": 10}, "agents": {}}
+    s = S.summarise([_case("a", "pass", usage=usage)])
+    assert s.llm_calls_live == 0 and s.llm_calls_replayed <= 1
+
+
 def test_case_columns() -> None:
     usage = {"runs": 1, "total": {"calls": 1, "total_tokens": 42, "cost_microusd": 7}, "agents": {}}
     c = _case("x", "fail", usage=usage, turns=[_turn(None, None), _turn(0.25, 12)],

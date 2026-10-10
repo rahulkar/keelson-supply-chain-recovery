@@ -173,6 +173,22 @@ def test_untrusted_case_text_is_sanitised_and_capped() -> None:
     assert max(len(c.detail) for t in r.turns for c in t.checks) < 2000  # details were shortened to fit
 
 
+def test_untrusted_usage_and_nesting_never_break_the_converter() -> None:
+    """Replayed calls are a subset of the calls (an untrusted file may claim otherwise) and a deeply
+    nested metric value becomes short text, never a crash of the converter."""
+    usage = {"runs": 1, "total": {"calls": 2, "replayed": 9, "total_tokens": 10},
+             "agents": {"planner": {"calls": 0, "replayed": 3}}}
+    r = case_result_from_doc(_case(usage=usage))
+    assert r.usage is not None and r.usage.total.replayed == 2 and r.usage.agents["planner"].replayed == 0
+    deep: Any = 1
+    for _ in range(5000):
+        deep = [deep]
+    bad = _case()
+    bad["turns"][0]["metrics"]["deep"] = deep
+    extra = case_result_from_doc(bad).turns[0].extra
+    assert "deep" not in extra or (isinstance(extra["deep"], str) and len(extra["deep"]) <= 300)
+
+
 def test_invalid_cases_and_documents_are_refused() -> None:
     with pytest.raises(EvalDocError, match="valid id"):
         case_result_from_doc(_case(id="../etc/passwd"))

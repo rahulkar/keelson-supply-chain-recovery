@@ -105,8 +105,9 @@ def summarise(cases: Sequence[EvalCaseResult]) -> EvalRunSummary:
         tokens_source=source,  # type: ignore[arg-type]
         cost_microusd_total=sum(costs) if costs else None,
         cost_per_case_mean_microusd=_mean(costs),
-        llm_calls_live=sum(c.usage.total.calls - c.usage.total.replayed for c in exact if c.usage is not None),
-        llm_calls_replayed=sum(c.usage.total.replayed for c in exact if c.usage is not None),
+        # untrusted reports: never a negative count (replayed calls are a subset of the calls)
+        llm_calls_live=sum(max(0, c.usage.total.calls - c.usage.total.replayed) for c in exact if c.usage is not None),
+        llm_calls_replayed=sum(min(c.usage.total.replayed, c.usage.total.calls) for c in exact if c.usage is not None),
         replay_misses=sum(1 for c in cases if c.error_code == "replay_miss"),
     )
 

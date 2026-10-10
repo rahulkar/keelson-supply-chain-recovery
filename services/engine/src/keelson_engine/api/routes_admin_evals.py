@@ -213,7 +213,7 @@ async def import_document(request: Request, ctx: AdminWrite,
     raw = await _read_capped(request, get_settings().evals_max_import_bytes)
     try:
         doc = json.loads(raw.decode("utf-8"))
-    except (UnicodeDecodeError, ValueError):
+    except (UnicodeDecodeError, ValueError, RecursionError):  # RecursionError: pathological nesting
         raise ApiError(422, "invalid_results", "the body is not a JSON document") from None
     run_id, duplicate = await evals.import_doc(doc, tenant=ctx.tenant, actor=ctx.actor(), file_name=file_name)
     return JSONResponse({"run_id": run_id, "duplicate": duplicate}, status_code=200 if duplicate else 201)

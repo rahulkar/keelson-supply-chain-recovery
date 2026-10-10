@@ -973,6 +973,7 @@ def _usage(raw: Any) -> EvalUsage | None:
         m = _mapping(r)
         fields = {k: _nonneg_int(m.get(k)) or 0 for k in ("calls", "replayed", "prompt_tokens", "completion_tokens",
                                                           "reasoning_tokens", "total_tokens", "latency_ms")}
+        fields["replayed"] = min(fields["replayed"], fields["calls"])  # replayed calls are a subset of the calls
         cost = _nonneg_int(m.get("cost_microusd"))
         if cost is None:
             d = _decimal(m.get("cost_usd"))
@@ -1017,7 +1018,7 @@ def _extra(metrics: Mapping[str, Any]) -> dict[str, Any]:
         else:  # floats, nested objects: compact text
             try:
                 text = json.dumps(value, ensure_ascii=False, separators=(",", ":"), sort_keys=True, allow_nan=False)
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, RecursionError):  # untrusted nesting: drop the value
                 continue
             out[name] = clean_text(text, 300)
     return out

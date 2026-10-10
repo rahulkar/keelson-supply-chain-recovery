@@ -5,6 +5,7 @@ compare, trends, recordings coverage, RLS on the eval tables and the case-link c
 
 from __future__ import annotations
 
+import copy
 import json
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -214,6 +215,17 @@ async def test_import_is_idempotent_and_validated(people: dict[str, Browser], se
     assert (await _import(ava, {"schema": "keelson-evals/9", "cases": []})).json()["code"] == "invalid_results"
     garbage = await ava.post("/api/admin/evals/import", content=b"{not json", headers={"Content-Type": "application/json"})
     assert garbage.status_code == 422 and garbage.json()["code"] == "invalid_results"
+    deep = await ava.post("/api/admin/evals/import", content=b"[" * 100_000 + b"]" * 100_000,
+                          headers={"Content-Type": "application/json"})
+    assert deep.status_code == 422 and deep.json()["code"] == "invalid_results", deep.text
+    # an untrusted file claiming more replayed calls than calls still imports (summary never negative)
+    odd = copy.deepcopy(doc)
+    odd["started_at"] = "2026-10-07T09:00:00+00:00"
+    odd["cases"][0]["usage"] = {"runs": 1, "total": {"calls": 1, "replayed": 7, "total_tokens": 5}, "agents": {}}
+    odd_run = await _import(ava, odd)
+    assert odd_run.status_code == 201, odd_run.text
+    odd_summary = (await ava.get(f"/api/admin/evals/runs/{odd_run.json()['run_id']}")).json()["run"]["summary"]
+    assert odd_summary["llm_calls_live"] == 0 and odd_summary["llm_calls_replayed"] == 1
     monkeypatch.setattr(settings, "evals_max_import_bytes", 1024)
     too_big = await _import(ava, doc)
     assert too_big.status_code == 413 and too_big.json()["code"] == "file_too_large"
@@ -264,6 +276,11 @@ async def test_import_folder_and_file_listing(people: dict[str, Browser], settin
     (tmp_path / "notes.json").write_text("{}", encoding="utf-8")
     one = (await ava.post("/api/admin/evals/import/folder?file=20261007T085022Z.json")).json()
     assert [i["file"] for i in one["imported"]] == ["20261007T085022Z.json"] and one["errors"] == []
+    deep = tmp_path / "20261008T020000Z.json"  # pathological nesting: an error entry, never a 500
+    deep.write_text("[" * 100_000 + "]" * 100_000, encoding="utf-8")
+    nested = await ava.post("/api/admin/evals/import/folder?file=20261008T020000Z.json")
+    assert nested.status_code == 200 and nested.json()["errors"][0]["error"].startswith("unreadable"), nested.text
+    deep.unlink()
     assert (await ava.post("/api/admin/evals/import/folder?file=notes.json")).json()["code"] == "invalid_file_name"
     assert (await ava.post("/api/admin/evals/import/folder?file=../x.json")).status_code == 422
     assert (await ava.post("/api/admin/evals/import/folder?file=20991231T000000Z.json")).status_code == 404

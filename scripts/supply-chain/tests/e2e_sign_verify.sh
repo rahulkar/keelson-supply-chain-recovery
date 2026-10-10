@@ -7,7 +7,8 @@
 # Checks: verify-images.sh passes A only (B unsigned, C wrong key, A by tag refused, A with a
 # different git_sha refused); scripts/cloudrun/deploy.sh --verify-only accepts a signed release that
 # lists A and refuses one listing B or a tampered release file - before any gcloud call (a fake
-# gcloud on PATH proves none happens); compose-release.sh writes its override for the good release only.
+# gcloud on PATH proves none happens); compose-release.sh writes its override for the good release only,
+# and that override renders with compose.yaml (`docker compose config`, when compose is installed).
 # Needs Docker (cosign runs in the pinned image). Everything is named keelson_sc_e2e_* and removed.
 # Usage: scripts/supply-chain/tests/e2e_sign_verify.sh      Exit status = number of failed checks.
 # shellcheck disable=SC2319  # "[ cond ]; result <name> $?" reports the condition status on purpose
@@ -136,6 +137,13 @@ out="$(deploy_verify "$WORK/tampered/keelson-release.env")"; rc=$?
 bash "$ROOT/scripts/supply-chain/compose-release.sh" --release "$WORK/good/keelson-release.env" \
   --signing-env "$WORK/signing.env" --out "$WORK/compose.release.yaml" >/dev/null 2>&1; rc=$?
 [ "$rc" = 0 ] && grep -q "image: ${REF[a]}" "$WORK/compose.release.yaml"; result compose_release_good $? "rc=$rc"
+if docker compose version >/dev/null 2>&1; then  # the override renders with compose.yaml (.env from .env.example)
+  mkdir -p "$WORK/proj" && cp "$ROOT/.env.example" "$WORK/proj/.env"
+  imgs="$(docker compose --project-directory "$(host_path "$WORK/proj")" -f "$(host_path "$ROOT/compose.yaml")" \
+    -f "$(host_path "$WORK/compose.release.yaml")" config --images 2>&1)"; rc=$?
+  [ "$rc" = 0 ] && printf '%s\n' "$imgs" | grep -qxF "${REF[a]}" && ! printf '%s\n' "$imgs" | grep -qx 'keelson-engine-api'
+  result compose_release_override_renders $? "rc=$rc $(printf '%s' "$imgs" | tail -n 2)"
+fi
 bash "$ROOT/scripts/supply-chain/compose-release.sh" --release "$WORK/bad/keelson-release.env" \
   --signing-env "$WORK/signing.env" --out "$WORK/compose.bad.yaml" >/dev/null 2>&1; rc=$?
 [ "$rc" = 1 ] && [ ! -e "$WORK/compose.bad.yaml" ]; result compose_release_refuses_bad $? "rc=$rc"

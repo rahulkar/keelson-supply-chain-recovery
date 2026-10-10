@@ -163,8 +163,9 @@ class FeedRunner:
 
     # ───────────── adapters ─────────────
     def connectors(self, *, include_disabled_adapters: bool = False) -> list[tuple[str, str, int]]:
-        """``(adapter, connector_id, cadence_s)`` of every enabled source (``SIGNAL_ADAPTERS``; all
-        configured sources with ``include_disabled_adapters``, for ``--once``), in catalogue order."""
+        """``(adapter, connector_id, cadence_s)`` of every enabled source (``SIGNAL_ADAPTERS``, which the
+        loop and ``--once`` both honour; all configured sources with ``include_disabled_adapters``), in
+        catalogue order."""
         enabled = set(sources.ADAPTERS if include_disabled_adapters else self.settings.enabled_adapters)
         return [(spec.adapter, spec.connector_id, self.cadence(spec.connector_id, spec.default_cadence_s))
                 for spec in sources.catalogue(self.settings) if spec.adapter in enabled]

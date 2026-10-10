@@ -1,7 +1,7 @@
 """KML / KMZ geometry reader (NHC cone and track products; ``124`` §2).
 
-Only geometry is read: every ``Polygon`` (outer + inner rings), ``LineString``, ``LinearRing`` and
-``Point`` anywhere in the document (``MultiGeometry`` and folders are walked), whatever the KML
+Only geometry is read: every ``Polygon`` (its outer + inner ``LinearRing`` boundaries), ``LineString``
+and ``Point`` anywhere in the document (``MultiGeometry`` and folders are walked), whatever the KML
 namespace (NHC still publishes cones as ``http://earth.google.com/kml/2.1`` and tracks as
 ``http://www.opengis.net/kml/2.2``). Names, descriptions, styles and links are ignored. KML
 ``coordinates`` are ``lon,lat[,alt]`` tuples separated by whitespace; altitude is dropped.

@@ -8,12 +8,13 @@ import dataclasses
 import datetime as dt
 import io
 import json
+import logging
 import zipfile
 
 import pytest
 
 from conftest import T0, load_fixture
-from signal_hub import admin, cluster, geo, names, safezip, scoring, sources
+from signal_hub import admin, cluster, geo, names, poller, safezip, scoring, sources
 from signal_hub.adapters.gdacs import parse_gdacs
 from signal_hub.adapters.usgs import parse_usgs
 from signal_hub.cluster import Candidate, SignalFeatures, choose_event, radius_km, same_hazard_window
@@ -277,3 +278,14 @@ def test_pack_step_fixture_names() -> None:
                              ("meteoalarm", {"fixture": "f.atom", "details": {"x": 3}})):
         with pytest.raises(StepError):
             fixture_names(adapter, payload)
+
+
+async def test_once_honours_the_operator_allow_list(caplog: pytest.LogCaptureFixture) -> None:
+    """``--once`` never polls a feed adapter outside ``SIGNAL_ADAPTERS`` (Cloud Run runs one job per
+    adapter): the allow-list is what keeps an opt-in subscription from opening egress (124 §2.2).
+    It exits 0 before touching the database or the network."""
+    s = Settings(enabled_adapters=("gdacs", "usgs", "rss"), database_url="postgresql://hub@unreachable.invalid/x")
+    with caplog.at_level(logging.INFO, logger="signal_hub.poller"):
+        for adapter in ("ofac", "gdelt", "meteoalarm"):
+            assert await poller.run_once(s, adapter) == 0
+    assert sum("SIGNAL_ADAPTERS" in r.getMessage() for r in caplog.records) == 3

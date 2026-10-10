@@ -6,8 +6,9 @@
   failure) and sweeps expiries every minute. Outbound HTTP goes only through the egress proxy.
 * ``--once --adapter gdacs|usgs|rss|nhc|copernicus_ems|ofac|gdelt|meteoalarm|extraction|sweep``
   (Cloud Run Jobs triggered by Cloud Scheduler; the feed adapters come from
-  :data:`signal_hub.sources.ADAPTERS`): one run, then exit (0 = ok, 1 = the run failed); a paused
-  source (every tenant disabled it, or an opt-in source nobody enabled) is skipped with exit 0. ``extraction`` retries pending news extraction
+  :data:`signal_hub.sources.ADAPTERS`): one run, then exit (0 = ok, 1 = the run failed); a feed
+  adapter outside ``SIGNAL_ADAPTERS`` and a paused source (every tenant disabled it, or an opt-in
+  source nobody enabled) are skipped with exit 0. ``extraction`` retries pending news extraction
   (needs LiteLLM: run it where the gateway is reachable; it reads the provisioned extraction key
   unless ``LITELLM_SIGNALS_KEY`` is set, :mod:`signal_hub.llm_key`).
 * Tenant subscriptions (``110`` §5) shape the schedule: the cadence is the fastest one a subscribed
@@ -58,6 +59,11 @@ async def _adapter_unlock(conn: Any, adapter: str) -> None:
 async def run_once(settings: Settings, adapter: str, *, connector: str | None = None) -> int:
     if adapter not in ADAPTERS:
         raise SystemExit(f"unknown adapter {adapter!r} (one of {', '.join(ADAPTERS)})")
+    if adapter in sources.ADAPTERS and adapter not in settings.enabled_adapters:
+        # the operator's allow-list holds for every run (124 §2.2): a scheduled job of an adapter the
+        # deployment does not allow never fetches, whatever tenants subscribed to
+        log.info("adapter not in SIGNAL_ADAPTERS; skipping", extra={"adapter": adapter})
+        return 0
     pool = await create_pool(settings.database_url, max_size=3)
     feed_client = build_feed_client(settings)
     internal = build_internal_client(settings)
@@ -90,7 +96,7 @@ async def run_once(settings: Settings, adapter: str, *, connector: str | None = 
                     return 0
                 await runner.refresh_schedule()
                 results = []
-                for _adapter, cid, _cadence in runner.connectors(include_disabled_adapters=True):
+                for _adapter, cid, _cadence in runner.connectors():
                     if _adapter != adapter or connector not in (None, cid):
                         continue
                     if cid in runner.paused:

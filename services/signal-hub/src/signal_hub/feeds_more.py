@@ -167,6 +167,10 @@ async def poll_nhc(runner: FeedRunner, spec: SourceSpec, now: dt.datetime) -> Po
         cursor = dict(cur.get("cursor") or {})
         advisories: dict[str, str] = dict(cursor.get("advisories") or {})
         gis: dict[str, list[dict[str, Any]]] = {}
+        # pending: a storm's products for its current advisory are still to fetch (over the per-poll cap,
+        # or a download failed). The feed's validators are then not kept, so the next poll reads the feed
+        # in full instead of a 304 (NHC issues every storm's advisory at the same synoptic times).
+        pending = False
         if s.nhc_fetch_gis:
             stored = await stored_geometries(runner, cid, [st["id"].lower() for st in active])
             fetched = 0
@@ -174,12 +178,14 @@ async def poll_nhc(runner: FeedRunner, spec: SourceSpec, now: dt.datetime) -> Po
                 sid, tag, urls = storm["id"].lower(), nhc.advisory_tag(storm), nhc.gis_urls(storm)
                 if not urls or tag is None:
                     continue
-                if advisories.get(sid) == tag:  # unchanged advisory: reuse the stored footprint
-                    shapes = [g for g in geo.flatten(stored.get(sid)) if g.get("type") != "Point"]
-                    if shapes:
-                        gis[sid] = shapes
-                        continue
+                last = [g for g in geo.flatten(stored.get(sid)) if g.get("type") != "Point"]
+                if advisories.get(sid) == tag and last:  # unchanged advisory: reuse the stored footprint
+                    gis[sid] = last
+                    continue
                 if fetched + len(urls) > s.nhc_max_gis_fetches:
+                    pending = True
+                    if last:  # the last cone until this advisory's arrives (never a bare position meanwhile)
+                        gis[sid] = last
                     continue
                 shapes, ok = [], True
                 for url in urls:
@@ -190,18 +196,20 @@ async def poll_nhc(runner: FeedRunner, spec: SourceSpec, now: dt.datetime) -> Po
                     except (FetchError, ValueError) as exc:
                         ok = False
                         log.warning("nhc GIS fetch failed", extra={"storm": sid, "error": str(exc)[:200]})
-                if shapes:
-                    gis[sid] = shapes
+                if shapes or last:
+                    gis[sid] = shapes or last
                 if ok:
                     advisories[sid] = tag
+                else:
+                    pending = True
         drafts = nhc.parse_nhc(doc, SourceContext(retrieved_at=now), gis=gis)
         report = await runner.pipeline.ingest(drafts, now=now)
         live = {st["id"].lower() for st in active}  # the native keys of the global storm signals
         withdrawn, gone = await withdraw_missing(runner, cid, live, now)
         report.merge(gone)
         cursor["advisories"] = {k: v for k, v in sorted(advisories.items()) if k in live}
-        await runner._save(cid, now=now, cadence_s=cadence, status="ok", etag=result.etag,
-                           last_modified=result.last_modified, cursor=cursor, items=len(drafts))
+        await runner._save(cid, now=now, cadence_s=cadence, status="ok", etag=None if pending else result.etag,
+                           last_modified=None if pending else result.last_modified, cursor=cursor, items=len(drafts))
         return PollResult(cid, "ok", len(drafts), report, skipped=len(active) - len(drafts), withdrawn=withdrawn)
     except (FetchError, ValueError, UnicodeDecodeError) as exc:
         return await _error(runner, cid, cadence, now, exc)
@@ -307,7 +315,12 @@ async def poll_ofac(runner: FeedRunner, spec: SourceSpec, now: dt.datetime) -> P
             raise ofac.OfacError(f"{len(entities)} organisations against {len(previous)} in the last snapshot; "
                                  "refusing a likely truncated publication")
         current = ofac.hashes(entities)
-        published = _published(fresh["SDN"].get("last_modified"), now)
+        # dated by its newest file (an ALT/ADD-only publication leaves SDN.CSV as it was) and never at or
+        # before the last delta: its signal must not become a new version of the previous publication's
+        published = max(_published(v.get("last_modified"), now) for v in fresh.values())
+        last = parse_ts((cursor.get("last_delta") or {}).get("published_at"))
+        if last is not None and published <= last:
+            published = now.replace(microsecond=0)
         cursor["files"] = fresh
         if not previous:
             await _write_snapshot(runner, cid, current, sorted(current), [], now)
@@ -407,7 +420,8 @@ async def poll_meteoalarm(runner: FeedRunner, spec: SourceSpec, now: dt.datetime
             ident: meteoalarm.CapDetail(level=v[0], type_no=v[1]) for ident, v in known.items()
             if isinstance(v, list) and len(v) == 2}
         fetched = 0
-        for ident, url in sorted(meteoalarm.detail_urls(wanted).items()):
+        links = meteoalarm.detail_urls(wanted)
+        for ident, url in sorted(links.items()):
             if ident in known:
                 continue
             if fetched >= s.meteoalarm_max_detail_fetches:
@@ -432,8 +446,11 @@ async def poll_meteoalarm(runner: FeedRunner, spec: SourceSpec, now: dt.datetime
         cursor["details"] = {k: v for k, v in sorted(known.items()) if k in live}
         if len(cursor["details"]) > MAX_DETAIL_CACHE:
             cursor["details"] = dict(sorted(cursor["details"].items())[-MAX_DETAIL_CACHE:])
-        await runner._save(cid, now=now, cadence_s=cadence, status="ok", etag=result.etag,
-                           last_modified=result.last_modified, cursor=cursor, items=len(drafts))
+        # CAP documents left for a later poll (over the cap, or a failed download): keep no validators,
+        # so the next poll reads the feed in full instead of a 304 that would leave them unfetched
+        pending = any(ident not in known for ident in links)
+        await runner._save(cid, now=now, cadence_s=cadence, status="ok", etag=None if pending else result.etag,
+                           last_modified=None if pending else result.last_modified, cursor=cursor, items=len(drafts))
         return PollResult(cid, "ok", len(drafts), report, skipped=skipped, withdrawn=withdrawn)
     except (FetchError, ValueError, UnicodeDecodeError) as exc:
         return await _error(runner, cid, cadence, now, exc)

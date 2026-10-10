@@ -72,6 +72,8 @@ CADENCE_RANGE: Final = (60, 86_400)
 _SOURCE_ID_RE: Final = re.compile(r"[a-z0-9][a-z0-9_.:-]{0,79}")
 _TERMS_URL_RE: Final = re.compile(r"https://[A-Za-z0-9.-]+(:[0-9]{1,5})?/[^\s\x00-\x1f\x7f\\\"'<>]{0,500}")
 """A source's terms link as the web may render it: absolute https, plain host (M8, ``124`` §4)."""
+_OPT_IN_ADAPTERS: Final = frozenset({"gdelt", "meteoalarm"})
+"""The hub's opt-in adapters (``124`` §2.2); only used while the hub cannot report a source's default."""
 _PROVENANCES: Final = ("fact", "inference")
 _LICENCE_CLASSES: Final = ("public_domain", "open_attribution", "terms_apply", "publisher_copyright")
 _ID_PATTERN: Final = r"^[a-z][a-z0-9_-]{0,39}$"
@@ -384,13 +386,15 @@ async def put_source(tenant: str, source_id: str, setting: SourceSetting, actor:
 
 async def _hub_enabled_default(tenant: str, source_id: str) -> bool:
     """Whether the hub counts ``source_id`` as subscribed for a tenant without a stored wish: true,
-    except for an opt-in source (GDELT, MeteoAlarm). Unknown (hub down, older hub) → true, the M7 rule."""
+    except for an opt-in source (GDELT, MeteoAlarm). Hub down → false for the known opt-in adapters
+    (:data:`_OPT_IN_ADAPTERS`: the stored wish rides along with the next whole-map push, which must
+    never opt the workspace in), else true, the M7 rule (also for an older hub not listing the source)."""
     from keelson_engine.core import signal_hub
 
     try:
         body = await signal_hub.request_json("GET", f"/v1/tenants/{tenant}/sources", tenant=tenant)
     except signal_hub.HubError:
-        return True
+        return source_id.split(".", 1)[0] not in _OPT_IN_ADAPTERS
     for r in (body.get("items") if isinstance(body, dict) else None) or []:
         if isinstance(r, dict) and r.get("connector_id") == source_id and isinstance(r.get("enabled"), bool):
             return bool(r["enabled"])

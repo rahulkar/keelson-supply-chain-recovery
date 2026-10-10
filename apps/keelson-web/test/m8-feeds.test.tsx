@@ -149,4 +149,17 @@ describe("Sources table (M8)", () => {
     expect(meteo).toHaveTextContent("Not enabled on this installation (platform admin: SIGNAL_ADAPTERS)");
     expect(within(meteo).getByText("Weather")).toBeInTheDocument();
   });
+
+  it("a subscription to a source this installation stopped polling can still be switched off", async () => {
+    const user = userEvent.setup();
+    const items = (sources as { items: Record<string, unknown>[] }).items;
+    sources = { ...sources, items: items.map((s) => (s["id"] === "meteoalarm.netherlands" ? { ...s, enabled: true } : s)) };
+    const { calls } = renderPage();
+    const table = await screen.findByRole("table", { name: "Signal sources" });
+    const sw = within(row(table, /MeteoAlarm warnings: Netherlands/)).getByRole("switch", { name: /Unsubscribe from MeteoAlarm/ });
+    expect(sw).toBeChecked();
+    expect(sw).toBeEnabled();
+    await user.click(sw);
+    await waitFor(() => expect(calls.find((c) => c.url === "/api/admin/signals/sources/meteoalarm.netherlands")?.body).toEqual({ enabled: false }));
+  });
 });

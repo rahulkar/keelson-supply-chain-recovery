@@ -22,13 +22,15 @@
 #   signal-hub-poller    → one Job per adapter, signal-hub-poll-<adapter> (`--once --adapter X`),
 #                          each run by a Cloud Scheduler job on the adapter's cadence
 #
-# M8 feeds (docs/contracts/124-m8-signal-feeds.md): nhc, copernicus_ems, ofac and gdelt jobs; a paused
-# source (GDELT until a workspace opts in) exits 0 at once. meteoalarm gets a job only when .env sets
-# METEOALARM_COUNTRIES (its redistribution terms are the operator's call); SIGNAL_ADAPTERS and
-# METEOALARM_COUNTRIES reach the API service and every poll job (rendered from .env / defaults).
+# M8 feeds (docs/contracts/124-m8-signal-feeds.md): a poll job per feed adapter in the operator's
+# allow-list SIGNAL_ADAPTERS (default nhc, copernicus_ems, ofac and gdelt besides the M6 ones; a paused
+# source, e.g. GDELT until a workspace opts in, exits 0 at once). meteoalarm gets a job only when .env
+# lists it in SIGNAL_ADAPTERS *and* sets METEOALARM_COUNTRIES (its redistribution terms are the
+# operator's call). SIGNAL_ADAPTERS and METEOALARM_COUNTRIES reach the API service and every poll job
+# (rendered from .env / defaults); the hub's `--once` skips an adapter outside SIGNAL_ADAPTERS anyway.
 
 SIGNAL_HUB_DIR="${CR:?CR must be set by deploy.sh}/signal-hub"
-SIGNAL_HUB_ADAPTERS=(gdacs usgs rss nhc copernicus_ems ofac gdelt extraction sweep)
+SIGNAL_HUB_ADAPTERS=(gdacs usgs rss nhc copernicus_ems ofac gdelt meteoalarm extraction sweep)
 declare -A SIGNAL_HUB_SCHEDULES=(
   [gdacs]="*/10 * * * *"
   [usgs]="*/5 * * * *"
@@ -49,13 +51,21 @@ signal_hub_init() {
   URL_SIGNAL_HUB="$(run_url signal-hub-api)"
   SH_ADAPTER=""
   SH_SCHEDULE=""
-  # M8 feeds: the allow-list and the MeteoAlarm countries (empty = no MeteoAlarm job)
+  # M8 feeds: the allow-list and the MeteoAlarm countries; jobs only for the allowed feed adapters
+  # (meteoalarm needs both), extraction and sweep always
+  local adapter jobs=()
   SH_SIGNAL_ADAPTERS="$(cfg SIGNAL_ADAPTERS "$SH_DEFAULT_ADAPTERS")"
+  SH_SIGNAL_ADAPTERS="${SH_SIGNAL_ADAPTERS// /}"
   SH_METEOALARM_COUNTRIES="$(cfg METEOALARM_COUNTRIES "")"
-  if [ -n "$SH_METEOALARM_COUNTRIES" ]; then
-    case ",$SH_SIGNAL_ADAPTERS," in *,meteoalarm,*) ;; *) SH_SIGNAL_ADAPTERS="${SH_SIGNAL_ADAPTERS},meteoalarm" ;; esac
-    case " ${SIGNAL_HUB_ADAPTERS[*]} " in *" meteoalarm "*) ;; *) SIGNAL_HUB_ADAPTERS+=(meteoalarm) ;; esac
-  fi
+  for adapter in "${SIGNAL_HUB_ADAPTERS[@]}"; do
+    case "$adapter" in
+      extraction|sweep) jobs+=("$adapter") ;;
+      *)
+        case ",$SH_SIGNAL_ADAPTERS," in *",$adapter,"*) ;; *) continue ;; esac
+        if [ "$adapter" != meteoalarm ] || [ -n "$SH_METEOALARM_COUNTRIES" ]; then jobs+=("$adapter"); fi ;;
+    esac
+  done
+  SIGNAL_HUB_ADAPTERS=("${jobs[@]}")
   RENDER_VARS+=(IMAGE_SIGNAL_HUB URL_SIGNAL_HUB SH_ADAPTER SH_SCHEDULE SH_SIGNAL_ADAPTERS SH_METEOALARM_COUNTRIES)
   export IMAGE_SIGNAL_HUB URL_SIGNAL_HUB
 }

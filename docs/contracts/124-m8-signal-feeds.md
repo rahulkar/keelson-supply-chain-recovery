@@ -58,8 +58,9 @@ default cadence, name). Everything else derives from it: `admin.source_catalogue
 
 ### 2.2 Two gates and opt-in
 1. **Deployment allow-list** `SIGNAL_ADAPTERS` (operator): default `gdacs,usgs,rss,nhc,copernicus_ems,ofac,gdelt`.
-   Nothing outside it is polled by the loop; the catalogue reports it as `polled`. MeteoAlarm is left
-   out until an operator has reviewed its redistribution terms.
+   Nothing outside it is polled, neither by the loop nor by `--once` (which skips such an adapter with
+   exit 0), and Cloud Run renders poll jobs only for the allowed adapters; the catalogue reports it as
+   `polled`. MeteoAlarm is left out until an operator has reviewed its redistribution terms.
 2. **Tenant subscription** (`source_subscription`, 110 §5). For an **opt-in** source no row means
    *not* subscribed: `recompute_schedule`/`load_schedule` count only explicit `enabled` rows (a source
    is paused until at least one tenant enabled it, a tenant registered later counts as not
@@ -125,7 +126,11 @@ the name sanitised to `[A-Za-z' -]{1,40}` (else "Unnamed"); the summary is numbe
 **GIS**: `trackCone.kmzFile` + `forecastTrack.kmzFile`, only `https` on `www.nhc.noaa.gov` (port 443,
 no userinfo, `.kmz`/`.kml` path), at most `NHC_MAX_GIS_FETCHES` (6) downloads per poll and once per
 advisory (cursor `{advisories: {storm_id: advNum}}`, recorded only when every product downloaded); an
-unchanged advisory reuses the stored footprint. The footprint = cone polygon + track line (the track's
+unchanged advisory reuses the stored footprint. Products still pending (over the per-poll cap — NHC
+issues every storm's advisory at the same synoptic times — or a failed download) are fetched by the
+next poll: the feed's validators are not kept meanwhile, so that poll reads the feed in full instead
+of a 304, and the storm keeps its last stored footprint until its new one arrives (never a bare
+position that would drop its exposures). The footprint = cone polygon + track line (the track's
 forecast points are dropped) + current position. Storms that leave the feed are withdrawn.
 
 ### 3.2 Copernicus EMS (`adapters/copernicus_ems.py`, connector `copernicus_ems`)
@@ -156,8 +161,10 @@ individuals, vessels and aircraft skipped); aliases `aka`/`fka`/`nka` from ALT, 
 Each entity's hash covers name, programs, aliases and countries; the snapshot lives in
 `source_snapshot` (system context only). The **first** successful poll is a silent baseline (cursor
 `baseline_at`, no signal). Later publications are diffed: new + changed organisations →
-**one publication signal**: `native_key` `sdn:<Last-Modified as YYYYMMDDTHHMMSSZ>` (else the poll
-time); `regulatory/sanctions_designation` (`OTHER`: an investigation-only case); severity 8000;
+**one publication signal**: `native_key` `sdn:<newest Last-Modified of the three files as
+YYYYMMDDTHHMMSSZ>` (else the poll time; the poll time too when that is not later than the last delta's,
+so an ALT/ADD-only publication never becomes a new version of the previous publication's signal and
+replaces its match keys); `regulatory/sanctions_designation` (`OTHER`: an investigation-only case); severity 8000;
 geometry null, no `location_refs`; `match_keys` = sorted unique keys of the names and aliases of the
 new and changed organisations (≤ 20 000); `severity_native {scheme: ofac, list: SDN, new, changed,
 removed, match_keys, programs}`; `expires_at` + `OFAC_EVENT_TTL_DAYS` (30); authoritative (founds its
@@ -208,8 +215,9 @@ event → weather/coastal_flood; 8 forest fire → natural_hazard/wildfire; 10 r
 `<identifier>#<EMMA_ID>`; `starts_at` = onset (else sent), `ends_at` = `expires_at` = expires; refs
 `ISO3166` of the country; geometry from the CAP `<polygon>` (`lat,lon` → `[lon, lat]`) or `<circle>`
 (32-gon) per EMMA area, fetched only from `feeds.meteoalarm.org` over https (`/api/` paths), at most
-`METEOALARM_MAX_DETAIL_FETCHES` (4) new documents per poll (later polls fill the rest; a stored
-polygon is reused), else none (refs only). A `Cancel` entry or one that left the feed is withdrawn.
+`METEOALARM_MAX_DETAIL_FETCHES` (4) new documents per poll (later polls fill the rest — while any is
+pending the feed's validators are not kept, so those polls read the feed in full instead of a 304; a
+stored polygon is reused), else none (refs only). A `Cancel` entry or one that left the feed is withdrawn.
 Not an anchor: neighbouring district warnings cluster into one candidate event, and a later GDACS
 event absorbs them. Deployment **and** tenant opt-in.
 
@@ -222,20 +230,22 @@ event absorbs them. Deployment **and** tenant opt-in.
   un-pauses it. `PUT /v1/tenants/{t}/subscriptions`: an unlisted opt-in source goes back to off.
 * Poll reports (`PollResult`) add `skipped` and `withdrawn` when non-zero.
 * `python -m signal_hub.poller --once --adapter nhc|copernicus_ems|ofac|gdelt|meteoalarm [--connector meteoalarm.<country>]`;
-  a paused source exits 0 without fetching.
+  a paused source, and a feed adapter outside `SIGNAL_ADAPTERS`, exit 0 without fetching.
 * MCP and alert REST unchanged; OFAC hits appear as `entity_match` exposures in `AlertDetail`.
 * Engine `signals_admin.get_sources` passes through `provenance`, `licence_class`, `terms_url` (kept
   only when it is an https URL with a plain host), `opt_in`, `polled`, `authority_bp`, `min_cadence_s`,
   `max_cadence_s`, `coverage`, `description` (each cleaned, `None` when absent). `put_source` on a
   source without a stored wish and without `enabled` in the PATCH asks the hub for the default, so a
-  cadence-only change never subscribes an opt-in source (hub down → the M7 default, subscribed). No
-  route changes.
+  cadence-only change never subscribes an opt-in source (hub down → not subscribed for the known opt-in
+  adapters `gdelt` / `meteoalarm.*`, since the stored wish rides along with the next whole-map push;
+  the M7 default, subscribed, for every other source). No route changes.
 * Web Sources table (`SignalSourceCells.tsx`): coverage and description under the name (the OFAC
   awareness disclaimer), a **Type** column (Hazard / Weather / Regulatory / News badge, a provenance
   chip "Fact" / "Inference" / "Inference · low authority" below 5000 bp, an "Opt-in" badge), licence +
   attribution + a "Terms" link (`target=_blank rel="noopener noreferrer"`, https only via
   `safeTermsUrl`, never `javascript:`), the switch disabled with "Not enabled on this installation
-  (platform admin: SIGNAL_ADAPTERS)" when `polled` is false, "Starts polling when a workspace
+  (platform admin: SIGNAL_ADAPTERS)" when `polled` is false (an existing subscription can still be
+  switched off), "Starts polling when a workspace
   subscribes" under an unsubscribed opt-in source, whose cadence select waits for the subscription.
   The cadence select offers only the choices inside the source's own `min_cadence_s` /
   `max_cadence_s` (a stored value is always shown; without reported limits every choice, as in M7).
@@ -291,10 +301,12 @@ error), `GDELT_MIN_ARTICLES` (3), `GDELT_PORT_RADIUS_KM` (30), `GDELT_CHOKEPOINT
   are https on 443, already allowed by Squid) and `mem_limit: 256m` (the real SDN trio parses at
   ~76 MB peak RSS).
 * `.env.example`: a commented "Signal Hub feeds (M8)" block (MeteoAlarm terms note).
-* Cloud Run (`infra/cloudrun/signal-hub.sh`): jobs `signal-hub-poll-{nhc,copernicus_ems,ofac,gdelt}`
-  (`*/15`, `*/30`, `0 *`, `*/15`), `meteoalarm` (`*/15`) only when `.env` sets `METEOALARM_COUNTRIES`
-  (then `SIGNAL_ADAPTERS` gains `meteoalarm`); `SIGNAL_ADAPTERS` and `METEOALARM_COUNTRIES` are rendered
-  into the API service and every poll job. Native launcher (`keelson-native.ps1 Get-SignalHubEnv`):
+* Cloud Run (`infra/cloudrun/signal-hub.sh`): one poll job per feed adapter in `SIGNAL_ADAPTERS`
+  (default adds `signal-hub-poll-{nhc,copernicus_ems,ofac,gdelt}`: `*/15`, `*/30`, `0 *`, `*/15`),
+  `meteoalarm` (`*/15`) only when `.env` lists it in `SIGNAL_ADAPTERS` **and** sets
+  `METEOALARM_COUNTRIES` (the same two keys as compose), plus `extraction` and `sweep`; `SIGNAL_ADAPTERS`
+  and `METEOALARM_COUNTRIES` are rendered into the API service and every poll job (and `--once` skips an
+  adapter outside the allow-list, so a job left over from an earlier deploy never fetches). Native launcher (`keelson-native.ps1 Get-SignalHubEnv`):
   `SIGNAL_ADAPTERS`, `METEOALARM_COUNTRIES` passthrough. `scripts/verify-live.sh` step `m8-feeds`.
 
 ## 8. Security
@@ -314,7 +326,8 @@ error), `GDELT_MIN_ARTICLES` (3), `GDELT_PORT_RADIUS_KM` (30), `GDELT_CHOKEPOINT
   no tenant code is ever written to a global row (tested: another tenant sees no exposure, a tenant
   context reads no snapshot rows).
 * **Four-eyes**: subscribing an opt-in source is not "enabling an external-egress connector" (the
-  operator's `SIGNAL_ADAPTERS` gates egress). Guarding the disabling of `ofac` is deferred (§10).
+  operator's `SIGNAL_ADAPTERS` gates egress, for the poll loop, `--once` and the Cloud Run jobs alike).
+  Guarding the disabling of `ofac` is deferred (§10).
 * **Licences**: every signal carries its source's licence string; the admin page shows licence,
   attribution and terms; MeteoAlarm needs an operator decision before it is polled.
 
@@ -355,8 +368,10 @@ From the brief (verified against the code and the live feeds):
 
 From 120: none on allocations (migration 0005, env prefixes `NHC_*`, `COPERNICUS_EMS_*`, `OFAC_*`,
 `GDELT_*`, `METEOALARM_*`, `CADENCE_<SOURCE>_S`, spec 124, e2e `api_m8_feeds_offline.py`). The default
-of the existing `SIGNAL_ADAPTERS` changes (adds the four default-on M8 adapters). `GDELT_*` /
-`METEOALARM_MIN_LEVEL` tune live filtering only; replays ignore them (120 §3.5).
+of the existing `SIGNAL_ADAPTERS` changes (adds the four default-on M8 adapters), and `--once` now
+honours it as the loop always did (M7's `--once` polled any configured adapter; the allow-list is what
+keeps an opt-in subscription from opening egress, §2.2). `GDELT_*` / `METEOALARM_MIN_LEVEL` tune live
+filtering only; replays ignore them (120 §3.5).
 
 ## 10. Deferred
 * `REG.sanctions` taxonomy key + compliance template so an OFAC hit frames a real perturbation (the
@@ -380,23 +395,31 @@ of the existing `SIGNAL_ADAPTERS` changes (adds the four default-on M8 adapters)
   against `DisruptionSignal`), `test_m8_logic.py` (safezip bombs/traversal/encryption/lying header,
   match keys, golden content hashes of GDACS/USGS from the M7 code, scoring tables, same-hazard window,
   radii, geo helpers, registry, settings parsing, pack step files), `test_packs.py` (+ `feeds-test`).
-* signal-hub PostGIS: `test_db_m8_feeds.py` (NHC conditional GET + GIS once per advisory + withdrawal
-  resolving the alert + malformed feed; NHC/EMS anchors joining GDACS events; EMS history and closure;
-  OFAC baseline → 304 through the redirect → delta signal → `entity_match` for the right tenant only,
-  RLS on exposures and `source_snapshot`, `name_key`, truncation guard; GDELT corroboration without an
-  alert, MD5 mismatch backoff; MeteoAlarm bounded CAP fetches + withdrawal; opt-in schedule / alert /
-  whole-map sync / `--once` skip; tenant sources API fields; `feeds-test` reset + replay identical),
+* signal-hub PostGIS: `test_db_m8_feeds.py` (NHC conditional GET + GIS once per advisory + failed
+  products retried without a feed change + withdrawal resolving the alert + malformed feed; GIS beyond
+  the per-poll cap fetched by the next poll while the storm keeps its last footprint; NHC/EMS anchors
+  joining GDACS events; EMS history and closure; OFAC baseline → 304 through the redirect → delta
+  signal → `entity_match` for the right tenant only, RLS on exposures and `source_snapshot`,
+  `name_key`, truncation guard, an ALT-only publication dated by its newest file (its own signal, the
+  previous one's alert untouched) and never at or before the last delta; GDELT corroboration without an
+  alert, MD5 mismatch backoff; MeteoAlarm bounded CAP fetches + withdrawal, pending CAP documents
+  fetched without a feed change; opt-in schedule / alert / whole-map sync / `--once` skip; tenant
+  sources API fields; `feeds-test` reset + replay identical),
   `test_db_real_packs.py::test_hurricane_cape_route`; existing catalogue assertions updated.
+  `test_m8_logic.py::test_once_honours_the_operator_allow_list` (`--once` outside `SIGNAL_ADAPTERS`).
+* `scripts/cloudrun/tests`: poll jobs only for the allowed adapters, MeteoAlarm with both keys.
 * `tests/test_live_feeds.py` (`SIGNAL_HUB_LIVE=1 -m live`): passed against the real NHC (with KMZ),
   Copernicus EMS, OFAC trio, GDELT (MD5) and MeteoAlarm feeds on 2026-10-08.
 * data/scenarios: `validate.py --require replay` 0 errors / 0 warnings for every pack; tests for the
   generator (`--check`), cone geometry, real-host links, future advisories, NHC shape and GIS files.
 * contracts-py `test_m8_feeds.py` (+ `test_m6.py` invalid adapter `acled`); contracts `--check` clean.
 * engine `tests/platform/test_m8_signal_sources.py` (passthrough, non-https terms dropped, opt-in
-  default, cadence-only change keeps an opt-in source off, hub-down fallback).
+  default, cadence-only change keeps an opt-in source off, hub-down fallback: opt-in adapters stay off
+  and are pushed off with the next map, M7 sources subscribed).
 * web `test/m8-feeds.test.tsx` (schema, badges, attribution, terms link rel/target, `javascript:`
-  never rendered, opt-in switch PUTs `{enabled: true}`, not-polled switch disabled, OFAC disclaimer,
-  cadence choices inside the source's limits, axe); m7 suite unchanged.
+  never rendered, opt-in switch PUTs `{enabled: true}`, not-polled switch disabled but an existing
+  subscription can be switched off, OFAC disclaimer, cadence choices inside the source's limits, axe);
+  m7 suite unchanged.
 * e2e `e2e/api_m8_feeds_offline.py` (written, compiled; run by the integrator on the full stack).
 
 ## 12. Known issues
@@ -407,6 +430,16 @@ of the existing `SIGNAL_ADAPTERS` changes (adds the four default-on M8 adapters)
   then they expose by country reference only (no geo exposure). National services re-issue a warning
   under a new CAP identifier on each update, so an update is a new signal that joins the same event
   while the old one is withdrawn.
+* MeteoAlarm warnings are not anchors, so they attach under the M6 rule (compatible kind, ± 72 h,
+  within 300 km or a shared `location_ref`, the country `ISO3166:` ref included). A warning can
+  therefore join an unrelated open `logistics` / `supplier` / `demand` event in the same country (e.g.
+  a news port closure) and raise its severity and corroboration. A tighter attach rule for district
+  warnings (polygon intersection, no country-ref match) is design work beyond this workstream;
+  MeteoAlarm stays off by default (deployment and tenant opt-in).
+* While NHC GIS products or MeteoAlarm CAP documents are pending (over the per-poll cap or a failed
+  download), each poll reads the feed in full (no 304) until they have been fetched; a product that
+  keeps failing (e.g. an NHC link that 404s for hours) costs one unconditional feed request plus its
+  retries per poll.
 * OFAC: exact normalised names only (no transliterations or abbreviations); organisations listed
   before the baseline never alert (full-list screening is deferred); awareness only.
 * An open Copernicus EMS activation stops counting 14 days after activation.

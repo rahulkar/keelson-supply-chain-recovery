@@ -53,6 +53,13 @@ RED_COASTAL_CAP = b"""<?xml version="1.0" encoding="utf-8"?>
     <area><areaDesc>Waddenzee</areaDesc><geocode><valueName>EMMA_ID</valueName><value>NL001</value></geocode></area>
   </info>
 </alert>"""
+EP_CONE_KML = b"""<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2"><Document><Placemark><Polygon><outerBoundaryIs><LinearRing>
+<coordinates>-108.4,15.1 -108.0,16.0 -111.0,18.5 -112.0,17.0 -110.0,15.5 -108.4,15.1</coordinates>
+</LinearRing></outerBoundaryIs></Polygon></Placemark></Document></kml>"""
+EP_TRACK_KML = b"""<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2"><Document><Placemark><LineString>
+<coordinates>-108.4,15.1 -109.6,16.2 -110.9,17.4</coordinates></LineString></Placemark></Document></kml>"""
 
 
 def zipped(name: str, data: bytes) -> bytes:
@@ -69,8 +76,10 @@ class Upstream:
         self.requests: list[httpx.Request] = []
         self.nhc_doc: Any = json.loads(load_fixture("nhc_current_storms.json"))
         self.nhc_etag = '"nhc-1"'
+        self.nhc_gis_missing: tuple[str, ...] = ("EP192026",)  # Petrel's GIS products are not there (yet)
         self.ems: Any = json.loads(load_fixture("copernicus_ems_activations.json"))
         self.ofac_pub = 1
+        self.ofac_file_pub: dict[str, int] = {}  # a file left at an earlier publication (same ETag / Last-Modified)
         self.ofac_override: dict[str, bytes] = {}
         self.gdelt_slot = SLOT
         self.gdelt_export = zipped(f"{SLOT}.export.CSV", load_fixture("gdelt_export.CSV"))
@@ -88,8 +97,10 @@ class Upstream:
                 if inm == self.nhc_etag:
                     return httpx.Response(304)
                 return httpx.Response(200, content=json.dumps(self.nhc_doc).encode(), headers={"ETag": self.nhc_etag})
-            if "EP192026" in path:  # Petrel's GIS products are not there (yet)
+            if any(m in path for m in self.nhc_gis_missing):
                 return httpx.Response(404)
+            if "EP192026" in path:  # Petrel's own (small, East Pacific) cone and track
+                return httpx.Response(200, content=zipped("ep.kml", EP_CONE_KML if path.endswith("_CONE.kmz") else EP_TRACK_KML))
             if path.endswith("_CONE.kmz"):
                 return httpx.Response(200, content=zipped("cone.kml", load_fixture("nhc_al_cone.kml")))
             if path.endswith("_TRACK.kmz"):
@@ -101,12 +112,13 @@ class Upstream:
             return httpx.Response(302, headers={"Location": f"https://{S3}/Published/{self.ofac_pub}/{name}?X-Amz-Expires=3600"})
         if host == S3:
             name = path.rsplit("/", 1)[-1].split(".")[0]
-            etag = f'"{name}-{self.ofac_pub}"'
+            pub = self.ofac_file_pub.get(name, self.ofac_pub)
+            etag = f'"{name}-{pub}"'
             if inm == etag:
                 return httpx.Response(304)
-            body = self.ofac_override.get(name) or (FIXTURES / "ofac" / f"{name}_{min(self.ofac_pub, 2)}.CSV").read_bytes()
+            body = self.ofac_override.get(name) or (FIXTURES / "ofac" / f"{name}_{min(pub, 2)}.CSV").read_bytes()
             return httpx.Response(200, content=body, headers={
-                "ETag": etag, "Last-Modified": f"Mon, 0{4 + self.ofac_pub} Oct 2026 19:35:12 GMT"})
+                "ETag": etag, "Last-Modified": f"Mon, 0{4 + pub} Oct 2026 19:35:12 GMT"})
         if host == "data.gdeltproject.org":
             if path == "/gdeltv2/lastupdate.txt":
                 if inm == self.gdelt_etag:
@@ -182,22 +194,30 @@ async def test_nhc_gis_once_per_advisory_conditional_get_and_withdrawal(pool: as
                                                   "EP192026_004adv_TRACK.kmz"]
     assert not any(req.url.host == "gis.example.net" for req in upstream.requests)
     cur = await runner.cursor("nhc")
-    assert cur["cursor"]["advisories"] == {"al142026": "012"} and cur["etag"] == '"nhc-1"'
+    # Petrel's products are still to come: no validators are kept, so the next poll asks for the feed in full
+    assert cur["cursor"]["advisories"] == {"al142026": "012"} and cur["etag"] is None
     signals = await _current(pool, "nhc")
     assert signals["al142026"]["doc"]["geometry"]["type"] == "GeometryCollection"
     assert signals["ep192026"]["doc"]["geometry"]["type"] == "Point"  # no GIS: the position
     assert signals["al152026"]["doc"]["geometry"]["type"] == "Point"
     (alert,) = await _alerts(pool, TENANT)
     assert alert["severity"] == "critical" and alert["action"] == "alert_and_draft_case" and alert["status"] == "new"
-    # same ETag: 304, nothing re-fetched
+    # the unchanged feed again: Tern's stored footprint is reused (no re-fetch, no new version), Petrel retried
     (r,) = await runner.poll("nhc", now=T0 + 0.25 * H)
-    assert r.status == "not_modified" and upstream.paths("www.nhc.noaa.gov").count("AL142026_012adv_CONE.kmz") == 1
-    # a changed feed with the same Tern advisory: its stored footprint is reused (no new version)
-    upstream.nhc_etag = '"nhc-2"'
-    (r,) = await runner.poll("nhc", now=T0 + 0.5 * H)
     assert r.status == "ok" and r.report is not None and r.report.unchanged == 3 and r.withdrawn == 0
     assert upstream.paths("www.nhc.noaa.gov").count("AL142026_012adv_CONE.kmz") == 1
     assert upstream.paths("www.nhc.noaa.gov").count("EP192026_004adv_CONE.kmz") == 2  # not recorded: retried
+    # Petrel's products appear: fetched and recorded, the validators are kept
+    upstream.nhc_gis_missing = ()
+    (r,) = await runner.poll("nhc", now=T0 + 0.5 * H)
+    assert r.status == "ok" and r.report is not None and r.report.updated == 1
+    cur = await runner.cursor("nhc")
+    assert cur["cursor"]["advisories"] == {"al142026": "012", "ep192026": "004"} and cur["etag"] == '"nhc-1"'
+    assert (await _current(pool, "nhc"))["ep192026"]["doc"]["geometry"]["type"] == "GeometryCollection"
+    # same ETag, nothing pending: 304, nothing re-fetched
+    (r,) = await runner.poll("nhc", now=T0 + 0.75 * H)
+    assert r.status == "not_modified" and upstream.paths("www.nhc.noaa.gov").count("AL142026_012adv_CONE.kmz") == 1
+    assert upstream.paths("www.nhc.noaa.gov").count("EP192026_004adv_CONE.kmz") == 3
     # Tern leaves the feed: withdrawn (a version that expires now), its event and alert resolve
     upstream.nhc_doc["activeStorms"] = [s for s in upstream.nhc_doc["activeStorms"] if s.get("id") != "al142026"]
     upstream.nhc_etag = '"nhc-3"'
@@ -209,12 +229,62 @@ async def test_nhc_gis_once_per_advisory_conditional_get_and_withdrawal(pool: as
         assert await conn.fetchval("SELECT status FROM event WHERE id = $1", tern["event_id"]) == "resolved"
     (alert,) = await _alerts(pool, TENANT)
     assert alert["status"] == "resolved"
-    assert (await runner.cursor("nhc"))["cursor"]["advisories"] == {}
+    assert (await runner.cursor("nhc"))["cursor"]["advisories"] == {"ep192026": "004"}
     # a malformed feed is a failed poll that withdraws nothing
     upstream.nhc_doc, upstream.nhc_etag = {"error": "maintenance"}, '"nhc-4"'
     (r,) = await runner.poll("nhc", now=T0 + 2 * H)
     assert r.status == "error" and "activeStorms" in (r.error or "")
-    assert (await _current(pool, "nhc"))["ep192026"]["version"] == 1
+    assert (await _current(pool, "nhc"))["ep192026"]["version"] == 2
+
+
+def _next_advisory(storm: dict[str, Any]) -> str:
+    """The storm's next public advisory (new number and product links) → the new number."""
+    adv = storm["publicAdvisory"]
+    old, new = adv["advNum"], f"{int(adv['advNum']) + 1:03d}"
+    adv.update(advNum=new, issuance="2026-10-07T03:00:00.000Z")
+    for product in ("trackCone", "forecastTrack"):
+        if isinstance(storm.get(product), dict) and isinstance(storm[product].get("kmzFile"), str):
+            storm[product].update(advNum=new, kmzFile=storm[product]["kmzFile"].replace(f"_{old}adv", f"_{new}adv"))
+    return new
+
+
+async def test_nhc_gis_beyond_the_cap_follows_on_the_next_poll(pool: asyncpg.Pool, gaz: Gazetteer,
+                                                               upstream: Upstream) -> None:
+    """More storms with new advisories than ``NHC_MAX_GIS_FETCHES`` allows (NHC issues them at the same
+    synoptic times): the rest are fetched by the next poll although the feed did not change, and a
+    storm whose new advisory's products wait keeps its last footprint instead of a bare position
+    (which would drop its exposures and flap its alerts)."""
+    upstream.nhc_gis_missing = ()
+    runner = _runner(pool, gaz, upstream, nhc_max_gis_fetches=2)
+
+    def kmz() -> list[str]:
+        return [p for p in upstream.paths("www.nhc.noaa.gov") if p.endswith(".kmz")]
+
+    (r,) = await runner.poll("nhc", now=T0)
+    assert r.status == "ok" and kmz() == ["AL142026_012adv_CONE.kmz", "AL142026_012adv_TRACK.kmz"]  # Petrel waits
+    assert (await runner.cursor("nhc"))["cursor"]["advisories"] == {"al142026": "012"}
+    # the unchanged feed is requested in full (nothing to answer 304 to), so Petrel's products follow
+    (r,) = await runner.poll("nhc", now=T0 + 0.25 * H)
+    feed = [q for q in upstream.requests if q.url.path == "/CurrentStorms.json"]
+    assert r.status == "ok" and feed[-1].headers.get("if-none-match") is None
+    assert kmz()[2:] == ["EP192026_004adv_CONE.kmz", "EP192026_004adv_TRACK.kmz"]
+    assert (await runner.cursor("nhc"))["cursor"]["advisories"] == {"al142026": "012", "ep192026": "004"}
+    assert (await _current(pool, "nhc"))["ep192026"]["doc"]["geometry"]["type"] == "GeometryCollection"
+    (r,) = await runner.poll("nhc", now=T0 + 0.5 * H)
+    assert r.status == "not_modified"  # nothing pending any more: conditional again
+    # new advisories for both: Tern's products fill the cap, Petrel keeps its last footprint meanwhile
+    storms = {s["id"]: s for s in upstream.nhc_doc["activeStorms"]}
+    assert (_next_advisory(storms["al142026"]), _next_advisory(storms["ep192026"])) == ("013", "005")
+    upstream.nhc_etag = '"nhc-2"'
+    (r,) = await runner.poll("nhc", now=T0 + 3.5 * H)
+    assert r.status == "ok" and kmz()[4:] == ["AL142026_013adv_CONE.kmz", "AL142026_013adv_TRACK.kmz"]
+    petrel = (await _current(pool, "nhc"))["ep192026"]
+    assert petrel["doc"]["source"]["native_id"] == "ep192026:005"
+    assert petrel["doc"]["geometry"]["type"] == "GeometryCollection"  # the last cone, not a bare point
+    assert (await runner.cursor("nhc"))["cursor"]["advisories"]["ep192026"] == "004"  # still to fetch
+    (r,) = await runner.poll("nhc", now=T0 + 3.75 * H)
+    assert r.status == "ok" and kmz()[6:] == ["EP192026_005adv_CONE.kmz", "EP192026_005adv_TRACK.kmz"]
+    assert (await runner.cursor("nhc"))["cursor"]["advisories"] == {"al142026": "013", "ep192026": "005"}
 
 
 async def test_nhc_and_ems_anchors_join_gdacs_events(pool: asyncpg.Pool, gaz: Gazetteer, upstream: Upstream) -> None:
@@ -315,6 +385,38 @@ async def test_ofac_baseline_delta_name_match_and_isolation(pool: asyncpg.Pool, 
         assert await conn.fetchval("SELECT count(*) FROM source_snapshot") == 5
 
 
+async def test_ofac_publication_is_dated_by_its_newest_file(pool: asyncpg.Pool, gaz: Gazetteer, upstream: Upstream) -> None:
+    """A publication that changes only ALT.CSV (SDN.CSV and ADD.CSV keep their ETag and Last-Modified)
+    is its own signal: it never becomes a new version of the previous publication's signal, whose
+    match keys (and the tenants they expose) would be replaced."""
+    await _network(pool, gaz, TENANT, [
+        {"type": "supplier", "code": "SUP-SHELL", "name": "Example Shell Fabrics Co.", "lat": 29.87, "lon": 121.55}])
+    runner = _runner(pool, gaz, upstream)
+    assert (await runner.poll("ofac", now=T0))[0].items == 0  # the baseline
+    upstream.ofac_pub = 2
+    assert (await runner.poll("ofac", now=T0 + 2 * H))[0].items == 1
+    (alert,) = await _alerts(pool, TENANT)
+    alt_2 = (FIXTURES / "ofac" / "ALT_2.CSV").read_bytes().rstrip(b"\x1a")
+    # publication 3: one new alias of 9001, in ALT.CSV only
+    upstream.ofac_pub, upstream.ofac_file_pub = 3, {"SDN": 2, "ADD": 2}
+    upstream.ofac_override = {"ALT": alt_2 + b'9001,9106,"aka","EXAMPLE TRADING HOUSE INTERNATIONAL",-0- \r\n\x1a'}
+    (r,) = await runner.poll("ofac", now=T0 + 4 * H)
+    assert r.status == "ok" and r.items == 1 and r.report is not None and r.report.new == 1
+    signals = await _current(pool, "ofac")
+    assert sorted(signals) == ["sdn:20261006T193512Z", "sdn:20261007T040000Z"]
+    assert "example shell fabrics" in signals["sdn:20261006T193512Z"]["match_keys"]  # publication 2 untouched
+    assert list(signals["sdn:20261007T040000Z"]["match_keys"]) == ["example trading house",
+                                                                  "example trading house international"]
+    assert [(a["id"], a["status"]) for a in await _alerts(pool, TENANT)] == [(alert["id"], "new")]
+    # publication 4 changes ALT.CSV again but its Last-Modified is older than the last delta: dated by the poll
+    upstream.ofac_pub, upstream.ofac_file_pub = 4, {"SDN": 2, "ADD": 2, "ALT": 2}
+    upstream.ofac_override = {"ALT": alt_2 + b'9001,9107,"aka","EXAMPLE TRADING HOUSE GLOBAL",-0- \r\n\x1a'}
+    (r,) = await runner.poll("ofac", now=T0 + 6 * H)
+    assert r.status == "ok" and r.items == 1 and r.report is not None and r.report.new == 1
+    assert sorted(await _current(pool, "ofac")) == ["sdn:20261006T193512Z", "sdn:20261007T040000Z",
+                                                    "sdn:20261007T060000Z"]
+
+
 # ───────────────────────────── GDELT ─────────────────────────────
 
 
@@ -407,6 +509,25 @@ async def test_meteoalarm_bounded_cap_fetches_and_withdrawal(pool: asyncpg.Pool,
     assert r.withdrawn == 1 and r.items == 3
     coastal = next(v for k, v in (await _current(pool, "meteoalarm.netherlands")).items() if k.endswith("#NL001"))
     assert coastal["version"] == 2 and coastal["expires_at"] == now + 0.5 * H
+
+
+async def test_meteoalarm_pending_cap_documents_follow_without_a_feed_change(pool: asyncpg.Pool, gaz: Gazetteer,
+                                                                            upstream: Upstream) -> None:
+    """CAP documents left over by the per-poll cap are fetched by the next poll even when the feed is
+    unchanged (no validators are kept while any is pending, so the feed cannot answer 304)."""
+    runner = _runner(pool, gaz, upstream, meteoalarm_max_detail_fetches=1)
+    cid, now = "meteoalarm.netherlands", T0 + 12 * H
+
+    def details() -> list[str]:
+        return [p for p in upstream.paths("feeds.meteoalarm.org") if p != "meteoalarm-legacy-atom-netherlands"]
+
+    (r,) = await runner.poll("meteoalarm", now=now, connector_id=cid)
+    assert r.status == "ok" and details() == [CAP_ORANGE_WIND] and (await runner.cursor(cid))["etag"] is None
+    (r,) = await runner.poll("meteoalarm", now=now + 0.25 * H, connector_id=cid)  # same ETag upstream
+    assert r.status == "ok" and details() == [CAP_ORANGE_WIND, CAP_RED_COASTAL]
+    assert (await runner.cursor(cid))["etag"] == '"ma-1"'  # nothing pending any more
+    (r,) = await runner.poll("meteoalarm", now=now + 0.5 * H, connector_id=cid)
+    assert r.status == "not_modified" and details() == [CAP_ORANGE_WIND, CAP_RED_COASTAL]
 
 
 # ───────────────────────────── opt-in subscriptions ─────────────────────────────

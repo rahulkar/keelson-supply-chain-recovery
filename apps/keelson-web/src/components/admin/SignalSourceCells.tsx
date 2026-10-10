@@ -72,11 +72,12 @@ export function SourceLicenceCell({ source: s }: { source: SignalSource }) {
 
 export function SourceSubscribeCell({ source: s, busy, onChange }: { source: SignalSource; busy: boolean; onChange: (on: boolean) => void }) {
   const note = sourceSwitchNote(s);
+  // a source this installation does not poll cannot be switched on; an existing subscription can still end
   return (
     <span className="flex flex-col gap-0.5">
       <Switch
         checked={s.enabled}
-        disabled={busy || s.polled === false}
+        disabled={busy || (s.polled === false && !s.enabled)}
         aria-label={`${s.enabled ? "Unsubscribe from" : "Subscribe to"} ${s.name}`}
         onCheckedChange={(on) => onChange(on)}
       />

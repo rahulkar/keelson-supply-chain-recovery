@@ -95,8 +95,14 @@ async def test_opt_in_subscribe_and_cadence_only_changes(sam: Browser, hub: Fake
     # an M7 source without a stored wish still defaults to subscribed
     r = await sam.patch(f"{SIG}/sources/nhc", json={"cadence_s": 1800})
     assert r.json()["enabled"] is True
-    # hub down: the unknown default falls back to the M7 rule (subscribed)
+    # hub down: an M7 source keeps the M7 rule (subscribed); an opt-in adapter (GDELT, MeteoAlarm) is never
+    # subscribed by a cadence-only change, else the next whole-map push would opt the workspace in
     hub.down = True
     r = await sam.patch(f"{SIG}/sources/meteoalarm.netherlands", json={"cadence_s": 1800})
+    assert r.status_code == 200 and r.json()["enabled"] is False and r.json()["hub_synced"] is False
+    r = await sam.patch(f"{SIG}/sources/gdacs", json={"cadence_s": 1800})
     assert r.status_code == 200 and r.json()["enabled"] is True and r.json()["hub_synced"] is False
     hub.down = False
+    await sam.patch(f"{SIG}/sources/nhc", json={"cadence_s": 3600})  # the next push (any change) carries the map
+    pushed = {x["connector_id"]: x["enabled"] for x in hub.subscriptions[TENANT_A]}
+    assert pushed["meteoalarm.netherlands"] is False and pushed["gdacs"] is True

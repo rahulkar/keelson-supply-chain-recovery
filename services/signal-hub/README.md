@@ -21,7 +21,8 @@ case.
 
 `python -m signal_hub.poller --once --adapter gdacs|usgs|rss|nhc|copernicus_ems|ofac|gdelt|meteoalarm|extraction|sweep
 [--connector rss.x|meteoalarm.<country>]` runs one adapter and exits (exit 1 when a fetch failed; a
-paused source is skipped with exit 0). Cloud Run Jobs use this form; see "Cloud Run" below.
+feed adapter outside `SIGNAL_ADAPTERS` and a paused source are skipped with exit 0). Cloud Run Jobs use
+this form; see "Cloud Run" below.
 
 The API has no Caddy route (internal only). Every `/v1` and `/mcp` call needs an engine **service
 JWT**: HS256 with `SIGNAL_HUB_SHARED_SECRET`, claims `iss=keelson-engine`, `aud=signal-hub`,
@@ -68,11 +69,11 @@ only, so nothing leaks to other tenants.
 | USGS summary GeoJSON | `usgs.parse_usgs` | fact | feature `id` | public domain; depth dropped; country from the `place` tail (names only) |
 | trade-press RSS 2.0 / Atom (`RSS_FEEDS`) | `rss.parse_feed` | inference after quarantine | guid, else canonical link | headline + <= 300-char plain-text snippet + link only (`content:encoded` is never read); `defusedxml`; a future `pubDate` is capped at the retrieval time |
 | connector events (`POST /v1/ingest/connector-event`) | `connector.parse_connector_event` | fact (structured) / inference (free text) | `<tenant>/<type-specific id>` | `sailing.updated`, `lane.capacity_changed`, `po_line.updated`, `supplier_message.received`; other types → `202 {accepted:false}` |
-| **M8** NHC `CurrentStorms.json` (+ cone / track KMZ) | `nhc.parse_nhc`, `kml` | fact, anchor | storm id (each advisory a new version) | public domain; GIS only from `www.nhc.noaa.gov` over https, at most `NHC_MAX_GIS_FETCHES` per poll and once per advisory (an unchanged one reuses the stored footprint); a storm that leaves the feed is withdrawn |
+| **M8** NHC `CurrentStorms.json` (+ cone / track KMZ) | `nhc.parse_nhc`, `kml` | fact, anchor | storm id (each advisory a new version) | public domain; GIS only from `www.nhc.noaa.gov` over https, at most `NHC_MAX_GIS_FETCHES` per poll and once per advisory (an unchanged one reuses the stored footprint; products left over by the cap or a failed download are fetched by the next poll, which reads the feed in full instead of a 304, and the storm keeps its last footprint meanwhile); a storm that leaves the feed is withdrawn |
 | **M8** Copernicus EMS `public-activations-info` | `copernicus_ems.parse_ems` | fact, anchor | activation code | © EU, attribution required; centroid point + countries; unmapped categories skipped; an activation already expired at the poll is only ingested to close a signal the hub holds |
-| **M8** OFAC SDN / ALT / ADD CSV | `ofac.parse_entities`, `ofac.publication_draft` | fact, anchor | `sdn:<Last-Modified>` | public domain; organisations only; first poll = silent baseline (`source_snapshot`), then one signal per publication with new or changed organisations, no geometry or refs, `match_keys` of their names and aliases |
+| **M8** OFAC SDN / ALT / ADD CSV | `ofac.parse_entities`, `ofac.publication_draft` | fact, anchor | `sdn:<newest Last-Modified of the three files>` (later than the last delta's) | public domain; organisations only; first poll = silent baseline (`source_snapshot`), then one signal per publication with new or changed organisations, no geometry or refs, `match_keys` of their names and aliases |
 | **M8** GDELT 2.0 15-min event export | `gdelt.matching_rows`, `gdelt.drafts_for` | inference (`gdelt-cameo`, no LLM) | `<day>:<subtype>:<SCHEME>:<code>` | open, citation required; `lastupdate.txt` → the export on `data.gdeltproject.org` (path pattern, size and MD5 checked); CAMEO + articles + city-level + port / chokepoint filters; per-day aggregates in the cursor; capped below the alert threshold; tenant **opt-in** |
-| **M8** MeteoAlarm legacy Atom per country (+ CAP documents) | `meteoalarm.parse_atom`, `parse_cap_detail`, `parse_meteoalarm` | fact | `<CAP identifier>#<EMMA_ID>` | redistribution terms apply: off by default (`SIGNAL_ADAPTERS`) **and** tenant opt-in; orange and red only; CAP polygons from `feeds.meteoalarm.org` only, at most `METEOALARM_MAX_DETAIL_FETCHES` per poll; a cancelled or vanished warning is withdrawn |
+| **M8** MeteoAlarm legacy Atom per country (+ CAP documents) | `meteoalarm.parse_atom`, `parse_cap_detail`, `parse_meteoalarm` | fact | `<CAP identifier>#<EMMA_ID>` | redistribution terms apply: off by default (`SIGNAL_ADAPTERS`) **and** tenant opt-in; orange and red only; CAP polygons from `feeds.meteoalarm.org` only, at most `METEOALARM_MAX_DETAIL_FETCHES` per poll (the rest follow on the next polls, which read the feed in full while any is pending); a cancelled or vanished warning is withdrawn |
 
 The source registry (`sources.py`) defines every adapter once (catalogue kind, provenance, licence and
 licence class, attribution, terms link, cadence limits, authority, opt-in, coverage); the admin
@@ -295,7 +296,8 @@ means subscribed, default cadence) can:
   (a configured default below the floor stays valid). Polling is shared:
   * the poll cadence is the fastest cadence any subscribed tenant wants, and a tenant without an
     override counts as the default (`source_schedule`, rebuilt under a lock after every change);
-  * a source every registered tenant disabled is **paused** (the loop and `--once` skip it).
+  * a source every registered tenant disabled is **paused** (the loop and `--once` skip it); neither
+    ever polls an adapter outside `SIGNAL_ADAPTERS`.
 
   The poller re-reads the schedule every loop. A lowered cadence applies from the last poll
   (`FeedRunner.due`).
@@ -462,6 +464,6 @@ docker rm -fv keelson_m6_sh_pg && docker network rm keelson_m6_sh_net
 |---|---|
 | `infra/cloudrun/signal-hub/signal-hub-api.yaml` | internal-ingress Service, minScale 1 so the extraction/sweep loops run |
 | `infra/cloudrun/signal-hub/signal-hub-bootstrap.yaml` | migrations Job |
-| `infra/cloudrun/signal-hub/signal-hub-poll.yaml` | template: one Job per adapter (`--once --adapter X`) triggered by Cloud Scheduler |
+| `infra/cloudrun/signal-hub/signal-hub-poll.yaml` | template: one Job per adapter (`--once --adapter X`) triggered by Cloud Scheduler; feed adapters only when in `SIGNAL_ADAPTERS` (MeteoAlarm also needs `METEOALARM_COUNTRIES`), plus `extraction` and `sweep` |
 
 `infra/cloudrun/signal-hub.sh` holds the deploy steps that `scripts/cloudrun/deploy.sh` sources.

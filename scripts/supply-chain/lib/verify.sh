@@ -153,8 +153,10 @@ sc_verify_ref() {  # REF [KEY=VALUE annotation...]
       SC_PROVENANCE="pass"
     elif [ "$SC_SIGNER_MODE" = keyless ] && command -v gh >/dev/null 2>&1 &&
       gh attestation verify "oci://$ref" --repo "$SC_SIGNER_REPOSITORY" --bundle-from-oci \
-        --signer-workflow "$SC_SIGNER_REPOSITORY/.github/workflows/release.yml" \
+        --cert-oidc-issuer "$SC_SIGNER_OIDC_ISSUER" --cert-identity-regex "$SC_SIGNER_IDENTITY_REGEXP" \
         --predicate-type https://slsa.dev/provenance/v1 >/dev/null 2>"$err" </dev/null; then
+      # same identity as cosign (workflow file AND main / vX.Y.Z ref): a provenance made by release.yml
+      # on any other branch must not pass the fallback either
       SC_PROVENANCE="pass"
     else
       SC_PROVENANCE="fail"; SC_ERROR="provenance: $(sc_last_error "$err")"; rm -f "$err"; return 1

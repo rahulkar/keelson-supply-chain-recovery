@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import posixpath
 import subprocess
 from pathlib import Path
 
@@ -133,7 +134,17 @@ def test_compose_release_override(release: Path, tmp_path: Path) -> None:
     assert res.returncode == 0, res.stderr
     doc = yaml.load(out.read_text(encoding="utf-8"), Loader=_reset_loader())  # noqa: S506 (SafeLoader subclass)
     compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))["services"]
-    built = {s for s, d in compose.items() if "build" in d and s != "pg-core"}
+
+    def dockerfile(build: str | dict[str, str]) -> str:
+        ctx, df = (build, "Dockerfile") if isinstance(build, str) else (build.get("context", "."),
+                                                                           build.get("dockerfile", "Dockerfile"))
+        return posixpath.normpath(posixpath.join(ctx, df))
+
+    # every compose service built from a release image is replaced; pg-core and other local-only builds
+    # (e.g. a tool image that is not a release image) keep their build
+    release_dfs = {i.dockerfile for i in REGISTRY.release_images if not i.overlay_of}
+    built = {s for s, d in compose.items() if "build" in d and dockerfile(d["build"]) in release_dfs}
+    assert "pg-core" not in built and {"engine-api", "keelson-web", "signal-hub-api"} <= built
     assert set(doc["services"]) == built
     for svc, d in doc["services"].items():
         assert d["build"] is None and d["image"].startswith(f"{GHCR}/") and "@sha256:" in d["image"], svc

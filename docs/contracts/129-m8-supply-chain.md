@@ -84,7 +84,8 @@ The 120 §5 known failures are `deselect`ed with their reason (engine PDF tests,
 non-superuser bootstrap), so CI is green on the known environment and new failures still fail.
 
 `ci_run_suite.py SUITE [--no-build] [--image REF] [--dry-run] [--keep]`: builds `keelson-ci/<image>:<target>`
-(or uses `--image`), starts a throwaway pg-core (`keelson-ci/pg-core:latest`, tmpfs, `fsync=off`) and
+(or uses `--image`), starts a throwaway pg-core (`keelson-ci/pg-core:latest`, data on a 768 MiB tmpfs
+under a 1 GiB cap — tmpfs counts against the cap; engine-runtime peaks at ~360 MiB of data — `fsync=off`) and
 Valkey (compose's pinned image) on a private network with the aliases `e1-test-pg` / `e1-test-valkey`
 the service READMEs use, runs the suite with `--memory`, removes everything named
 `keelson_ci_<suite>_<random>`. Exit = the suite's status (99 = harness failure). Stdlib; Git Bash or
@@ -92,13 +93,15 @@ the GitHub runner.
 
 ### 2.3 `check_pins.py`
 
-Rules P1–P9 (`docs/supply-chain.md` §2): pins in Dockerfiles / compose / pin files / scripts and
-workflows (P1–P4), SHA-pinned actions with a version comment and no `docker://` (P5), no floating or
-inexact tags (P6), version caps on the lockfiles and image tags (P7: motion <14,
+Rules P1–P9 (`docs/supply-chain.md` §2): pins in Dockerfiles / compose / pin files / scripts,
+workflows and the `images.json` toolchain suites (P1–P4), SHA-pinned actions with a version comment and
+no `docker://` (P5), no floating or inexact tags (P6), version caps on the lockfiles (every locked
+version of a package: `uv.lock` repeats a package per resolution fork) and image tags (P7: motion <14,
 @tanstack/react-table <9, TypeScript <6.1 in both pnpm lockfiles, maplibre-gl ≥6.4.1, engine fastapi
 <0.142 and opentelemetry-api ≤1.42.1 while google-adk ==2.11.0, LiteLLM ≠1.82.7/1.82.8 in every
 `uv.lock` and as image tag, python <3.15, node <25, postgres <19, valkey <9, Keycloak <27, Caddy <3),
-cross-file consistency (P8: one pin per image; pnpm in both package.json, the corepack lines and
+cross-file consistency (P8: one pin per image variant, i.e. repository + tag without its version, so
+`uv:0.12.23` and `uv:0.12.23-python3.14-trixie-slim` may coexist; pnpm in both package.json, the corepack lines and
 `versions.psd1`; uv, LiteLLM, Keycloak, keycloak-config-cli and Caddy = `versions.psd1`; overlay `ARG`
 defaults = `versions.env`; pydantic / mcp / fastmcp equal across uv projects; AG-UI major.minor;
 Playwright npm = image; Valkey major = Memorystore; pnpm `minimumReleaseAge` = Renovate's) and
@@ -162,7 +165,8 @@ exactly when `RELEASE_DOMAIN` is set.
 with `--certificate-oidc-issuer`, `--certificate-identity-regexp`, `--certificate-github-workflow-repository`,
 `--certificate-github-workflow-trigger` and `-a` annotations; `verify-attestation --type spdxjson`; with
 `REQUIRE_PROVENANCE=1` `verify-attestation --type slsaprovenance1`, falling back to `gh attestation
-verify --bundle-from-oci`), `sc_verify_upstream REF PUBKEY`, `sc_verify_release FILE` (bundle
+verify --bundle-from-oci` with the same `--cert-oidc-issuer` and `--cert-identity-regex`, so the fallback
+pins workflow file and ref too), `sc_verify_upstream REF PUBKEY`, `sc_verify_release FILE` (bundle
 `FILE.sigstore.json` + strict content validation; images must live under `RELEASE_REGISTRY`). Key mode
 (`SIGNER_MODE=key`, `--key` + `--insecure-ignore-tlog`) exists only for the offline e2e; deploy.sh warns
 loudly. cosign: `$COSIGN_BIN`, `cosign` on PATH, else the pinned image via Docker with file arguments
@@ -247,13 +251,16 @@ None (120 §2 allocates no migration to this workstream).
 
 | Suite | Command | Result (2026-10-10) |
 |---|---|---|
-| Tooling: check_pins, shellcheck (all scripts), pytest (`scripts/supply-chain/tests` + `scripts/cloudrun/tests` + `scripts/tests/test_init_secrets.py`), actionlint, zizmor | `scripts/supply-chain/tests/run.sh` | 0 failed parts; pytest 269 passed |
+| Tooling: check_pins, shellcheck (all scripts), pytest (`scripts/supply-chain/tests` + `scripts/cloudrun/tests` + `scripts/tests/test_init_secrets.py`), actionlint, zizmor | `scripts/supply-chain/tests/run.sh` | 0 failed parts; pytest 277 passed (after the review fixes) |
 | Renovate validator + extraction (every pinned image extracted once, no manager duplicates, uv/npm projects, actions, nothing from fixtures) | `run.sh --with-renovate` | pass |
 | Offline cosign e2e: local registry, real cosign v3.1.3 key mode: signed passes; unsigned / wrong key / tag / other `git_sha` fail; deploy.sh `--verify-only` accepts the signed release and refuses an unsigned image and a tampered file with no gcloud call; compose-release writes only for the good release and its override renders with `compose.yaml` | `run.sh --with-docker` (`tests/e2e_sign_verify.sh`) | 14/14 checks |
 | Cloud Run: shellcheck, pytest 100 (incl. the new release-gate and `--release-tag` download tests), dbinit against Postgres 18 with the pinned images, parity self-test | `scripts/cloudrun/tests/run.sh` | pass (dbinit needs `keelson-pg-core:latest`, built for the run) |
 | `ci_run_suite.py optimizer` (pinned optimizer Dockerfile built, suite run, cleanup) | through a docker-CLI container | build OK, 209 passed, 4 wall-clock budget tests (5 s) failed under shared-host load; the same 4 fail in the shared m8 harness on unchanged optimizer code (§10) |
 | `workspace-test` commands + frozen installs with `minimumReleaseAge` | m8-js harness: `pnpm fetch/install --frozen-lockfile`, `gen-zod --check`, `gen-tokens --check`, `packages/*` typecheck + test | pass (251 viz tests among them); a stale generated module makes `gen-zod --check` fail. The `docker build --target workspace-test` itself was not run on this shared host (full pnpm fetch); CI's `web (web-packages)` job builds it |
 | Live pins / key | `pin-image.sh --verify` equivalent over all 21 pinned refs; `verify-images.sh --compose` | all digests current; LiteLLM signature PASS |
+| CI database sizing (review) | `ci_run_suite.py`'s pg-core + Valkey settings, engine suites run against them with the m8 harness image | engine-platform 464 passed / 2 skipped / 3 deselected (120 §5); engine-runtime 894 passed; pg peak ~520 MiB (356 MiB tmpfs), hence the 1 GiB cap |
+| Web (review) | m8-js harness | `@keelson/web` typecheck + lint + 468 tests; packages 84 + 165 + 75 + 251 tests; merxa-web typecheck + lint + 211 tests; `pnpm config get minimumReleaseAge` = 4320 in both projects; contracts `--check` clean |
+| Simulated integration (review) | `git merge-tree` with `m8-post-demo`, conflict resolved and basemap fixed as §11 | check_pins 0 findings; shellcheck clean; supply-chain + Cloud Run + init-secrets pytest pass (2 basemap tests need `--allow-unsigned`, §11) |
 
 Unit tests per tool: `test_check_pins.py` (pass + fail fixture per rule, exit code, real repo clean),
 `test_ci_run_suite.py` (dry-run command lines, fake docker: exit status, health wait, cleanup on
@@ -285,6 +292,12 @@ From the design brief:
    verified that frozen installs and `pnpm add` are unaffected) instead of an `.npmrc`.
 9. zizmor's `self-repository` audit is disabled (`.github/zizmor.yml`): actionlint 1.7.12 does not
    accept the `$/` form it prefers.
+10. `scripts/cloudrun/tests/test_cloudrun.py`: three existing parity assertions already failed on the M8
+    baseline (M7 compose additions never wired to Cloud Run) and now allow-list them by name:
+    `SIGNALS_DATA_KEY` (optional; the hub derives its at-rest key from `SIGNAL_HUB_SHARED_SECRET`) and
+    the engine's `EVALS_RESULTS_DIR` + `/app/evals/results` mount (local CLI eval results; the Cloud Run
+    admin listing reports the directory absent). Every other compose secret, engine variable and mount
+    is still asserted.
 
 ## 9. Deferred
 
@@ -323,6 +336,14 @@ From the design brief:
   heavily loaded host in both the CI-style container and the m8 harness; not related to this change.
 * `ci_run_suite.py` tool suites bind-mount the checkout, so they need a host docker CLI (not
   docker-outside-of-docker from a container).
+* Image suites run the Dockerfile `test` targets, which contain only the files those stages copy:
+  engine tests that read other parts of the repository skip there (`test_replay.py::
+  test_production_deployments_never_enable_replay` needs `infra/cloudrun`,
+  `test_m3_candidates.py::test_ci_every_default_lever_op_is_supported_by_merxa` needs the merxa-api
+  sources). They still run in the mounted-checkout harness; copying more of the tree into the test
+  stages is left to the service owners.
+* `compose-release.sh` replaces only release images: pg-core must exist locally (`docker compose build
+  pg-core` once) before `up --no-build`.
 * CODEOWNERS review cannot be required while the repository has one maintainer.
 
 ## 11. Integration notes
@@ -337,6 +358,12 @@ From the design brief:
   `ARG NODE_IMAGE=node:24.21.0-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20`,
   and append to `images.json`:
   `{"name": "basemap-fetch", "dockerfile": "infra/basemap/Dockerfile", "context": ".", "target": "runtime", "release": false, "suites": [{"id": "basemap-fetch", "kind": "build", "target": "test"}]}`.
+* deploy.sh now refuses to run without an image source, so the two maps-protomaps tests in
+  `scripts/cloudrun/tests/test_cloudrun.py` that call it directly (`test_basemap_dry_run_uploads_manifest_last`,
+  `test_basemap_needs_a_directory_outside_dry_run`) need `"--allow-unsigned"` in their `deploy(...)`
+  arguments (the `render(...)` helper with `--render-only` needs nothing). With the conflict resolved as
+  above, the basemap fix and these two arguments, a simulated merge passes check_pins (0 findings),
+  shellcheck, and all supply-chain, Cloud Run and `test_init_secrets.py` pytest suites.
 * Every later workstream that adds a Dockerfile, a compose `build:`/`image:`, a `test` stage or a Cloud
   Run image: pin with `scripts/supply-chain/pin-image.sh`, register in `images.json` (+ `deploy_var`, the
   `RELEASE_IMAGE_MAP` line in deploy.sh and, for compose services from a release image,

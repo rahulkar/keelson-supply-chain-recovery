@@ -97,6 +97,28 @@ def test_p5_workflow_uses(good_tree: Path, uses: str, needle: str) -> None:
     assert len(got) == 1 and needle in got[0]
 
 
+def test_p4_registry_tool_suite_images(good_tree: Path) -> None:
+    """The toolchain suites of images.json run pinned images like the scripts: same pin rules (P4/P6/P8)."""
+    reg_path = good_tree / "infra/supply-chain/images.json"
+    data = json.loads(reg_path.read_text())
+    data["suites"] = [{"id": "tools", "image": PY, "workdir": ".", "cmd": ["true"]}]
+    reg_path.write_text(json.dumps(data, indent=1))
+    assert findings(good_tree) == []
+    data["suites"][0]["image"] = f"python:latest@{D['e']}"
+    reg_path.write_text(json.dumps(data, indent=1))
+    got = [(f.rule, f.file, f.message) for f in findings(good_tree)]
+    assert [(r, f) for r, f, _ in got] == [("P6", "infra/supply-chain/images.json")]
+    assert "suite tools image python:latest@" in got[0][2] and "floating tag 'latest'" in got[0][2]
+    data["suites"][0]["image"] = f"python:3.14.8-slim-trixie@{D['f']}"  # stale digest: the scripts pin D['a']
+    reg_path.write_text(json.dumps(data, indent=1))
+    got = [m for r, m in rules(good_tree) if r == "P8"]
+    assert len(got) == 1 and got[0].startswith("one pin per image: python is pinned to 2 different tag/digest pairs")
+    # another variant of a pinned repository (uv's python image next to the Dockerfiles' plain uv) is fine
+    data["suites"][0]["image"] = f"ghcr.io/astral-sh/uv:0.12.23-python3.14-trixie-slim@{D['e']}"
+    reg_path.write_text(json.dumps(data, indent=1))
+    assert findings(good_tree) == []
+
+
 def test_p6_floating_tag_even_with_digest(good_tree: Path) -> None:
     edit(good_tree, "compose.yaml", f"image: {VALKEY}", f"image: valkey/valkey:latest@{D['e']}")
     edit(good_tree, "scripts/run.sh", f"docker run --rm {VALKEY}", f"docker run --rm valkey/valkey:latest@{D['e']}")
@@ -109,6 +131,17 @@ def test_p7_litellm_banned_versions_in_any_uv_lock(good_tree: Path) -> None:
     write_tree(good_tree, {"services/x/uv.lock": '[[package]]\nname = "litellm"\nversion = "1.82.8"\n'})
     got = [m for r, m in rules(good_tree) if r == "P7"]
     assert got == ["litellm 1.82.8 violates the cap !=1.82.8: plan §14: litellm 1.82.7/1.82.8 are banned (compromised releases)"]
+
+
+def test_p7_litellm_ban_sees_every_locked_version(good_tree: Path) -> None:
+    """uv.lock lists a package once per resolved version (resolution forks): a banned version is caught
+    even when an allowed version of the same package follows it."""
+    entry = ('[[package]]\nname = "litellm"\nversion = "{}"\nsource = {{ registry = "https://pypi.org/simple" }}\n'
+             'resolution-markers = [\n    "{}",\n]\n\n')
+    write_tree(good_tree, {"services/x/uv.lock": entry.format("1.82.7", "sys_platform == 'linux'")
+                           + entry.format("1.104.0", "sys_platform != 'linux'")})
+    got = [m for r, m in rules(good_tree) if r == "P7"]
+    assert got == ["litellm 1.82.7 violates the cap !=1.82.7: plan §14: litellm 1.82.7/1.82.8 are banned (compromised releases)"]
 
 
 def test_p7_pnpm_caps(good_tree: Path) -> None:

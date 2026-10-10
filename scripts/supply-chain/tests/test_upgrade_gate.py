@@ -94,6 +94,29 @@ def test_transitive_change_is_caught_without_direct_bump(trees: tuple[Path, Path
     assert ug.Change("services/engine/uv.lock", "google-genai", "2.28.0", "2.30.1") in rep.changes
 
 
+def test_every_locked_version_of_a_package_is_compared(trees: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch,
+                                                       tmp_path: Path) -> None:
+    """uv.lock repeats a package per resolution fork: moving the first of two litellm entries is a change."""
+    def fork(first: str) -> str:
+        return uv(**ENGINE) + "".join(f'[[package]]\nname = "litellm"\nversion = "{v}"\nresolution-markers = []\n\n'
+                                      for v in (first, "1.104.0"))
+    write_tree(trees[0], {"services/engine/uv.lock": fork("1.103.0")})
+    write_tree(trees[1], {"services/engine/uv.lock": fork("1.105.0")})
+    rc, md = run(trees, monkeypatch, tmp_path)
+    assert rc == 1 and "| services/engine/uv.lock | litellm | 1.103.0,1.104.0 | 1.104.0,1.105.0 |" in md
+
+
+@pytest.mark.parametrize("line", ["google_adk==2.12.0", "Google-ADK==2.12.0", "litellm[proxy]==1.105.0",
+                                  "google.adk == 2.12.0  # pinned"])
+def test_requirements_names_are_normalized(trees: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+                                           line: str) -> None:
+    """evals/requirements.txt: PEP 503 names (case, _ . -) and extras cannot hide a gated package."""
+    write_tree(trees[0], {"evals/requirements.txt": "pytest==9.1.1\n"})
+    write_tree(trees[1], {"evals/requirements.txt": f"pytest==9.1.1\n{line}\n"})
+    rc, md = run(trees, monkeypatch, tmp_path)
+    assert rc == 1 and "**Blocked**" in md and "`spike-verified`" in md.split("\n")[2]
+
+
 def test_opentelemetry_outside_the_engine_is_not_gated(trees: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch,
                                                        tmp_path: Path) -> None:
     write_tree(trees[1], {"services/signal-hub/uv.lock": uv(opentelemetry_api="1.50.0")})

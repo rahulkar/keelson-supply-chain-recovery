@@ -109,8 +109,16 @@ def test_db_suite_dry_run_builds_starts_services_runs_and_cleans_up(tree: Path, 
     assert net[:3] == ["docker", "network", "create"] and name.startswith("keelson_ci_api_db_")
     assert pg_build == ["docker", "build", "-q", "-f", "infra/postgres/core/Dockerfile", "-t", ci_run_suite.PG_IMAGE,
                         "infra/postgres/core"]
-    assert pg_run[pg_run.index("--network-alias") + 1] == "e1-test-pg" and pg_run[pg_run.index("--memory") + 1] == "512m"
+    assert pg_run[pg_run.index("--network-alias") + 1] == "e1-test-pg"
     assert "--tmpfs" in pg_run and "fsync=off" in pg_run and f"{name}_pg" in pg_run
+
+    def mib(size: str) -> int:
+        return int(size[:-1]) * (1024 if size.endswith("g") else 1)
+    # The tmpfs data directory is charged to the container's memory cgroup: the cap must hold the full tmpfs
+    # plus the server (engine-runtime measured ~360 MiB of data + ~170 MiB of server on the CI settings).
+    tmpfs = pg_run[pg_run.index("--tmpfs") + 1]
+    assert tmpfs.startswith("/var/lib/postgresql:size=")
+    assert mib(pg_run[pg_run.index("--memory") + 1]) >= mib(tmpfs.split("size=")[1]) + 256
     assert valkey_run[valkey_run.index("--network-alias") + 1] == "e1-test-valkey" and VALKEY in valkey_run
     assert valkey_run[valkey_run.index("--memory") + 1] == "64m"
     # the suite: memory cap, env sorted, the private network, the cmd + deselected node ids

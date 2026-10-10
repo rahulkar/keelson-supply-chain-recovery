@@ -34,7 +34,8 @@ NON_SECRET = {
 }
 LB_SERVICES = {"engine-api", "keelson-web", "merxa-api", "merxa-web", "keycloak", "litellm", "phoenix"}
 SECRETISH = re.compile(r"(SECRET|PASSWORD|_KEY$|DATABASE_URL$|^VALKEY_URL$|^PGPASSWORD$)")
-# compose-only settings without a Cloud Run counterpart (M7; found by these tests in M8, 129 §9):
+# compose-only settings without a Cloud Run counterpart (M7; these three assertions already failed on the
+# M8 baseline; docs/contracts/129-m8-supply-chain.md §8 and §10):
 # SIGNALS_DATA_KEY is optional (the hub derives its at-rest key from SIGNAL_HUB_SHARED_SECRET when unset,
 # services/signal-hub/README.md); EVALS_RESULTS_DIR + /app/evals/results expose local CLI eval results to
 # the admin listing (110 §6), and the Cloud Run engine has none (the listing reports the directory absent).

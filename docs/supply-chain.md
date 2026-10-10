@@ -57,11 +57,11 @@ Stdlib only (Git Bash, the GitHub runner or `python:3.14.8-slim-trixie`). One JS
 | P1 | Dockerfiles: `# syntax=`, `FROM`, `COPY/RUN --from=<image>` and the `ARG` defaults they use are pinned |
 | P2 | `compose*.yaml`: every `image:` is pinned |
 | P3 | `infra/cloudrun/versions.env`, `infra/supply-chain/signing.env`: every `*_IMAGE` is pinned |
-| P4 | `scripts/`, `infra/`, `e2e/` shell + PowerShell and `.github/`: image assignments and literals of known repositories are pinned |
+| P4 | `scripts/`, `infra/`, `e2e/` shell + PowerShell and `.github/`: image assignments and literals of known repositories are pinned; so are the `image`s of the toolchain `suites` in `infra/supply-chain/images.json` |
 | P5 | workflows/actions: `uses:` is `./…` or `owner/repo[/path]@<40-hex sha> # vX.Y.Z`; no `docker://` |
 | P6 | no floating (`latest`, `stable`, `edge`, …) or inexact (`2-alpine`, `3.14-slim`) tags, even with a digest |
-| P7 | caps in the lockfiles and image tags: motion <14, @tanstack/react-table <9, TypeScript <6.1, maplibre-gl ≥6.4.1, engine fastapi <0.142 and opentelemetry-api ≤1.42.1 while google-adk 2.11.0, LiteLLM never 1.82.7/1.82.8 (package and image), python <3.15, node <25, postgres <19, valkey <9, Keycloak <27, Caddy <3 |
-| P8 | one pin per image; pnpm (package.json x2, corepack lines, `scripts/native/versions.psd1`), uv, LiteLLM (package = proxy image = native), Keycloak, keycloak-config-cli and Caddy (= `versions.psd1`); overlay `ARG` defaults = `versions.env`; pydantic / mcp / fastmcp equal across the uv projects; AG-UI major.minor; Playwright npm = image; Valkey major = Memorystore; pnpm `minimumReleaseAge` = Renovate's |
+| P7 | caps in the lockfiles (every locked version of a package) and image tags: motion <14, @tanstack/react-table <9, TypeScript <6.1, maplibre-gl ≥6.4.1, engine fastapi <0.142 and opentelemetry-api ≤1.42.1 while google-adk 2.11.0, LiteLLM never 1.82.7/1.82.8 (package and image), python <3.15, node <25, postgres <19, valkey <9, Keycloak <27, Caddy <3 |
+| P8 | one pin per image variant (repository + tag without its version: `uv:0.12.23` and `uv:0.12.23-python3.14-trixie-slim` are two variants); pnpm (package.json x2, corepack lines, `scripts/native/versions.psd1`), uv, LiteLLM (package = proxy image = native), Keycloak, keycloak-config-cli and Caddy (= `versions.psd1`); overlay `ARG` defaults = `versions.env`; pydantic / mcp / fastmcp equal across the uv projects; AG-UI major.minor; Playwright npm = image; Valkey major = Memorystore; pnpm `minimumReleaseAge` = Renovate's |
 | P9 | `infra/supply-chain/images.json`: valid; every Dockerfile, compose `build:` and Dockerfile `test` stage registered; every registered path/target exists; deploy.sh image variables = the registry's `deploy_var`s; deploy.sh / compose-release.sh release maps match the registry |
 
 Typical messages and what to do:
@@ -139,8 +139,9 @@ persist credentials; no `pull_request_target`; no `${{ … }}` inside `run:` scr
 | `image (<name>)` | every release image: upstream key check (LiteLLM), build the release target (single manifest), `check-image.sh --require-labels`, Grype (fails on a critical CVE with a fix), SARIF to code scanning |
 | `docker-tests` | db-init against Postgres 18, `parity-check.sh --selftest`, Caddy routes, the signing e2e |
 
-Suggested branch ruleset for `main`: required checks `meta`, `upgrade-gate`, `python (*)`, `web (*)`,
-`image (*)`; protect `v*` tags.
+Suggested branch ruleset for `main`: required checks (by their check names) `meta (pins, lint, renovate)`,
+`upgrade-gate`, every `python (<suite>)`, `web (<suite>)` and `image (<name>)`; protect `v*` tags. A job
+skipped by its `if:` (upgrade-gate outside pull requests) counts as passed.
 
 ## 6. Renovate (`renovate.json`) and the upgrade gate
 
@@ -223,7 +224,8 @@ scripts/supply-chain/check-image.sh keelson-engine-api:latest         # static i
 
 Per image: signature by the release identity carrying the expected annotations, SPDX SBOM attestation,
 SLSA v1 provenance (`cosign verify-attestation --type slsaprovenance1`, falling back to `gh attestation
-verify --bundle-from-oci`). Tags are refused: only `@sha256:` references are verified. cosign comes from
+verify --bundle-from-oci` with the same issuer and certificate identity regexp, so workflow file and
+ref are pinned there too). Tags are refused: only `@sha256:` references are verified. cosign comes from
 `$COSIGN_BIN`, `cosign` on PATH or the pinned `COSIGN_IMAGE` through Docker. Verification needs ghcr.io
 and the public Sigstore roots; when they are unreachable it fails (fail closed).
 
@@ -256,12 +258,14 @@ to run unless `--allow-unsigned` is given, and `--allow-unsigned` is refused whe
 
 ```bash
 scripts/supply-chain/compose-release.sh --release keelson-release.env
+docker compose build pg-core      # once: pg-core is not a release image
 docker compose -f compose.yaml -f compose.release.yaml up -d --no-build
 ```
 
 Writes the git-ignored `compose.release.yaml` (`build: !reset null`, `image: <verified ref@digest>` for
 bootstrap, engine-api, engine-worker, optimizer, merxa-api, merxa-web, keelson-web and the signal-hub
-services) only when every check passes. pg-core keeps its local build. Release images are built with
+services) only when every check passes. pg-core keeps its local build (without a local
+`keelson-pg-core` image `up --no-build` stops at it, hence the one-time build). Release images are built with
 the Dockerfile defaults: build arguments set in `.env` for compose builds do not apply to them.
 
 ## 11. One-time GitHub settings (manual)

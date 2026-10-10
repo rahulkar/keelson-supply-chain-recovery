@@ -74,6 +74,30 @@ def test_digest_ref_is_verified_with_the_pinned_identity(tmp_path: Path) -> None
                      f"verify-attestation {ident} --type slsaprovenance1 {ref}"]
 
 
+def test_provenance_fallback_pins_the_release_identity(tmp_path: Path) -> None:
+    """When cosign cannot read the attest-build-provenance bundle, `gh attestation verify` must enforce the
+    same certificate identity (repository, release.yml AND the main/vX.Y.Z ref), not just the workflow path."""
+    ghbin = tmp_path / "ghbin"
+    ghbin.mkdir()
+    (ghbin / "gh").write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$FAKE_GH_LOG"\nexit "${FAKE_GH_RC:-0}"\n',
+                              encoding="utf-8")
+    (ghbin / "gh").chmod(0o755)
+    log = tmp_path / "gh.log"
+    env = {"PATH": f"{ghbin}:{os.environ['PATH']}", "FAKE_GH_LOG": str(log)}
+    ref = f"{GHCR}/optimizer@{digest('optimizer')}"
+    rc, lines, _, _ = run(tmp_path / "ok", ref, fail="slsaprovenance1", env=env)
+    assert rc == 0 and lines[0]["provenance"] == "pass", lines
+    args = log.read_text(encoding="utf-8").split()
+    assert args[:3] == ["attestation", "verify", f"oci://{ref}"]
+    assert args[args.index("--repo") + 1] == "rahulkar/keelson-supply-chain-recovery"
+    assert args[args.index("--cert-identity-regex") + 1] == IDENTITY[3]
+    assert args[args.index("--cert-oidc-issuer") + 1] == IDENTITY[1]
+    assert args[args.index("--predicate-type") + 1] == "https://slsa.dev/provenance/v1"
+    assert "--bundle-from-oci" in args and "--signer-workflow" not in args
+    rc, lines, _, _ = run(tmp_path / "bad", ref, fail="slsaprovenance1", env={**env, "FAKE_GH_RC": "1"})
+    assert rc == 1 and lines[0]["provenance"] == "fail"
+
+
 @pytest.mark.parametrize("fail,field", [(f"{GHCR}/b@", "signature"), ("spdxjson", "sbom"), ("slsaprovenance1", "provenance")])
 def test_failures_are_counted(tmp_path: Path, fail: str, field: str) -> None:
     refs = [f"{GHCR}/{n}@{digest(n)}" for n in ("a", "b", "c")]

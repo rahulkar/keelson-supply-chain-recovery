@@ -35,6 +35,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import registry as reg  # noqa: E402
 
 PG_IMAGE = "keelson-ci/pg-core:latest"
+# The data directory lives on a tmpfs, which is charged to the container's memory cgroup: the cap holds
+# the whole tmpfs plus the server. The engine-runtime suite peaks at ~360 MiB of data + ~170 MiB of server
+# (a 512m cap pushes Postgres into swap or the OOM killer).
+PG_MEMORY, PG_TMPFS = "1g", "768m"
 PG_ENV = {"POSTGRES_PASSWORD": "test", "KEELSON_DB_PASSWORD": "ci-keelson", "ADK_DB_PASSWORD": "ci-adk",
           "KEYCLOAK_DB_PASSWORD": "ci-keycloak"}
 HARNESS_FAILED = 99
@@ -135,7 +139,7 @@ def run_suite(r: reg.Registry, suite: reg.Suite, h: Harness, *, image_ref: str |
             h.remove_later("rm", "-fv", f"{name}_pg")
             pg_env = [x for k, v in PG_ENV.items() for x in ("-e", f"{k}={v}")]
             h.docker("run", "-d", "--name", f"{name}_pg", "--network", net, "--network-alias", "e1-test-pg",
-                     "--memory", "512m", "--tmpfs", "/var/lib/postgresql:size=768m", *pg_env, PG_IMAGE,
+                     "--memory", PG_MEMORY, "--tmpfs", f"/var/lib/postgresql:size={PG_TMPFS}", *pg_env, PG_IMAGE,
                      "postgres", "-c", "fsync=off", "-c", "max_connections=200", capture=True)
         if suite.valkey:
             h.remove_later("rm", "-fv", f"{name}_valkey")

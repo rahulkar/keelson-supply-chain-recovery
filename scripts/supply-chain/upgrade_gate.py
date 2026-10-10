@@ -72,8 +72,11 @@ class Report:
 
 # ───────────────────────────── lockfile parsing ─────────────────────────────
 def uv_lock(text: str) -> dict[str, str]:
-    return {m.group(1): m.group(2) for m in
-            re.finditer(r'^\[\[package\]\]\s*\nname = "([^"]+)"\s*\nversion = "([^"]+)"', text, re.M)}
+    """name -> every locked version, comma separated (uv.lock repeats a package per resolution fork)."""
+    out: dict[str, set[str]] = {}
+    for m in re.finditer(r'^\[\[package\]\]\s*\nname = "([^"]+)"\s*\nversion = "([^"]+)"', text, re.M):
+        out.setdefault(m.group(1), set()).add(m.group(2))
+    return {k: ",".join(sorted(v)) for k, v in out.items()}
 
 
 def pnpm_lock(text: str) -> dict[str, str]:
@@ -91,7 +94,9 @@ def pnpm_lock(text: str) -> dict[str, str]:
 
 
 def requirements(text: str) -> dict[str, str]:
-    return {m.group(1).lower(): m.group(2) for m in re.finditer(r"^([A-Za-z0-9_.-]+)==(\S+)", text, re.M)}
+    """name (PEP 503 normalized: Google_ADK -> google-adk; extras dropped) -> pinned version."""
+    return {re.sub(r"[-_.]+", "-", m.group(1)).lower(): m.group(2) for m in
+            re.finditer(r"^[ \t]*([A-Za-z0-9_.-]+)[ \t]*(?:\[[^\]]*\])?[ \t]*==[ \t]*([^\s;#]+)", text, re.M)}
 
 
 def litellm_image(text: str) -> str:

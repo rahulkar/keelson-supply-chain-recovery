@@ -12,13 +12,15 @@ Rules
   P2  compose files: every ``image:`` is pinned the same way.
   P3  infra/cloudrun/versions.env and infra/supply-chain/signing.env: every ``*_IMAGE`` is pinned.
   P4  scripts (``scripts/``, ``infra/``, ``e2e/`` shell + PowerShell) and GitHub workflows/actions:
-      image assignments and every literal of a known image repository are pinned.
+      image assignments and every literal of a known image repository are pinned; so are the images
+      of the toolchain ``suites`` in infra/supply-chain/images.json.
   P5  workflows: every ``uses:`` is a local ``./`` action or ``owner/repo[/path]@<40-hex sha>  # vX``;
       ``docker://`` actions are forbidden.
   P6  no floating tags (latest, stable, edge, ...) and no inexact tags (``2-alpine``) anywhere above.
-  P7  version caps from docs/contracts/60-build-guide.md, checked in the lockfiles and image tags
-      (motion <14, typescript <6.1, litellm never 1.82.7/1.82.8, ...).
-  P8  cross-file consistency (pnpm version and minimumReleaseAge = Renovate's, uv, litellm, keycloak,
+  P7  version caps from docs/contracts/60-build-guide.md, checked in the lockfiles (every locked version
+      of a package) and image tags (motion <14, typescript <6.1, litellm never 1.82.7/1.82.8, ...).
+  P8  one pin per image variant (repository + tag without its version) and cross-file consistency
+      (pnpm version and minimumReleaseAge = Renovate's, uv, litellm, keycloak,
       caddy, python/node bases, overlay ARG defaults = versions.env, pydantic/mcp/fastmcp across the uv
       projects, AG-UI, Playwright).
   P9  infra/supply-chain/images.json coverage: every Dockerfile, compose ``build:`` and Dockerfile
@@ -408,6 +410,28 @@ class Checker:
             out[f] = vals
         return out
 
+    # P4: images.json toolchain suites (pinned images run by ci_run_suite.py, like the script literals) ───
+    def registry_images(self) -> None:
+        f = str(reg.REGISTRY_PATH).replace(os.sep, "/")
+        if not self.repo.exists(f):
+            return
+        text = self.repo.read(f)
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError:
+            return  # P9 reports the invalid registry
+        suites = data.get("suites") if isinstance(data, dict) else None
+        for s in suites if isinstance(suites, list) else []:
+            image = s.get("image") if isinstance(s, dict) else None
+            if not isinstance(image, str):
+                continue
+            n = next((i for i, ln in enumerate(text.splitlines(), 1) if image in ln), 0)
+            ref = parse_ref(image, f, n)
+            if ref is None:
+                self.add("P4", f, n, f"suite {s.get('id')} image {image} is not an image reference")
+            else:
+                self.check_ref("P4", ref, f"suite {s.get('id')} image")
+
     # P4 / P5 ─────────────────────────────
     def scripts(self) -> None:
         known = {r.name for r in self.refs} | TOOL_REPOS
@@ -467,10 +491,20 @@ class Checker:
             self.add("P5", f, n, f"uses: {target} needs a '# vX.Y.Z' version comment (Renovate keeps both in sync)")
 
     # P7 ─────────────────────────────
-    @staticmethod
-    def uv_lock(text: str) -> dict[str, str]:
-        return {m.group(1): m.group(2) for m in
-                re.finditer(r'^\[\[package\]\]\s*\nname = "([^"]+)"\s*\nversion = "([^"]+)"', text, re.M)}
+    UV_PACKAGE_RE = re.compile(r'^\[\[package\]\]\s*\nname = "([^"]+)"\s*\nversion = "([^"]+)"', re.M)
+
+    @classmethod
+    def uv_lock(cls, text: str) -> dict[str, str]:
+        """name -> version (the last entry when a package is locked more than once; P8 comparisons)."""
+        return {m.group(1): m.group(2) for m in cls.UV_PACKAGE_RE.finditer(text)}
+
+    @classmethod
+    def uv_lock_all(cls, text: str) -> dict[str, set[str]]:
+        """name -> every locked version: uv.lock repeats a package per resolution fork (P7 caps and bans)."""
+        out: dict[str, set[str]] = {}
+        for m in cls.UV_PACKAGE_RE.finditer(text):
+            out.setdefault(m.group(1), set()).add(m.group(2))
+        return out
 
     @staticmethod
     def pnpm_lock(text: str) -> dict[str, set[str]]:
@@ -492,7 +526,7 @@ class Checker:
         for f in locks:
             text = self.repo.read(f)
             if f.endswith("uv.lock"):
-                pkgs = {k: {v} for k, v in self.uv_lock(text).items()}
+                pkgs = self.uv_lock_all(text)
             else:
                 pkgs = self.pnpm_lock(text)
             for glob, pkg, spec, why, cond in LOCK_CAPS:
@@ -534,18 +568,27 @@ class Checker:
         for r in self.refs:
             by_name.setdefault(r.name, []).append(r)
 
-        def same(name: str, what: str) -> None:
-            refs = by_name.get(name, [])
-            variants = sorted({f"{r.tag}@{r.digest}" for r in refs if r.digest})
-            if len(variants) > 1:
-                where = ", ".join(sorted({f"{r.file}:{r.line} ({r.tag})" for r in refs}))
-                self.add("P8", refs[0].file, refs[0].line,
-                         f"{what}: {name} is pinned to {len(variants)} different tag/digest pairs: {where}")
+        # One pin per image variant: the tag without its leading version (python:3.14.8-slim-trixie ->
+        # "-slim-trixie"), so distinct variants of one repository (uv and uv:<v>-python3.14-trixie-slim) may
+        # coexist while two versions or digests of the same variant may not.
+        def flavour(tag: str | None) -> str:
+            t = tag or ""
+            for p in TAG_PREFIXES:
+                t = t[len(p):] if t.startswith(p) else t
+            return re.sub(r"^v?\d+(?:\.\d+)*", "", t)
 
         for name in sorted(by_name):
-            same(name, "one pin per image")
+            groups: dict[str, list[Ref]] = {}
+            for r in by_name[name]:
+                groups.setdefault(flavour(r.tag), []).append(r)
+            for _, refs in sorted(groups.items()):
+                variants = sorted({f"{r.tag}@{r.digest}" for r in refs if r.digest})
+                if len(variants) > 1:
+                    where = ", ".join(sorted({f"{r.file}:{r.line} ({r.tag})" for r in refs}))
+                    self.add("P8", refs[0].file, refs[0].line,
+                             f"one pin per image: {name} is pinned to {len(variants)} different tag/digest pairs: {where}")
         # tool versions shared with the Docker-free Windows mode (scripts/native/versions.psd1)
-        uv_tags = {r.tag for r in by_name.get("ghcr.io/astral-sh/uv", []) if r.tag and "-python" not in r.tag}
+        uv_tags = {".".join(map(str, version_tuple(r.tag))) for r in by_name.get("ghcr.io/astral-sh/uv", []) if r.tag}
         if psd1.get("uv") and uv_tags and uv_tags != {psd1["uv"]}:
             self.add("P8", "scripts/native/versions.psd1", 0, f"uv {psd1['uv']} differs from the Dockerfile uv image tags {sorted(uv_tags)}")
         pnpm = self._pnpm_versions()
@@ -754,6 +797,7 @@ class Checker:
         self.dockerfiles()
         compose = self.compose()
         env = self.env_files()
+        self.registry_images()
         self.scripts()
         self.caps()
         self.consistency(compose, env)

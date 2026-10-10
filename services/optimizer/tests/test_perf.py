@@ -136,7 +136,6 @@ def test_s4_full_profile_all_levers_with_resequence_alternative(story: str, caps
     assert elapsed < BUDGET_S
 
 
-
 @pytest.mark.perf
 def test_s4_full_profile_with_emissions_and_robustness_over_http(
     client: TestClient, auth: Callable[..., dict[str, str]], capsys: pytest.CaptureFixture[str]

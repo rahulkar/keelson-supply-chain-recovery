@@ -55,10 +55,12 @@ idempotent; `None` when `planning.emissions.enabled` is false or no set is avail
 * `Lane.distance_km` (DC transfers, road): great circle between the DCs × `road_circuity_bp / 10000`.
 * `InboundLane.legs [{mode, distance_km}]` from the network map's own stop resolution
   (`visuals._lane_stops` / `_locate`, imported unchanged) and `runtime/geo.py`: road = great circle ×
-  circuity; air = great circle + uplift; sea-air = the catalogued sea leg into the hub
-  (`geo.sea_air_legs`) + air from the hub (great circle + uplift); sea = a road feeder when the origin is a
-  factory, the catalogued route between the port stops (Cape / Suez from `via`; short-sea to the nearest
-  port when the lane names no destination port) and a road leg from the last port to the DC. Polylines are
+  circuity; air = great circle + uplift; sea and sea-air start with a road feeder when the origin is a
+  factory (a scn/1.0 chain factory → port + port → DC: `via` then starts with the origin port);
+  sea-air = the catalogued sea leg from the first port into the hub (`geo.sea_air_legs`) + air from the
+  hub (great circle + uplift); sea = the catalogued route between the port stops (Cape / Suez from `via`;
+  short-sea to the nearest port when the lane names no destination port) and a road leg from the last
+  port to the DC. Polylines are
   summed haversine segments; every leg rounds half up to integer km (floats never enter the hashed
   request); legs of 0 km are dropped; a lane without coordinates gets no legs (reported as uncovered).
 
@@ -173,7 +175,8 @@ planning.robustness.seed ?? solver_seed` (one seed per plan version); window ban
 op would be a 422 for every option) with a bounded window whose `prov` is `assumption`/`inference`, only
 when the scenario's `duration_days` assumption is an `assumption`: the event template's duration prior
 re-centred on the window's length (`p10 = min(prior p10, length)`, `p90 = max(prior p90, length)` capped
-at 366). `OptimizeInputs` (enriched
+at 366); at most the first 64 such perturbations (the contract's limit — a scenario's list is unbounded).
+`OptimizeInputs` (enriched
 problem, perturbations, solver options, factor set, robustness spec) builds the requests of `simulate`
 and the M5 re-plan. `win_rates(options)` = share of futures in which each option has the highest net
 benefit (> 0; ties → earlier candidate; "Do nothing" wins a future in which no option gains), as bp with
@@ -232,7 +235,9 @@ carries types, ranges and patterns; cross-field rules are checked by contracts-p
   with the options it is missing for), the frontier recomputed client-side per axis (direction-aware,
   comparisons only), p10–p90 whiskers on the y metric, "likely A–B" captions (sr-only meaning), an Extra
   CO₂e column, "Rank by" profile chips with a rank column and "Top under …" (ranking only — the
-  recommendation follows the default profile), the **How sure are we?** panel (Lost margin | Fill rate |
+  recommendation follows the default profile; while an option lacks CO₂e, which a carbon price counts as
+  0 kg, a caption says so and the non-default carbon-priced profiles are disabled with the reason), the
+  **How sure are we?** panel (Lost margin | Fill rate |
   Net benefit; bar p10–p90, median tick, ◆ planned; View as table: p10 / median / p90 / planned / chance of
   a stock-out / best in % of futures), the CO₂e footnote; KPI tiles "Likely A–B". Axe clean; animations
   follow `prefers-reduced-motion`. Fixtures `scenario_compare.robust`, `kpi_strip.robust`.
@@ -368,14 +373,22 @@ off = M7 requests, replay safety), platform `test_m8_scoring_admin.py`; viz `tes
   that only some DCs carry (e.g. 50,000 SKUs × 100 clusters × 26 weeks) would need several GB, where the
   scalar simulator only walks the active pairs. The full profile peaks at ~250 MB. Restricting each DC's
   tensors to its active SKUs (demand, stock or a protected minimum) is the fix if such tenants appear;
-  until then `planning.robustness.enabled: false` turns it off per tenant.
+  until then `planning.robustness.enabled: false` turns it off per tenant. The threshold is lower than it
+  looks: above 312,500 SKU × cluster × week cells the run sits at the 8-sample floor, outside the measured
+  2.5 M sample-cell envelope; around 1.5 M cells (e.g. 6,000 SKUs × 30 clusters × 9 weeks) one sampled
+  demand array is ~100 MB and, with the sampling temporaries, the 512 MB optimizer container can run out
+  of memory — the request then fails instead of losing only its bands (review note; not changed here
+  because the floor is the specified rule).
 * Window durations are drawn per perturbation (`window:{i}`): two windowed perturbations of one event
   would get independent durations. Every taxonomy template has a single perturbation today.
 * Review fixes in this branch: a nominally closed lane no future closes no longer keeps its closure delay
   in every sample (`robust/sample.py`); `EmissionsSummary.uncovered` entries are cut to 128 characters (a
   128-character lane or SKU code made the optimize call fail); the engine sends window bands only for the
   ops the optimizer samples; no pack overrides the M8 settings (§11.12); the e2e script reads a stored
-  pre-M8 spec with the M8 defaults.
+  pre-M8 spec with the M8 defaults; a factory-origin sea-air chain keeps its catalogued sea leg into the
+  hub (it was flown from the origin port: ~45 % too much CO₂e per unit); at most 64 window bands (more
+  failed the plan with a validation error); no win rates without "Do nothing"; carbon-priced profiles
+  are flagged in the compare block while an option lacks CO₂e.
 * Merge overlap: workstream 5 edits `optimizer.py`, `service.py` (`run_optimize`), `planning.py`,
   `candidates.py`, `spec.py`, `pyproject.toml` / `uv.lock`, `README.md`, `test_perf.py`; workstreams 7 / 8
   edit `blocks.py`, the generated contracts-ts files, `fixtures.ts`, `e2e/README.md`. All edits here are

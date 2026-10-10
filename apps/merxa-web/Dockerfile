@@ -9,7 +9,7 @@ FROM ${NODE_IMAGE} AS deps
 WORKDIR /app
 ENV PNPM_HOME=/pnpm CI=true NEXT_TELEMETRY_DISABLED=1
 RUN corepack enable && corepack prepare pnpm@10.34.6 --activate
-COPY apps/merxa-web/package.json apps/merxa-web/pnpm-lock.yaml ./
+COPY apps/merxa-web/package.json apps/merxa-web/pnpm-lock.yaml apps/merxa-web/pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=merxa-web-pnpm,target=/pnpm/store \
     pnpm config set store-dir /pnpm/store && pnpm install --frozen-lockfile
 

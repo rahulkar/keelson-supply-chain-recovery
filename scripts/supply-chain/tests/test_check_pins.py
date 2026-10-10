@@ -158,6 +158,27 @@ def test_p8_tool_versions_and_overlay_defaults(good_tree: Path) -> None:
     assert any(m.startswith("ARG VALKEY_IMAGE default valkey/valkey:8.1.10-alpine@") for m in got)
 
 
+def test_p8_pnpm_release_age_equals_renovate(good_tree: Path) -> None:
+    pkg = json.dumps({"packageManager": "pnpm@10.34.6"})
+    write_tree(good_tree, {
+        "renovate.json": json.dumps({"minimumReleaseAge": "3 days"}),
+        "package.json": pkg, "pnpm-workspace.yaml": "packages:\n  - apps/a\nminimumReleaseAge: 4320  # 3 days\n",
+        "apps/merxa-web/package.json": pkg,
+    })
+    got = [(f.file, f.message) for f in findings(good_tree) if f.rule == "P8"]
+    assert got == [("apps/merxa-web/pnpm-workspace.yaml",
+                    "pnpm minimumReleaseAge is not set (renovate.json minimumReleaseAge 3 days = 4320 minutes)")]
+    write_tree(good_tree, {"apps/merxa-web/pnpm-workspace.yaml": "minimumReleaseAge: 1440\n"})
+    got2 = [(f.file, f.line, f.message) for f in findings(good_tree) if f.rule == "P8"]
+    assert got2 == [("apps/merxa-web/pnpm-workspace.yaml", 1,
+                     "pnpm minimumReleaseAge 1440 differs from renovate.json minimumReleaseAge 3 days (= 4320 minutes)")]
+    write_tree(good_tree, {"apps/merxa-web/pnpm-workspace.yaml": "minimumReleaseAge: 4320\n"})
+    assert [f for f in findings(good_tree) if f.rule == "P8"] == []
+    write_tree(good_tree, {"renovate.json": json.dumps({"minimumReleaseAge": "72 hours"})})
+    assert [m for r, m in rules(good_tree) if r == "P8"] == [
+        "minimumReleaseAge '72 hours' is not 'N days' (pnpm needs the same minimum)"]
+
+
 # ───────────────────────────── P9 registry coverage ─────────────────────────────
 def test_p9_unregistered_dockerfile_and_compose_build(good_tree: Path) -> None:
     write_tree(good_tree, {"services/sidecar/Dockerfile": f"FROM {PY} AS test\nFROM {PY}\n"})

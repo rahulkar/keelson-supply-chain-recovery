@@ -1,0 +1,7 @@
+# merxa-web is its own pnpm project (own lockfile, never part of the root Keelson workspace); this file
+# only carries pnpm settings, it lists no workspace packages.
+# Supply-chain cooling-off (docs/supply-chain.md): never resolve a version published less than 3 days
+# (4320 minutes) ago - the same minimum as renovate.json `minimumReleaseAge` and the root
+# pnpm-workspace.yaml (scripts/supply-chain/check_pins.py P8 keeps them equal). `pnpm install
+# --frozen-lockfile` is unaffected.
+minimumReleaseAge: 4320

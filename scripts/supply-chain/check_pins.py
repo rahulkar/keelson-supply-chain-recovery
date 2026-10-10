@@ -18,8 +18,9 @@ Rules
   P6  no floating tags (latest, stable, edge, ...) and no inexact tags (``2-alpine``) anywhere above.
   P7  version caps from docs/contracts/60-build-guide.md, checked in the lockfiles and image tags
       (motion <14, typescript <6.1, litellm never 1.82.7/1.82.8, ...).
-  P8  cross-file consistency (pnpm, uv, litellm, keycloak, caddy, python/node bases, overlay ARG
-      defaults = versions.env, pydantic/mcp/fastmcp across the uv projects, AG-UI, Playwright).
+  P8  cross-file consistency (pnpm version and minimumReleaseAge = Renovate's, uv, litellm, keycloak,
+      caddy, python/node bases, overlay ARG defaults = versions.env, pydantic/mcp/fastmcp across the uv
+      projects, AG-UI, Playwright).
   P9  infra/supply-chain/images.json coverage: every Dockerfile, compose ``build:`` and Dockerfile
       ``test`` stage is registered; every registered path/target exists; deploy.sh's image variables
       equal the registry's ``deploy_var`` set.
@@ -30,6 +31,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import posixpath
 import re
 import sys
 from collections import Counter
@@ -551,6 +553,7 @@ class Checker:
             pnpm.setdefault(psd1["pnpm"], []).append("scripts/native/versions.psd1")
         if len(pnpm) > 1:
             self.add("P8", "package.json", 0, "pnpm versions differ: " + "; ".join(f"{v}: {', '.join(sorted(set(w)))}" for v, w in sorted(pnpm.items())))
+        self._release_age()
         engine_lock = self.uv_lock(self.repo.read("services/engine/uv.lock")) if self.repo.exists("services/engine/uv.lock") else {}
         litellm_versions = {"services/engine/uv.lock": engine_lock.get("litellm"), "scripts/native/versions.psd1": psd1.get("litellm")}
         for r in by_name.get("ghcr.io/berriai/litellm-non_root", []):
@@ -612,6 +615,34 @@ class Checker:
             for m in re.finditer(r"corepack prepare pnpm@(\d+\.\d+\.\d+)", self.repo.read(f)):
                 out.setdefault(m.group(1), []).append(f)
         return out
+
+    PNPM_PROJECTS = ("package.json", "apps/merxa-web/package.json")
+
+    def _release_age(self) -> None:
+        """pnpm's ``minimumReleaseAge`` (minutes; in the pnpm-workspace.yaml next to each pnpm project)
+        equals renovate.json ``minimumReleaseAge`` ("N days"), so manual installs cool off like updates."""
+        if not self.repo.exists("renovate.json"):
+            return
+        try:
+            age = json.loads(self.repo.read("renovate.json")).get("minimumReleaseAge")
+        except json.JSONDecodeError:
+            return  # malformed JSON is the renovate-config-validator's finding
+        m = re.fullmatch(r"(\d+) days?", str(age or "").strip())
+        if not m:
+            self.add("P8", "renovate.json", 0, f"minimumReleaseAge {age!r} is not 'N days' (pnpm needs the same minimum)")
+            return
+        want = str(int(m.group(1)) * 24 * 60)
+        for pkg in self.PNPM_PROJECTS:
+            if not self.repo.exists(pkg) or not json.loads(self.repo.read(pkg)).get("packageManager", "").startswith("pnpm@"):
+                continue
+            ws = posixpath.join(posixpath.dirname(pkg), "pnpm-workspace.yaml")
+            text = self.repo.read(ws) if self.repo.exists(ws) else ""
+            got = re.search(r"^minimumReleaseAge:\s*(\S+?)\s*(?:#.*)?$", text, re.M)
+            if not got:
+                self.add("P8", ws, 0, f"pnpm minimumReleaseAge is not set (renovate.json minimumReleaseAge {age} = {want} minutes)")
+            elif got.group(1) != want:
+                self.add("P8", ws, text[:got.start()].count("\n") + 1, f"pnpm minimumReleaseAge {got.group(1)} differs "
+                                                                        f"from renovate.json minimumReleaseAge {age} (= {want} minutes)")
 
     def _all_equal(self, what: str, values: dict[str, str | None]) -> None:
         present = {k: v for k, v in values.items() if v}

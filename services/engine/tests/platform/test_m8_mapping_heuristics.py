@@ -178,6 +178,16 @@ def test_shapes() -> None:
     assert "$.h" not in paths  # objects are walked, not profiled whole
 
 
+def test_non_finite_numbers_are_profiled_not_raised() -> None:
+    """A vendor answer may carry NaN / Infinity (Python's JSON reader accepts them): the sampled
+    values are profiled (shape ``float``, no example), never a crashed proposal."""
+    notes = mp.Notes()
+    items = [{"f": float("nan"), "g": {"x": float("inf")}}, {"f": 1.5, "g": {"x": float("-inf")}}, {"f": float("nan")}]
+    paths = {p.path: p for p in mp.profile_items(items, where="t", notes=notes)}
+    assert paths["$.f"].shape == "float" and paths["$.f"].examples == ["1.5"]
+    assert paths["$.g.x"].shape == "float" and paths["$.g.x"].examples == []
+
+
 # ───────────────────────────── the read draft ─────────────────────────────
 
 

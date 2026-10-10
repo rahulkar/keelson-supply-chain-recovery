@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime as dt
+import json
 import math
 import re
 import unicodedata
@@ -53,7 +54,6 @@ from keelson_contracts.mapping_proposal import (
     SourceProfile,
 )
 from keelson_engine.core.logs import get_logger
-from keelson_engine.core.mapping_eval import canonical_json
 
 __all__ = [
     "CatalogueParam",
@@ -491,6 +491,12 @@ def _date_format(values: Sequence[str]) -> str | None:
 _TYPE_OF: Final = {bool: "bool", int: "int", float: "float", str: "str", dict: "object", list: "list"}
 
 
+def _distinct_key(v: Any) -> str:
+    """A sampled value's identity for distinct counts (canonical JSON; NaN / Infinity, which
+    Python's JSON reader accepts from a vendor, count as values instead of raising)."""
+    return json.dumps(v, sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=str)
+
+
 def _type(v: Any) -> str:
     if v is None:
         return "null"
@@ -586,7 +592,7 @@ def profile_items(items: Sequence[Any], *, where: str, notes: Notes) -> list[Pat
         missing = len(objects) - len(seen[segs])
         if missing > 0:
             counts["null"] = counts.get("null", 0) + missing
-        distinct = len({canonical_json(v) for v in values})
+        distinct = len({_distinct_key(v) for v in values})
         examples: list[str] = []
         for v in values:
             if len(examples) >= MAX_EXAMPLES:

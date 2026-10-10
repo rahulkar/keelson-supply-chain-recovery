@@ -130,7 +130,8 @@ unchanged advisory reuses the stored footprint. Products still pending (over the
 issues every storm's advisory at the same synoptic times — or a failed download) are fetched by the
 next poll: the feed's validators are not kept meanwhile, so that poll reads the feed in full instead
 of a 304, and the storm keeps its last stored footprint until its new one arrives (never a bare
-position that would drop its exposures). The footprint = cone polygon + track line (the track's
+position that would drop its exposures). A cap below one storm's products (e.g. `0`) only turns GIS
+downloads off: nothing is pending then, and the feed stays conditional. The footprint = cone polygon + track line (the track's
 forecast points are dropped) + current position. Storms that leave the feed are withdrawn.
 
 ### 3.2 Copernicus EMS (`adapters/copernicus_ems.py`, connector `copernicus_ems`)
@@ -217,7 +218,10 @@ event → weather/coastal_flood; 8 forest fire → natural_hazard/wildfire; 10 r
 (32-gon) per EMMA area, fetched only from `feeds.meteoalarm.org` over https (`/api/` paths), at most
 `METEOALARM_MAX_DETAIL_FETCHES` (4) new documents per poll (later polls fill the rest — while any is
 pending the feed's validators are not kept, so those polls read the feed in full instead of a 304; a
-stored polygon is reused), else none (refs only). A `Cancel` entry or one that left the feed is withdrawn.
+cap of `0` turns CAP downloads off and leaves nothing pending; a stored polygon is reused), else none
+(refs only). A `Cancel` entry or one that left the feed is withdrawn. A feed with entries of which none
+is usable (no CAP identifier / `EMMA_ID` geocode: a format change) is a failed poll that withdraws
+nothing; an empty feed is a valid answer.
 Not an anchor: neighbouring district warnings cluster into one candidate event, and a later GDACS
 event absorbs them. Deployment **and** tenant opt-in.
 
@@ -236,8 +240,9 @@ event absorbs them. Deployment **and** tenant opt-in.
   only when it is an https URL with a plain host), `opt_in`, `polled`, `authority_bp`, `min_cadence_s`,
   `max_cadence_s`, `coverage`, `description` (each cleaned, `None` when absent). `put_source` on a
   source without a stored wish and without `enabled` in the PATCH asks the hub for the default, so a
-  cadence-only change never subscribes an opt-in source (hub down → not subscribed for the known opt-in
-  adapters `gdelt` / `meteoalarm.*`, since the stored wish rides along with the next whole-map push;
+  cadence-only change never subscribes an opt-in source (hub down, or a hub that does not list the
+  source — an older hub, a MeteoAlarm country not configured yet → not subscribed for the known opt-in
+  adapters `gdelt` / `meteoalarm.*`, since the stored wish rides along with every later whole-map push;
   the M7 default, subscribed, for every other source). No route changes.
 * Web Sources table (`SignalSourceCells.tsx`): coverage and description under the name (the OFAC
   awareness disclaimer), a **Type** column (Hazard / Weather / Regulatory / News badge, a provenance
@@ -402,8 +407,9 @@ filtering only; replays ignore them (120 §3.5).
   signal → `entity_match` for the right tenant only, RLS on exposures and `source_snapshot`,
   `name_key`, truncation guard, an ALT-only publication dated by its newest file (its own signal, the
   previous one's alert untouched) and never at or before the last delta; GDELT corroboration without an
-  alert, MD5 mismatch backoff; MeteoAlarm bounded CAP fetches + withdrawal, pending CAP documents
-  fetched without a feed change; opt-in schedule / alert / whole-map sync / `--once` skip; tenant
+  alert, MD5 mismatch backoff; MeteoAlarm bounded CAP fetches + withdrawal + a drifted feed (no usable
+  entry) failing without withdrawing, pending CAP documents fetched without a feed change; zero
+  follow-up caps keep the NHC / MeteoAlarm feeds conditional; opt-in schedule / alert / whole-map sync / `--once` skip; tenant
   sources API fields; `feeds-test` reset + replay identical),
   `test_db_real_packs.py::test_hurricane_cape_route`; existing catalogue assertions updated.
   `test_m8_logic.py::test_once_honours_the_operator_allow_list` (`--once` outside `SIGNAL_ADAPTERS`).
@@ -415,7 +421,8 @@ filtering only; replays ignore them (120 §3.5).
 * contracts-py `test_m8_feeds.py` (+ `test_m6.py` invalid adapter `acled`); contracts `--check` clean.
 * engine `tests/platform/test_m8_signal_sources.py` (passthrough, non-https terms dropped, opt-in
   default, cadence-only change keeps an opt-in source off, hub-down fallback: opt-in adapters stay off
-  and are pushed off with the next map, M7 sources subscribed).
+  and are pushed off with the next map, M7 sources subscribed; the same for a source the hub does not
+  list).
 * web `test/m8-feeds.test.tsx` (schema, badges, attribution, terms link rel/target, `javascript:`
   never rendered, opt-in switch PUTs `{enabled: true}`, not-polled switch disabled but an existing
   subscription can be switched off, OFAC disclaimer, cadence choices inside the source's limits, axe);
@@ -426,6 +433,12 @@ filtering only; replays ignore them (120 §3.5).
 * A news event that GDELT corroborates over several days can see its p75 severity pulled towards
   3900 once GDELT members outnumber the news ones (one GDELT signal per day × subtype × place limits
   this); anchored events are unaffected (anchor maximum).
+* Opt-in decides only whether an event counts for a tenant (`event_subscribed`: an event whose current
+  members all come from opt-in sources the tenant did not enable raises nothing for it). Events are
+  shared, so once any workspace has opted in, GDELT / MeteoAlarm members also add corroboration
+  (source count → confidence) and move the p75 severity of a non-anchored event for every tenant
+  whose own sources keep that event counting. Per-tenant event aggregation is design work beyond
+  this workstream.
 * MeteoAlarm warnings get a polygon only after their CAP document was fetched (≤ 4 per poll); until
   then they expose by country reference only (no geo exposure). National services re-issue a warning
   under a new CAP identifier on each update, so an update is a new signal that joins the same event

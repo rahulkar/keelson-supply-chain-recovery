@@ -425,11 +425,11 @@ alerts are `simulated: true`. Ids are uuid5 of content, so reset + replay is ide
 | `HTTPS_PROXY` / `HTTP_PROXY` | unset | egress proxy for feeds (compose poller: `http://egress:3128`) |
 | `GDACS_URL`, `USGS_URL`, `RSS_FEEDS` | contract URLs; `rss.theloadstar=The Loadstar\|https://theloadstar.com/feed/` | `RSS_FEEDS` = comma list of `<id>=<name>\|<url>` |
 | `SIGNAL_ADAPTERS` | `gdacs,usgs,rss,nhc,copernicus_ems,ofac,gdelt` | the operator's allow-list of poller adapters (add `meteoalarm` once its terms were reviewed) |
-| `NHC_URL`, `NHC_FETCH_GIS`, `NHC_MAX_GIS_FETCHES` | `https://www.nhc.noaa.gov/CurrentStorms.json`, on, 6 | NHC (M8) |
+| `NHC_URL`, `NHC_FETCH_GIS`, `NHC_MAX_GIS_FETCHES` | `https://www.nhc.noaa.gov/CurrentStorms.json`, on, 6 | NHC (M8; a cap below 2, one storm's cone + track, means no GIS) |
 | `COPERNICUS_EMS_URL`, `COPERNICUS_EMS_TTL_DAYS` | dashboard `public-activations-info/?limit=50`, 14 | Copernicus EMS (M8) |
 | `OFAC_SDN_URL` / `_ALT_URL` / `_ADD_URL`, `OFAC_MAX_BYTES`, `OFAC_EVENT_TTL_DAYS` | Sanctions List Service exports, 32 MiB, 30 | OFAC (M8) |
 | `GDELT_LASTUPDATE_URL`, `GDELT_EVENT_CODES`, `GDELT_MIN_ARTICLES`, `GDELT_PORT_RADIUS_KM`, `GDELT_CHOKEPOINT_BUFFER_KM`, `GDELT_MAX_SEVERITY_BP`, `GDELT_MAX_BACKFILL` | `https://data.gdeltproject.org/gdeltv2/lastupdate.txt`, `143,144,145,163,1724,190,191,193,194,195,196`, 3, 30, 50, 3900, 4 | GDELT (M8; codes must be ones the adapter maps) |
-| `METEOALARM_COUNTRIES`, `METEOALARM_URL_TEMPLATE`, `METEOALARM_MIN_LEVEL`, `METEOALARM_MAX_DETAIL_FETCHES` | empty, `…/meteoalarm-legacy-atom-{country}`, 3 (orange), 4 | MeteoAlarm (M8; slugs `^[a-z][a-z-]{1,40}$`) |
+| `METEOALARM_COUNTRIES`, `METEOALARM_URL_TEMPLATE`, `METEOALARM_MIN_LEVEL`, `METEOALARM_MAX_DETAIL_FETCHES` | empty, `…/meteoalarm-legacy-atom-{country}`, 3 (orange), 4 | MeteoAlarm (M8; slugs `^[a-z][a-z-]{1,40}$`; 0 CAP fetches = no polygons) |
 | `CADENCE_NHC_S` / `_COPERNICUS_EMS_S` / `_OFAC_S` / `_GDELT_S` / `_METEOALARM_S` | 900 / 1800 / 3600 / 900 / 900 | M8 schedules |
 | `CADENCE_GDACS_S` / `_USGS_S` / `_RSS_S`, `SIGNALS_MIN_INTERVAL_S` | 600 / 300 / 900, 5 | schedules and rate limit |
 | `DEMO_MODE`, `DEMO_TENANTS`, `SCENARIOS_DIR`, `DEMO_FEEDS_BASE_URL` | off, any, `/app/scenarios`, `http://127.0.0.1:8300/demo-feeds` | demo replay |

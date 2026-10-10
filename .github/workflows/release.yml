@@ -7,6 +7,8 @@
 # verifies against infra/supply-chain/signing.env (identity: this file, main or a vX.Y.Z tag, push).
 # Domain overlays (engine-cloudrun, kc-config-cloudrun) are built only when the repository variable
 # KEELSON_PUBLIC_DOMAIN is set. No pull_request trigger: forks never get packages:write or an OIDC token.
+# Opt-in: nothing is built, pushed or signed until the repository variable RELEASE_ENABLED is "true"
+# (every job hangs off setup), so pushing to main publishes nothing by default.
 name: release
 
 on:
@@ -23,8 +25,9 @@ concurrency:
 jobs:
   setup:
     name: setup
-    # forks build nothing: the signing identity, registry and packages belong to this repository
-    if: github.repository == 'rahulkar/keelson-supply-chain-recovery'
+    # forks build nothing: the signing identity, registry and packages belong to this repository;
+    # releases are opt-in per repository (variable RELEASE_ENABLED=true)
+    if: github.repository == 'rahulkar/keelson-supply-chain-recovery' && vars.RELEASE_ENABLED == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:

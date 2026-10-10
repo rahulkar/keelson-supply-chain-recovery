@@ -88,7 +88,13 @@ def test_release_triggers_only_on_main_and_semver_tags() -> None:
     on = DOCS["release.yml"]["on"]
     assert set(on) == {"push"}
     assert on["push"] == {"branches": ["main"], "tags": ["v[0-9]+.[0-9]+.[0-9]+"]}
-    assert DOCS["release.yml"]["jobs"]["setup"]["if"] == f"github.repository == '{SIGNING['SIGNER_REPOSITORY']}'"
+    assert DOCS["release.yml"]["jobs"]["setup"]["if"] == (
+        f"github.repository == '{SIGNING['SIGNER_REPOSITORY']}' && vars.RELEASE_ENABLED == 'true'")
+    # every other job hangs off setup, so the opt-in gates the whole release
+    for name, job in DOCS["release.yml"]["jobs"].items():
+        if name != "setup":
+            needs = job["needs"] if isinstance(job["needs"], list) else [job["needs"]]
+            assert "setup" in needs or needs == ["manifest"], name
     assert DOCS["release.yml"]["concurrency"]["cancel-in-progress"] is False
 
 

@@ -180,7 +180,10 @@ depleted S1 cannot run, so these upgrades stay frozen: intended.
 
 ## 7. Releases (`.github/workflows/release.yml`)
 
-On every push to `main` and every `vX.Y.Z` tag of this repository (forks build nothing):
+On every push to `main` and every `vX.Y.Z` tag of this repository (forks build nothing) **once releases are
+enabled**: they are opt-in, so set the repository variable `RELEASE_ENABLED` to `true` (Settings → Secrets
+and variables → Actions → Variables). Until then the workflow's jobs are skipped and nothing is built,
+pushed to GHCR or signed (the CI workflow is unaffected):
 
 1. `build-sign` (per release image): clean build (no shared layer cache) for `linux/amd64` as a
    single manifest, push to `ghcr.io/rahulkar/keelson/<name>` by digest, `check-image.sh`, Syft SPDX

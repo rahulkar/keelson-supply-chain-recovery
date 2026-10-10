@@ -143,7 +143,9 @@ escapes every value.
 
 ### 2.6 Releases (`release.yml`, `sign-attest`)
 
-`setup` (forks build nothing; registry from `signing.env` must be on ghcr.io; `KEELSON_PUBLIC_DOMAIN`
+`setup` (opt-in: runs only when the repository variable `RELEASE_ENABLED` is `true`, so a push to `main`
+publishes nothing by default — set at integration, before the first push; forks build nothing; registry
+from `signing.env` must be on ghcr.io; `KEELSON_PUBLIC_DOMAIN`
 validated with deploy.sh's domain rule) → `build-sign` per non-overlay release image → `overlays`
 (only with a domain; the engine overlay is built `FROM` the signed engine digest passed as an
 artifact) → `manifest` (`release_manifest.py`, `cosign sign-blob --bundle`, then `verify-images.sh
@@ -224,7 +226,8 @@ None (120 §2 allocates no migration to this workstream).
 * pnpm: `minimumReleaseAge: 4320` in both pnpm projects.
 * `.gitignore`: `/compose.release.yaml`, `/keelson-release.env`, `/*.sigstore.json`.
 * GitHub (manual, `docs/supply-chain.md` §11): Renovate app, Dependabot alerts, public GHCR packages
-  (or AR upstream credentials), optional variable `KEELSON_PUBLIC_DOMAIN`, ruleset with required checks.
+  (or AR upstream credentials), variable `RELEASE_ENABLED=true` to turn releases on, optional variable
+  `KEELSON_PUBLIC_DOMAIN`, ruleset with required checks.
 
 ## 6. Security
 

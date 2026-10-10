@@ -323,7 +323,9 @@ def _line_model(
         return None
     frozen = 0
     if frozen_days > 0:
-        limit = scn.as_of + dt.timedelta(days=frozen_days)
+        # capped one day past the latest start: freezes the same orders, never overflows the date
+        last = max(o.planned_start for o in movable)
+        limit = scn.as_of + dt.timedelta(days=min(frozen_days, max(0, (last - scn.as_of).days) + 1))
         while frozen < len(movable) and movable[frozen].planned_start < limit:
             frozen += 1
         if frozen >= len(movable) - 1:

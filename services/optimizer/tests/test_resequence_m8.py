@@ -152,6 +152,10 @@ def test_frozen_days_keep_the_prefix(stage: str) -> None:
     assert frozen.kpis_after.units_at_risk < frozen.kpis_before.units_at_risk
     # everything frozen but one order: nothing left to resequence
     assert optimize(_frozen_problem(5), stage).actions == []
+    # review fix: any non-negative frozen_days is a valid request; past the date range it used to
+    # raise OverflowError (a 500) instead of freezing the whole line
+    huge = optimize(_frozen_problem(10**7), stage)
+    assert huge.status == "OPTIMAL" and huge.actions == []
 
 
 def test_frozen_prefix_on_the_full_profile_line() -> None:

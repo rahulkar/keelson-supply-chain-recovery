@@ -8,6 +8,7 @@ from __future__ import annotations
 import copy
 import datetime as dt
 import random
+from collections import defaultdict
 from functools import cache
 from typing import Any
 
@@ -15,9 +16,10 @@ import pytest
 from keelson_contracts.optimizer import OptimizeRequest, OptimizeResponse, ResequenceProductionParams
 
 from keelson_opt.cpsat import StageLog
+from keelson_opt.impact import lost_margin, simulate
 from keelson_opt.levers import resequence as rs
 from keelson_opt.levers import resequence_cpsat as v2
-from keelson_opt.plan import base_lines
+from keelson_opt.plan import EtaMove, apply_moves, base_lines, receipt_series
 from keelson_opt.scn import build_scenario
 from keelson_opt.service import run_optimize
 
@@ -254,6 +256,58 @@ def test_lines_beyond_the_size_limits_use_the_m3_path(monkeypatch: pytest.Monkey
     (stage,) = [s for s in resp.solver.stages if s.name == "resequence:L-1"]
     assert stage.status == "SKIPPED" and stage.fallback_reason == "model_too_large" and not stage.used
     assert sequence(resp) == ["MO-3", "MO-1", "MO-2"]
+
+
+@pytest.mark.parametrize("case", ["reseq", "vn"])
+def test_value_tables_match_a_direct_simulation(case: str) -> None:
+    """Brief test plan (property): every value-table entry - one PO line's arrival after a
+    completion-day change - equals the simulator's lost margin of its DC x SKU pair with that PO
+    line moved through ``apply_moves`` (closure-aware on the VN line); days that lose the receipt
+    and, for a pinned line, days that move its eta are forbidden."""
+    raw = reseq_problem() if case == "reseq" else full_request([{"code": "resequence_production"}], [VN_PORT_CLOSURE])
+    req = OptimizeRequest.model_validate(raw)
+    scn = build_scenario(req.data, req.perturbations)
+    current = base_lines(scn)
+    base = simulate(scn, receipts=receipt_series(current, scn.horizon))
+    lost: dict[tuple[str, str], int] = defaultdict(int)
+    for (cl, sku), cs in base.series.items():
+        lost[(scn.cluster_dc[cl], sku)] += sum(cs.lost)
+    delay: dict[str, int] = defaultdict(int)
+    for rl in scn.receipt_lines:
+        delay[rl.ref] = max(delay[rl.ref], rl.prod_delay)
+    line = next(p for p in req.data.production if p.line_code == ("L-1" if case == "reseq" else "FL-VN01-A"))
+    model = rs._line_model(scn, line, lost, delay, 400, 0, rs.ReseqOutcome())
+    assert model is not None
+    pinned = frozenset({model.jobs[0].order.po_line_ref})
+    day_lo = [d - 6 for d in model.base_day]
+    day_hi = [d + 21 for d in model.base_day]
+    w_lost = 10_000
+    tables = v2._value_tables(scn, model, current, w_lost, pinned, day_lo, day_hi)
+    assert tables and any(None in t.costs for t in tables if t.ref in pinned)
+    checked = 0
+    for t in tables:
+        pol = scn.po_lines[t.ref]
+        key = (pol.dest_dc, pol.sku)
+        rls = [rl for rl in scn.receipt_lines if rl.ref == t.ref and not rl.lost]
+        cur_eta = max(rl.eta_perturbed for rl in rls)
+        for i, cost in enumerate(t.costs):
+            etas = [rs._moved_eta(scn, rl, t.lo + i) for rl in rls]
+            if any(e is None for e in etas):
+                assert cost is None, (t.ref, t.lo + i)
+                continue
+            eta = max(e for e in etas if e is not None)
+            moves: dict[str, EtaMove] = {}
+            if eta != cur_eta:
+                if t.ref in pinned:
+                    assert cost is None, (t.ref, t.lo + i)
+                    continue
+                after = max(scn.as_of, eta)
+                moves = {t.ref: EtaMove(t.ref, pol.eta, after, scn.week_of(after), after > pol.eta)}
+            trial = apply_moves(current, moves)
+            expected = w_lost * lost_margin(simulate(scn, receipts=receipt_series(trial, scn.horizon), keys={key}))
+            assert cost == expected, (t.ref, t.lo + i)
+            checked += 1
+    assert checked >= 10
 
 
 def test_the_longest_line_code_gets_its_stage_records() -> None:

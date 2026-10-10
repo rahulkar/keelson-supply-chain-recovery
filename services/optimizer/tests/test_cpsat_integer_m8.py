@@ -6,6 +6,7 @@ determinism."""
 from __future__ import annotations
 
 import dataclasses
+import itertools
 import json
 import re
 from collections.abc import Callable
@@ -13,12 +14,24 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from keelson_contracts.optimizer import OptimizeRequest, OptimizeResponse, SolverStage
+from keelson_contracts.optimizer import (
+    ExpediteModeShiftParams,
+    OptimizeRequest,
+    OptimizeResponse,
+    PlanWeights,
+    ResourceAltSupplierParams,
+    SolverOptions,
+    SolverStage,
+)
 
 from keelson_opt import cpsat
-from keelson_opt.levers import alt_integer
+from keelson_opt.levers import alt_integer, composed
+from keelson_opt.levers.composed import Fixed, LeverParams
+from keelson_opt.plan import base_lines
+from keelson_opt.scn import build_scenario
 from keelson_opt.service import run_optimize
 
+from .network import request as network_request
 from .network_m8 import TRIM_DELAYS, check_invariants, random_problem, request, sourcing_problem
 
 BOTH = [{"code": "expedite_mode_shift"}, {"code": "resource_alt_supplier"}]
@@ -229,6 +242,91 @@ def test_random_networks_cpsat_never_worse_than_repair(seed: int) -> None:
     assert cps.status == rep.status
     if cps.solver.params.get("integer_method") == "lp_rounding":
         assert plan_of(cps) == plan_of(rep)
+
+
+# ───────────────────────────── brute force and LP consistency (review) ─────────────────────────────
+
+
+def _tiny_model_inputs() -> tuple[Any, ...]:
+    """:mod:`tests.network` scaled down: PO-1#1 (30 TOP, 5 sold a week) lands two weeks late, the
+    sea-air lane takes 6 units a week and F-N sells in cases of 10 with an MOQ of 20 - three
+    alternate candidates (arrival W43-W45) and one split, so every integer rule bites."""
+    raw = network_request([{"code": "expedite_mode_shift"}, {"code": "resource_alt_supplier"}])
+    data = raw["data"]
+    units = {"UK1-A": 3, "UK1-B": 2, "DE1-A": 30}
+    data["demand"] = [d | {"units": units[d["cluster_code"]]} for d in data["demand"]]
+    data["inventory"][0]["on_hand"] = 10
+    data["cluster_inventory"][0]["on_hand"], data["cluster_inventory"][1]["on_hand"] = 3, 2
+    data["receipts"][0]["qty"] = data["po_lines"][0]["qty"] = 30
+    data["inbound_lanes"][2]["weekly_capacity_units"] = 6
+    data["alt_sources"][0].update(moq_units=20, order_multiple_units=10, lead_time_days=14, weekly_capacity_units=40)
+    req = OptimizeRequest.model_validate(raw)
+    scn = build_scenario(req.data, req.perturbations)
+    lines = base_lines(scn)
+    levers = LeverParams(expedite=ExpediteModeShiftParams(), alt=ResourceAltSupplierParams())
+    weights, options = PlanWeights(), SolverOptions(time_limit_s=5, seed=3)
+    out = composed.solve_composed(scn, lines, levers, weights, options)
+    assert out.status == "OPTIMAL"
+    alt_c = [out.alt_cands[k] for k in sorted(out.alt_cands)]
+    exp_c = [out.exp_cands[k] for k in sorted(out.exp_cands)]
+    assert (len(alt_c), len(exp_c)) == (3, 1)
+    pairs = sorted({(c.dc, c.sku) for c in exp_c} | {(a.dc, a.sku) for a in alt_c})
+    return scn, lines, levers, weights, options, out, alt_c, exp_c, pairs
+
+
+def test_cpsat_matches_brute_force_and_the_lp_objective(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Brief test plan: on a tiny instance the CP-SAT optimum equals an exhaustive search over the
+    integer model, and the integer objective is the LP's: for every feasible whole-unit decision
+    ``D`` the CP-SAT objective with ``D`` fixed is ``OBJ_SCALE`` x the phase-2 GLOP objective with
+    ``D`` fixed (no transfers here, and no pair outside the model loses margin)."""
+    scn, lines, levers, weights, options, out, alt_c, exp_c, pairs = _tiny_model_inputs()
+
+    def model() -> Any:
+        return alt_integer._IntegerModel(scn, out, lines, levers, weights, alt_c, exp_c, pairs, {}, {})
+
+    def cp_value(qs: tuple[int, ...], e: int) -> int | None:
+        m = model()
+        for a, q in zip(alt_c, qs, strict=True):
+            m.model.add(m.n[a.key] == q)
+        m.model.add(m.e[exp_c[0].key] == e)
+        run = cpsat.run_cpsat(m.model, seed=0, det_limit=5.0, time_limit_s=5)
+        assert run.status in ("OPTIMAL", "INFEASIBLE")
+        return run.objective if run.status == "OPTIMAL" else None
+
+    lp_objective: list[float] = []
+
+    class RecordingSolver(composed.mb.Solver):  # type: ignore[misc,name-defined]
+        def solve(self, model: Any) -> Any:
+            status = super().solve(model)
+            lp_objective.append(float(self.objective_value))
+            return status
+
+    monkeypatch.setattr(composed.mb, "Solver", RecordingSolver)
+
+    def lp_value(qs: tuple[int, ...], e: int) -> float:
+        fixed = Fixed(alt={a.key: q for a, q in zip(alt_c, qs, strict=True) if q}, exp={exp_c[0].key: e} if e else {})
+        lp = composed.solve_composed(scn, lines, levers, weights, options, fixed=fixed)
+        assert lp.status == "OPTIMAL"
+        return lp_objective[-1]
+
+    free = model()
+    run = cpsat.run_cpsat(free.model, seed=0, det_limit=5.0, time_limit_s=5)
+    assert run.status == "OPTIMAL" and run.objective is not None
+    feasible: dict[tuple[tuple[int, ...], int], int] = {}
+    for qs in itertools.product(range(0, 31, 10), repeat=len(alt_c)):
+        for e in range(exp_c[0].ub + 1):
+            value = cp_value(qs, e)
+            if value is not None:
+                feasible[(qs, e)] = value
+    # the integer rules: one op per line, whole cases, MOQ 20, the lane's 6 units, the open qty
+    assert feasible and all((sum(qs) == 0 or e == 0) and e <= 6 and sum(qs) <= 30 for qs, e in feasible)
+    assert all(q in (0, 20, 30) for qs, _e in feasible for q in qs)
+    assert cp_value((15, 0, 0), 0) is None and cp_value((10, 0, 0), 0) is None  # half a case / below MOQ
+    best = min(feasible.values())
+    assert run.objective == best
+    assert feasible[((0, 20, 0), 0)] == best  # 20 units in W44 beat the 6 the lane can fly
+    for (qs, e), value in sorted(feasible.items()):
+        assert value == pytest.approx(composed.OBJ_SCALE * lp_value(qs, e), abs=1e-3), (qs, e)
 
 
 # ───────────────────────────── repair with the M8 terms ─────────────────────────────

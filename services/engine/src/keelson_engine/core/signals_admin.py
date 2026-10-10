@@ -385,20 +385,22 @@ async def put_source(tenant: str, source_id: str, setting: SourceSetting, actor:
 
 
 async def _hub_enabled_default(tenant: str, source_id: str) -> bool:
-    """Whether the hub counts ``source_id`` as subscribed for a tenant without a stored wish: true,
-    except for an opt-in source (GDELT, MeteoAlarm). Hub down → false for the known opt-in adapters
-    (:data:`_OPT_IN_ADAPTERS`: the stored wish rides along with the next whole-map push, which must
-    never opt the workspace in), else true, the M7 rule (also for an older hub not listing the source)."""
+    """Whether the hub counts ``source_id`` as subscribed for a tenant without a stored wish: the hub's
+    answer (false for an opt-in source: GDELT, MeteoAlarm). When the hub cannot tell (down, or it does
+    not list the source: an older hub, a MeteoAlarm country not configured yet) → false for the known
+    opt-in adapters (:data:`_OPT_IN_ADAPTERS`: the stored wish rides along with every later whole-map
+    push, which must never opt the workspace in), else true, the M7 rule."""
     from keelson_engine.core import signal_hub
 
+    fallback = source_id.split(".", 1)[0] not in _OPT_IN_ADAPTERS
     try:
         body = await signal_hub.request_json("GET", f"/v1/tenants/{tenant}/sources", tenant=tenant)
     except signal_hub.HubError:
-        return source_id.split(".", 1)[0] not in _OPT_IN_ADAPTERS
+        return fallback
     for r in (body.get("items") if isinstance(body, dict) else None) or []:
         if isinstance(r, dict) and r.get("connector_id") == source_id and isinstance(r.get("enabled"), bool):
             return bool(r["enabled"])
-    return True
+    return fallback
 
 
 # ───────────────────────────── network codes (radius regions) ─────────────────────────────

@@ -106,3 +106,9 @@ async def test_opt_in_subscribe_and_cadence_only_changes(sam: Browser, hub: Fake
     await sam.patch(f"{SIG}/sources/nhc", json={"cadence_s": 3600})  # the next push (any change) carries the map
     pushed = {x["connector_id"]: x["enabled"] for x in hub.subscriptions[TENANT_A]}
     assert pushed["meteoalarm.netherlands"] is False and pushed["gdacs"] is True
+    # a source the hub does not configure (yet): the same rule, so a stored wish never opts the workspace in
+    # once the operator adds the country (or an older hub is upgraded)
+    r = await sam.patch(f"{SIG}/sources/meteoalarm.germany", json={"cadence_s": 1800})
+    assert r.status_code == 200 and r.json()["enabled"] is False
+    r = await sam.patch(f"{SIG}/sources/rss.new-feed", json={"cadence_s": 1800})
+    assert r.status_code == 200 and r.json()["enabled"] is True

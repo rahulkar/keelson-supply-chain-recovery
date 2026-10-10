@@ -9,7 +9,6 @@ from __future__ import annotations
 import datetime as dt
 import json
 from collections.abc import AsyncIterator
-from pathlib import Path
 from typing import Any
 
 import asyncpg
@@ -40,6 +39,7 @@ from signal_hub.clustering_config import load_config, save_config
 from signal_hub.config import Settings
 from signal_hub.db import tx
 from signal_hub.gazetteer import Gazetteer
+from signal_hub.migrate import migrations_dir
 from signal_hub.models import NewsItemDraft, SignalDraft, SourceContext
 from signal_hub.pipeline import Pipeline
 from signal_hub.queries import load_event
@@ -49,7 +49,7 @@ H = dt.timedelta(hours=1)
 TENANT = "demo-retail"
 OTHER = "other-co"
 BASE = "http://signal-hub-api:8300"
-MIGRATIONS = Path(__file__).resolve().parents[1] / "migrations"
+MIGRATIONS = migrations_dir()  # /app/migrations in the test image, else the source tree
 
 A_TITLE = "Dockworkers strike halts container handling at the Port of Hamburg"
 SNIPPET = "Union says the walkout at all four terminals will last at least 48 hours; vessels are waiting at anchor."

@@ -314,7 +314,9 @@ script reads `FERNHILL_API_KEY` / `FERNHILL_ADMIN_KEY` from it (or from its own 
 ```bash
 # Git Bash, repo root; the whole stack is up
 docker compose --profile adapters up -d fernhill-sidecar
-MSYS_NO_PATHCONV=1 docker compose run --rm --no-deps -T -e LOG_LEVEL=warning   -v D:/keelson-supply-chain-recovery/e2e:/e2e:ro -v D:/keelson-supply-chain-recovery/.env:/run/keelson.env:ro   engine-api python -u /e2e/api_m8_sidecar.py            # --keep leaves the connector active and the data as is
+MSYS_NO_PATHCONV=1 docker compose run --rm --no-deps -T -e LOG_LEVEL=warning \
+  -v D:/keelson-supply-chain-recovery/e2e:/e2e:ro -v D:/keelson-supply-chain-recovery/.env:/run/keelson.env:ro \
+  engine-api python -u /e2e/api_m8_sidecar.py   # --keep leaves the connector active and the data as is
 ```
 
 | script | model calls | what it proves |

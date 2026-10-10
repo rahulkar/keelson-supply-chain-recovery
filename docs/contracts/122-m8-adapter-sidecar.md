@@ -59,7 +59,8 @@ Pydantic models with `extra=forbid`, validated at start-up (fail fast) and by `c
 | `snapshot` / `changes` | `{part_rows (50 000), ttl_s (7 200)}` / `{retention (10 000 journal rows)}` |
 
 Static rules: identifiers match `^[A-Za-z_][A-Za-z0-9_]{0,62}$` (tables optionally `schema.table` for SQL) and
-are always quoted; secrets only as `*_env` names (secret-like literal values and URLs with userinfo are refused);
+are always quoted; secrets only as `*_env` names (secret-like literal values and URLs with userinfo are refused;
+`*_url` keys such as `rest.auth.token_url` name endpoints, not credentials);
 no float literals; templates `{{ref}}` only over the roots allowed in their context (`payload`, `target_ref`,
 `expected_version`, `op`, `item`, `index`, `code`, `change_set`, `before`; table columns in `affects`), and a
 typed op's `payload.*` / `item.*` refs must exist in `keelson_contracts.changeset.OP_PAYLOAD_MODELS`; referenced
@@ -79,7 +80,8 @@ Examples shipped: `demo/fernhill/sidecar.yaml` (CSV, §7), `examples/sql-postgre
 Unknown entity → `unknown_entity`. Sources are refreshed first (drift journalled, §4.3); then — one build at a
 time — the watermark `j:<journal seq>` is read and every mapped entity's SQL runs inside one consistent read
 transaction (SQL: `REPEATABLE READ, READ ONLY`, watermark read just before; SQLite: one WAL snapshot; CSV/REST:
-the staging tables under the write lock). Values are converted with an explicit `SCN_ARROW_TYPES` table
+the sources are refreshed under the write lock, then the staging tables and the watermark are read in one WAL
+snapshot of the state database). Values are converted with an explicit `SCN_ARROW_TYPES` table
 (`string`, `int64`, `float64` lat/lon, `date32` from ISO text, `list<string>` from JSON arrays; a test pins its
 keys to `SCN_COLUMNS`), every row is validated with `keelson_contracts.scn.parse_row`, `source_id` must be
 unique per entity (else `invalid_source_data`), and parts of ≤ `part_rows` rows are written to
@@ -172,7 +174,8 @@ receipt must be a **user** approval bound to the **original** change set (id/cod
 `approval_ref` different from the apply's (`approval_reused`), with co-approvers when the original was
 co-approved; a compensating change set (`rollback_of`) replays the effects newest first — update → before values
 + version bump, insert → delete — each requiring that the row still equals its after-image (version or full row),
-else conflict and nothing is undone. Idempotency (Merxa protocol, keyed `(principal, key)`, key 1..255
+else conflict and nothing is undone; a row the change set changed several times (two transfers of one SKU from
+one DC) is checked once, against its newest after-image, and then undone step by step. Idempotency (Merxa protocol, keyed `(principal, key)`, key 1..255
 printable): `done` + same request hash → stored response replayed; different hash → 422
 `idempotency_key_reused`; `in_flight` → 409 `idempotency_in_flight` unless older than `IDEMPOTENCY_STALE_S`
 (120 s; then taken over). The request fingerprint excludes the receipt, so a re-minted receipt replays.
@@ -382,19 +385,21 @@ transfer order → clean-up (reset, disable; `--keep` skips). Exit 0 / 1 / 2. Sy
 
 ## 12. Tests
 
-- **Sidecar** (`services/adapter-sidecar/tests`, 135 tests; Postgres variants run when `SIDECAR_TEST_PG_DSN` is
+- **Sidecar** (`services/adapter-sidecar/tests`, 140 tests; Postgres variants run when `SIDECAR_TEST_PG_DSN` is
   set, `SIDECAR_TEST_PG_DB` names the throw-away database): config acceptance/rejections, templates, CSV backend
   (typed load errors, deterministic write-back, drift, only touched files rewritten, `source_changed`), crash
   recovery (roll-forward, after-sha, failed), SQL backend (SQLite + PG: read-only snapshot, one-transaction
   apply, marker, in-doubt settlement, `fingerprint_sql` drift), REST backend (page/cursor/link/offset,
-  `items_path`, foreign next link refused, byte and page caps, crawled label, no write tools), scn export (all 15
+  `items_path`, foreign next link refused, byte and page caps, crawled label, no write tools, client-credentials
+  auth), scn export (all 15
   entities, empty parts, sha256, column names/types, `parse_row`, duplicate `source_id`, part splitting, manifest
   and export validate with the contract models), signed URLs (round trip, bad/non-hex/expired signature, bad
   entity, traversal, TTL cleanup), change feed (own applies, drift, reset, invalid watermark, paging,
-  `ChangesSince`), change sets parametrised over csv / sqlite / postgres (draft reset, preview + `H`, errors,
-  apply, audit, journal, conflict leaves nothing applied, idempotency replay/422/409/stale takeover, `get_change_set`,
-  attribution, audit trail, transfer orders, operator guide), rollback (restore + version bump, later edit →
-  conflict, already rolled back, policy receipt refused, reused approval refused), receipts (every claim and
+  `ChangesSince`), change sets parametrised over csv / sqlite / postgres (draft reset, preview + `H`, errors incl.
+  integers outside the Postgres `int` range and payload values a text template cannot hold, apply, audit, journal,
+  conflict leaves nothing applied, idempotency replay/422/409/stale takeover, `get_change_set`, attribution, audit
+  trail, transfer orders, operator guide), rollback (restore + version bump, a row changed twice by one change
+  set, later edit → conflict, already rolled back, policy receipt refused, reused approval refused), receipts (every claim and
   binding reason, jti replay, tenant/ext_sub, caps, JWKS 500 transient, a receipt from
   `ApprovalReceiptClaims.issue(aud=…)` verifies), auth (no/wrong/short key, Bearer, per-tool scopes, OAuth good /
   wrong aud / iss / expired, PRM, separate admin key), MCP surface (order, annotations, output schemas, op enum,
@@ -463,7 +468,15 @@ transfer order → clean-up (reset, disable; `--keep` skips). Exit 0 / 1 / 2. Sy
 - The demo key carries every scope for the one Keelson credential (static-header connectors share it across
   reader / preparer / autocommit); separation is by receipts.
 - `PUBLIC_URL` must equal the registered connector origin and `MCP_ALLOWED_HOSTS` must include its host — both
-  easy demo misconfigurations (parts refused as `foreign_host`, `/mcp` answering 421/403); `/readyz` and the README
-  call them out.
+  easy demo misconfigurations (parts refused as `foreign_host`, `/mcp` answering 421/403); the sidecar cannot see
+  the URL Keelson registered, so `/readyz` cannot detect a mismatch — §6.2 and the README call them out.
+- SQL backend: if the state-store write that follows a successful backend COMMIT fails while the process keeps
+  running (disk full, I/O error), the apply stays in `apply_journal` until the next start-up settles it from the
+  marker; until then a retry of that apply is refused by the marker's primary key (an error, never a second
+  apply) instead of replaying the stored response.
+- OAuth inbound mode accepts RS256 bearer tokens only (FastMCP `JWTVerifier` default); config v1 has no
+  `algorithm` option for an ES256 / EdDSA IdP.
+- Demo reset restarts generated record codes (`TR-…`) from the golden data (the change-set code counter keeps
+  counting); audit rows of wiped records keep their old codes.
 - The e2e was written and syntax-checked but not executed here (it needs the full stack with the adapters
   profile); the integrator runs it.

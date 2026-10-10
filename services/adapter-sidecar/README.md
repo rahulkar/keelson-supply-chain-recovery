@@ -178,7 +178,7 @@ offline proof (register → tiers → sync → change set → apply → reconcil
 ```bash
 # runtime image (build context = repo root: it needs packages/contracts-py)
 docker build -f services/adapter-sidecar/Dockerfile -t keelson-adapter-sidecar .
-# test image + run (135 tests; the Postgres variants are skipped without SIDECAR_TEST_PG_DSN)
+# test image + run (140 tests; the Postgres variants are skipped without SIDECAR_TEST_PG_DSN)
 docker build -f services/adapter-sidecar/Dockerfile --target test -t keelson-adapter-sidecar:test .
 docker run --rm --memory 1500m keelson-adapter-sidecar:test
 docker run --rm --memory 1500m --network <net> -e SIDECAR_TEST_PG_DSN=postgresql://postgres:<pw>@<host>:5432/postgres \

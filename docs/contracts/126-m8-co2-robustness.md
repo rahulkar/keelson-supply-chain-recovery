@@ -280,13 +280,13 @@ and restorable); approval floors, four-eyes and RLS are unchanged. Fully determi
 
 | Suite | Command (Docker harness) | Result |
 |---|---|---|
-| optimizer (all) | `M8_SLOT=13 m8-pytest.sh <wt> optimizer -q` | 268 passed |
-| optimizer perf at 512 MB / 1.5 CPU | `M8_MEM=512m M8_ENV="--cpus 1.5" m8-pytest.sh <wt> optimizer tests/test_perf.py -s` | 8 passed; S4 + CO₂e + robustness 4.8 s in process / 3.8 s over HTTP, 235 MB on the loaded shared host (plain S4 bd+vn 4.2 s in the same run); 3.1 s / 253 MB on a quiet host |
+| optimizer (all) | `M8_SLOT=13 m8-pytest.sh <wt> optimizer -q` | 270 passed (review run; one earlier run lost the pre-M8 S4 `bd+vn` timing test to CPU contention on the shared host — it passed again in isolation and in the full rerun) |
+| optimizer perf at 512 MB / 1.5 CPU | `M8_MEM=512m M8_ENV="--cpus 1.5" m8-pytest.sh <wt> optimizer tests/test_perf.py -s` | 8 passed; S4 + CO₂e + robustness 3.65 s in process (peak RSS 243 MB) / 3.39 s over HTTP (review run; builder: 4.8 s / 3.8 s on a loaded host, 3.1 s / 253 MB on a quiet one) |
 | contracts-py | `m8-pytest.sh <wt> contracts-py -q` | 1471 passed |
 | contracts chain | `m8-contracts.sh <wt> optimizer-co2-robustness --check` | clean (76 generated modules up to date) |
-| engine runtime | `m8-pytest.sh <wt> engine tests/runtime -q` | 930 passed, 5 deselected |
-| engine platform | `m8-pytest.sh <wt> engine tests/platform -q` | 466 passed, 2 skipped, 3 failed = the known `test_kb.py` PDF tests (`120` §5) |
-| viz | `m8-js.sh … 'pnpm --filter @keelson/viz typecheck && pnpm --filter @keelson/viz test'` | typecheck clean, 267 passed (viz has no lint script) |
+| engine runtime | `m8-pytest.sh <wt> engine tests/runtime -q` | 933 passed, 5 deselected (review run) |
+| engine platform | `m8-pytest.sh <wt> engine tests/platform -q` | 467 passed, 2 skipped, 3 failed = the known `test_kb.py` PDF tests (`120` §5) |
+| viz | `m8-js.sh … 'pnpm --filter @keelson/viz typecheck && pnpm --filter @keelson/viz test'` | typecheck clean, 269 passed (viz has no lint script) |
 | contracts-ts | `m8-js.sh … 'pnpm --filter @keelson/contracts typecheck && … test'` | typecheck clean, 169 passed |
 | web | `m8-js.sh … 'pnpm --filter @keelson/web typecheck && … lint && … test'` | typecheck + lint clean, 473 passed |
 | e2e | `python -m py_compile e2e/api_m8_robustness_offline.py` (engine image); `tsc --noEmit` in `e2e/playwright` (node image) | both clean; not run (needs the full stack) |
@@ -302,7 +302,8 @@ identity, nominal bands without uncertainty, determinism in process / shuffled /
 cap, a capacity band reopening a closure, 422 cases), `test_perf.py` (+2); contracts-py
 `test_m8_co2_robustness.py` (+ `test_m3_optimizer` metric set); engine `test_m8_emissions.py`,
 `test_m8_robustness.py` (incl. the planning flow with an M8-answering optimizer stub and with the features
-off = M7 requests, replay safety), platform `test_m8_scoring_admin.py`; viz `tests/m8.test.tsx`,
+off = M7 requests, replay safety), platform `test_m8_scoring_admin.py` (incl. every repo pack keeping the
+spec versions stored before M8); viz `tests/m8.test.tsx`,
 `format.test.ts`; contracts-ts `m8-co2-robustness.test.ts`; web `lib/admin/scoring.test.ts`. e2e:
 `e2e/api_m8_robustness_offline.py` (py_compile), `e2e/playwright/tests/m8-co2-robustness.spec.ts`
 (`tsc --noEmit` of the Playwright project).

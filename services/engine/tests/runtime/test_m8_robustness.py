@@ -104,6 +104,17 @@ def test_window_bands_only_for_ops_the_optimizer_samples() -> None:
     assert spec is not None and [w.perturbation for w in spec.window_bands] == [3]  # the VN closure only
 
 
+def test_window_bands_are_capped_at_the_contract_limit() -> None:
+    """Review fix: ``RobustnessSpec.window_bands`` holds at most 64 entries; a scenario with more
+    windowed assumptions (an unbounded list) must not fail the whole plan — the first 64 are sampled."""
+    scn = closure_scenario()
+    closure = scn.perturbations[1]
+    many = [closure.model_copy(update={"target": closure.target.model_copy(update={"ids": [f"PORT{i:02d}"]})})
+            for i in range(70)]
+    spec = robustness_spec(PlanningDefaults(), scn, many)
+    assert spec is not None and [w.perturbation for w in spec.window_bands] == list(range(64))
+
+
 def test_robustness_settings() -> None:
     off = PlanningDefaults(robustness={"enabled": False})
     assert robustness_spec(off, closure_scenario(), closure_scenario().perturbations) is None
@@ -173,6 +184,8 @@ def test_win_rates_sum_to_10000_with_tie_rules() -> None:
     assert win_rates([*opts[:2], {"id": "do-nothing", "robustness": _rob([0] * 7, key="b" * 64)}]) is None
     assert win_rates([opts[0], {"id": "do-nothing"}]) is None
     assert win_rates(opts[:2]) is None  # no "Do nothing" to credit the futures nobody wins
+    # review fix (126 §5): without "Do nothing" there are no win rates, even when every future has a winner
+    assert win_rates([{"id": "opt-A", "robustness": _rob([5, 1])}, {"id": "opt-B", "robustness": _rob([4, 2])}]) is None
 
 
 def test_default_profile_keeps_the_m3_recommendation() -> None:

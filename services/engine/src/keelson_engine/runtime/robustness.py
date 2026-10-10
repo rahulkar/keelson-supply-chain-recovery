@@ -74,6 +74,8 @@ log = structlog.get_logger(__name__)
 CO2_KEY = "incremental_co2e_kg"
 CO2_LABEL = "Extra CO₂e of the plan"
 MAX_WINDOW_DAYS = 366
+MAX_WINDOW_BANDS = 64
+"""``RobustnessSpec.window_bands`` holds at most 64 bands: the first 64 windowed perturbations."""
 _DO_NOTHING = "do-nothing"
 _WEAK = ("assumption", "inference")
 _WINDOW_OPS = frozenset({"lead_time_shift", "capacity_scale", "demand_scale"})
@@ -121,6 +123,8 @@ def robustness_spec(planning: Any, scenario: Any, perturbations: Sequence[Any]) 
                 continue
             windows.append(WindowBand(perturbation=i, duration_days=Band(
                 p10=min(prior.p10, length), p50=length, p90=min(MAX_WINDOW_DAYS, max(prior.p90, length)))))
+            if len(windows) == MAX_WINDOW_BANDS:
+                break  # the contract's limit (a scenario's perturbation list is unbounded)
     return RobustnessSpec(
         samples=cfg.samples,
         seed=cfg.seed if cfg.seed is not None else planning.solver_seed,
@@ -207,7 +211,8 @@ def _largest_remainder(counts: Mapping[str, int], total: int, order: Sequence[st
 
 def win_rates(options: Sequence[Mapping[str, Any]]) -> dict[str, int] | None:
     """Option id → win rate (bp, summing to 10000); ``None`` when the options were not all
-    evaluated in the same sampled futures."""
+    evaluated in the same sampled futures or "Do nothing" (it wins the futures in which no option
+    gains) is not among them."""
     robs = [o.get("robustness") for o in options]
     if not options or any(not r for r in robs):
         return None
@@ -217,17 +222,16 @@ def win_rates(options: Sequence[Mapping[str, Any]]) -> dict[str, int] | None:
     n = next(iter(keys))[1]
     ids = [str(o["id"]) for o in options]
     vectors = {str(o["id"]): [int(v) for v in o["robustness"]["per_sample_net_benefit_cents"]] for o in options}
-    nothing = _DO_NOTHING if _DO_NOTHING in vectors else None
+    if _DO_NOTHING not in vectors:
+        return None
     counts: dict[str, int] = dict.fromkeys(ids, 0)
     for s in range(n):
-        best_id, best = nothing, 0
+        best_id, best = _DO_NOTHING, 0
         for oid in ids:
             if oid == _DO_NOTHING:
                 continue
             if vectors[oid][s] > best:
                 best_id, best = oid, vectors[oid][s]
-        if best_id is None:
-            return None  # no "Do nothing" to credit a future in which nothing gains
         counts[best_id] += 1
     return _largest_remainder(counts, n, ids)
 

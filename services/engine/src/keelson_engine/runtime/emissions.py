@@ -230,11 +230,12 @@ def lane_legs(lane: InboundLane, where: Mapping[tuple[str, str], tuple[str, Poin
         return []
     feeder = [] if stops[0][2] else road(origin, ports[0][1])
     if lane.mode == "sea_air":
-        split = geo.sea_air_legs(stops, lane.via) if not feeder else None
+        # from the first port: a factory origin drives there first, and its via then starts with that port
+        split = geo.sea_air_legs(stops[stops.index(ports[0]):], lane.via)
         if split is not None:
             sea, _hub, _arc = split
-            return [*_leg("sea", _polyline_km(sea)), *air(sea[-1], dest)]
-        hub = next((geo.place(v) for v in lane.via if geo.place(v) is not None), None)
+            return [*feeder, *_leg("sea", _polyline_km(sea)), *air(sea[-1], dest)]
+        hub = next((geo.place(v) for v in lane.via if v != ports[0][0] and geo.place(v) is not None), None)
         if hub is None:
             return []
         return [*feeder, *_leg("sea", distance_km(ports[0][1], hub)), *air(hub, dest)]

@@ -117,6 +117,22 @@ def test_lane_legs_follow_the_map_catalogue() -> None:
     assert sea[0][1] > 1.5 * distance_km(geo.place("BDCGP"), geo.place("GBFXT"))  # type: ignore[arg-type]
 
 
+def test_sea_air_chain_from_a_factory_keeps_the_sea_leg_into_the_hub() -> None:
+    """Review fix: a scn/1.0 chain factory → port (road) + port → DC (sea-air) has ``origin`` = the
+    factory and ``via`` = [the origin port, the hub]. Its legs are the road feeder, the catalogued sea
+    leg into the hub and the air leg from the hub — never an air leg from the origin port."""
+    p = problem()
+    geo = get_geo()
+    port_origin = next(il for il in p.inbound_lanes if il.code == "CGP-UK1-SA")
+    chain = port_origin.model_copy(update={"code": "RD+CGP-UK1-SA", "origin": "F-BD-01", "via": ["BDCGP", "AEJEA"]})
+    legs = _legs(p.model_copy(update={"inbound_lanes": [port_origin, chain]}))
+    factory = (int(90.4e6), int(23.9e6))
+    assert legs["RD+CGP-UK1-SA"] == [
+        ("road", _km(distance_km(factory, geo.place("BDCGP")) * 1.2)),  # type: ignore[arg-type]
+        *legs["CGP-UK1-SA"],  # the same sea leg into Jebel Ali and air leg to UK1 as the port-origin lane
+    ]
+
+
 def test_cape_is_longer_than_suez() -> None:
     p = problem()
     cape = p.inbound_lanes[0]

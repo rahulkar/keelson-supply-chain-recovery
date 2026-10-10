@@ -120,6 +120,7 @@ async def merge_pass(pipeline: Pipeline, *, now: dt.datetime, tenant: str | None
         candidates = [str(r["id"]) for r in await _load_events(conn, tenant, pack_id) if not r["anchored"]]
     if not candidates:
         return []
+    checked = set(candidates)  # the open-case guard covers these sources only
     blocked = await _open_case_events(pipeline, tenant, candidates)
     merges: list[tuple[str, str]] = []
     async with tx(pipeline.pool, tenant) as conn:
@@ -138,6 +139,8 @@ async def merge_pass(pipeline: Pipeline, *, now: dt.datetime, tenant: str | None
             sid = str(src["id"])
             if sid in merged_dst or sid in merged_src:
                 continue
+            if sid not in checked:
+                continue  # entered the bounded list after the open-case check: the next pass checks it
             features = EventFeatures(
                 event_id=sid, kind=src["kind"], subtype=src["subtype"], anchored=False,
                 window_start=src["window_start"], window_end=src["window_end"], last_observed=src["last_observed_at"],

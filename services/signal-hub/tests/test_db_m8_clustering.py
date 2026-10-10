@@ -30,7 +30,7 @@ from keelson_contracts.signals import (
     EventMembership,
     TenantNetwork,
 )
-from signal_hub import maintenance, membership
+from signal_hub import maintenance, membership, poller
 from signal_hub import pipeline as pipeline_module
 from signal_hub.adapters.connector import ConnectorEvent, parse_connector_event
 from signal_hub.adapters.gdacs import parse_gdacs
@@ -495,6 +495,53 @@ async def test_bounded_merge_pass_considers_the_most_recent_events(
     await _set_config(pool, enabled=True, local={"attach_bp": 6000, "merge_bp": 6500, "strict_bp": 6500})
     monkeypatch.setattr(maintenance, "MAX_EVENTS", 2)  # only two events per pass: the two latest
     assert await maintenance.merge_pass(pipe, now=T0 + 5 * H) == [(str(g["event_id"]), str(a["event_id"]))]
+
+
+async def test_merge_pass_never_merges_a_source_its_case_check_did_not_cover(
+        pool: asyncpg.Pool, gaz: Gazetteer, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The open-case guard is read before the locked merge transaction. When the bounded event list
+    shifts in between (another event became more recently active), an event that only appears in the
+    locked reload was never checked: it is left for the next pass instead of being merged away."""
+    pipe = Pipeline(pool, gaz, _llm())
+    net = demo_network()
+    net["nodes"].append({"type": "port", "code": "PLGDN", "name": "Gdansk", "lat": 54.4013, "lon": 18.6763})
+    await pipe.put_network(TENANT, TenantNetwork.model_validate(net), T0)
+    await _set_config(pool, enabled=False)
+    await _news(pipe, [_item(A_TITLE, native="a-1")])
+    await _news(pipe, [_item(GDANSK_TITLE, GDANSK_SNIPPET, native="g-1", connector="rss.b")], now=T0 + 4 * H)
+    src = str((await _signal(pool, "g-1"))["event_id"])
+    async with tx(pool, TENANT) as conn:
+        await conn.execute("UPDATE alert SET status = 'opened', case_id = 'case-1' WHERE event_id = $1", src)
+    await _set_config(pool, enabled=True, local={"attach_bp": 6000, "merge_bp": 6500, "strict_bp": 6500})
+    real, loads = maintenance._load_events, []
+
+    async def shifting(conn: asyncpg.Connection, tenant: str | None, pack_id: str | None) -> list[asyncpg.Record]:
+        rows = await real(conn, tenant, pack_id)
+        loads.append(len(rows))
+        return [r for r in rows if str(r["id"]) != src] if len(loads) == 1 else rows  # src enters the list late
+
+    monkeypatch.setattr(maintenance, "_load_events", shifting)
+    assert await maintenance.merge_pass(pipe, now=T0 + 5 * H) == []
+    assert len(loads) == 2
+    assert str((await _signal(pool, "g-1"))["event_id"]) == src  # not moved: its case check comes next pass
+    monkeypatch.setattr(maintenance, "_load_events", real)
+    assert await maintenance.merge_pass(pipe, now=T0 + 5 * H) == []  # checked now: the opened case blocks it
+
+
+async def test_poller_cluster_adapter_runs_one_maintenance_round(pool: asyncpg.Pool, gaz: Gazetteer, db_dsn: str) -> None:
+    """``poller --once --adapter cluster`` (Cloud Run, where the API loop does not run): one merge pass
+    per scope; with the litellm provider but no key the embedder only defers, the merges still run."""
+    pipe = Pipeline(pool, gaz, _llm())
+    await _set_config(pool, enabled=False)
+    await _news(pipe, [_item(A_TITLE, native="a-1")])
+    await _news(pipe, [_item(GDANSK_TITLE, GDANSK_SNIPPET, native="g-1", connector="rss.b")], now=T0 + 4 * H)
+    a, g = await _signal(pool, "a-1"), await _signal(pool, "g-1")
+    assert a["event_id"] != g["event_id"]
+    await _set_config(pool, enabled=True, local={"attach_bp": 6000, "merge_bp": 6500, "strict_bp": 6500})
+    settings = Settings(database_url=db_dsn, geo_dir=gaz.geo_dir, enabled_adapters=(), embed_provider="litellm")
+    assert await poller.run_once(settings, "cluster") == 0
+    assert (await _signal(pool, "g-1"))["event_id"] == a["event_id"]
+    assert (await _signal(pool, "g-1"))["method"] == "merged_vector"
 
 
 async def test_merge_pass_never_moves_anchored_events_or_crosses_scopes(pool: asyncpg.Pool, gaz: Gazetteer) -> None:

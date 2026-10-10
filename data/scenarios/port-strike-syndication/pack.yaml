@@ -14,7 +14,7 @@ description: >-
   (a near-duplicate: same story, one word changed; it is counted once for corroboration), and Demo Port
   Bulletin reports that workers at the Hamburg-Waltershof terminal join the strike (a terminal name the
   gazetteer does not know: it joins by similar cluster terms). One event; expected exposure: port DEHAM
-  (entity match) and the lanes ending at Hamburg.
+  (intersects: the reports are geocoded to the port itself) and the lanes ending at Hamburg.
 start_at: "2026-10-06T08:00:00Z"
 steps:
   - t_offset_s: 0

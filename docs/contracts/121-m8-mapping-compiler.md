@@ -190,11 +190,12 @@ Pipeline: **fetch → stage → project → lookups → entities → checks → 
   jsonb)` under `scn_raw_set(tenant, snapshot_id = the crawl attempt, connector, status staging |
   complete | failed, mapping_version, mapping_hash, sources jsonb, pages, items, bytes, fetched_from,
   fetched_to)`; inserted in short transactions (≤ 50 pages / 8 MiB). A page Postgres cannot store as
-  JSON (NaN, NUL) fails the crawl `items_invalid`.
+  JSON (NaN, NUL: any SQLSTATE class `22` data exception) fails the crawl `items_invalid`.
 - `complete` once every read was fetched (even if the mapping then fails), `failed` when fetching
   stopped. Size: `SCN_RAW_MAX_BYTES` (all reads of one crawl) → `too_many_rows`.
 - **Retention:** a crawl start deletes every set of the connector but the current snapshot's; a
-  successful flip deletes every set but the new current one. So at most the current set, the latest
+  successful flip (either engine: an interpreter crawl stages nothing, so the compiled crawl it
+  supersedes leaves no stale "last crawl") deletes every set but the new current one. So at most the current set, the latest
   failed attempt's and the running one exist — an admin can fix a `mapping_failed` crawl against
   exactly the data that failed. Sets also go with their snapshot (GC, failed-history cap; FK
   cascade), with the connector, with an orphaned attempt (`_fail_orphans`) and on demo reset
@@ -217,7 +218,10 @@ Approved tools only. Read candidates = `read` + `trusted_data`; `untrusted_text`
 sampled nor described. Write tools are listed by name and parameters (never called). Tool and
 parameter descriptions are vendor text: control / format characters dropped, whitespace collapsed,
 ≤ 300 / 200 characters, screened with `quarantine.looks_like_injection` (NFKC); a flagged description
-is dropped (note `description_flagged` + audit `untrusted_text.flagged`).
+is dropped (note `description_flagged` + audit `untrusted_text.flagged`). Parameter `enum` values are
+vendor text too: like sampled examples only shape-safe codes (`^[A-Za-z0-9][A-Za-z0-9_.:/#|-]{0,39}$`)
+that pass the same screen are kept (free-text values are dropped, flagged ones noted and audited the
+same way).
 
 ### 3.2 Sampling and profiles (`core/mapping_profile.py`) — the untrusted-text boundary
 
@@ -473,7 +477,12 @@ Compose: `MAPPING_PROPOSER: ${MAPPING_PROPOSER:-heuristic}` in the engine env an
   action mapping whose argument *names* look like credentials (`token`, `api_key`, …) would be
   applied without them and then fail re-validation; such argument names never carry templates of
   ours but a vendor could use them.
-- Proposal and preview concurrency caps are per engine-api process.
+- Proposal and preview concurrency caps are per engine-api process. The M7 `…/read/test` route, now
+  answered by the same compiled live preview, is not counted against the preview cap (it keeps its M7
+  answers, no new 429); a live test maps at most 3 pages per read, so its DuckDB session stays small.
+- A staged preview holds the validated rows of each entity mapping in engine-api memory for its
+  column statistics (bounded by `MAPPING_PREVIEW_MAX_ITEMS` per read); at `/mcp-lite` demo scale the
+  cap applies. Moving full-data previews to a worker job is deferred (§11).
 - Generic-update proposals (`po_line.reschedule` via `update_item`) may not match the vendor's
   business rules: low confidence, a warning note, four-eyes and the dry-run are the mitigations.
 - A synchronous proposal with the AI step can take up to `MAPPING_PROPOSE_TIMEOUT_S`; proxies in

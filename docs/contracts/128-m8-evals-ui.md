@@ -162,7 +162,8 @@ session's CSRF token and the Origin check like every admin mutation.
 acknowledge_reset: true, confirm_live, budget {max_tokens 1..50M, max_cost_microusd 1..100M}, note ≤ 200}`
 (extra = forbid). Errors: `409 evals_unavailable {reason}` (`runner_not_configured`, `demo_mode_off`,
 `runner_offline`, live only: `replay_only`, `live_disabled`, `gateway_budget_low`), `409 eval_running
-{run_id}`, `422 unknown_cases {cases}` (vs the runner's reported suite), `422 confirm_required` (live
+{run_id}`, `422 unknown_cases {cases}` (vs the runner's reported suite), `422 too_many_cases` (`null` =
+a suite of more than the 100 cases a run holds), `422 confirm_required` (live
 without the typed `RUN LIVE`), `422 budget_required`, `422 budget_too_high` (above `EVALS_LIVE_MAX_*`).
 `gateway_budget_low`: the eval tenant's LiteLLM team has a budget and spent it (`spend ≥ max_budget`, in
 the gateway's own units); the gateway is only asked when a live mode could otherwise start, and a
@@ -180,14 +181,16 @@ report runs, never queue one or change configuration.
 |---|---|
 | `POST /heartbeat {runner_id, version, suite}` | upsert `eval_runner` → `{poll_after_s}` |
 | `POST /claim {runner_id}` | reaps expired leases, then `UPDATE … WHERE id = (SELECT … FOR UPDATE SKIP LOCKED)` → `200 {job: EvalRunnerJob}` (lease `EVALS_LEASE_S`) or `204` |
-| `POST /runs/{id}/events {runner_id, events ≤ 50}` | appends (seq assigned server-side, ≤ 5000 per run, strings cleaned) → `{cancel_requested, budget_exhausted, lease_expires_at}` |
+| `POST /runs/{id}/events {runner_id, events ≤ 50}` | appends (seq assigned server-side, ≤ 5000 per run, strings cleaned; an event's `data` above 16 KiB of jsonb text → `422 event_too_large`) → `{cancel_requested, budget_exhausted, lease_expires_at}` |
 | `POST /runs/{id}/cases/{case}/attach {runner_id, keelson_case_id}` | link: the case is in the run's tenant (else `404 case_not_found`), created after the run started (`409 case_predates_run`), not linked elsewhere (`409 case_already_linked`); idempotent for the same pair |
 | `PUT /runs/{id}/cases/{case}/result {runner_id, result}` | ≤ 4 MiB report → `case_result_from_doc` (sanitised, capped) → merged with the link accounting (`engine`); a reported `fail` with engine-seen replay misses becomes `error` / `replay_miss`; an unlinked `keelson_case_id` is dropped; idempotent |
 | `POST /runs/{id}/finish {runner_id, status, error?}` | final status (`cancelled` when a cancel was requested), summary + thresholds computed from the stored rows, `doc_sha256` of the run's export; audit `evals.run_finished` (actor `evals-runner`) |
 
-Every call on a run needs that runner's running lease (`409 run_not_running`) and renews it. An expired
-lease is reaped lazily (claim, status, listing and detail reads): `failed` with `runner_lost` (or
-`cancelled` when a cancel was pending); the case results stay.
+Every call on a run needs that runner's running lease (`409 run_not_running`) and renews it; it also
+counts as the runner's heartbeat (`eval_runner.last_seen_at`: the loop only heartbeats between runs, and
+a live run can take an hour). An expired lease is reaped lazily (claim, status, listing and detail
+reads): `failed` with `runner_lost` (or `cancelled` when a cancel was pending); the case results stay.
+Malformed bodies (also pathologically nested JSON) are `422`, never `500`.
 
 ### 4.3 Runner sidecar (`evals/runner_service.py`, `evals/Dockerfile`, compose `evals-runner`)
 
@@ -197,7 +200,9 @@ before anything is posted; turn events; `stop_reason` checked before each turn; 
 run) → PUT the case result (retried with back-off: a 5xx never loses a result) → finish. A
 `LeaseKeeper` thread renews the lease every `EVALS_RUNNER_LEASE_RENEW_S` while a turn runs. In `replay`
 mode cases with `setup.kb_upload` are reported `skipped` (`needs_live_embeddings`). Once the cancel
-flag is set the remaining cases are reported `cancelled`; once the live budget is used up they are
+flag is set the remaining cases are reported `cancelled`, and so is the case whose in-flight Keelson
+run the cancel cut short (`RUN_ERROR` `CANCELLED`, even on its last turn: it is never judged); once the
+live budget is used up they are
 `skipped` (`budget_exhausted`). A lost lease (`run_not_running`) aborts without finishing. `--once`
 handles at most one run.
 
@@ -266,16 +271,19 @@ All routes are platform-admin gated ("Platform admins only" for anyone else), li
 
 ## 7. Tests, e2e, live verification
 
-* contracts-py `tests/test_evals.py` (18): both committed `/1` fixtures and the `/2` fixture convert;
-  exact bp / ms conversion; caps and sanitising; round trip; `EvalRunCreate` rules; thresholds
+* contracts-py `tests/test_evals.py` (19): both committed `/1` fixtures and the `/2` fixture convert;
+  exact bp / ms conversion; caps and sanitising (incl. replayed ≤ calls and deep nesting); round trip;
+  `EvalRunCreate` rules; thresholds
   (`ok` / `breach` / `not_measured` / `not_applicable`); schema export. contracts-ts `m8-evals.test.ts`.
 * Engine platform: `test_m8_evals_api.py` (RBAC on every route, availability reasons incl.
-  `gateway_budget_low`, run requests, imports + duplicates + 413 / 422, folder import with an unreadable
-  file, export → re-import, compare of the real fixtures, trends, recordings counts, RLS, case-delete
-  cascade), `test_m8_evals_runner_protocol.py` (token 404 / 401, full protocol, concurrent claims → one
-  job, lease expiry → `runner_lost` with results kept, events lease + caps, cancel queued / running incl.
-  Keelson runs, live budget flag + accounting, attach rules, sanitised + merged results),
-  `test_m8_evals_summary.py` (pure summary / compare / trends), `test_migrations_rls.py` (new tables).
+  `gateway_budget_low`, run requests incl. `too_many_cases`, imports + duplicates + 413 / 422 (also
+  deeply nested JSON and inconsistent usage), folder import with unreadable files, export → re-import,
+  compare of the real fixtures, trends, recordings counts, RLS, case-delete cascade),
+  `test_m8_evals_runner_protocol.py` (token 404 / 401, full protocol, concurrent claims → one job, lease
+  expiry → `runner_lost` with results kept, events lease + caps incl. `event_too_large`, a working runner
+  stays online, cancel queued / running incl. Keelson runs, live budget flag + accounting, attach rules,
+  sanitised + merged results), `test_m8_evals_summary.py` (pure summary / compare / trends, untrusted
+  usage), `test_migrations_rls.py` (new tables).
 * Engine runtime `test_m8_eval_runtime.py` (FakeLlm behind the replay layer, in-memory store):
   `effective_mode` matrix; a replay eval case never calls the model and ends `LLM_REPLAY_MISS`; process
   replay + record override stays replay; recordings replay; unlinked cases unchanged; failing lookup fails
@@ -283,8 +291,9 @@ All routes are platform-admin gated ("Platform admins only" for anyone else), li
   searches in replay eval runs never reach `core.kb`; the miss message carries no key or exception text.
 * `evals/tests`: trajectory matcher, v2 report (validated against `keelson_contracts.evals` when it is
   importable), runner hooks, `test_runner_service.py` against a fake stack + fake engine (attach before
-  the first message, kb case skipped in replay, cancel between turns with teardown, budget stop, 5xx
-  retries, lost lease, unknown cases); `run_live.py --dry-run`.
+  the first message, kb case skipped in replay, cancel between turns with teardown, a cancel that cuts
+  the last turn short → `cancelled`, budget stop, 5xx retries, lost lease, unknown cases);
+  `run_live.py --dry-run`.
 * Web `test/m8-evals.test.tsx` (20, axe): status hints and warnings, polling with fake timers that stops
   at a final status, trends tables, compare selection, dialog rules and POST body, import checks and
   duplicate notice, threshold badges, adversarial matrix, drill-down tabs, compare tones, tenant-admin
@@ -339,7 +348,8 @@ case, never next to a live demo).
   nothing from a result is fetched, linked, used as a path or sent to a model; folder import accepts only
   `<UTC stamp>.json` names.
 * RLS `FORCE` on all eval tenant tables; links cascade with cases; history survives demo resets.
-* The runner has no egress and fixed URLs from env (a job never names a URL).
+* The runner needs no egress: it only calls the fixed URLs from env (a job never names a URL). The
+  compose `edge` network it sits on is not an isolated network, though (see Known issues).
 
 ## 10. Deviations
 
@@ -405,3 +415,15 @@ From the brief:
   demos. With the profile up and no token, the runner exits (status 2) and compose restarts it.
 * Long live turns rely on the runner's lease thread; if engine-api is down for longer than
   `EVALS_LEASE_S` the run is reaped as `runner_lost`.
+* The runner's "no egress" is by code, not by network: `edge` (like every compose network here) is a
+  plain bridge, so the container could reach the internet. Making it an `internal` network would cut
+  Caddy's published port; a dedicated internal network shared with Caddy is the clean fix (workstream 9 /
+  integration).
+* The results-folder listing marks a file "Imported" by file name: a file whose content was already
+  imported under another name (or is an in-app run's export) still offers Import, which then answers
+  "already imported" (dedupe is by document content, so no duplicate run is created).
+* The M7 listing `core/audit.list_evals` (unchanged here) reads every results file with `json.loads`; a
+  pathologically nested file in the results folder makes `GET /api/admin/evals` and `/files` answer
+  500 (the M8 imports of such a file are 422 / an error entry). The folder is ops-controlled.
+* Cancelling an eval cancels its *queued / running* Keelson runs; a run paused at an approval card stays
+  paused (its resume is refused with `EVAL_CANCELLED`).

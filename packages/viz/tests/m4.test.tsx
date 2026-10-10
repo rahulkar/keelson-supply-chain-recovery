@@ -291,6 +291,8 @@ describe("M3 carry-overs", () => {
       guided_reason: null,
       integer: null,
       pareto: true,
+      scores: [],
+      win_rate_bp: null,
       scorecard: {
         changes: 0,
         cost_breakdown: { expedite_premium: 0, nearshore_premium: 0, transfer: 0 },
@@ -302,6 +304,9 @@ describe("M3 carry-overs", () => {
         net_benefit_cents: 0,
         shortage_days: 0,
         tts_gain_days: 0,
+        incremental_co2e_kg: null,
+        co2e_breakdown: null,
+        bands: null,
       },
     }) as CompareOption;
 

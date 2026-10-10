@@ -16,6 +16,11 @@ subclasses in `keelson_opt.wire_m5` until the contracts package takes them over 
 | `POST /v1/impact` | service JWT | `ImpactRequest` → `ImpactResponse` (+ `graph`, `tts`, `bottlenecks` with `include_graph`) |
 | `POST /v1/optimize` | service JWT | `OptimizeRequest` → `OptimizeResponse` (+ `scorecard`, typed `decisions`, grouped `actions`) |
 
+M8 (`docs/contracts/126-m8-co2-robustness.md`): `/v1/optimize` also reports the plan's incremental
+transport CO₂e (request `emissions`) and p10 / p50 / p90 robustness bands (request `robustness`,
+method `mc/1`); see "CO₂e and robustness" below. Both blocks are optional and omitted while unset, so
+every earlier request, response and `inputs_hash` is byte-identical.
+
 Modules: `scn` (normalise + perturb), `impact` (PAB simulator), `tts` (TTS LP, TTR,
 bottlenecks), `graph` (impact graph), `plan` (a plan's physical ledger), `planner` (one pass
 over all levers), `levers/composed` (the LP), `levers/reallocate` (M1 formulation + solver
@@ -23,6 +28,9 @@ helpers), `levers/resequence` (factory-line sequencing), `service` (responses, s
 actions), `wire_m5` (M5 request/response extensions); M8: `cpsat` (shared CP-SAT runner,
 budgets, per-solve records), `levers/alt_integer` (sourcing terms in the repair, whole-unit
 CP-SAT stage), `levers/resequence_cpsat` (resequencing v2).
+
+actions), `wire_m5` (M5 request/response extensions), `emissions` (M8 CO₂e), `robust/*` (M8
+robustness: `draws`, `sample`, `batch`, `evaluate`).
 
 ## Auth (M1)
 `Authorization: Bearer <JWT>`, HS256 signed with `OPTIMIZER_SHARED_SECRET` (env or
@@ -87,7 +95,8 @@ docstring):
   block whose `window` ended before `as_of` or starts after the horizon is ignored).
 
 Optional `window` restricts each (receipts with eta inside / overlapping weeks / transit
-overlapping the closure). `p10`/`p90` ignored. Other ops/kinds are ignored and listed in `warnings`.
+overlapping the closure). `p10`/`p90` do not change the nominal run (the primary value is the p50); M8
+robustness samples them (below). Other ops/kinds are ignored and listed in `warnings`.
 
 ## Impact graph, TTS, bottlenecks (`include_graph: true`; `keelson_opt.graph`, `keelson_opt.tts`)
 * **Graph** (≤ 300 nodes; stores never appear, PO lines are grouped to POs, SKUs to styles):
@@ -323,6 +332,68 @@ D (VN) 8.01 M vs 7.98 M; A, B and D (BD, BD+VN) unchanged (D: the simulator reje
 units). Time (`tests/test_perf_m8.py`, shared 6-CPU test host at load ~6, 2026-10-09): all levers
 `cpsat` 3.8 s (BD), 5.6 s (VN), 6.9 s (BD+VN), 7.9 s over HTTP, against 2.2 / 2.7 / 2.9 s for
 `repair` in the same run; the `cpsat` budget is 10 s (`repair` keeps 5 s).
+
+## CO₂e and robustness (M8, `docs/contracts/126-m8-co2-robustness.md`)
+
+**CO₂e** (`keelson_opt.emissions`, request `emissions {factors[{mode, g_co2e_per_tkm}], basis, source_id}`).
+The optimizer stays stateless: the engine sends `Sku.unit_weight_g`, `Lane.distance_km` (DC transfers,
+road) and `InboundLane.legs [{mode, distance_km}]` with the factor set. A lane's intensity is
+`I = Σ legs km × g/tkm`; one unit of weight `w` g on it emits `w × I / 10⁹` kg. Versus doing nothing:
+
+| component | per unit |
+|---|---|
+| `transfer_kg` | `+ w × I(DC lane, road)` |
+| `expedite_kg` | `w × (I(fast lane) − I(the PO line's booked lane))` |
+| `nearshore_kg` | `w × (I(alternate source lane) − I(booked lane))` — negative when near-shore road beats deep sea |
+| `rebook_kg` | (M5) a decidable booking kept / cancelled differently from the first-come-first-served baseline moves its units between the booked lane and its sea fallback |
+
+Resequences and allocations move no goods (0). Each component's total rounds half up to kg; the
+scorecard's `incremental_co2e_kg` is their sum (`co2e_breakdown` sums to it, validated).
+`OptimizeResponse.emissions {source_id, basis, coverage_bp, baseline_inbound_kg, uncovered[≤20]}`:
+units without a lane intensity (no legs, a mode without a factor) or a unit weight are left out and
+reported (`lane:<code>` / `sku:<code>`). Scope: transport only, per the factor set's basis.
+
+**Robustness** (`keelson_opt.robust`, request `robustness {method: "mc/1", samples 8–256, seed,
+value_bands, window_bands[{perturbation, duration_days}], lead_time_noise[{mode, days}],
+demand_noise_bp}`). The request's own rounded plan is re-simulated — never re-optimised — in `samples`
+sampled futures, next to the do-nothing baseline in the same futures:
+
+* draws (`robust/draws.py`) are keyed hashes: `blake2b("mc/1|seed|stream|key|chunk", 64 bytes)` → 8 ×
+  u64 → `u = ((word >> 32) × 10000) >> 32` basis points; streams `value:{i}`, `window:{i}`, `lt`
+  (keyed by the arrival), `dem` (keyed `cluster|style`). Order-, process- and hash-seed-independent;
+  options of a plan with the same seed see the same futures (common random numbers).
+* `quantile(u, band)`: integer piecewise-linear through (1000 → p10, 5000 → p50, 9000 → p90), tails at the
+  adjacent slope, round half up; factors ≥ 0, durations ≥ 1.
+* futures (`robust/sample.py`): the perturbations' own `p10`/`p90` (`value_bands`); a window band keeps
+  the window's start and samples its length (`p50` must equal the window's length, else 422); transit
+  noise per arrival by its lane's mode (`default` for the rest); one demand factor per (cluster,
+  style). Arrivals are dated (`plan_arrivals` mirrors `plan.plan_lines`: bookings, moves, reductions
+  from the latest arrival, then splits and alternate buys): a receipt (or a booking's sea fallback) is
+  ready `Δ` days later (sampled minus nominal readiness of the lead-time shifts that hit it, matched
+  with `scn`'s own rules) and goes through `scn.closure_delay` again on lanes whose closures are
+  rebuilt from the sampled capacity perturbations (it may then be later, earlier or lost); a
+  resequenced line moves by its PO line's `Δ`, an expedite split by `max(0, Δ)` (capacity assumed), an
+  alternate buy not at all; then every arrival gets its transit noise. Lines lost nominally stay lost.
+* `robust/batch.py`: the PAB simulator over int64 tensors (samples × SKUs × the DC's clusters), weeks
+  looped; the same rationing (largest remainder, ties by cluster order) and firm-then-fair overrides.
+  With nothing sampled it equals `impact.simulate` exactly (`tests/test_batch_sim_m8.py`: small and full
+  fixtures, every option A–D, the M5 booking re-plan, N = 1 and 8).
+* `robust/evaluate.py`: `samples = min(requested, max(8, 2,500,000 // (SKUs × clusters × weeks)))` (a
+  deterministic cell budget, never wall clock); per sample `net_benefit = (baseline lost margin − plan
+  lost margin) − incremental cost` (costs are not sampled); nearest-rank p10 / p50 / p90 →
+  `Scorecard.bands {samples, fill_rate_bp, lost_units, lost_margin_cents, net_benefit_cents,
+  shortage_days, stockout_chance_bp}`; `OptimizeResponse.robustness {method, seed, samples,
+  requested_samples, sampled[], crn_key, per_sample_net_benefit_cents[], per_sample_lost_margin_cents[]}`
+  (`crn_key` = hash of data + perturbations + robustness spec: equal keys = comparable vectors).
+* Not sampled: costs and rates, time-to-survive and first-breach shift, capacity of bookings already
+  decided, the recovery tail (TTR).
+
+Performance (512 MB / 1.5 CPU, full profile, all levers, trims delay with its band, 64 samples,
+default noise): ~2.9–3.1 s in process (plain S4 ~2.5 s), peak RSS ~250 MB (`tests/test_perf.py`).
+Golden: `tests/fixtures/robust_full.golden.json` (seed 7, 64 samples, options A–D + do nothing on the
+trims delay 5 / 7 / 14 + the VN closure window 7 / 10 / 14; `KEELSON_UPDATE_GOLDEN=1 pytest
+tests/test_robustness_m8.py -k golden`). `numpy` (already in the image through OR-Tools) is a direct
+dependency.
 
 ## Build, run, test
 ```bash

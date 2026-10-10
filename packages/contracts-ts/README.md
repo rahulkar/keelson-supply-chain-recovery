@@ -145,6 +145,15 @@ convert to `z.any()` without an explicit open object.
   authoritative). The CLI results file (`keelson-evals/1|2`) has no generated schema: the engine
   converts it with a sanitising converter, so clients only do light early checks.
 
+## M8 notes (`docs/contracts/126-m8-co2-robustness.md`)
+
+- `VALUE_UNITS` gains `kg_co2e`. The regenerated `scenario_compare@1`, `kpi_strip@1`,
+  `recommended_option@1` and envelope schemas carry the optional CO₂e / band / profile fields; their
+  Zod defaults (`[]`, `null`) make them required keys of the *parsed* types, so hand-built
+  `ScenarioCompareProps` / `CompareOption` objects in TypeScript must set them (as M7 did for
+  `advisory`). Cross-field rules (band order, CO₂e breakdown sum, one default profile, win rates summing
+  to 10000) are enforced by contracts-py, not by the JSON Schema. Tests: `tests/m8-co2-robustness.test.ts`.
+
 ## M7 notes (`docs/contracts/110-m7-backoffice-generic.md`)
 
 - Friendly vocabularies in `src/backoffice.ts` (derived from the generated schemas): `PRODUCT_ROLES`,

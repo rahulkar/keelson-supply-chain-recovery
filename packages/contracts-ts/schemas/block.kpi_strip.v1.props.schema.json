@@ -8,6 +8,40 @@
         "additionalProperties": false,
         "description": "One KPI tile. ``value``/``delta`` are integers in ``unit``.",
         "properties": {
+          "band": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "description": "M8: the likely range of a KPI — p10 and p90 over ``samples`` sampled futures (same unit\nas the KPI's ``value``).",
+                "properties": {
+                  "p10": {
+                    "title": "P10",
+                    "type": "integer"
+                  },
+                  "p90": {
+                    "title": "P90",
+                    "type": "integer"
+                  },
+                  "samples": {
+                    "minimum": 1,
+                    "title": "Samples",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "p10",
+                  "p90",
+                  "samples"
+                ],
+                "title": "KpiBand",
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "delta": {
             "anyOf": [
               {
@@ -53,7 +87,8 @@
               "eur_cents",
               "days",
               "pct_bp",
-              "count"
+              "count",
+              "kg_co2e"
             ],
             "title": "Unit",
             "type": "string"

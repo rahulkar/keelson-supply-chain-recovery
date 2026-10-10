@@ -36,7 +36,7 @@ export const PROVENANCE_KINDS = [
 export type Provenance = (typeof PROVENANCE_KINDS)[number];
 
 /** Units used by KPI values (`kpi_strip@1`, `recommended_option@1`). */
-export const VALUE_UNITS = ["units", "eur_cents", "days", "pct_bp", "count"] as const;
+export const VALUE_UNITS = ["units", "eur_cents", "days", "pct_bp", "count", "kg_co2e"] as const;
 export type ValueUnit = (typeof VALUE_UNITS)[number];
 
 export const BLOCK_PLACEMENTS = ["inline", "canvas"] as const;

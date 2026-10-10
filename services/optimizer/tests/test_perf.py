@@ -1,12 +1,17 @@
 """Spike S4: full-size problems must solve end-to-end in under 5 s inside the 512 MB container
 (M0 preview: synthetic 180 SKUs x 40 clusters, reallocation only; M3: the full-profile
-fixture with all five levers in one request, in-process and over HTTP)."""
+fixture with all five levers in one request, in-process and over HTTP; M8: the same with CO₂e and
+robustness bands, ``126``)."""
 
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
 import time
 from collections.abc import Callable
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -129,3 +134,57 @@ def test_s4_full_profile_all_levers_with_resequence_alternative(story: str, caps
             f"actions={len(resp.actions)}"
         )
     assert elapsed < BUDGET_S
+
+
+@pytest.mark.perf
+def test_s4_full_profile_with_emissions_and_robustness_over_http(
+    client: TestClient, auth: Callable[..., dict[str, str]], capsys: pytest.CaptureFixture[str]
+) -> None:
+    from .fixtures.full_problem import OPTIONS
+    from .fixtures.m8_inputs import BD_DELAY_BANDED, m8_request, robustness
+
+    raw = m8_request(OPTIONS["D"], plan_id="opt-D", perturbations=[BD_DELAY_BANDED], robust=robustness(window=None))
+    body = json.dumps(raw).encode()
+    t0 = time.perf_counter()
+    r = client.post("/v1/optimize", content=body, headers={**auth(), "content-type": "application/json"})
+    elapsed = time.perf_counter() - t0
+    assert r.status_code == 200, r.text[:500]
+    assert r.json()["robustness"]["samples"] == 64
+    with capsys.disabled():
+        print(f"\n[S4] HTTP /v1/optimize all levers + CO2e + robustness(64) {len(body) / 1e6:.1f} MB: {elapsed:.2f}s")
+    assert elapsed < BUDGET_S
+
+
+_M8_CHILD = """
+import sys, time
+sys.path.insert(0, sys.argv[1])
+from keelson_contracts.optimizer import OptimizeRequest
+from keelson_opt.service import run_optimize
+from tests.fixtures.full_problem import OPTIONS
+from tests.fixtures.m8_inputs import BD_DELAY_BANDED, m8_request, robustness
+raw = m8_request(OPTIONS["D"], plan_id="opt-D", perturbations=[BD_DELAY_BANDED], robust=robustness(window=None))
+t0 = time.perf_counter()
+resp = run_optimize(OptimizeRequest.model_validate(raw))
+elapsed = time.perf_counter() - t0
+assert resp.scorecard.bands is not None and resp.robustness.samples == 64
+assert resp.scorecard.incremental_co2e_kg is not None
+hwm = next(int(line.split()[1]) for line in open("/proc/self/status") if line.startswith("VmHWM:"))
+print(f"{elapsed:.3f} {hwm}")
+"""
+
+
+@pytest.mark.perf
+def test_s4_full_profile_with_emissions_and_robustness(capsys: pytest.CaptureFixture[str]) -> None:
+    """126 §5: S4 (all levers, the trims delay with its 5 / 7 / 14 band) plus CO₂e and robustness
+    (64 samples, default transit and demand noise): < 5 s at 512 MB / 1.5 CPU and a peak RSS
+    (``VmHWM``) below 400 MB, measured in a fresh process so earlier tests do not count. Kept last
+    in the module: the child process runs next to this one."""
+    root = str(Path(__file__).resolve().parents[1])
+    proc = subprocess.run([sys.executable, "-c", _M8_CHILD, root], capture_output=True, text=True, check=True,
+                          env={**os.environ, "LOG_LEVEL": "WARNING"})
+    elapsed_s, rss_kb = proc.stdout.strip().splitlines()[-1].split()
+    elapsed, rss_mb = float(elapsed_s), int(rss_kb) / 1024
+    with capsys.disabled():
+        print(f"\n[S4] full profile, all levers + CO2e + robustness(64): total={elapsed:.2f}s peak RSS={rss_mb:.0f} MB")
+    assert elapsed < BUDGET_S
+    assert rss_mb < 400

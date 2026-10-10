@@ -24,6 +24,7 @@ import impactGraphData from "../fixtures/impact_graph.data.json";
 import impactGraph from "../fixtures/impact_graph.json";
 import invalidKpiStrip from "../fixtures/invalid.kpi_strip.json";
 import kpiStripFinal from "../fixtures/kpi_strip.final.json";
+import kpiStripRobust from "../fixtures/kpi_strip.robust.json";
 import kpiStrip from "../fixtures/kpi_strip.json";
 import narrativeWhatChanged from "../fixtures/narrative.what_changed.json";
 import narrative from "../fixtures/narrative.json";
@@ -37,6 +38,7 @@ import recommendedOptionMixed from "../fixtures/recommended_option.mixed.json";
 import remediationChecklistCompleted from "../fixtures/remediation_checklist.completed.json";
 import remediationChecklist from "../fixtures/remediation_checklist.json";
 import scenarioCompare from "../fixtures/scenario_compare.json";
+import scenarioCompareRobust from "../fixtures/scenario_compare.robust.json";
 import stockoutTimelineData from "../fixtures/stockout_timeline.data.json";
 import stockoutTimeline from "../fixtures/stockout_timeline.json";
 import type { BlockDataLoader } from "./types";
@@ -237,6 +239,13 @@ export const blockFixtures: BlockFixture[] = [
     description: "CP-SAT plans: how each re-sourcing option's whole units were found (optimal, best found)",
     envelope: integerVariant(scenarioCompare, "blk_scenario_compare_integer"),
   },
+  // M8 (docs/contracts/126), appended so the earlier order stays stable for e2e.
+  {
+    name: "scenario_compare.robust",
+    description: "Options with likely ranges (64 sampled futures), extra CO₂e, weight-profile ranks and win rates",
+    envelope: env(scenarioCompareRobust),
+  },
+  { name: "kpi_strip.robust", description: "Exposure and plan with likely ranges and the plan's extra CO₂e", envelope: env(kpiStripRobust) },
 ];
 
 export function getFixture(name: string): BlockFixture | undefined {

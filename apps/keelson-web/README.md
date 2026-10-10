@@ -523,6 +523,19 @@ Tests: `src/lib/admin/planning.test.ts` (schema, merge patch, defaults dropped, 
 block-list guard) and `test/admin-planning.test.tsx` (the card saves its patch, a case pack of 0
 blocks saving, tenant vs platform admin on the block list, axe).
 
+## M8 — option scoring (`docs/contracts/126` §6)
+
+- **Policies → Option scoring** (`components/admin/ScoringSection.tsx`, `lib/admin/scoring.ts`): the
+  tenant's weight profiles (name, id, weights of protected margin and plan cost in %, carbon price in
+  € per tonne CO₂e, caution = how much the pessimistic case counts), the default profile (it sets the
+  optimizer's weights and picks the recommendation) and the sampled futures per option (16–256); the
+  CO₂e factor set and unit weights read-only. Saved as a new agent-spec version through
+  `PUT /api/admin/agents/spec` (merge patch: `planning.scoring`, `planning.robustness.samples`; not a
+  guarded change), 409 → "Load the latest version", 422 → the engine's `errors[].loc` mapped to the fields.
+  Client checks mirror the engine (`lib/admin/scoring.test.ts`).
+- The compare block's CO₂e axis, likely ranges, profile ranks and "How sure are we?" panel and the KPI
+  bands come from `@keelson/viz` (no web change).
+
 ## Develop & test (Docker only — no Node toolchain on the host)
 
 From Git Bash at the repo root, with `node_modules` and `.next` in named volumes:

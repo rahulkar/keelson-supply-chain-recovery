@@ -3,5 +3,5 @@
 // Regenerate: pnpm --filter @keelson/contracts generate
 import { z } from "zod"
 
-export const blockKpiStripV1PropsSchema = z.object({ "items": z.array(z.object({ "delta": z.union([z.number().int(), z.null()]).default(null), "key": z.string().regex(new RegExp("^[a-z][a-z0-9_]*$")), "label": z.string().min(1), "preliminary": z.boolean(), "prov": z.enum(["fact","inference","assumption","simulated","decision","committed"]), "unit": z.enum(["units","eur_cents","days","pct_bp","count"]), "value": z.number().int() }).strict()).min(1) }).strict()
+export const blockKpiStripV1PropsSchema = z.object({ "items": z.array(z.object({ "band": z.union([z.object({ "p10": z.number().int(), "p90": z.number().int(), "samples": z.number().int().gte(1) }).strict(), z.null()]).default(null), "delta": z.union([z.number().int(), z.null()]).default(null), "key": z.string().regex(new RegExp("^[a-z][a-z0-9_]*$")), "label": z.string().min(1), "preliminary": z.boolean(), "prov": z.enum(["fact","inference","assumption","simulated","decision","committed"]), "unit": z.enum(["units","eur_cents","days","pct_bp","count","kg_co2e"]), "value": z.number().int() }).strict()).min(1) }).strict()
 export type BlockKpiStripV1Props = z.infer<typeof blockKpiStripV1PropsSchema>

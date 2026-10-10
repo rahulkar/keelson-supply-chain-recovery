@@ -1,0 +1,342 @@
+{
+ "A": {
+  "bands": {
+   "fill_rate_bp": {
+    "p10": 9126,
+    "p50": 9467,
+    "p90": 9716
+   },
+   "lost_margin_cents": {
+    "p10": 9749960,
+    "p50": 18553550,
+    "p90": 44231750
+   },
+   "lost_units": {
+    "p10": 7881,
+    "p50": 14560,
+    "p90": 24271
+   },
+   "net_benefit_cents": {
+    "p10": 8190170,
+    "p50": 14076620,
+    "p90": 17459070
+   },
+   "samples": 64,
+   "shortage_days": {
+    "p10": 357,
+    "p50": 427,
+    "p90": 490
+   },
+   "stockout_chance_bp": 10000
+  },
+  "co2e": {
+   "breakdown": {
+    "expedite_kg": 0,
+    "nearshore_kg": 0,
+    "rebook_kg": 0,
+    "transfer_kg": 926
+   },
+   "incremental_co2e_kg": 926
+  },
+  "emissions": {
+   "baseline_inbound_kg": 119464,
+   "basis": "WTW",
+   "coverage_bp": 10000,
+   "source_id": "glec-v3-indicative",
+   "uncovered": []
+  },
+  "nominal": {
+   "fill_rate_bp": 9634,
+   "incremental_cost_cents": 428430,
+   "lost_margin_cents": 11947130,
+   "lost_units": 10179,
+   "net_benefit_cents": 17209720,
+   "shortage_days": 210
+  },
+  "robustness": {
+   "lost_margin_sha256": "f80c55fbe417258d8bf8032ad1e250c8c5735ed3de84c946d7a761a14b39a093",
+   "net_benefit_sha256": "167550000f21bd96092ad8efdb40fde17b46a599378894045d0c18061dcb6a57",
+   "requested_samples": 64,
+   "sampled": [
+    "disruption_severity",
+    "disruption_duration",
+    "lead_time",
+    "demand"
+   ],
+   "samples": 64,
+   "seed": 7
+  }
+ },
+ "B": {
+  "bands": {
+   "fill_rate_bp": {
+    "p10": 9371,
+    "p50": 9779,
+    "p90": 9912
+   },
+   "lost_margin_cents": {
+    "p10": 3374500,
+    "p50": 8095400,
+    "p90": 34126550
+   },
+   "lost_units": {
+    "p10": 2439,
+    "p50": 6064,
+    "p90": 17497
+   },
+   "net_benefit_cents": {
+    "p10": 14775428,
+    "p50": 20845178,
+    "p90": 26320328
+   },
+   "samples": 64,
+   "shortage_days": {
+    "p10": 259,
+    "p50": 343,
+    "p90": 462
+   },
+   "stockout_chance_bp": 10000
+  },
+  "co2e": {
+   "breakdown": {
+    "expedite_kg": 22006,
+    "nearshore_kg": 0,
+    "rebook_kg": 0,
+    "transfer_kg": 926
+   },
+   "incremental_co2e_kg": 22932
+  },
+  "emissions": {
+   "baseline_inbound_kg": 119464,
+   "basis": "WTW",
+   "coverage_bp": 10000,
+   "source_id": "glec-v3-indicative",
+   "uncovered": []
+  },
+  "nominal": {
+   "fill_rate_bp": 10000,
+   "incremental_cost_cents": 2228482,
+   "lost_margin_cents": 0,
+   "lost_units": 0,
+   "net_benefit_cents": 27356798,
+   "shortage_days": 0
+  },
+  "robustness": {
+   "lost_margin_sha256": "0dda71f8eced7d2eaaa5becbf912ced1528325c1f14261cd682866601fd111bb",
+   "net_benefit_sha256": "c3d3418f870a4406058f964138ff059c4cf1f8fce78c91625099e42acf702ab3",
+   "requested_samples": 64,
+   "sampled": [
+    "disruption_severity",
+    "disruption_duration",
+    "lead_time",
+    "demand"
+   ],
+   "samples": 64,
+   "seed": 7
+  }
+ },
+ "C": {
+  "bands": {
+   "fill_rate_bp": {
+    "p10": 9317,
+    "p50": 9702,
+    "p90": 9838
+   },
+   "lost_margin_cents": {
+    "p10": 5841540,
+    "p50": 10458450,
+    "p90": 34190810
+   },
+   "lost_units": {
+    "p10": 4501,
+    "p50": 8265,
+    "p90": 18991
+   },
+   "net_benefit_cents": {
+    "p10": 6709653,
+    "p50": 13176723,
+    "p90": 20152853
+   },
+   "samples": 64,
+   "shortage_days": {
+    "p10": 455,
+    "p50": 518,
+    "p90": 581
+   },
+   "stockout_chance_bp": 10000
+  },
+  "co2e": {
+   "breakdown": {
+    "expedite_kg": 0,
+    "nearshore_kg": -2235,
+    "rebook_kg": 0,
+    "transfer_kg": 0
+   },
+   "incremental_co2e_kg": -2235
+  },
+  "emissions": {
+   "baseline_inbound_kg": 119464,
+   "basis": "WTW",
+   "coverage_bp": 10000,
+   "source_id": "glec-v3-indicative",
+   "uncovered": []
+  },
+  "nominal": {
+   "fill_rate_bp": 9909,
+   "incremental_cost_cents": 6874047,
+   "lost_margin_cents": 3144140,
+   "lost_units": 2516,
+   "net_benefit_cents": 19567093,
+   "shortage_days": 168
+  },
+  "robustness": {
+   "lost_margin_sha256": "8cac3b17ccd520addc4872408f318465001d70a28bf4f88670627931e5ef8642",
+   "net_benefit_sha256": "6c54abad5c50fd52b636453f657a72c9e9932b0f151dd38bb21024a0094b5941",
+   "requested_samples": 64,
+   "sampled": [
+    "disruption_severity",
+    "disruption_duration",
+    "lead_time",
+    "demand"
+   ],
+   "samples": 64,
+   "seed": 7
+  }
+ },
+ "D": {
+  "bands": {
+   "fill_rate_bp": {
+    "p10": 9371,
+    "p50": 9779,
+    "p90": 9912
+   },
+   "lost_margin_cents": {
+    "p10": 3374500,
+    "p50": 8095400,
+    "p90": 34126550
+   },
+   "lost_units": {
+    "p10": 2439,
+    "p50": 6064,
+    "p90": 17497
+   },
+   "net_benefit_cents": {
+    "p10": 14775428,
+    "p50": 20845178,
+    "p90": 26320328
+   },
+   "samples": 64,
+   "shortage_days": {
+    "p10": 259,
+    "p50": 343,
+    "p90": 462
+   },
+   "stockout_chance_bp": 10000
+  },
+  "co2e": {
+   "breakdown": {
+    "expedite_kg": 22006,
+    "nearshore_kg": 0,
+    "rebook_kg": 0,
+    "transfer_kg": 926
+   },
+   "incremental_co2e_kg": 22932
+  },
+  "emissions": {
+   "baseline_inbound_kg": 119464,
+   "basis": "WTW",
+   "coverage_bp": 10000,
+   "source_id": "glec-v3-indicative",
+   "uncovered": []
+  },
+  "nominal": {
+   "fill_rate_bp": 10000,
+   "incremental_cost_cents": 2228482,
+   "lost_margin_cents": 0,
+   "lost_units": 0,
+   "net_benefit_cents": 27356798,
+   "shortage_days": 0
+  },
+  "robustness": {
+   "lost_margin_sha256": "0dda71f8eced7d2eaaa5becbf912ced1528325c1f14261cd682866601fd111bb",
+   "net_benefit_sha256": "c3d3418f870a4406058f964138ff059c4cf1f8fce78c91625099e42acf702ab3",
+   "requested_samples": 64,
+   "sampled": [
+    "disruption_severity",
+    "disruption_duration",
+    "lead_time",
+    "demand"
+   ],
+   "samples": 64,
+   "seed": 7
+  }
+ },
+ "do-nothing": {
+  "bands": {
+   "fill_rate_bp": {
+    "p10": 8839,
+    "p50": 9277,
+    "p90": 9569
+   },
+   "lost_margin_cents": {
+    "p10": 19698060,
+    "p50": 30471800,
+    "p90": 62099150
+   },
+   "lost_units": {
+    "p10": 11974,
+    "p50": 19739,
+    "p90": 32358
+   },
+   "net_benefit_cents": {
+    "p10": 0,
+    "p50": 0,
+    "p90": 0
+   },
+   "samples": 64,
+   "shortage_days": {
+    "p10": 420,
+    "p50": 490,
+    "p90": 553
+   },
+   "stockout_chance_bp": 10000
+  },
+  "co2e": {
+   "breakdown": {
+    "expedite_kg": 0,
+    "nearshore_kg": 0,
+    "rebook_kg": 0,
+    "transfer_kg": 0
+   },
+   "incremental_co2e_kg": 0
+  },
+  "emissions": {
+   "baseline_inbound_kg": 119464,
+   "basis": "WTW",
+   "coverage_bp": 10000,
+   "source_id": "glec-v3-indicative",
+   "uncovered": []
+  },
+  "nominal": {
+   "fill_rate_bp": 9353,
+   "incremental_cost_cents": 0,
+   "lost_margin_cents": 29585280,
+   "lost_units": 18020,
+   "net_benefit_cents": 0,
+   "shortage_days": 224
+  },
+  "robustness": {
+   "lost_margin_sha256": "5be9e5d88204bb94ac066df88ec4cc51a27e5583b7475490b84e8b83eec508da",
+   "net_benefit_sha256": "ca0101ae4bf3b31bd300f93f576d862c57e98cb85d8ff6db4078eea404b88a9a",
+   "requested_samples": 64,
+   "sampled": [
+    "disruption_severity",
+    "disruption_duration",
+    "lead_time",
+    "demand"
+   ],
+   "samples": 64,
+   "seed": 7
+  }
+ }
+}

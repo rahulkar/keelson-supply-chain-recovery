@@ -33,6 +33,7 @@ from typing import Any
 from keelson_contracts.changeset import M1_OPS
 from keelson_contracts.optimizer import LEVER_OPS, LEVERS, PlanSpec
 
+from .robustness import plan_weights
 from .spec import ALL_LEVERS, PlanningDefaults
 
 __all__ = [
@@ -293,7 +294,8 @@ def lever_specs(codes: Sequence[str], planning: PlanningDefaults) -> list[dict[s
 
 def build_candidates(planning: PlanningDefaults, caps: ConnectorCapabilities | CapabilityTable) -> list[Candidate]:
     """Candidates restricted to the enabled levers (catalogue order), deduplicated by lever set;
-    a candidate left without levers is dropped. "Do nothing" is not included."""
+    a candidate left without levers is dropped. "Do nothing" is not included. M8 (``126`` §4): the
+    LP weights are the default weight profile's (``planning.scoring``; 10000 / 10000 by default)."""
     enabled = [code for code in ALL_LEVERS if code in planning.enabled_levers]
     seen: set[tuple[str, ...]] = set()
     out: list[Candidate] = []
@@ -304,7 +306,8 @@ def build_candidates(planning: PlanningDefaults, caps: ConnectorCapabilities | C
             continue
         seen.add(levers)
         guided, reason = capability_check(levers, caps)
-        spec = PlanSpec.model_validate({"id": cand.id, "title": cand.title, "levers": lever_specs(levers, planning)})
+        spec = PlanSpec.model_validate({"id": cand.id, "title": cand.title, "levers": lever_specs(levers, planning),
+                                        "weights": plan_weights(planning)})
         ops = tuple(dict.fromkeys(op for code in levers for op in LEVER_OPS[code]))
         out.append(Candidate(cand.id, cand.title, levers, spec, ops, guided, reason,
                              () if guided else guide_ops(levers, caps)))

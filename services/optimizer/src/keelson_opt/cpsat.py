@@ -185,6 +185,16 @@ them one worker reached equal or better solutions in the same budget (the bd+vn 
 proven optimal in 0.09 s instead of a 2 % gap at 0.15 s)."""
 
 
+def stopped_by_wall_clock(status: SolverStageStatus, det_time_s: float, det_limit: float) -> bool:
+    """Whether a solve was stopped by the wall-clock cap: an incomplete answer (``FEASIBLE`` /
+    ``UNKNOWN``) before the deterministic limit has no other cause (one worker, no conflict or
+    solution limits). Decided on the deterministic time only: CP-SAT may stop on the cap with a
+    reported ``wall_time`` just short of it (seen: 177 ms on a 200 ms cap), which the earlier
+    wall-time test missed - recording a machine-dependent stop as ``time_limit_no_solution``, or
+    using a ``FEASIBLE`` result it should have discarded (review fix)."""
+    return status in ("FEASIBLE", "UNKNOWN") and det_time_s < det_limit * 0.999
+
+
 def run_cpsat(
     model: cp_model.CpModel, *, seed: int, det_limit: float, time_limit_s: int, presolve: bool = True
 ) -> CpRun:
@@ -213,7 +223,7 @@ def run_cpsat(
     wall_ms = float(response.wall_time) * 1000.0
     # A stop forced by the wall-clock cap (before the deterministic limit) depends on machine
     # speed and load: such a result must not be used.
-    guard_hit = status != "OPTIMAL" and wall_ms >= guard_ms * 0.999 and det < det_limit * 0.999
+    guard_hit = stopped_by_wall_clock(status, det, det_limit)
     objective: int | None = None
     bound: int | None = None
     if status in ("OPTIMAL", "FEASIBLE") and proto.has_objective():
@@ -376,5 +386,6 @@ __all__ = [
     "run_cpsat",
     "set_hints",
     "stage_hash",
+    "stopped_by_wall_clock",
     "wall_guard_ms",
 ]

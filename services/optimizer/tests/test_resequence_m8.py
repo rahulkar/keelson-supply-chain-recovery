@@ -6,6 +6,7 @@ modes and the M3 path left untouched in ``repair`` mode."""
 from __future__ import annotations
 
 import copy
+import dataclasses
 import datetime as dt
 import random
 from collections import defaultdict
@@ -15,6 +16,7 @@ from typing import Any
 import pytest
 from keelson_contracts.optimizer import OptimizeRequest, OptimizeResponse, ResequenceProductionParams
 
+from keelson_opt import cpsat
 from keelson_opt.cpsat import StageLog
 from keelson_opt.impact import lost_margin, simulate
 from keelson_opt.levers import resequence as rs
@@ -239,7 +241,13 @@ def long_line_problem(n: int, seed: int) -> dict[str, Any]:
     }
 
 
-def test_long_line_is_deterministic_and_never_worse_than_m3() -> None:
+def test_long_line_is_deterministic_and_never_worse_than_m3(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Determinism holds while the wall-clock safety cap does not fire (125 §2): this line's model
+    (~34 000 variables) needs ~20x its 0.15 deterministic seconds in wall time - 2.7-3.0 s on the
+    shared test host, at the 3000 ms default cap - so the test raises the cap to the request's
+    time limit (review: under load the default cap fired and the two runs recorded different
+    fallbacks)."""
+    monkeypatch.setenv(cpsat.WALL_GUARD_ENV, "5000")
     raw = long_line_problem(200, 5)
     m3, a, b = optimize(raw, "repair"), optimize(raw), optimize(raw)
     assert body(a) == body(b)
@@ -247,6 +255,7 @@ def test_long_line_is_deterministic_and_never_worse_than_m3() -> None:
     assert a.scorecard.net_benefit_cents >= m3.scorecard.net_benefit_cents
     (stage, *_tiebreak) = [s for s in a.solver.stages if s.name.startswith("resequence:L-1")]
     assert stage.status != "SKIPPED" or stage.fallback_reason == "budget_exhausted"
+    assert stage.fallback_reason != "wall_clock_guard"
 
 
 def test_lines_beyond_the_size_limits_use_the_m3_path(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -323,6 +332,34 @@ def test_the_longest_line_code_gets_its_stage_records() -> None:
         f"resequence:{code}:tiebreak",
     ]
     assert sequence(resp) == ["MO-3", "MO-1", "MO-2"]
+
+
+def test_a_tiebreak_stopped_by_the_wall_guard_is_recorded(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review fix: when the wall-clock guard stopped the tie-break solve (B), the line silently kept
+    (A)'s sequence - a machine-dependent outcome with nothing recorded. The tie-break now falls
+    back with ``wall_clock_guard`` (unused) and the method no longer claims proven optimality."""
+    real = v2.run_cpsat
+    calls: list[int] = []
+
+    def run(*a: Any, **k: Any) -> Any:
+        calls.append(1)
+        res = real(*a, **k)
+        return dataclasses.replace(res, status="FEASIBLE", guard_hit=True) if len(calls) == 2 else res
+
+    pinned = frozenset({"PO-K2#1"})
+    clean = _plan(pinned, cpsat=True)
+    monkeypatch.setattr(v2, "run_cpsat", run)
+    log = StageLog(enabled=True, seed=0, inputs_hash="0" * 64)
+    req = OptimizeRequest.model_validate(reseq_problem())
+    scn = build_scenario(req.data, req.perturbations)
+    out = rs.plan_resequence(scn, base_lines(scn), ResequenceProductionParams(), seed=0, w_lost_bp=10_000,
+                             pinned=pinned, stages=log)  # fmt: skip
+    assert len(calls) == 2
+    a, b = log.stages
+    assert (a.name, a.used, a.fallback_reason) == ("resequence:L-1", True, None)
+    assert (b.name, b.used, b.fallback_reason) == ("resequence:L-1:tiebreak", False, "wall_clock_guard")
+    assert out.methods == {"L-1": "cpsat_v2_feasible"} and clean.methods == {"L-1": "cpsat_v2_optimal"}
+    assert "PO-K2#1" not in out.moves
 
 
 def test_a_failing_v2_solve_keeps_the_m3_sequence(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -1288,6 +1288,7 @@ statistics exist) took 11–15 s on the full profile; it now checks distinct key
   catalog's `guarded_fields`): 202 + change request for a tenant-admin, applied for a
   platform-admin; adding a factory or any other planning field is not guarded.
 - Tests: `tests/runtime/test_m8_cpsat_planning.py` (spec dumps, solver options, derived terms,
-  option summary and compare note, the planning flow in both modes with the optimizer stub) and
+  option summary and compare note, the planning and lane-signal re-plan flows in both modes with the
+  optimizer stub) and
   `tests/platform/test_m8_cpsat_admin.py` (settings applied, guard). The optimizer stub echoes
   stages for `cpsat` requests. Offline real-stack e2e: `e2e/api_m8_cpsat_offline.py`.

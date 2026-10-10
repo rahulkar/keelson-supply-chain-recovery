@@ -399,7 +399,27 @@ def test_wall_guard_env_stops_the_solve_and_falls_back(monkeypatch: pytest.Monke
     monkeypatch.setenv(cpsat.WALL_GUARD_ENV, "0")
     resp = optimize(request(BOTH))
     stage = integer_stage(resp)
-    assert stage.used is False and stage.fallback_reason in ("wall_clock_guard", "time_limit_no_solution")
+    assert stage.used is False and stage.fallback_reason == "wall_clock_guard"
+
+
+@pytest.mark.parametrize(
+    ("status", "det", "stopped"),
+    [
+        # observed: a 200 ms guard on the 200-order line stopped CP-SAT at a reported wall time of
+        # 177 ms with no deterministic time used - it was recorded as time_limit_no_solution
+        ("UNKNOWN", 0.0, True),
+        ("FEASIBLE", 0.147, True),
+        ("FEASIBLE", 0.15, False),
+        ("UNKNOWN", 0.1501, False),
+        ("OPTIMAL", 0.01, False),
+        ("INFEASIBLE", 0.0, False),
+        ("MODEL_INVALID", 0.0, False),
+    ],
+)
+def test_a_stop_before_the_deterministic_limit_is_the_wall_guard(status: Any, det: float, stopped: bool) -> None:
+    """Review fix: an incomplete answer before the deterministic limit can only come from the
+    wall-clock cap, whatever wall time CP-SAT reports (it may stop just short of the cap)."""
+    assert cpsat.stopped_by_wall_clock(status, det, 0.15) is stopped
 
 
 def test_several_workers_are_flagged_non_deterministic(monkeypatch: pytest.MonkeyPatch) -> None:

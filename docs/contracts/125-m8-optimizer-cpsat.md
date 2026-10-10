@@ -54,8 +54,10 @@ margin per arrival week (closure-aware, due dates, per-order pinning), and recor
   profile: level 1 stalled at a 40 % gap; probing and generic cuts cost budget without tightening
   these assignment/flow models). `CpRun` carries status, the **exact** integer objective (recomputed
   from the solution, CP-SAT reports a double), best bound, deterministic limit/time (ms), workers,
-  sizes and `guard_hit` (= not OPTIMAL and the wall time reached the guard before the
-  deterministic limit: machine-dependent, discarded → `wall_clock_guard`).
+  sizes and `guard_hit` (= `cpsat.stopped_by_wall_clock`: an incomplete answer, FEASIBLE or UNKNOWN,
+  before the deterministic limit - only the wall-clock cap stops a solve there; decided on the
+  deterministic time because CP-SAT can stop on the cap with a reported wall time just short of it,
+  review fix: machine-dependent, discarded → `wall_clock_guard`).
 * `wall_guard_ms(time_limit_s)`: env `OPTIMIZER_CPSAT_WALL_GUARD_MS` (default 3000; invalid or
   negative → default), never above the request's `time_limit_s`. A safety cap only (120 §3.5).
 * `objective_fits(terms, offset)`: Σ|coef|·max|value| + |offset| < 2^61, else the stage falls back
@@ -346,6 +348,14 @@ equal (the D integer stage is rejected by the simulator guard). Resequence only,
   checks; on an overloaded host they can fail without a functional regression. On the shared M8
   test host the `cpsat` BD+VN and HTTP cases failed the 10 s in the review's runs (§9.1); rerun them
   on a quiet host (the integrator) - the brief's 5 s is not met by design (§9.1).
+* Wall time per deterministic second grows with the time-indexed model: the 180-order VN line
+  (~4 900 variables) runs at 5-8×, a 200-order synthetic line (~34 000 variables) at ~20× (0.149
+  det-s ≈ 2.7-3.0 s on the shared host), right at the 3000 ms default cap, and lines up to the
+  60 000 order-day limit can exceed it. When the cap fires the line falls back to the M3 sequence
+  with `wall_clock_guard` recorded - correct but machine-dependent. Calibrate the cap (or lower
+  `RESEQ_V2_MAX_CELLS`) on the reference container before `cpsat` becomes a default (§10).
+  `tests/test_resequence_m8.py::test_long_line_is_deterministic_and_never_worse_than_m3` raises the
+  cap to the request's 5 s for that reason.
 * The M3 path's own CP-SAT (`resequence._cpsat`, lines of 8-40 orders with releases), which `cpsat`
   mode still runs as the comparator of v2, is not recorded in `SolverInfo.stages` and does not draw
   on the request budget (it keeps its fixed 0.05 det-s, one worker and the request seed, so it stays

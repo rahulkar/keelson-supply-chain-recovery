@@ -312,8 +312,10 @@ Determinism: one worker (`CPSAT_NUM_WORKERS`, default 1; more is allowed but rec
 `max_deterministic_time` (code constants: integer 0.15, resequence `min(0.15, 0.02 + 0.0007·n)` per
 line and 0.3 per request, 0.6 per request in all). `OPTIMIZER_CPSAT_WALL_GUARD_MS` (default 3000,
 never above `time_limit_s`) is a safety cap only: a solve it stops is discarded
-(`wall_clock_guard`). Measured det/wall: integer stage 0.15 det-s ≈ 0.6-1.3 s wall, the 180-order
-VN line 0.146 det-s ≈ 0.75 s (5-8×).
+(`wall_clock_guard`; decided on the deterministic time, `cpsat.stopped_by_wall_clock`). Measured
+det/wall: integer stage 0.15 det-s ≈ 0.6-1.3 s wall, the 180-order VN line 0.146 det-s ≈ 0.75-0.9 s
+(5-8×); larger time-indexed lines cost more per det-second (a 200-order synthetic line, ~34 000
+variables: 0.149 det-s ≈ 2.7-3.0 s, ~20×, so the 3000 ms cap can fire on it under load).
 
 Full profile, `cpsat` vs `repair` net benefit (`tests/fixtures/full_problem.cpsat.golden.json`):
 C (BD story) 16.13 M vs 13.85 M cents, C (VN) 6.35 M vs 5.51 M, C (BD+VN) 22.48 M vs 19.57 M,

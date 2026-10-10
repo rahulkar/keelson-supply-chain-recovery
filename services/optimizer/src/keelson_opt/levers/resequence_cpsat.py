@@ -102,6 +102,8 @@ class V2Result:
     run_b: CpRun | None = None
     det_a: float | None = None
     det_b: float | None = None
+    fallback_b: IntegerFallbackReason | None = None
+    """Why the tie-break (B) gave no usable result (the line keeps (A)'s sequence)."""
 
 
 def line_v2(
@@ -163,9 +165,16 @@ def line_v2(
         stages.cpsat_runs += 1
     stages.cp(name, v2.run_a, payload, used=used, fallback=reason, det_limit=v2.det_a)
     if v2.run_b is not None:
-        stages.cp(f"{name}:tiebreak", v2.run_b, payload, used=used, fallback=reason, det_limit=v2.det_b)
+        # a tie-break without a usable result (e.g. stopped by the wall-clock guard) leaves (A)'s
+        # sequence in place: recorded as its own fallback, never as a used solve
+        stages.cp(
+            f"{name}:tiebreak", v2.run_b, payload, used=used and v2.fallback_b is None,
+            fallback=v2.fallback_b or reason, det_limit=v2.det_b,
+        )  # fmt: skip
     if used and v2_res is not None and v2.run_a is not None:
-        optimal = v2.run_a.status == "OPTIMAL" and (v2.run_b is None or v2.run_b.status == "OPTIMAL")
+        optimal = v2.run_a.status == "OPTIMAL" and (
+            v2.run_b is None or (v2.run_b.status == "OPTIMAL" and v2.fallback_b is None)
+        )
         out.methods[pl.line_code] = "cpsat_v2_optimal" if optimal else "cpsat_v2_feasible"
         return v2_res
     # The M3 path, as in repair mode.
@@ -340,9 +349,12 @@ def solve_line(
     set_hints(m, hints(day_a))
     run_b = run_cpsat(m, seed=seed, det_limit=det_b, time_limit_s=time_limit_s, presolve=False)
     stages.budget.spend(run_b.det_time_s, kind="resequence")
+    fallback_b = run_b.fallback if not run_b.has_solution else None
     if run_b.has_solution:
         seq = _sequence(_days(run_b, x, k, n), k, n, position)
-    return V2Result(None, seq=seq, run_a=run_a, run_b=run_b, det_a=det_a, det_b=det_b)
+    elif fallback_b is None:  # pragma: no cover - (A)'s solution satisfies (B), so it has one
+        fallback_b = "time_limit_no_solution"
+    return V2Result(None, seq=seq, run_a=run_a, run_b=run_b, det_a=det_a, det_b=det_b, fallback_b=fallback_b)
 
 
 def _qty(jobs: Sequence[_Job], i: int) -> int:

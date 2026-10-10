@@ -7,6 +7,7 @@ from __future__ import annotations
 import datetime as dt
 import io
 import json
+import re
 import zipfile
 
 import pytest
@@ -227,6 +228,12 @@ def test_meteoalarm_refuses_entities_and_non_atom() -> None:
         meteoalarm.parse_atom(b"<rss/>")
     with pytest.raises(meteoalarm.MeteoAlarmError):
         meteoalarm.parse_cap_detail(b"<feed/>")
+    # entries none of which the parser can read (a format change) are an error, never "no warnings left"
+    # (the poller would withdraw every held warning); an empty feed is a valid answer
+    drifted = re.sub(rb"EMMA_ID", b"NUTS3", load_fixture("meteoalarm_netherlands.atom"))
+    with pytest.raises(meteoalarm.MeteoAlarmError, match="usable"):
+        meteoalarm.parse_atom(drifted)
+    assert meteoalarm.parse_atom(b'<feed xmlns="http://www.w3.org/2005/Atom"><title>MeteoAlarm</title></feed>') == []
     assert meteoalarm.feed_url("https://feeds.meteoalarm.org/feeds/meteoalarm-legacy-atom-{country}", "united-kingdom") \
         == "https://feeds.meteoalarm.org/feeds/meteoalarm-legacy-atom-united-kingdom"
 

@@ -161,12 +161,15 @@ def _parse_xml(body: bytes, what: str) -> Element:
 
 
 def parse_atom(body: bytes) -> list[WarningEntry]:
-    """Every usable entry of a legacy Atom feed (any level; filtering happens in the parser)."""
+    """Every usable entry of a legacy Atom feed (any level; filtering happens in the parser). A feed
+    with entries of which none is usable (no CAP identifier / ``EMMA_ID`` geocode: a format change)
+    is an error, never an empty list — the poller withdraws whatever an answer no longer lists."""
     root = _parse_xml(body, "MeteoAlarm feed")
     if root.tag != f"{_ATOM}feed":
         raise MeteoAlarmError("MeteoAlarm feed: root is not an Atom <feed>")
+    entries = root.findall(f"{_ATOM}entry")[:MAX_ENTRIES]
     out: list[WarningEntry] = []
-    for entry in root.findall(f"{_ATOM}entry")[:MAX_ENTRIES]:
+    for entry in entries:
         identifier = _child_text(entry, "identifier")
         geocode = next((c for c in entry if _local(c.tag) == "geocode"), None)
         emma = None
@@ -197,6 +200,9 @@ def parse_atom(body: bytes) -> list[WarningEntry]:
             detail_url=detail_url,
             area_url=area_url,
         ))
+    if entries and not out:
+        raise MeteoAlarmError(f"MeteoAlarm feed: none of its {len(entries)} entries is usable "
+                              "(CAP identifier + EMMA_ID geocode)")
     return out
 
 

@@ -509,6 +509,12 @@ async def test_meteoalarm_bounded_cap_fetches_and_withdrawal(pool: asyncpg.Pool,
     assert r.withdrawn == 1 and r.items == 3
     coastal = next(v for k, v in (await _current(pool, "meteoalarm.netherlands")).items() if k.endswith("#NL001"))
     assert coastal["version"] == 2 and coastal["expires_at"] == now + 0.5 * H
+    # a feed whose entries the parser can no longer read (format change) is a failed poll that withdraws nothing
+    upstream.meteo, upstream.meteo_etag = upstream.meteo.replace(b"EMMA_ID", b"NUTS3"), '"ma-4"'
+    (r,) = await runner.poll("meteoalarm", now=now + 0.75 * H)
+    assert r.status == "error" and "usable" in (r.error or "") and r.withdrawn == 0
+    held = await _current(pool, "meteoalarm.netherlands")
+    assert sorted(v["version"] for v in held.values()) == [1, 1, 1, 2]
 
 
 async def test_meteoalarm_pending_cap_documents_follow_without_a_feed_change(pool: asyncpg.Pool, gaz: Gazetteer,

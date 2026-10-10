@@ -38,10 +38,11 @@ It ships with **Merxa Retail Suite**, a deliberately separate *mock third-party 
 |---|---|
 | **Keelson web** (Next.js 16) | Gemini-style calm UI: one composer, a live *thinking* timeline (which agents are consulted, plain-language activity), an "approach" card to confirm what was understood, recommendation cards, and a side **Canvas** with the rich visuals (network map, impact graph, stock-out timeline, option comparison, plan diff). Alerts inbox. Role-gated **back-office** (`/admin`). |
 | **Keelson engine** (Python, FastAPI + Google ADK 2.11) | Graph workflow: intake → taxonomy-driven framing → planner → parallel specialists (sourcing, logistics, inventory & demand, playbook, external intelligence, tenant custom specialists) → verify numbers → critic → deterministic impact & optimisation → recommendation → approvals (policy rules, four-eyes, capped auto-commit) → apply via MCP → read-back → re-plan on new information → rollback. LLMs never invent numbers and never hold write tools. |
-| **Optimizer** (OR-Tools) | Deterministic impact analysis (first stock-out dates, time-to-survive) and five recovery levers: rebalance between DCs, sea-air expedite, near-shore re-source, allocation prioritisation, factory resequencing. |
-| **Signal Hub** | Polls GDACS, USGS and trade-press RSS (plus connector events), clusters them, matches exposure against each client's network and raises alerts. Replayable demo packs (typhoon, trim delay, Suez). |
+| **Optimizer** (OR-Tools) | Deterministic impact analysis (first stock-out dates, time-to-survive) and five recovery levers: rebalance between DCs, sea-air expedite, near-shore re-source, allocation prioritisation, factory resequencing. Opt-in CP-SAT stage for whole-unit re-sourcing (MOQ, case packs, shared factory capacity) and resequencing; extra CO₂e per option and p10–p90 likely ranges from seeded sampling of the same decisions. |
+| **Signal Hub** | Polls GDACS, USGS, NOAA NHC, Copernicus EMS, OFAC sanctions updates and trade-press RSS (GDELT and MeteoAlarm opt-in), plus connector events; groups them into events (SimHash near-duplicates, shared places, term/vector similarity — each grouping explained), matches exposure against each client's network and raises alerts. Replayable demo packs (typhoon, trim delay, Suez, port-strike syndication, Cape-route hurricane). |
 | **LiteLLM** | Single gateway for every chat and embedding model (Gemini by default — **Flash/Flash-Lite only**), with per-tenant keys, budgets and usage; managed from Keelson's *AI Gateway* admin page. |
 | **Keycloak** | Two identity worlds: realm `keelson` (our product) and realm `merxa` (the vendor). OAuth/MCP between them, delegated approver identity for writes. |
+| **Adapter sidecar** (template) | A FastMCP service that puts `scn/1.0` snapshot export, a change feed and a change-set facade (validate / apply / rollback) in front of a CSV, SQL or REST system, so any ERP can be connected at tiers B·C·W. Demo instance: the CSV-backed "Fernhill ERP" (compose profile `adapters`). |
 | **Merxa Retail Suite** (FastAPI + Next.js) | The mock vendor ERP with its own database, realm and design system; REST, an MCP server (`/mcp`), a plain "foreign ERP" MCP profile (`/mcp-lite`), change-sets with dry-run/apply/rollback, signed webhooks, Parquet snapshot export, prefilled forms for guided steps, a demo director. |
 
 ---
@@ -165,6 +166,7 @@ Every step prints timestamped progress (downloads with MB/s and ETA, build outpu
 | <http://auth.localhost> | Keycloak (login pages). The admin console is blocked publicly — set `DEV_ALLOW_KC_ADMIN=1` in `.env` and restart Caddy to use it locally. |
 | <http://gateway.localhost> | LiteLLM console — opened from Keelson *Admin → AI Gateway → Open advanced console* (platform-admin only). |
 | <http://traces.localhost> | Arize Phoenix traces (optional profile `obs`: `docker compose --profile obs up -d phoenix`). |
+| <http://fernhill.localhost> | Fernhill ERP adapter sidecar (optional profile `adapters`: `docker compose --profile adapters up -d fernhill-sidecar`). |
 
 ---
 
@@ -272,11 +274,12 @@ Everything runs in containers; see each component's README for details.
 | Suite | How |
 |---|---|
 | Unit/integration per service | `services/*/README.md`, `packages/*/README.md`, `apps/*/README.md` (pytest via `uv`, vitest via `pnpm`, all in Docker) |
-| API end-to-end (real stack) | `e2e/*.py` — see [`e2e/README.md`](e2e/README.md) (`api_thin_slice.py`, `api_m4_*`, `api_m5_*`, `api_m6_*`, `api_m7_*`) |
-| Browser end-to-end | Playwright in [`e2e/playwright`](e2e/playwright) (`run.sh`; `E2E_NO_MODEL=1` skips tests that need the model) |
+| API end-to-end (real stack) | `e2e/*.py` — see [`e2e/README.md`](e2e/README.md) (`api_thin_slice.py`, `api_m4_*` … `api_m7_*`, `api_m8_*`) |
+| Browser end-to-end | Playwright in [`e2e/playwright`](e2e/playwright) (`run.sh`; `E2E_NO_MODEL=1` skips tests that need the model; M8: `m8-*.spec.ts`) |
 | Live evaluations | [`evals/`](evals) — golden cases + prompt-injection attacks (`run_live.py`, `--dry-run`) |
 | One-shot live verification | `bash scripts/verify-live.sh` (`--list`, `--only …`) — runs every model-backed check; repeat runs replay for free |
 | Infra | `scripts/verify-infra.sh` |
+| Same suites as CI | `python3 scripts/supply-chain/ci_run_suite.py --list` / `<suite>` (builds each Dockerfile `test` target, throwaway Postgres/Valkey); image pins: `scripts/supply-chain/check_pins.py` — see [`docs/supply-chain.md`](docs/supply-chain.md) |
 
 ---
 
@@ -284,17 +287,18 @@ Everything runs in containers; see each component's README for details.
 
 ```
 apps/            keelson-web (Next.js workspace + /admin) · merxa-web (separate vendor UI, own lockfile)
-services/        engine (FastAPI + ADK runtime + worker) · optimizer (OR-Tools) · signal-hub · merxa-api
+services/        engine (FastAPI + ADK runtime + worker) · optimizer (OR-Tools) · signal-hub · merxa-api · adapter-sidecar (template)
 packages/        contracts-py (shared Pydantic contracts) · contracts-ts (JSON Schema → Zod) · tokens-keelson · ui-keelson · viz
-infra/           caddy · keycloak realm config · litellm · postgres · squid egress · cloudrun manifests · tenants.yaml
-data/            packs · taxonomy · geo · scenarios · kb (synthetic knowledge-base documents)
+infra/           caddy · keycloak realm config · litellm · postgres · squid egress · cloudrun manifests · basemap · supply-chain (image registry, signing) · tenants.yaml
+data/            packs · taxonomy · geo · emissions · scenarios · kb (synthetic knowledge-base documents)
 e2e/ evals/      end-to-end tests and live evaluations
-scripts/         init / up / verify / demo-reset / verify-live / Cloud Run helpers
-docs/            contracts (the specification, milestone by milestone) · infra.md · cloud-run.md · images
+scripts/         init / up / verify / demo-reset / verify-live / Cloud Run helpers · basemap fetch · supply-chain (pins, CI suites, image verification)
+docs/            contracts (the specification, milestone by milestone) · infra.md · cloud-run.md · supply-chain.md · images
+.github/         CI (tests in containers, image builds, scans) and signed releases · renovate.json (dependency policy)
 compose.yaml     the whole stack
 ```
 
-Key docs: [`docs/contracts/00-overview.md`](docs/contracts/00-overview.md) (start here), [`docs/infra.md`](docs/infra.md), [`docs/cloud-run.md`](docs/cloud-run.md).
+Key docs: [`docs/contracts/00-overview.md`](docs/contracts/00-overview.md) (start here), [`docs/contracts/120-m8-overview.md`](docs/contracts/120-m8-overview.md) (M8 index: 121–129), [`docs/infra.md`](docs/infra.md), [`docs/cloud-run.md`](docs/cloud-run.md), [`docs/supply-chain.md`](docs/supply-chain.md).
 
 ---
 
@@ -339,4 +343,4 @@ Key docs: [`docs/contracts/00-overview.md`](docs/contracts/00-overview.md) (star
 
 ## Licences & attribution
 
-Synthetic store locations derive from **GeoNames** (CC BY 4.0). Hazard data from **GDACS** (CC BY 4.0, EC JRC/UN) and **USGS** (public domain). Map tiles © **OpenFreeMap** / **OpenMapTiles**, data © **OpenStreetMap** contributors (ODbL). Trade-press items are stored as headline, snippet and link only. Third-party software keeps its own licences (see each lockfile).
+Synthetic store locations derive from **GeoNames** (CC BY 4.0). Hazard data from **GDACS** (CC BY 4.0, EC JRC/UN) and **USGS** (public domain). Map tiles © **OpenFreeMap** / **OpenMapTiles**, data © **OpenStreetMap** contributors (ODbL). Self-hosted base map: **Protomaps** basemap tiles (data © OpenStreetMap contributors, ODbL), Noto Sans glyphs (SIL OFL 1.1), sprites from tangrams/icons (MIT); offline outline: **Natural Earth** (public domain). M8 feeds: **NOAA NHC** (public domain), **Copernicus EMS** (© European Union), **OFAC** sanctions lists (public domain, U.S. Treasury); opt-in **GDELT** (citation required) and **MeteoAlarm** (EUMETNET; redistribution terms apply — review before enabling). Trade-press items are stored as headline, snippet and link only. Third-party software keeps its own licences (see each lockfile).

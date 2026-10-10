@@ -9,7 +9,7 @@ This file is the **source of truth for cross-service seams**. If you change a na
 ## Hostnames (HTTP only in dev; Caddy listens on 80)
 | Public URL | Routed to |
 |---|---|
-| `http://keelson.localhost` | `keelson-web:3000`; `/api/*` → `engine-api:8000` (no buffering, SSE) |
+| `http://keelson.localhost` | `keelson-web:3000`; `/api/*` → `engine-api:8000` (no buffering, SSE); `/basemap/*` → Caddy `file_server` over the `basemap` volume (M8 self-hosted Protomaps base map, `127-m8-basemap.md`) |
 | `http://merxa.localhost` | `merxa-web:3001`; `/v1/*`, `/mcp`, `/mcp/*`, `/mcp-lite*`, `/.well-known/*` → `merxa-api:8100` |
 | `http://auth.localhost` | `keycloak:8080` (`/admin*` and `/realms/master*` blocked unless `DEV_ALLOW_KC_ADMIN=1`) |
 | `http://gateway.localhost` | `litellm:4000` behind `forward_auth` → `engine-api /api/internal/forward-auth?role=platform-admin` |
@@ -25,6 +25,7 @@ Inside containers the **same hostnames** resolve to Caddy via network aliases, s
 
 ## Compose services (M1) and networks
 `caddy, keycloak, kc-config (one-shot), pg-core, pg-litellm, pg-merxa, valkey, litellm, egress (squid), bootstrap (one-shot), engine-api, engine-worker, optimizer, merxa-api, merxa-web, keelson-web` (+ `phoenix` in profile `obs`).
+Later milestones add `signal-hub-bootstrap` (one-shot), `signal-hub-api`, `signal-hub-poller` (M6) and, in opt-in profiles, `fernhill-sidecar` (`adapters`, M8 122), `evals-runner` (`evals`, M8 128) and `basemap-fetch` (`basemap`, one-shot, M8 127); see `120-m8-overview.md` §2.
 
 Networks: `edge` (caddy + anything that must resolve public hostnames), `app` (engine, optimizer, pg-core, valkey; caddy joins with aliases `auth.localhost`,`keelson.localhost` only), `ai` (engine, bootstrap, litellm, pg-litellm), `vendor` (merxa-api, pg-merxa). **Engine connector traffic to third parties must go through `http://egress:3128`** (Squid) — engine services are not on a network where `merxa.localhost` resolves directly, except `engine-api` (edge) which must still use the proxy for connector calls.
 

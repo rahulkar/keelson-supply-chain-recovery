@@ -76,6 +76,8 @@ CO2_LABEL = "Extra CO₂e of the plan"
 MAX_WINDOW_DAYS = 366
 _DO_NOTHING = "do-nothing"
 _WEAK = ("assumption", "inference")
+_WINDOW_OPS = frozenset({"lead_time_shift", "capacity_scale", "demand_scale"})
+"""Perturbation ops whose window the optimizer samples (``keelson_opt.robust.sample``)."""
 
 
 # ───────────────────────────── requests ─────────────────────────────
@@ -112,6 +114,8 @@ def robustness_spec(planning: Any, scenario: Any, perturbations: Sequence[Any]) 
             window = getattr(p, "window", None)
             if window is None or window.end is None or _prov(getattr(p, "prov", "")) not in _WEAK:
                 continue
+            if getattr(p, "op", None) not in _WINDOW_OPS:
+                continue  # the optimizer refuses (422) a band on an op it does not sample
             length = (window.end - window.start).days + 1
             if length > MAX_WINDOW_DAYS:
                 continue

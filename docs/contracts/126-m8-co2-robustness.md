@@ -48,8 +48,10 @@ idempotent; `None` when `planning.emissions.enabled` is false or no set is avail
 * `Sku.unit_weight_g`: the longest `planning.emissions.unit_weights[].style_prefix` that the style code
   starts with (plain prefix, `^[A-Za-z0-9][A-Za-z0-9_-]{0,31}$`, never a pattern), else
   `default_unit_weight_g`, else `planning.grams_per_unit` (800 g — the weight the per-kg rate cards
-  already assume, so cost and CO₂e share one assumption). Pack `value-fashion-eu` ships illustrative
-  weights (PUF 1100, PRK 1500, GIL 600, FLC 500, KNT 450, CRD 550, HDY 600 g).
+  already assume, so cost and CO₂e share one assumption). No pack sets rules (§11.12), so the demo
+  tenant weighs every unit at 800 g; a tenant admin can add illustrative packed weights such as PUF
+  1100, PRK 1500, GIL 600, FLC 500, KNT 450, CRD 550, HDY 600 g with the merge patch
+  `{planning: {emissions: {unit_weights: [{style_prefix, grams}, …]}}}` (the optimizer tests use them).
 * `Lane.distance_km` (DC transfers, road): great circle between the DCs × `road_circuity_bp / 10000`.
 * `InboundLane.legs [{mode, distance_km}]` from the network map's own stop resolution
   (`visuals._lane_stops` / `_locate`, imported unchanged) and `runtime/geo.py`: road = great circle ×
@@ -132,7 +134,9 @@ re-optimised**, together with the do-nothing baseline, in the same sampled futur
   demand factor per (cluster, style), constant across sizes and weeks (`demand`). Readiness deltas are
   matched with `scn`'s own rules (`_target`, `_network_attrs`, `covers_day`; `scn.py` is unchanged);
   closures are rebuilt per sample from the sampled capacity perturbations (factor 0 → closure over the
-  sampled window; > 0 → no closure: a partial scale only limits new bookings).
+  sampled window; > 0 → no closure: a partial scale only limits new bookings). A lane closed in the
+  nominal run is re-evaluated in every sample, also when no sample closes it (its receipts then arrive
+  at their readiness date instead of keeping the nominal closure delay — review fix).
 * **Dated arrivals** (`plan_arrivals`): mirrors `plan.plan_lines` exactly (bookings kept / cancelled,
   resequence moves, reductions from the latest arrival first, then expedite splits and alternate buys;
   `tests/test_batch_sim_m8.py` asserts equality). Per sample: a receipt (`line`) or a booking's sea
@@ -164,10 +168,12 @@ re-optimised**, together with the do-nothing baseline, in the same sampled futur
   plans to nominal demand exactly, so upside futures lose sales while downside ones cannot gain them).
 
 **Engine** (`runtime/robustness.py`): `robustness_spec(planning, scenario, perturbations)` — `seed =
-planning.robustness.seed ?? solver_seed` (one seed per plan version); window bands for every perturbation
-with a bounded window whose `prov` is `assumption`/`inference`, only when the scenario's `duration_days`
-assumption is an `assumption`: the event template's duration prior re-centred on the window's length
-(`p10 = min(prior p10, length)`, `p90 = max(prior p90, length)` capped at 366). `OptimizeInputs` (enriched
+planning.robustness.seed ?? solver_seed` (one seed per plan version); window bands for every
+`lead_time_shift` / `capacity_scale` / `demand_scale` (the ops the optimizer samples — a band on any other
+op would be a 422 for every option) with a bounded window whose `prov` is `assumption`/`inference`, only
+when the scenario's `duration_days` assumption is an `assumption`: the event template's duration prior
+re-centred on the window's length (`p10 = min(prior p10, length)`, `p90 = max(prior p90, length)` capped
+at 366). `OptimizeInputs` (enriched
 problem, perturbations, solver options, factor set, robustness spec) builds the requests of `simulate`
 and the M5 re-plan. `win_rates(options)` = share of futures in which each option has the highest net
 benefit (> 0; ties → earlier candidate; "Do nothing" wins a future in which no option gains), as bp with
@@ -246,14 +252,15 @@ carries types, ranges and patterns; cross-field rules are checked by contracts-p
   default_unit_weight_g = null}`; `robustness {enabled = true, samples 16–256 = 64, seed = null,
   value_bands = true, duration_bands = true, lead_time_noise = sea −2/0/+5, sea_air −1/0/+2, air 0/0/+2,
   road −1/0/+2, default −1/0/+3 days, demand_noise_bp = 9000/10000/11000}`; `scoring = DEFAULT_SCORING`.
-  Settable through pack `spec_overrides` or the admin section. **Sample counts and seeds are spec settings,
-  never env** (120 §3.5).
+  Settable through the admin section (`PUT /api/admin/agents/spec`); packs of existing tenants must not
+  override them (§11.12). **Sample counts and seeds are spec settings, never env** (120 §3.5).
 * **Env**: `EMISSIONS_DIR` (engine, optional lookup override like `GEO_DIR`; prefix allocated to this
   workstream). No optimizer env; no compose or `.env.example` change.
 * **Images**: engine Dockerfile copies `data/emissions` (test stage + runtime). Optimizer: `numpy==2.5.3`
   is now a direct dependency (it was already locked and installed through OR-Tools; `uv.lock` only records
   the direct requirement — no new wheels).
-* **Pack**: `value-fashion-eu` `spec_overrides.planning.emissions.unit_weights`.
+* **Packs**: unchanged (§11.12); `tests/platform/test_m8_scoring_admin.py` asserts that a spec version
+  stored before M8 still normalises to every repo pack's default.
 
 ## 9. Security
 
@@ -324,6 +331,14 @@ off = M7 requests, replay safety), platform `test_m8_scoring_admin.py`; viz `tes
     request from Smart Freight Centre (a form this workstream did not submit) and the public framework
     excerpts found are image-only. Secondary sources agree with the magnitudes used
     (`data/emissions/README.md`). So `verified: false`, and every screen says "indicative".
+12. **No pack unit weights** (review fix), although the brief adds style-prefix weights to the
+    `value-fashion-eu` pack: the demo reset reactivates the stored spec version equal to the pack default
+    so that the version *name* — part of every recorded LLM replay key (`runtime/replay.py`) — never
+    moves (`agent_specs.reset_to_default`). A version stored by the M7 engine normalises under M8 to the
+    built-in M8 defaults (`unit_weights: []`); a pack override would make the first demo reset after the
+    upgrade create a new version, and every recording of the demo tenant would miss (120 §3.1: replay
+    keys stay byte-identical; they cannot be re-recorded without credits). The demo therefore weighs
+    every unit at `grams_per_unit` (800 g); the illustrative weights are documented in §2.
 
 ## 12. Deferred
 
@@ -348,6 +363,19 @@ off = M7 requests, replay safety), platform `test_m8_scoring_admin.py`; viz `tes
   plain S4 bd+vn case also took 4.2 s), against 2.9–3.1 s on a quiet host. Like the existing S4 tests it is
   sensitive to CPU contention; the robustness share is ~0.5 s.
 * Nominal values can sit outside their p10–p90 (see §5); the UI shows both ("planned" ◆ vs the bar).
+* Memory of a robustness run: the batch arrays are dense — samples × *all* SKUs × the DC's clusters ×
+  weeks per DC (int64) — and the cell budget keeps a floor of 8 samples, so a tenant with very many SKUs
+  that only some DCs carry (e.g. 50,000 SKUs × 100 clusters × 26 weeks) would need several GB, where the
+  scalar simulator only walks the active pairs. The full profile peaks at ~250 MB. Restricting each DC's
+  tensors to its active SKUs (demand, stock or a protected minimum) is the fix if such tenants appear;
+  until then `planning.robustness.enabled: false` turns it off per tenant.
+* Window durations are drawn per perturbation (`window:{i}`): two windowed perturbations of one event
+  would get independent durations. Every taxonomy template has a single perturbation today.
+* Review fixes in this branch: a nominally closed lane no future closes no longer keeps its closure delay
+  in every sample (`robust/sample.py`); `EmissionsSummary.uncovered` entries are cut to 128 characters (a
+  128-character lane or SKU code made the optimize call fail); the engine sends window bands only for the
+  ops the optimizer samples; no pack overrides the M8 settings (§11.12); the e2e script reads a stored
+  pre-M8 spec with the M8 defaults.
 * Merge overlap: workstream 5 edits `optimizer.py`, `service.py` (`run_optimize`), `planning.py`,
   `candidates.py`, `spec.py`, `pyproject.toml` / `uv.lock`, `README.md`, `test_perf.py`; workstreams 7 / 8
   edit `blocks.py`, the generated contracts-ts files, `fixtures.ts`, `e2e/README.md`. All edits here are

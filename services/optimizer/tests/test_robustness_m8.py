@@ -195,6 +195,22 @@ def test_capacity_band_can_reopen_a_closed_lane() -> None:
     assert sc.bands.lost_units.p10 < sc.lost_units == sc.bands.lost_units.p90
 
 
+def test_a_closure_that_no_future_samples_delays_nothing() -> None:
+    """Review fix: with seed 129 every one of the 8 sampled factors of the VN closure (band 0 / 0 /
+    6000) is above 0, so no future closes the lane. Its receipts must then arrive at their
+    readiness date in every future, not keep the nominal closure delay."""
+    vn = {"op": "capacity_scale", "target": {"kinds": ["port"], "ids": ["VNSGN"]}, "factor_bp": 0, "p90": 6000,
+          "window": {"start": "2026-10-06", "end": "2026-10-15"}, "prov": "assumption"}
+    spec = {**robustness(window=None, noise=False, demand=False, samples=8), "seed": 129}
+    closed = _solve(m8_request([], plan_id="do-nothing", perturbations=[vn], robust=spec))
+    open_ = _solve(m8_request([], plan_id="do-nothing", perturbations=[], robust=None))
+    sc, free = closed.scorecard, open_.scorecard
+    assert sc is not None and sc.bands is not None and free is not None
+    assert sc.lost_units > free.lost_units  # the nominal run keeps the closure
+    assert sc.bands.lost_units.model_dump() == {"p10": free.lost_units, "p50": free.lost_units,
+                                                "p90": free.lost_units}
+
+
 @pytest.mark.parametrize(
     ("mutate", "status", "message"),
     [

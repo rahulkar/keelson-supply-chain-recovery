@@ -225,12 +225,16 @@ def check_options(options: list[dict[str, Any]], spec: Any) -> None:
 
 
 def scoring_admin() -> None:
+    from keelson_engine.core import agent_specs
+
     heading("5. Option scoring admin (sam, tenant admin)")
     sam = ts.keelson_login("sam")
     cur = sam.client.get(SPEC)
     expect(cur.status_code == 200, f"GET spec: {cur.status_code}")
     base = cur.json()
-    planning = base["spec"]["planning"]
+    # the active version may have been stored before M8 (the demo reset reactivates it, keeping its
+    # name for the LLM replay keys): read it with the M8 defaults filled in
+    planning = agent_specs.normalize(TENANT, base["spec"])["planning"]
     profiles = planning["scoring"]["profiles"]
     patch = {"planning": {"scoring": {"default_profile": "cost-first"}, "robustness": {"samples": 96}}}
     r = sam.client.put(SPEC, json={"base_version": base["version"], "spec_patch": patch}, headers=sam.headers())

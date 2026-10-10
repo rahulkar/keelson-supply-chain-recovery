@@ -34,6 +34,8 @@ __all__ = ["Co2eResult", "plan_emissions"]
 _G_PER_KG_X_TKM = 10**9
 """``w [g] x I [g/t]``: grams x grams per tonne → kg needs ``/ 10⁹``."""
 MAX_UNCOVERED = 20
+MAX_REF_CHARS = 128
+"""``EmissionsSummary.uncovered`` entries are codes of at most 128 characters."""
 
 
 def _kg(num: int) -> int:
@@ -141,6 +143,6 @@ def plan_emissions(scn: Scenario, plan: Plan, spec: EmissionsSpec) -> Co2eResult
         basis=spec.basis,
         coverage_bp=tally.covered * 10_000 // tally.total if tally.total else 10_000,
         baseline_inbound_kg=_kg(baseline),
-        uncovered=sorted(tally.uncovered)[:MAX_UNCOVERED],
+        uncovered=[ref[:MAX_REF_CHARS] for ref in sorted(tally.uncovered)[:MAX_UNCOVERED]],
     )
     return Co2eResult(total, breakdown, summary)

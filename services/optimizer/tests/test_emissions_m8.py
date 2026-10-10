@@ -159,6 +159,20 @@ def test_coverage_reports_missing_lanes_and_weights() -> None:
     assert len(resp.emissions.uncovered) <= 20
 
 
+def test_uncovered_refs_of_long_codes_stay_valid() -> None:
+    """Review fix: lane and SKU codes may be 128 characters long; ``lane:<code>`` must still fit the
+    summary's 128-character entries instead of failing the whole optimize call (422)."""
+    long_code = "CGP-UK1-SA-" + "X" * 117
+    raw = json.loads(json.dumps(m8_request(OPTIONS["B"], plan_id="opt-B", perturbations=[BD_TRIMS_DELAY]))
+                     .replace('"CGP-UK1-SA"', json.dumps(long_code)))
+    for il in raw["data"]["inbound_lanes"]:
+        if il["code"] == long_code:
+            il["legs"] = []
+    resp = run_optimize(OptimizeRequest.model_validate(raw))
+    assert resp.emissions is not None and resp.emissions.coverage_bp < 10_000
+    assert any(u.startswith("lane:CGP-UK1-SA-XXX") and len(u) <= 128 for u in resp.emissions.uncovered)
+
+
 def test_factor_set_without_a_mode_leaves_those_lanes_uncovered() -> None:
     raw = m8_request(OPTIONS["B"], plan_id="opt-B", perturbations=[BD_TRIMS_DELAY])
     raw["emissions"]["factors"] = [f for f in raw["emissions"]["factors"] if f["mode"] != "air"]

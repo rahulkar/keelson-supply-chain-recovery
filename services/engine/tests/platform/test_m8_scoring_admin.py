@@ -14,9 +14,11 @@ import pytest_asyncio
 
 from e1_admin import reset_specs
 from e1_browser import Browser
-from e1_env import TENANT_A
+from e1_env import HAVE_PACKS, REPO_PACKS, TENANT_A
 from e1_litellm import FakeLiteLLM
-from keelson_engine.core import connectors
+from keelson_engine.core import agent_specs, connectors
+from keelson_engine.core.packs import list_packs
+from keelson_engine.core.policies import strip_unsupported_policy
 from keelson_engine.runtime.spec import AgentSpec
 from test_api_connectors import TOOLS
 from test_tokens import MERXA_SPEC
@@ -104,3 +106,20 @@ async def test_only_admins_change_scoring(admins: dict[str, Browser], gateway_re
     base = (await admins["sam"].get(SPEC)).json()["version"]
     r = await _put(priya, base, {"planning": {"scoring": {"default_profile": "cost-first"}}})
     assert r.status_code == 403, r.text
+
+
+@pytest.mark.skipif(not HAVE_PACKS, reason="data/packs not in this image")
+async def test_packs_keep_the_spec_versions_stored_before_m8(platform: None) -> None:
+    """Review fix: the demo reset reactivates the stored spec version equal to the pack default
+    (``agent_specs.reset_to_default``), so the version name — part of every recorded LLM replay key —
+    never moves. A version stored by the M7 engine has no ``planning.emissions`` / ``robustness`` /
+    ``scoring``; it must still normalise to the pack default, i.e. no pack overrides the M8 settings
+    (a pack override would make the first demo reset after the upgrade create a new version and every
+    recorded replay miss)."""
+    for pack in list_packs(REPO_PACKS):
+        target = agent_specs.normalize("x-tenant", agent_specs.merge_patch(
+            agent_specs.default_spec_dict("x-tenant"), strip_unsupported_policy(pack.spec_overrides)))
+        stored_by_m7 = copy.deepcopy(target)
+        for key in ("emissions", "robustness", "scoring"):
+            stored_by_m7["planning"].pop(key)
+        assert agent_specs.normalize("x-tenant", stored_by_m7) == target, pack.name

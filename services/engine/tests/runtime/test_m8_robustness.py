@@ -19,7 +19,7 @@ from fakes.scripts import chat_flow_script
 from keelson_contracts.blocks import KpiItem, ScenarioCompareProps, parse_block
 from keelson_contracts.common import Provenance
 from keelson_contracts.optimizer import OptimizeRequest, OptimizeResponse, PlanSpec, PlanWeights, Scorecard
-from keelson_contracts.scenario import DisruptionScenario
+from keelson_contracts.scenario import ComplianceBlock, CostScale, DisruptionScenario
 from keelson_contracts.scoring import DEFAULT_SCORING, ScoringConfig, WeightProfile
 from test_m3_visuals import options as m3_options
 from test_m3_visuals import problem
@@ -89,6 +89,19 @@ def test_window_band_recentred_on_a_longer_window() -> None:
     spec = robustness_spec(PlanningDefaults(), scn, [scn.perturbations[0], p])
     assert spec is not None and [w.duration_days.model_dump() for w in spec.window_bands] == [
         {"p10": 3, "p50": 30, "p90": 30}]
+
+
+def test_window_bands_only_for_ops_the_optimizer_samples() -> None:
+    """Review fix: the optimizer answers 422 for a window band on an op it does not sample (e.g. a
+    windowed compliance block or cost scale), which would fail every option of the plan."""
+    scn = closure_scenario()
+    block = ComplianceBlock.model_validate({
+        "op": "compliance_block", "target": {"kinds": ["supplier"], "ids": ["TRIM-BD-01"]}, "reason": "audit",
+        "window": WINDOW, "prov": "assumption"})
+    cost = CostScale.model_validate({**scn.perturbations[1].model_dump(mode="json"), "op": "cost_scale",
+                                     "factor_bp": 12_000})
+    spec = robustness_spec(PlanningDefaults(), scn, [block, cost, *scn.perturbations])
+    assert spec is not None and [w.perturbation for w in spec.window_bands] == [3]  # the VN closure only
 
 
 def test_robustness_settings() -> None:

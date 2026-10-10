@@ -266,7 +266,9 @@ class Futures:
         ends = {p.index: p.end_ordinals(n) for p in caps}
         index: dict[tuple[tuple[bool, int | None], ...], int] = {}
         self.configs = []
-        closable: set[str] = set()
+        # a lane closed in the nominal run stays re-evaluated even when no sample closes it (its
+        # receipts then arrive at their readiness date instead of keeping the nominal delay)
+        closable: set[str] = set(self.closable)
         for s in range(n):
             pattern = tuple(
                 (bool(p.values[s] == 0), None if ends[p.index] is None else int(ends[p.index][s]))  # type: ignore[index]

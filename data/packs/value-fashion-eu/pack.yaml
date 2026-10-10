@@ -27,18 +27,6 @@ connectors:
 spec_overrides:          # merge patch on the built-in AgentSpec default
   connector: merxa
   vendor_name: Merxa
-  # Plan CO2e (docs/contracts/126-m8-co2-robustness.md §2): shipped weight per unit by style prefix
-  # (illustrative packed weights; the longest prefix wins, other styles use planning.grams_per_unit).
-  planning:
-    emissions:
-      unit_weights:
-        - { style_prefix: PUF, grams: 1100 }
-        - { style_prefix: PRK, grams: 1500 }
-        - { style_prefix: GIL, grams: 600 }
-        - { style_prefix: FLC, grams: 500 }
-        - { style_prefix: KNT, grams: 450 }
-        - { style_prefix: CRD, grams: 550 }
-        - { style_prefix: HDY, grams: 600 }
   # Approval policy (docs/contracts/95-m5-remediation.md §1): CEL over {cs, case, initiator};
   # ascending priority, first match wins. Hard floors in the engine: what-if / unconfirmed is
   # always refused and signal/webhook/tainted runs are never auto-approved, whatever the rules say.

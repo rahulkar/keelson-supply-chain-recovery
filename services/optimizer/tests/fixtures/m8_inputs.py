@@ -5,7 +5,8 @@ band 7/10/14 and the default noise).
 
 Distances are fixed integers (km) close to the engine's catalogue routes: the sea legs around the
 Cape, the sea-air sea leg into Jebel Ali plus the air leg (+95 km), the road legs from the
-destination port. Weights follow the value-fashion pack's style prefixes."""
+destination port. Weights are illustrative packed weights by style prefix (an example of a tenant's
+``planning.emissions.unit_weights``)."""
 
 from __future__ import annotations
 

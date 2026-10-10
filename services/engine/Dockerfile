@@ -41,7 +41,8 @@ COPY data/emissions /src/data/emissions
 COPY data/kb /src/data/kb
 # keelson_engine is installed non-editable into /opt/venv, so the modules' "<source tree>" fallback points into
 # site-packages: name the data directories explicitly (otherwise e.g. the geo catalogue is not found).
-ENV PATH=/opt/venv/bin:$PATH PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PACKS_DIR=/src/data/packs \n    GEO_DIR=/src/data/geo TAXONOMY_DIR=/src/data/taxonomy EMISSIONS_DIR=/src/data/emissions
+ENV PATH=/opt/venv/bin:$PATH PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PACKS_DIR=/src/data/packs \
+    GEO_DIR=/src/data/geo TAXONOMY_DIR=/src/data/taxonomy EMISSIONS_DIR=/src/data/emissions
 CMD ["python", "-m", "pytest", "-q", "-p", "no:cacheprovider", "tests/platform"]
 
 # ── runtime (default target) ──

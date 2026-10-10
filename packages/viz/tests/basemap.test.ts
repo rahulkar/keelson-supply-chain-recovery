@@ -76,6 +76,9 @@ describe("manifest schema (keelson.basemap/1)", () => {
     ["a single-dot segment", (m) => (m.sprites.light = "./sprites/v4/light")],
     ["a backslash", (m) => (m.sprites.dark = "sprites\\v4\\dark")],
     ["percent-encoding", (m) => (m.sprites.dark = "sprites/%2e%2e/dark")],
+    // MapLibre substitutes {z}/{x}/{y}/… in the pmtiles:// tile URL built from the archive path
+    ["a URL template placeholder in the archive path", (m) => (m.archive.path = "v4/{z}/keelson.pmtiles")],
+    ["a URL template placeholder in a sprite path", (m) => (m.sprites.light = "sprites/{ratio}/light")],
     ["a non-pmtiles archive", (m) => (m.archive.path = "v4/x.json")],
     ["another schema", (m) => (m.schema = "keelson.basemap/2")],
     ["tiles v5", (m) => (m.source.basemap_version = "5.0.0")],

@@ -229,7 +229,7 @@ describe("integrity and egress", () => {
 
   it("knows safe relative paths", () => {
     for (const ok of ["v4/keelson-20261009-lite.pmtiles", "fonts/Noto Sans Regular/0-255.pbf", "sprites/v4/light@2x.png"]) assert.ok(isSafeRelativePath(ok), ok);
-    for (const bad of ["/abs", "../x", "a/../b", "./a", "a//b", "a\\b", "https://x/y", "%2e%2e/x", ""]) assert.ok(!isSafeRelativePath(bad), bad);
+    for (const bad of ["/abs", "../x", "a/../b", "./a", "a//b", "a\\b", "https://x/y", "%2e%2e/x", "", "v4/{z}/x.pmtiles"]) assert.ok(!isSafeRelativePath(bad), bad);
   });
 });
 
@@ -306,6 +306,7 @@ describe("manifest", () => {
     const m = buildManifest(sample);
     assert.match(manifestProblems({ ...m, schema: "x" }).join(), /schema/);
     assert.match(manifestProblems({ ...m, archive: { ...m.archive, path: "../x.pmtiles" } }).join(), /archive.path/);
+    assert.match(manifestProblems({ ...m, archive: { ...m.archive, path: "v4/{z}.pmtiles" } }).join(), /archive.path/);
     assert.match(manifestProblems({ ...m, source: { ...m.source, basemap_version: "5.0.0" } }).join(), /tiles version/);
     assert.deepEqual(manifestProblems(null), ["manifest is not an object"]);
   });

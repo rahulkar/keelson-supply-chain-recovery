@@ -574,6 +574,19 @@ def test_basemap_needs_a_directory_outside_dry_run(fakebin: tuple[Path, Path], f
     assert not marker.exists()
 
 
+def test_basemap_csp_build_arg_only_when_set(dry: subprocess.CompletedProcess[str], fakebin: tuple[Path, Path],
+                                             fake_env: tuple[Path, Path, dict[str, str]], tmp_path: Path) -> None:
+    """KEELSON_CSP_MAP_ORIGINS (env / .env) reaches the keelson-web image build; unset keeps the Dockerfile default."""
+    web = re.compile(r"^\+ docker build --platform linux/amd64 -f \S+/apps/keelson-web/Dockerfile .*$", re.M)
+    default = web.search(dry.stdout)
+    assert default and "KEELSON_CSP_MAP_ORIGINS" not in default.group(0)
+    env_file, sd, _ = fake_env
+    res = deploy(PROJECT, REGION, "--domain", DOMAIN, "--dry-run", "--tag", "t1", fakebin=fakebin, env_file=env_file,
+                 secrets_dir=sd, extra_env={"TMPDIR": str(tmp_path), "KEELSON_CSP_MAP_ORIGINS": "none"})
+    strict = web.search(res.stdout)
+    assert strict and "--build-arg KEELSON_CSP_MAP_ORIGINS=none" in strict.group(0)
+
+
 def test_caddy_routes_covered() -> None:
     """Every host Caddy serves has a URL map host rule."""
     caddy = (ROOT / "infra" / "caddy" / "Caddyfile").read_text(encoding="utf-8")

@@ -327,13 +327,17 @@ async def test_results_are_sanitised_and_merged_with_the_engine_accounting(api: 
     case = (await ava.get(f"/api/admin/evals/runs/{rid}/cases/trim_delay_actual")).json()
     assert case["title"] == "Trim delay" and len(case["turns"][0]["checks"]) == 300
     assert case["engine"]["replay_misses"] == 1 and case["keelson_case_id"] == kc
-    # an id the engine never linked is dropped; a result for another case is refused
-    other = case_doc("store_shortage_question", case_id=await _new_case())
+    # an id the engine never linked is dropped, and so is "engine" accounting the engine never metered;
+    # a result for another case is refused
+    other = case_doc("store_shortage_question", case_id=await _new_case(), engine={
+        "llm_calls_live": 0, "llm_calls_replayed": 99, "tokens_live": 0, "replay_misses": 0, "cost_microusd": 0})
     stored = await runner_call(api, "PUT", f"/runs/{rid}/cases/store_shortage_question/result",
                                {"runner_id": RUNNER, "result": other})
     assert stored.status_code == 200
     rows = {c["case_id"]: c for c in (await ava.get(f"/api/admin/evals/runs/{rid}")).json()["cases"]}
     assert rows["store_shortage_question"]["keelson_case_id"] is None
+    unlinked = (await ava.get(f"/api/admin/evals/runs/{rid}/cases/store_shortage_question")).json()
+    assert unlinked["engine"] is None
     wrong = await runner_call(api, "PUT", f"/runs/{rid}/cases/trim_delay_actual/result",
                               {"runner_id": RUNNER, "result": case_doc("store_shortage_question")})
     assert wrong.status_code == 422 and wrong.json()["code"] == "invalid_result"

@@ -687,6 +687,8 @@ async def put_case_result(run_id: str, runner_id: str, eval_case_id: str, raw: A
             if accounting.replay_misses and result.status == "fail" and result.error_code is None:
                 update.update(status="error", error_code="replay_miss",
                               error="a model request had no recording in replay mode (replay miss)")
+        elif result.engine is not None:
+            update["engine"] = None  # only the engine's own metering of a linked case is "engine" accounting
         if update:
             result = EvalCaseResult.model_validate({**result.model_dump(mode="json"),
                                                     **{k: (v.model_dump(mode="json") if hasattr(v, "model_dump") else v)

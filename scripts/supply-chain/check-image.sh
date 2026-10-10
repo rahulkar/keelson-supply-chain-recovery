@@ -15,7 +15,7 @@
 # shellcheck disable=SC2319  # "[ cond ]; result <name> $?" reports the condition status on purpose
 set -uo pipefail
 
-usage() { sed -n '2,/^set -uo/p' "${BASH_SOURCE[0]}" | sed '$d' | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,/^# shellcheck/p' "${BASH_SOURCE[0]}" | sed '$d' | sed 's/^# \{0,1\}//'; }
 ALLOW_ROOT=0; LABELS=0; IMAGE=""
 while [ $# -gt 0 ]; do
   case "$1" in

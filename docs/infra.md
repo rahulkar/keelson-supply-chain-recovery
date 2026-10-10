@@ -3,18 +3,20 @@
 The services behind Keelson (engine) and Merxa (mock ERP) on a developer machine. The
 cross-service seams are defined in `docs/contracts/00-overview.md` (hostnames, env vars,
 secrets) and `docs/contracts/10-auth.md` (Keycloak realms). This page covers how to run,
-verify, reset and troubleshoot the infrastructure part.
+verify, reset and troubleshoot the infrastructure part. Every image below is pinned in `compose.yaml`
+as `<exact tag>@sha256:<digest>` (M8, `docs/supply-chain.md`; `scripts/supply-chain/check_pins.py`); the LiteLLM
+image is also verified with BerriAI's cosign key (`scripts/supply-chain/verify-images.sh --compose`).
 
 | Service | Image | Role | Memory cap / typical |
 |---|---|---|---|
-| `caddy` | `caddy:2-alpine` | Edge proxy on host port 80, `*.localhost` routing, forward_auth | 96 MiB / ~12 MiB |
-| `egress` | `ubuntu/squid` (Squid 6.13) | Only path for connector traffic (`http://egress:3128`) | 128 MiB / ~13 MiB |
+| `caddy` | `caddy:2.11.7-alpine` | Edge proxy on host port 80, `*.localhost` routing, forward_auth | 96 MiB / ~12 MiB |
+| `egress` | `ubuntu/squid:6.6-24.04_beta` (Squid 6.13) | Only path for connector traffic (`http://egress:3128`) | 128 MiB / ~13 MiB |
 | `keycloak` | `quay.io/keycloak/keycloak:26.8.0` | Realms `keelson`, `merxa` | 900 MiB / ~485 MiB |
-| `kc-config` | `adorsys/keycloak-config-cli:6.5.1-26` (pinned) | One-shot realm upsert on every boot | 512 MiB / exits |
+| `kc-config` | `adorsys/keycloak-config-cli:6.5.1-26` | One-shot realm upsert on every boot | 512 MiB / exits |
 | `pg-core` | built from `infra/postgres/core` (PG 18.6 + PostGIS 3.6.4 + pgvector 0.8.7) | DBs `keelson`, `adk`, `keycloak` | 384 MiB / ~120 MiB |
-| `pg-litellm` | `postgres:18-trixie` | LiteLLM's own DB (isolated) | 256 MiB / ~66 MiB |
-| `pg-merxa` | `postgres:18-trixie` | Merxa's DB | 320 MiB |
-| `valkey` | `valkey/valkey:8-alpine` | Run wake-ups, event hot tail | 128 MiB / ~4 MiB |
+| `pg-litellm` | `postgres:18.6-trixie` | LiteLLM's own DB (isolated) | 256 MiB / ~66 MiB |
+| `pg-merxa` | `postgres:18.6-trixie` | Merxa's DB | 320 MiB |
+| `valkey` | `valkey/valkey:8.1.10-alpine` | Run wake-ups, event hot tail | 128 MiB / ~4 MiB |
 | `litellm` | `ghcr.io/berriai/litellm-non_root:1.104.0` | AI gateway (Gemini) | 1.2 GiB / ~570 MiB |
 | `phoenix` | `arizephoenix/phoenix` (profile `obs`) | Traces | 768 MiB |
 
@@ -27,7 +29,7 @@ powershell -ExecutionPolicy Bypass -File scripts\init.ps1      # or: scripts/ini
 powershell -ExecutionPolicy Bypass -File scripts\init.ps1 -Check   # validate only
 ```
 
-`scripts/init_secrets.py` runs inside `python:3.14-slim-trixie` (`cryptography==50.0.2`)
+`scripts/init_secrets.py` runs inside `python:3.14.8-slim-trixie` (pinned by digest) (`cryptography==50.0.2`)
 and creates:
 
 * `.env` with every variable from `.env.example` (random alphanumeric secrets, URL/shell

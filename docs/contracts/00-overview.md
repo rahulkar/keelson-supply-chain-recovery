@@ -50,7 +50,7 @@ Files in `secrets/` (gitignored, mounted as compose `secrets:` → `/run/secrets
 Python helper (both engine & merxa implement their own): `read_secret(name) -> str` reads `/run/secrets/<name>` then env `<NAME>` upper-case.
 
 ## Python service conventions
-- Python **3.14** (`python:3.14-slim-trixie`), `uv` inside the image (`COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv`), `uv sync --frozen` from the service's own `uv.lock`. Separate uv projects: `services/engine` (workspace incl. `packages/contracts-py`), `services/optimizer` (+ contracts-py path dep), `services/merxa-api` (standalone; no Keelson deps).
+- Python **3.14** (`python:3.14.8-slim-trixie@sha256:…`), `uv` inside the image (`COPY --from=ghcr.io/astral-sh/uv:0.12.23@sha256:… /uv /bin/uv`), `uv sync --frozen` from the service's own `uv.lock`. Every image reference (`FROM`, `ARG` defaults, `COPY --from`, `# syntax=`, compose `image:`, scripts) is pinned as `name:<exact tag>@sha256:<digest>` and every first-party Dockerfile is registered in `infra/supply-chain/images.json` (M8, `docs/supply-chain.md`; enforced by `scripts/supply-chain/check_pins.py`). Separate uv projects: `services/engine` (workspace incl. `packages/contracts-py`), `services/optimizer` (+ contracts-py path dep), `services/merxa-api` (standalone; no Keelson deps).
 - Layout: `services/<svc>/src/<pkg>/...`, tests in `services/<svc>/tests`, `pyproject.toml`, `Dockerfile`, `README.md`.
 - FastAPI ≥0.142, Pydantic 2.13, SQLAlchemy 2.1 async + asyncpg, httpx; structured JSON logs (`structlog` or stdlib JSON formatter) with `trace_id`.
 - Every HTTP service exposes `GET /healthz` (process up) and `GET /readyz` (deps ready). engine-api exposes them under `/api/healthz`, `/api/readyz`.

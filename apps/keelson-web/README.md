@@ -438,6 +438,7 @@ Image (context = repo root; `Dockerfile.dockerignore` keeps the context to the w
 ```bash
 docker build -f apps/keelson-web/Dockerfile -t keelson-keelson-web .            # runtime (node:24-slim, uid 10001, port 3000)
 docker build -f apps/keelson-web/Dockerfile --target test .                     # typecheck + lint + unit tests
+docker build -f apps/keelson-web/Dockerfile --target workspace-test .           # packages/*: gen-zod/gen-tokens --check, typecheck, vitest
 env -u LITELLM_MASTER_KEY docker compose up -d --build keelson-web              # with the stack
 ```
 

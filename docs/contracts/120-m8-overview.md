@@ -155,8 +155,10 @@ All compose images build (`--profile adapters --profile evals --profile basemap`
 (`LLM_REPLAY_MODE=replay`, profiles `adapters` + `evals`): `api_m5_offline`, `api_m6_offline`,
 `api_m7_offline` and all seven M8 offline scripts (`api_m8_mappings_offline`, `api_m8_sidecar`,
 `api_m8_clustering_offline`, `api_m8_feeds_offline`, `api_m8_cpsat_offline`,
-`api_m8_robustness_offline`, `api_m8_evals_offline`) pass. Live (model-backed) checks remain for
-`scripts/verify-live.sh` once credits are available.
+`api_m8_robustness_offline`, `api_m8_evals_offline`) pass, and so do the Playwright specs
+`m8-basemap`, `m8-co2-robustness` and `dev-blocks` (no model). The co2 spec's page-wide axe scan found
+React Flow's attribution link below 4.5:1 (an M3 block); it now uses the surface / fg-muted tokens.
+Live (model-backed) checks remain for `scripts/verify-live.sh` once credits are available.
 
 **Open issues carried forward** (details in each spec's Known issues): CP-SAT mode misses the 5 s solve
 budget under host load (6.9–7.9 s worst case; its perf tests allow 10 s; the default `repair` mode is

@@ -313,8 +313,8 @@ Key docs: [`docs/contracts/00-overview.md`](docs/contracts/00-overview.md) (star
 | M5 | Policies & four-eyes, auto-commit, Guide mode, rollback, re-plan on new information, demo reset | ✅ built, verified offline |
 | M6 | Signal Hub (GDACS/USGS/RSS), alerts inbox, demo packs (Act 1) | ✅ built, verified offline (public feeds live) |
 | M7 | Complete back-office, four-eyes admin changes, custom specialists, generic "foreign ERP" proof | ✅ built, verified offline — **demo cut line** |
-| — | Live verification of M4–M7 | ⏳ `scripts/verify-live.sh` once model credits are available |
-| M8 | Post-demo: mapping compiler, more feeds & clustering, deeper optimisation levers, self-hosted tiles, evals UI, supply-chain hardening | ⏳ planned |
+| M8 | Post-demo: DuckDB mapping compiler + proposed mappings, adapter sidecar (tiers B·C·W), SimHash + vector clustering, more feeds (NHC, Copernicus EMS, OFAC, GDELT, MeteoAlarm), CP-SAT (MOQ, resequencing), CO₂e + p10/p90 robustness, self-hosted Protomaps, Evals UI, Renovate + CI + cosign — [`120-m8-overview.md`](docs/contracts/120-m8-overview.md) | ✅ built, verified offline |
+| — | Live verification of M4–M8 | ⏳ `scripts/verify-live.sh` once model credits are available |
 
 ---
 

@@ -23,6 +23,15 @@ private IPs). `deploy.sh` renders them (comments are dropped, unknown placeholde
 and applies them with `gcloud run services|jobs|worker-pools replace`. `deploy.sh --render-only DIR`
 renders without touching anything.
 
+Images (M8, `docs/supply-chain.md`): `deploy.sh --release FILE | --release-tag vX.Y.Z` deploys a
+signed release (cosign-verified before any gcloud call; nothing is built; the verified ghcr.io
+digests are pulled through the Artifact Registry remote repository `ghcr`); `--allow-unsigned`
+builds the app images and the `images/` overlays locally (dev/smoke; refused with `DEMO_MODE=0`).
+Every `*_IMAGE` in `versions.env` and every overlay `ARG` default is `name:<exact tag>@sha256:<digest>`
+and both are equal (`scripts/supply-chain/check_pins.py` P3/P8, `test_cloudrun.py`). A new Cloud Run
+image also needs an `infra/supply-chain/images.json` entry with its `deploy_var` and a line in
+deploy.sh's `RELEASE_IMAGE_MAP`.
+
 Conventions every manifest follows (checked by `scripts/cloudrun/tests`):
 * container port 8080 for our images (Cloud Run sets `PORT`), 4000 for LiteLLM, 6006 for Phoenix;
   a startup probe on that port; `PORT` is never set explicitly (reserved);

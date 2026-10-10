@@ -1,0 +1,253 @@
+# Keelson CI (docs/supply-chain.md, docs/contracts/129-m8-supply-chain.md §4).
+# Every suite runs the same container commands as a local run: the Dockerfile `test` targets and
+# scripts/supply-chain/ci_run_suite.py, with the matrices derived from infra/supply-chain/images.json.
+# No secrets are used; no LLM or cloud credentials exist here (tests are offline: fake models, replay).
+name: ci
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  push:
+    branches: [main]
+  merge_group:
+  schedule:
+    - cron: "23 2 * * *" # nightly: docker tests, fresh vulnerability database
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  ACTIONLINT_IMAGE: rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+  ZIZMOR_IMAGE: ghcr.io/zizmorcore/zizmor:1.30.1@sha256:a2eb396d886c053073405c7a980f2139ba2248ec172243cfa3841e57196e8101
+  SHELLCHECK_IMAGE: koalaman/shellcheck:v0.11.0@sha256:61862eba1fcf09a484ebcc6feea46f1782532571a34ed51fedf90dd25f925a8d
+  RENOVATE_IMAGE: ghcr.io/renovatebot/renovate:44.145.1@sha256:6f1f3e2d9d0c3f99aa1f61f7509d302185de7deb173ac8c5ff88a5ce283ec435
+
+jobs:
+  setup:
+    name: setup
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      python: ${{ steps.matrix.outputs.python }}
+      web: ${{ steps.matrix.outputs.web }}
+      images: ${{ steps.matrix.outputs.images }}
+      docker_tests: ${{ steps.changes.outputs.docker_tests }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Matrices from infra/supply-chain/images.json
+        id: matrix
+        run: python3 scripts/supply-chain/matrix.py --github-output
+      - name: Do the docker-level tests apply?
+        id: changes
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          run=true
+          if [ "$EVENT" = pull_request ]; then
+            git diff --name-only "$BASE_SHA...HEAD" | grep -qE '^(scripts|infra|\.github)/|^compose\.yaml$' || run=false
+          fi
+          echo "docker_tests=$run" >>"$GITHUB_OUTPUT"
+
+  meta:
+    name: meta (pins, lint, renovate)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Pins, caps, consistency and registry coverage (check_pins.py)
+        run: python3 scripts/supply-chain/check_pins.py
+      - name: actionlint
+        run: docker run --rm -v "$PWD:/repo:ro" -w /repo "$ACTIONLINT_IMAGE" -color
+      - name: zizmor
+        run: docker run --rm -v "$PWD:/repo:ro" -w /repo "$ZIZMOR_IMAGE" --no-online-audits --no-progress .
+      - name: shellcheck
+        run: git ls-files -z "*.sh" | xargs -0 docker run --rm -v "$PWD:/mnt:ro" -w /mnt "$SHELLCHECK_IMAGE" -S warning -x
+      - name: Renovate configuration
+        run: docker run --rm -v "$PWD:/usr/src/app:ro" -w /usr/src/app "$RENOVATE_IMAGE" renovate-config-validator --strict
+      - name: Renovate extraction (every pin is updatable)
+        run: bash scripts/supply-chain/tests/renovate_extract.sh
+
+  upgrade-gate:
+    name: upgrade-gate
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: ADK / LiteLLM / MCP / AG-UI upgrade gate
+        env:
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python3 scripts/supply-chain/upgrade_gate.py --base "$BASE_SHA"
+
+  python:
+    needs: setup
+    name: python (${{ matrix.suite }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.setup.outputs.python) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build pg-core (PostGIS + pgvector test database)
+        if: matrix.db == 'pg-core'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: infra/postgres/core
+          file: infra/postgres/core/Dockerfile
+          tags: keelson-ci/pg-core:latest
+          load: true
+          cache-from: type=gha,scope=pg-core
+          cache-to: type=gha,mode=max,scope=pg-core
+      - name: Build the test image
+        if: matrix.image != ''
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          target: ${{ matrix.target }}
+          tags: keelson-ci/${{ matrix.image }}:${{ matrix.target }}
+          load: true
+          cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.target }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.target }}
+      - name: Run the suite (scripts/supply-chain/ci_run_suite.py)
+        env:
+          SUITE: ${{ matrix.suite }}
+        run: python3 scripts/supply-chain/ci_run_suite.py "$SUITE" --no-build
+
+  web:
+    needs: setup
+    name: web (${{ matrix.suite }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.setup.outputs.web) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build the test target (building it runs typecheck, lint and the unit tests)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          target: ${{ matrix.target }}
+          outputs: type=cacheonly
+          cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.target }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.target }}
+
+  images:
+    needs: setup
+    name: image (${{ matrix.name }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      security-events: write # upload the Grype SARIF report to code scanning
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.setup.outputs.images) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify the upstream image with its publisher key
+        if: matrix.upstream_key != ''
+        env:
+          UPSTREAM_KEY: ${{ matrix.upstream_key }}
+          UPSTREAM_PUBKEY: ${{ matrix.upstream_pubkey }}
+        run: |
+          ref="$(sed -n "s/^${UPSTREAM_KEY}=//p" infra/cloudrun/versions.env)"
+          bash scripts/supply-chain/verify-images.sh --upstream "$ref" "$UPSTREAM_PUBKEY"
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build the release target
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          target: ${{ matrix.target }}
+          platforms: linux/amd64
+          tags: keelson-ci/${{ matrix.name }}:release
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          load: true
+          provenance: false
+          sbom: false
+          cache-from: type=gha,scope=release-${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=release-${{ matrix.name }}
+      - name: Image checks (non-root, no litellm_init.pth / executable .pth, no secrets, labels)
+        env:
+          IMAGE: keelson-ci/${{ matrix.name }}:release
+        run: bash scripts/supply-chain/check-image.sh --require-labels "$IMAGE"
+      - name: Vulnerability gate (Grype; critical with a fix fails, .grype.yaml lists accepted findings)
+        id: scan
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+        with:
+          image: keelson-ci/${{ matrix.name }}:release
+          fail-build: true
+          severity-cutoff: critical
+          only-fixed: true
+          output-format: sarif
+          grype-version: v0.120.1
+      - name: Upload the scan to code scanning
+        if: always() && steps.scan.outputs.sarif != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: ${{ steps.scan.outputs.sarif }}
+          category: grype-${{ matrix.name }}
+
+  docker-tests:
+    name: docker-tests
+    needs: setup
+    if: needs.setup.outputs.docker_tests == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build pg-core (keelson-pg-core:latest, as compose names it)
+        run: docker build -q -t keelson-pg-core:latest infra/postgres/core
+      - name: Cloud SQL init job image against Postgres 18
+        run: bash scripts/cloudrun/tests/dbinit.sh
+      - name: Cloud Run parity checker self-test
+        run: bash scripts/cloudrun/parity-check.sh --selftest
+      - name: Caddy routes
+        run: bash scripts/tests/caddy/run.sh
+      - name: Sign and verify against a local registry (offline e2e, scripts/supply-chain/tests/e2e_sign_verify.sh)
+        run: bash scripts/supply-chain/tests/e2e_sign_verify.sh

@@ -1,0 +1,251 @@
+# Signed releases (docs/supply-chain.md, docs/contracts/129-m8-supply-chain.md §5).
+# On every push to main and every vX.Y.Z tag: each release image of infra/supply-chain/images.json is
+# built cleanly, pushed to ghcr.io by digest, checked, scanned (Grype), signed keylessly with this
+# workflow's GitHub OIDC identity (Sigstore/Rekor), attested (SPDX SBOM + SLSA v1 provenance), and the
+# digests are written to keelson-release.env, itself signed (cosign sign-blob bundle) and verified end
+# to end before it is published. scripts/cloudrun/deploy.sh --release / --release-tag deploys only what
+# verifies against infra/supply-chain/signing.env (identity: this file, main or a vX.Y.Z tag, push).
+# Domain overlays (engine-cloudrun, kc-config-cloudrun) are built only when the repository variable
+# KEELSON_PUBLIC_DOMAIN is set. No pull_request trigger: forks never get packages:write or an OIDC token.
+name: release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  setup:
+    name: setup
+    # forks build nothing: the signing identity, registry and packages belong to this repository
+    if: github.repository == 'rahulkar/keelson-supply-chain-recovery'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      images: ${{ steps.matrix.outputs.images }}
+      overlays: ${{ steps.matrix.outputs.overlays }}
+      domain: ${{ steps.domain.outputs.domain }}
+      registry: ${{ steps.domain.outputs.registry }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Matrices from infra/supply-chain/images.json
+        id: matrix
+        run: python3 scripts/supply-chain/matrix.py --github-output
+      - name: Release registry and public domain
+        id: domain
+        env:
+          DOMAIN: ${{ vars.KEELSON_PUBLIC_DOMAIN }}
+        run: |
+          registry="$(sed -n 's/^RELEASE_REGISTRY=//p' infra/supply-chain/signing.env)"
+          [[ "$registry" =~ ^ghcr\.io/[a-z0-9._-]+(/[a-z0-9._-]+)*$ ]] || { echo "::error::RELEASE_REGISTRY must be on ghcr.io"; exit 1; }
+          domain="$(printf '%s' "$DOMAIN" | tr '[:upper:]' '[:lower:]')"
+          if [ -n "$domain" ]; then
+            # the same rule as scripts/cloudrun/deploy.sh
+            [[ "$domain" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$ ]] || { echo "::error::invalid KEELSON_PUBLIC_DOMAIN"; exit 1; }
+            case "$domain" in localhost | *.localhost) echo "::error::KEELSON_PUBLIC_DOMAIN cannot be .localhost"; exit 1 ;; esac
+          fi
+          echo "registry=$registry" >>"$GITHUB_OUTPUT"
+          echo "domain=$domain" >>"$GITHUB_OUTPUT"
+
+  build-sign:
+    needs: setup
+    name: build-sign (${{ matrix.name }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write # push the image to ghcr.io
+      id-token: write # keyless Sigstore signing with the workflow OIDC identity
+      attestations: write # SLSA build provenance (actions/attest-build-provenance)
+    strategy:
+      fail-fast: true
+      matrix:
+        include: ${{ fromJSON(needs.setup.outputs.images) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/sign-attest
+        with:
+          name: ${{ matrix.name }}
+          dockerfile: ${{ matrix.dockerfile }}
+          context: ${{ matrix.context }}
+          target: ${{ matrix.target }}
+          release-key: ${{ matrix.release_key }}
+          registry: ${{ needs.setup.outputs.registry }}
+          upstream-key: ${{ matrix.upstream_key }}
+          upstream-pubkey: ${{ matrix.upstream_pubkey }}
+          github-token: ${{ github.token }}
+      - name: Keep the scan report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sarif-${{ matrix.name }}
+          path: sarif/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  overlays:
+    needs: [setup, build-sign]
+    if: needs.setup.outputs.domain != ''
+    name: overlay (${{ matrix.name }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write # push the image to ghcr.io
+      id-token: write # keyless Sigstore signing with the workflow OIDC identity
+      attestations: write # SLSA build provenance (actions/attest-build-provenance)
+    strategy:
+      fail-fast: true
+      matrix:
+        include: ${{ fromJSON(needs.setup.outputs.overlays) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Signed base image reference
+        if: matrix.overlay_of != ''
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ref-${{ matrix.overlay_of }}
+          path: base-ref
+      - name: Build arguments
+        id: args
+        env:
+          DOMAIN: ${{ needs.setup.outputs.domain }}
+          OVERLAY_OF: ${{ matrix.overlay_of }}
+          OVERLAY_ARG: ${{ matrix.overlay_arg }}
+        run: |
+          args="PUBLIC_BASE_DOMAIN=${DOMAIN}"
+          if [ -n "$OVERLAY_OF" ]; then
+            base="$(cut -d= -f2- "base-ref/${OVERLAY_OF}.ref")"
+            [[ "$base" =~ ^ghcr\.io/[a-z0-9._/-]+@sha256:[a-f0-9]{64}$ ]] || { echo "::error::bad base reference"; exit 1; }
+            args+=$'\n'"${OVERLAY_ARG}=${base}"
+          fi
+          { echo "build_args<<EOF"; echo "$args"; echo "EOF"; } >>"$GITHUB_OUTPUT"
+      - uses: ./.github/actions/sign-attest
+        with:
+          name: ${{ matrix.name }}
+          dockerfile: ${{ matrix.dockerfile }}
+          context: ${{ matrix.context }}
+          target: ${{ matrix.target }}
+          release-key: ${{ matrix.release_key }}
+          registry: ${{ needs.setup.outputs.registry }}
+          build-args: ${{ steps.args.outputs.build_args }}
+          domain: ${{ needs.setup.outputs.domain }}
+          github-token: ${{ github.token }}
+
+  manifest:
+    name: manifest (keelson-release.env)
+    needs: [setup, build-sign, overlays]
+    if: always() && needs.build-sign.result == 'success' && (needs.overlays.result == 'success' || needs.overlays.result == 'skipped')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write # keyless Sigstore signing with the workflow OIDC identity
+      packages: read # read the pushed images while verifying them
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Signed image references
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: ref-*
+          path: refs
+          merge-multiple: true
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: v3.1.3
+      - name: Log in to ghcr.io (the packages may still be private)
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Write keelson-release.env
+        env:
+          DOMAIN: ${{ needs.setup.outputs.domain }}
+        run: |
+          python3 scripts/supply-chain/release_manifest.py --refs-dir refs --out keelson-release.env \
+            --repository "$GITHUB_REPOSITORY" --git-sha "$GITHUB_SHA" --ref "$GITHUB_REF" --run-id "$GITHUB_RUN_ID" \
+            --created-at "$(TZ=UTC git show -s --date=format-local:%Y-%m-%dT%H:%M:%SZ --format=%cd HEAD)" --domain "$DOMAIN"
+      - name: Sign keelson-release.env (keyless bundle)
+        run: cosign sign-blob --yes --bundle keelson-release.env.sigstore.json keelson-release.env
+      - name: Verify the release end to end (what deploy.sh will check)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/supply-chain/verify-images.sh --release keelson-release.env
+      - name: Release summary
+        run: |
+          { echo '## keelson-release.env'; echo '```'; cat keelson-release.env; echo '```'; } >>"$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: keelson-release
+          path: |
+            keelson-release.env
+            keelson-release.env.sigstore.json
+          retention-days: 90
+          if-no-files-found: error
+
+  sarif:
+    needs: [setup, build-sign]
+    if: always() && needs.setup.result == 'success'
+    name: sarif (${{ matrix.name }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write # upload the Grype SARIF report to code scanning
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.setup.outputs.images) }}
+    steps:
+      - name: Scan report
+        id: get
+        continue-on-error: true
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sarif-${{ matrix.name }}
+          path: sarif
+      - name: Upload to code scanning
+        if: steps.get.outcome == 'success' && hashFiles('sarif/*.sarif') != ''
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: sarif
+          category: grype-release-${{ matrix.name }}
+
+  publish:
+    name: publish (GitHub Release)
+    needs: manifest
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write # attach keelson-release.env to the GitHub Release
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: keelson-release
+      - name: Attach keelson-release.env and its bundle to the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 ||
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$TAG" \
+              --notes "Signed release. Deploy: scripts/cloudrun/deploy.sh --release-tag $TAG (docs/supply-chain.md)."
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber keelson-release.env keelson-release.env.sigstore.json

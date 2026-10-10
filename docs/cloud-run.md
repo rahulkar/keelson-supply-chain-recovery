@@ -69,12 +69,25 @@ the build fails if any `.localhost` origin is left).
 ```bash
 gcloud auth login && gcloud auth application-default login
 export GEMINI_API_KEY=...               # never written to a file
-# 1. look first: prints every gcloud/docker command, executes nothing, renders the manifests
-scripts/cloudrun/deploy.sh --project my-proj --region europe-west1 --domain demo.example.com --dry-run
-# 2. deploy (idempotent: re-run after any change)
+# 1. look first: verifies the signed release, prints every gcloud command, executes nothing
 scripts/cloudrun/deploy.sh --project my-proj --region europe-west1 --domain demo.example.com \
-  --iap-members group:platform-admins@example.com
+  --release-tag v1.2.0 --dry-run
+# 2. deploy (idempotent: re-run after any change); the checkout must be at the release's commit
+scripts/cloudrun/deploy.sh --project my-proj --region europe-west1 --domain demo.example.com \
+  --release-tag v1.2.0 --iap-members group:platform-admins@example.com
+# dev/smoke only: build and deploy unsigned local images (refused when .env has DEMO_MODE=0)
+scripts/cloudrun/deploy.sh --project my-proj --region europe-west1 --domain demo.example.com --allow-unsigned
 ```
+
+**Image source (M8, `docs/supply-chain.md`).** deploy.sh needs one of: `--release FILE` (a
+`keelson-release.env` from `.github/workflows/release.yml`, its Sigstore bundle next to it),
+`--release-tag vX.Y.Z` (the same, downloaded from the GitHub Release) or `--allow-unsigned`.
+Before **any** gcloud call it verifies, with cosign against `infra/supply-chain/signing.env`, the
+release file's signature, `RELEASE_GIT_SHA` = the checkout's `HEAD` (`--allow-sha-mismatch` to
+override), `RELEASE_DOMAIN` = `--domain` (domain overlays are built only when the repository
+variable `KEELSON_PUBLIC_DOMAIN` is set) and, for every image it will deploy, the keyless signature
+of `release.yml` (annotation `git_sha`, `domain` for the overlays), the SPDX SBOM and the SLSA v1
+provenance. Any failure exits 2 with nothing deployed; `--verify-only` stops after the check.
 
 What happens (each step checks before it creates):
 
@@ -83,10 +96,13 @@ What happens (each step checks before it creates):
    `logging`, `cloudtrace`. VPC `keelson-vpc`, subnet `keelson-run` (`10.20.0.0/24`, Private
    Google Access), Cloud Router + NAT, Private Services Access range `keelson-psa` (Cloud SQL),
    service connection policy `keelson-memorystore` (service class `gcp-memorystore`).
-2. **Images**: Artifact Registry repo `keelson`; builds `engine` (+ overlay), `optimizer`,
-   `merxa-api`, `keelson-web`, `merxa-web`, `keycloak`, `litellm`, `kc-config`, `db-init` for
-   `linux/amd64`, pushes and **deploys by digest** (`--tag`, default a UTC timestamp;
-   `--skip-build` reuses pushed tags).
+2. **Images**: Artifact Registry repo `keelson`. Signed release: nothing is built; a **remote
+   repository** `ghcr` proxies ghcr.io and every service runs
+   `<region>-docker.pkg.dev/<project>/ghcr/rahulkar/keelson/<image>@<verified digest>` (same digest,
+   same bytes). `--allow-unsigned`: builds `engine` (+ overlay), `optimizer`, `merxa-api`,
+   `keelson-web`, `merxa-web`, `keycloak`, `litellm`, `kc-config`, `db-init` for `linux/amd64`,
+   pushes and **deploys by digest** (`--tag`, default a UTC timestamp; `--skip-build` reuses pushed
+   tags). Phoenix (`--enable-phoenix`) is mirrored from its digest-pinned `versions.env` reference.
 3. **Data**: Cloud SQL instance(s) (`POSTGRES_18`, `ENTERPRISE`, private IP, `ENCRYPTED_ONLY`),
    `postgres` password = `PG_CORE_SUPERPASSWORD`; Memorystore for Valkey (10-15 min the first time).
 4. **Secrets + identities**: one Secret Manager secret per secret (section 5); a new version is
@@ -136,6 +152,12 @@ Verify parity locally before deploying: `scripts/cloudrun/parity-check.sh` (sect
 
 ## 5. Security
 
+* **Supply chain** (M8, `docs/supply-chain.md`): only images whose signature, SBOM and provenance
+  verify against the release identity (this repository's `release.yml` on `main` or a `vX.Y.Z`
+  tag, push trigger) are deployed; verification fails closed (GHCR or Rekor unreachable = no
+  deploy). Third-party images are pinned by digest in `infra/cloudrun/versions.env`; the LiteLLM
+  base is verified with BerriAI's vendored cosign key in CI. Binary Authorization enforcement is
+  deferred (`docs/contracts/129-m8-supply-chain.md`).
 * **Ingress**: nothing is reachable on `*.run.app` from the internet. ALB-served services use
   `internal-and-cloud-load-balancing`; the optimizer is `internal`. Cloud Run IAM invoker checks
   are disabled (`run.googleapis.com/invoker-iam-disabled`) because the apps authenticate
@@ -218,7 +240,9 @@ volume (`csi: gcsfuse.run.googleapis.com`) and the webhook worker to a separate 
 `scripts/cloudrun/tests/run.sh` (no GCP needed): shellcheck; pytest over the rendered manifests
 and the dry run (fake `gcloud`/`docker` on PATH prove nothing executes; random fake secrets prove
 nothing leaks; secret wiring vs `.env.example`/compose; ingress, ports, probes, Keycloak flags,
-origins, URL map vs Caddyfile, least-privilege grants, command order); `dbinit.sh` (db-init image
+origins, URL map vs Caddyfile, least-privilege grants, command order; the signed-release gate with
+a fake cosign: refusal without a release, `--allow-unsigned` with `DEMO_MODE=0`, verification before
+the first gcloud call, failed signature / wrong domain / SHA mismatch); `dbinit.sh` (db-init image
 against throwaway Postgres 18: superuser and Cloud-SQL-like non-superuser admin, idempotency,
 rotation, pin drift); `parity-check.sh --selftest`. `scripts/cloudrun/tests/overlays.sh
 --with-keycloak` builds the overlays, starts the optimized Keycloak and imports both rewritten

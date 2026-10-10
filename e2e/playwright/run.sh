@@ -25,7 +25,7 @@ if [[ -z "${DEMO_USER_PASSWORD:-}" ]]; then
 fi
 export DEMO_USER_PASSWORD
 
-image="mcr.microsoft.com/playwright:v1.63.0-noble"
+image="mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27"
 inner='set -e
 EDGE_IP="$(getent ahostsv4 keelson.localhost | awk "NR==1{print \$1}")"
 [ -n "$EDGE_IP" ] || { echo "keelson.localhost does not resolve: is the stack up (caddy on keelson_edge)?" >&2; exit 2; }

@@ -68,7 +68,7 @@ leftover="$(docker run --rm --entrypoint sh "$P/engine:test" -c 'grep -rl "\.loc
 result engine_overlay_geo $? "/app/geo"
 
 # ── litellm ──
-docker build -q -f "$ROOT/infra/cloudrun/images/litellm.Dockerfile" --build-arg "LITELLM_IMAGE=${LITELLM_IMAGE:-ghcr.io/berriai/litellm-non_root:1.104.0}" \
+docker build -q -f "$ROOT/infra/cloudrun/images/litellm.Dockerfile" --build-arg "LITELLM_IMAGE=${LITELLM_IMAGE:-ghcr.io/berriai/litellm-non_root:1.104.0@sha256:37066242e6b8327fdd627682a66a9ae2a599553b4d5a84c905c6d8b9eb35c01e}" \
   -t "$P/litellm:test" "$ROOT" >/dev/null
 result litellm_overlay_builds $? ""
 docker create --name "${P}_cfg" "$P/litellm:test" >/dev/null && docker cp "${P}_cfg:/app/config.yaml" "$TMP/litellm.yaml" >/dev/null
@@ -76,7 +76,7 @@ cmp -s "$TMP/litellm.yaml" "$ROOT/infra/litellm/config.yaml"; result litellm_ove
 docker rm -fv "${P}_cfg" >/dev/null 2>&1
 
 # ── kc-config ──
-docker build -q -f "$ROOT/infra/cloudrun/images/kc-config.Dockerfile" --build-arg "KC_CONFIG_IMAGE=${KC_CONFIG_IMAGE:-adorsys/keycloak-config-cli:6.5.1-26}" \
+docker build -q -f "$ROOT/infra/cloudrun/images/kc-config.Dockerfile" --build-arg "KC_CONFIG_IMAGE=${KC_CONFIG_IMAGE:-adorsys/keycloak-config-cli:6.5.1-26@sha256:1b22dfaa9ae0c71f74b0342f9221a6510f272da5def683dbba26a98e6b1b1411}" \
   --build-arg "PUBLIC_BASE_DOMAIN=$DOMAIN" -t "$P/kc-config:test" "$ROOT" >/dev/null
 result kcconfig_overlay_builds $? ""
 docker create --name "${P}_cfg" "$P/kc-config:test" >/dev/null && docker cp "${P}_cfg:/config" "$TMP/config" >/dev/null

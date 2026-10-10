@@ -86,7 +86,9 @@ Timestamps are shown in UK time (`Europe/London`) on server and client.
 ## Develop, test, build (in Docker; never on the host)
 
 `node_modules` and `.next` live in named volumes. Mount **only this folder** so pnpm does
-not pick up the Keelson workspace at the repository root.
+not pick up the Keelson workspace at the repository root. The folder's own `pnpm-workspace.yaml`
+holds pnpm settings only (no packages): `minimumReleaseAge: 4320`, the same 3-day cooling-off for
+newly published versions as Renovate (`docs/supply-chain.md`); frozen installs are unaffected.
 
 ```bash
 # Git Bash

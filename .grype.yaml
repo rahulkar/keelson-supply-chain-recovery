@@ -1,0 +1,10 @@
+# Grype policy for CI (ci.yml images job) and releases (.github/actions/sign-attest): the build fails on
+# a CRITICAL vulnerability that has a fix (severity-cutoff critical, only-fixed). Grype loads this file
+# from the repository root. Each accepted finding needs a reason that names who accepted it and an
+# expiry date ("expires YYYY-MM-DD"); scripts/supply-chain/tests/test_workflows.py fails on a missing
+# reason or a past expiry, so exceptions are re-reviewed instead of piling up. docs/supply-chain.md
+ignore: []
+#  - vulnerability: CVE-2026-00000
+#    package:
+#      name: example
+#    reason: "not reachable: <why>; accepted by <who> on 2026-10-10, expires 2026-12-31"

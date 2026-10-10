@@ -16,3 +16,10 @@ packages:
 # "Ignored build scripts" warning without running anything.
 ignoredBuiltDependencies:
   - unrs-resolver
+
+# Supply-chain cooling-off (docs/supply-chain.md): never resolve a version published less than 3 days
+# (4320 minutes) ago - the same minimum as renovate.json `minimumReleaseAge`, so a hijacked release is
+# usually yanked before anyone here can install it. Only resolution is affected: `pnpm install
+# --frozen-lockfile` installs the locked versions as before. scripts/supply-chain/check_pins.py (P8)
+# keeps this, apps/merxa-web/pnpm-workspace.yaml and renovate.json equal.
+minimumReleaseAge: 4320

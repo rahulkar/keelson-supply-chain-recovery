@@ -1,0 +1,13 @@
+# Supply-chain controls need a code-owner review (docs/supply-chain.md). With a single maintainer the
+# branch ruleset should not yet require code-owner review (it would block every merge); enable it as
+# soon as a second maintainer exists. Until then the upgrade-gate labels act as the attestation.
+/.github/                         @rahulkar
+/renovate.json                    @rahulkar
+/.grype.yaml                      @rahulkar
+/infra/supply-chain/              @rahulkar
+/scripts/supply-chain/            @rahulkar
+/scripts/cloudrun/                @rahulkar
+/infra/cloudrun/versions.env      @rahulkar
+/infra/cloudrun/signal-hub.sh     @rahulkar
+/models.lock                      @rahulkar
+/infra/litellm/config.yaml        @rahulkar

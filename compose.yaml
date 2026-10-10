@@ -35,7 +35,7 @@ volumes:
 services:
   # ───────────────────────────── edge ─────────────────────────────
   caddy:
-    image: caddy:2-alpine
+    image: caddy:2.11.7-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
     restart: unless-stopped
     ports: ["80:80"]
     environment:
@@ -57,7 +57,7 @@ services:
       retries: 10
 
   egress:
-    image: ubuntu/squid:latest
+    image: ubuntu/squid:6.6-24.04_beta@sha256:6a097f68bae708cedbabd6188d68c7e2e7a38cedd05a176e1cc0ba29e3bbe029
     restart: unless-stopped
     volumes:
       - ./infra/squid/squid.conf:/etc/squid/squid.conf:ro
@@ -68,7 +68,7 @@ services:
 
   # ─────────────────────────── identity ───────────────────────────
   keycloak:
-    image: quay.io/keycloak/keycloak:26.8.0
+    image: quay.io/keycloak/keycloak:26.8.0@sha256:b0f60d489d51c5d113390bdf5461d4c06e6051be026c05549f2e1e10ec352bcc
     restart: unless-stopped
     command: ["start-dev", "--db=postgres"]
     environment:
@@ -97,7 +97,7 @@ services:
       start_period: 40s
 
   kc-config:
-    image: adorsys/keycloak-config-cli:6.5.1-26   # = latest-26 as of 2026-10 (sha256:1b22dfaa...), pinned
+    image: adorsys/keycloak-config-cli:6.5.1-26@sha256:1b22dfaa9ae0c71f74b0342f9221a6510f272da5def683dbba26a98e6b1b1411
     restart: "no"
     environment:
       KEYCLOAK_URL: http://keycloak:8080
@@ -147,7 +147,7 @@ services:
       retries: 30
 
   pg-litellm:
-    image: postgres:18-trixie
+    image: postgres:18.6-trixie@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
     restart: unless-stopped
     command: ["postgres", "-c", "shared_buffers=32MB", "-c", "max_connections=60"]
     environment:
@@ -164,7 +164,7 @@ services:
       retries: 30
 
   pg-merxa:
-    image: postgres:18-trixie
+    image: postgres:18.6-trixie@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
     restart: unless-stopped
     command: ["postgres", "-c", "shared_buffers=48MB", "-c", "max_connections=60"]
     environment:
@@ -181,7 +181,7 @@ services:
       retries: 30
 
   valkey:
-    image: valkey/valkey:8-alpine
+    image: valkey/valkey:8.1.10-alpine@sha256:081c2f5cb575efc901aa80ff9cdbd1ec6a301682fd35e1ebb4b0990a4a4a8507
     restart: unless-stopped
     command: ["valkey-server", "--appendonly", "yes", "--requirepass", "${VALKEY_PASSWORD}", "--maxmemory", "64mb", "--maxmemory-policy", "noeviction"]
     volumes:
@@ -197,7 +197,7 @@ services:
 
   # ─────────────────────────── AI gateway ───────────────────────────
   litellm:
-    image: ghcr.io/berriai/litellm-non_root:1.104.0
+    image: ghcr.io/berriai/litellm-non_root:1.104.0@sha256:37066242e6b8327fdd627682a66a9ae2a599553b4d5a84c905c6d8b9eb35c01e
     restart: unless-stopped
     command: ["--config", "/app/config.yaml", "--port", "4000", "--num_workers", "1"]
     environment:
@@ -543,7 +543,7 @@ services:
 
   # ─────────────────────────── observability (profile obs) ───────────────────────────
   phoenix:
-    image: arizephoenix/phoenix:latest
+    image: arizephoenix/phoenix:version-20.20.0@sha256:3a2e5a049f706f29c7b13bd82bcd94101bb10701874ce134ec9eb7f0299741aa
     profiles: [obs]
     restart: unless-stopped
     environment:

@@ -19,7 +19,7 @@ param([switch]$SkipLlm)
 $ErrorActionPreference = 'Continue'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $mount = $root.Replace([char]92, [char]47)   # D:\primark -> D:/primark
-$image = 'python:3.14-slim-trixie'
+$image = 'python:3.14.8-slim-trixie@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170'
 $name = "keelson-verify-$PID"
 $extra = @(); if ($SkipLlm) { $extra += '--skip-llm' }
 $rc = 0

@@ -7,6 +7,8 @@ that records any call, so the tests also prove that nothing is executed.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import re
 import secrets
@@ -32,6 +34,14 @@ NON_SECRET = {
 }
 LB_SERVICES = {"engine-api", "keelson-web", "merxa-api", "merxa-web", "keycloak", "litellm", "phoenix"}
 SECRETISH = re.compile(r"(SECRET|PASSWORD|_KEY$|DATABASE_URL$|^VALKEY_URL$|^PGPASSWORD$)")
+# compose-only settings without a Cloud Run counterpart (M7; these three assertions already failed on the
+# M8 baseline; docs/contracts/129-m8-supply-chain.md §8 and §10):
+# SIGNALS_DATA_KEY is optional (the hub derives its at-rest key from SIGNAL_HUB_SHARED_SECRET when unset,
+# services/signal-hub/README.md); EVALS_RESULTS_DIR + /app/evals/results expose local CLI eval results to
+# the admin listing (110 §6), and the Cloud Run engine has none (the listing reports the directory absent).
+COMPOSE_ONLY_SECRETS = {"SIGNALS_DATA_KEY"}
+COMPOSE_ONLY_ENGINE_ENV = {"EVALS_RESULTS_DIR"}
+COMPOSE_ONLY_ENGINE_MOUNTS = {"/app/evals/results"}
 
 
 # ───────────────────────────── helpers ─────────────────────────────
@@ -143,7 +153,7 @@ def dry(fakebin: tuple[Path, Path], fake_env: tuple[Path, Path, dict[str, str]],
         tmp_path_factory: pytest.TempPathFactory) -> subprocess.CompletedProcess[str]:
     env_file, sd, _ = fake_env
     tmp = tmp_path_factory.mktemp("dry")
-    return deploy(PROJECT, REGION, "--domain", DOMAIN, "--dry-run", "--tag", "t1",
+    return deploy(PROJECT, REGION, "--domain", DOMAIN, "--dry-run", "--tag", "t1", "--allow-unsigned",
                   "--iap-members", "group:platform-admins@example.com",
                   fakebin=fakebin, env_file=env_file, secrets_dir=sd, extra_env={"TMPDIR": str(tmp)})
 
@@ -162,7 +172,7 @@ def test_compose_env_secrets_are_wired() -> None:
     refs = set(re.findall(r"\$\{([A-Z][A-Z0-9_]*)", (ROOT / "compose.yaml").read_text(encoding="utf-8")))
     secretish = {r for r in refs if SECRETISH.search(r) and r != "GEMINI_API_KEY"}
     wired = set(bash_array("ENV_SECRETS")) | set(bash_array("OPTIONAL_SECRETS"))
-    assert secretish <= wired, secretish - wired
+    assert secretish - COMPOSE_ONLY_SECRETS <= wired, secretish - COMPOSE_ONLY_SECRETS - wired
 
 
 def test_compose_secret_files_are_wired() -> None:
@@ -306,7 +316,7 @@ def test_help(fakebin: tuple[Path, Path]) -> None:
 def test_apply_mode_requires_tools(fakebin: tuple[Path, Path], fake_env: tuple[Path, Path, dict[str, str]]) -> None:
     """Without --dry-run the script stops before any change when GEMINI_API_KEY is missing."""
     env_file, sd, _ = fake_env
-    res = deploy(PROJECT, REGION, "--domain", DOMAIN, fakebin=fakebin, env_file=env_file, secrets_dir=sd,
+    res = deploy(PROJECT, REGION, "--domain", DOMAIN, "--allow-unsigned", fakebin=fakebin, env_file=env_file, secrets_dir=sd,
                  extra_env={"GEMINI_API_KEY": "", "PROJECT_NUMBER": "123"}, check=False)
     assert res.returncode == 2 and "GEMINI_API_KEY" in res.stderr
     _, marker = fakebin
@@ -402,7 +412,7 @@ def test_engine_env_identical(rendered: dict[str, dict]) -> None:
     compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
     compose_env = set(compose["services"]["engine-api"]["environment"])
     # Every compose engine variable is set on Cloud Run (files -> env; CONNECTOR_* explicitly).
-    assert compose_env <= names, compose_env - names
+    assert compose_env - COMPOSE_ONLY_ENGINE_ENV <= names, compose_env - COMPOSE_ONLY_ENGINE_ENV - names
     assert {"KEELSON_CLIENT_ASSERTION_KEY", "KEELSON_RECEIPT_KEY", "KEELSON_DATA_KEY"} <= names
 
 
@@ -629,6 +639,8 @@ def test_engine_overlay_bakes_compose_mounts() -> None:
     for svc in ("bootstrap", "engine-api", "engine-worker"):
         for vol in compose["services"][svc].get("volumes", []):
             target = vol.split(":")[1]
+            if target in COMPOSE_ONLY_ENGINE_MOUNTS:
+                continue
             assert f" {target}" in df, f"{svc} mounts {target}; the Cloud Run engine image must contain it"
     litellm = (CR / "images" / "litellm.Dockerfile").read_text(encoding="utf-8")
     assert "COPY infra/litellm/config.yaml /app/config.yaml" in litellm
@@ -670,7 +682,11 @@ exit 0
 FAKE_DOCKER = r"""#!/bin/sh
 echo "docker $*" >> "$FAKE_DIR/calls.log"
 if [ "$1" = inspect ]; then
+  # RepoDigests, sorted like Docker's (lexically); $FAKE_DOCKER_OTHER_DIGEST is a digest of another
+  # repository that sorts first (an image pulled by digest keeps its source registry's RepoDigest)
   for last; do :; done
+  [ -z "${FAKE_DOCKER_OTHER_DIGEST:-}" ] || echo "$FAKE_DOCKER_OTHER_DIGEST"
+  case "$*" in *"index .RepoDigests 0"*) [ -z "${FAKE_DOCKER_OTHER_DIGEST:-}" ] || exit 0 ;; esac
   echo "${last%:*}@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 fi
 exit 0
@@ -682,24 +698,48 @@ case "$in" in
   *endpoints*) echo 10.20.1.9 ;;
 esac
 """
+# Fake cosign (M8 release gate): records argv (one call per line) in calls.log and in cosign.log;
+# fails when an argument contains $FAKE_COSIGN_FAIL.
+FAKE_COSIGN = r"""#!/bin/sh
+echo "cosign $*" >> "$FAKE_DIR/calls.log"
+echo "cosign $*" >> "$FAKE_DIR/cosign.log"
+if [ -n "${FAKE_COSIGN_FAIL:-}" ]; then
+  for a; do case "$a" in *"$FAKE_COSIGN_FAIL"*) echo "Error: no matching signatures: fake failure" >&2; exit 1 ;; esac; done
+fi
+exit 0
+"""
+# Fake git: `git rev-parse HEAD` answers $FAKE_GIT_SHA.
+FAKE_GIT = r"""#!/bin/sh
+case "$*" in *"rev-parse HEAD"*) echo "${FAKE_GIT_SHA:-0000000000000000000000000000000000000000}" ;; *) exit 1 ;; esac
+"""
+# Fake curl (--release-tag): records argv in calls.log, prints $FAKE_RELEASE_DIR/<last URL segment> or 404s.
+FAKE_CURL = r"""#!/bin/sh
+echo "curl $*" >> "$FAKE_DIR/calls.log"
+for a; do url="$a"; done
+f="${FAKE_RELEASE_DIR:-/nonexistent}/${url##*/}"
+[ -f "$f" ] || { echo "curl: (22) The requested URL returned error: 404" >&2; exit 22; }
+cat "$f"
+"""
 
 
 def apply_with_fakes(tmp_path: Path, env_file: Path, sd: Path, values: dict[str, str],
-                     extra_env: dict[str, str] | None = None) -> tuple[subprocess.CompletedProcess[str], Path, dict[str, str]]:
+                     extra_env: dict[str, str] | None = None, args: tuple[str, ...] = ("--allow-unsigned",),
+                     ) -> tuple[subprocess.CompletedProcess[str], Path, dict[str, str]]:
     bindir = tmp_path / "bin"
-    bindir.mkdir()
-    for name, body in (("gcloud", FAKE_GCLOUD), ("docker", FAKE_DOCKER), ("jq", FAKE_JQ)):
+    bindir.mkdir(parents=True, exist_ok=True)
+    for name, body in (("gcloud", FAKE_GCLOUD), ("docker", FAKE_DOCKER), ("jq", FAKE_JQ), ("cosign", FAKE_COSIGN),
+                       ("git", FAKE_GIT), ("curl", FAKE_CURL)):
         p = bindir / name
         p.write_text(body, encoding="utf-8")
         p.chmod(0o755)
-    env = {k: v for k, v in os.environ.items() if k not in {"PROJECT", "REGION", "DOMAIN", "DRY_RUN"}}
+    env = {k: v for k, v in os.environ.items() if k not in {"PROJECT", "REGION", "DOMAIN", "DRY_RUN", "COSIGN_BIN"}}
     env.update(PATH=f"{bindir}:{env['PATH']}", FAKE_DIR=str(tmp_path), TMPDIR=str(tmp_path),
                GEMINI_API_KEY="gemini-" + secrets.token_hex(8))
     env.update(extra_env or {})
     values = dict(values, GEMINI_API_KEY=env["GEMINI_API_KEY"])
     res = subprocess.run(["bash", str(DEPLOY), PROJECT, REGION, "--domain", DOMAIN, "--tag", "t9",
                           "--iap-members", "group:ops@example.com", "--env-file", str(env_file),
-                          "--secrets-dir", str(sd)],
+                          "--secrets-dir", str(sd), *args],
                          capture_output=True, text=True, env=env, stdin=subprocess.DEVNULL, timeout=300)
     return res, tmp_path, values
 
@@ -849,3 +889,228 @@ def test_kc_edge_rule_created_then_updated(tmp_path: Path, fake_env: tuple[Path,
     line = re.search(r"^gcloud compute security-policies rules update 1000 .*$", calls, re.M)
     assert line and "--expression=" + _kc_edge_expression() in line.group(0)
     assert "security-policies rules create 1000" not in calls
+
+
+# ───────────────────────────── M8: signed releases and the signature gate (docs/supply-chain.md) ─────────────────────────────
+GIT_SHA = "1f" * 20
+REGISTRY = json.loads((ROOT / "infra" / "supply-chain" / "images.json").read_text(encoding="utf-8"))["images"]
+RELEASE_IMAGES = {img["name"].upper().replace("-", "_"): img for img in REGISTRY if img["release"]}
+GHCR = "ghcr.io/rahulkar/keelson"
+
+
+def fake_digest(name: str) -> str:
+    return "sha256:" + hashlib.sha256(name.encode()).hexdigest()
+
+
+def write_release(d: Path, *, domain: str = DOMAIN, git_sha: str = GIT_SHA, drop: tuple[str, ...] = (),
+                  extra: tuple[str, ...] = ()) -> Path:
+    lines = ["RELEASE_SCHEMA=keelson.release/1", "RELEASE_REPOSITORY=rahulkar/keelson-supply-chain-recovery",
+             f"RELEASE_GIT_SHA={git_sha}", "RELEASE_REF=refs/heads/main", "RELEASE_RUN_ID=42",
+             "RELEASE_CREATED_AT=2026-10-10T08:00:00Z", f"RELEASE_DOMAIN={domain}"]
+    lines += [f"RELEASE_IMAGE_{k}={GHCR}/{img['name']}@{fake_digest(img['name'])}"
+              for k, img in sorted(RELEASE_IMAGES.items()) if k not in drop]
+    lines += list(extra)
+    d.mkdir(parents=True, exist_ok=True)
+    f = d / "keelson-release.env"
+    f.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (d / "keelson-release.env.sigstore.json").write_text('{"mediaType": "application/vnd.dev.sigstore.bundle.v0.3+json"}\n',
+                                                         encoding="utf-8")
+    return f
+
+
+def release_run(tmp_path: Path, fake_env: tuple[Path, Path, dict[str, str]], *args: str,
+                extra_env: dict[str, str] | None = None, **release: object) -> tuple[subprocess.CompletedProcess[str], Path]:
+    env_file, sd, values = fake_env
+    rel = write_release(tmp_path / "rel", **release)  # type: ignore[arg-type]
+    res, tmp, _ = apply_with_fakes(tmp_path, env_file, sd, values, {"FAKE_GIT_SHA": GIT_SHA, **(extra_env or {})},
+                                   args=("--release", str(rel), *args))
+    return res, tmp
+
+
+def calls_of(tmp: Path) -> list[str]:
+    p = tmp / "calls.log"
+    return p.read_text(encoding="utf-8").splitlines() if p.exists() else []
+
+
+def deploy_release_map() -> dict[str, str]:
+    m = re.search(r"^RELEASE_IMAGE_MAP=\((.*?)\)", DEPLOY.read_text(encoding="utf-8"), re.S | re.M)
+    assert m
+    return dict(re.findall(r"(IMAGE_[A-Z0-9_]+):([A-Z0-9_]+)", m.group(1)))
+
+
+def test_unsigned_local_builds_are_refused_by_default(tmp_path: Path, fake_env: tuple[Path, Path, dict[str, str]]) -> None:
+    env_file, sd, values = fake_env
+    res, tmp, _ = apply_with_fakes(tmp_path, env_file, sd, values, args=())
+    assert res.returncode == 2
+    assert "local builds are unsigned: deploy a signed release" in res.stderr
+    assert calls_of(tmp) == []  # refused before any gcloud/docker call
+
+
+def test_allow_unsigned_is_refused_in_production(tmp_path: Path, fake_env: tuple[Path, Path, dict[str, str]]) -> None:
+    env_file, sd, values = fake_env
+    res, tmp, _ = apply_with_fakes(tmp_path, env_file, sd, values, {"DEMO_MODE": "0"})
+    assert res.returncode == 2 and "refused when DEMO_MODE=0" in res.stderr
+    assert calls_of(tmp) == []
+
+
+def test_allow_unsigned_keeps_local_builds(dry: subprocess.CompletedProcess[str]) -> None:
+    assert "deploying UNSIGNED local builds" in dry.stderr
+    assert "docker build --platform linux/amd64" in dry.stdout and "cosign" not in dry.stdout
+    assert "--mode=remote-repository" not in dry.stdout
+
+
+def test_release_dry_run_verifies_everything_first(tmp_path: Path, fake_env: tuple[Path, Path, dict[str, str]]) -> None:
+    res, tmp = release_run(tmp_path, fake_env, "--dry-run")
+    assert res.returncode == 0, res.stdout[-3000:] + res.stderr[-3000:]
+    out = res.stdout
+    first_gcloud = out.index("\n+ gcloud ")
+    assert out.index("+ cosign verify-blob") < out.index("+ cosign verify ") < first_gcloud
+    assert out.rindex("+ cosign ") < first_gcloud
+    assert "docker build" not in out and "docker push" not in out
+    assert (f"gcloud artifacts repositories create ghcr --repository-format=docker --location={REGION} "
+            "--mode=remote-repository --remote-docker-repo=https://ghcr.io") in out
+    cosign = (tmp / "cosign.log").read_text(encoding="utf-8").splitlines()
+    blob = [c for c in cosign if c.startswith("cosign verify-blob")]
+    assert len(blob) == 1 and "--bundle" in blob[0] and "keelson-release.env.sigstore.json" in blob[0]
+    identity = ("--certificate-oidc-issuer https://token.actions.githubusercontent.com "
+                "--certificate-identity-regexp ^https://github\\.com/rahulkar/keelson-supply-chain-recovery/"
+                "\\.github/workflows/release\\.yml@refs/(heads/main|tags/v[0-9]+\\.[0-9]+\\.[0-9]+)$ "
+                "--certificate-github-workflow-repository rahulkar/keelson-supply-chain-recovery "
+                "--certificate-github-workflow-trigger push")
+    assert all(identity in c for c in cosign), cosign[0]
+    for var, key in deploy_release_map().items():
+        ref = f"{GHCR}/{RELEASE_IMAGES[key]['name']}@{fake_digest(RELEASE_IMAGES[key]['name'])}"
+        sig = [c for c in cosign if c.startswith("cosign verify ") and c.endswith(ref)]
+        assert len(sig) == 1 and f"-a git_sha={GIT_SHA}" in sig[0], (var, sig)
+        assert ("-a domain=" + DOMAIN in sig[0]) is bool(RELEASE_IMAGES[key].get("domain_overlay")), (var, sig)
+        for kind in ("spdxjson", "slsaprovenance1"):
+            assert any(c.startswith("cosign verify-attestation") and f"--type {kind}" in c and c.endswith(ref)
+                       for c in cosign), (var, kind)
+    # rendered manifests deploy the verified digests through the Artifact Registry remote repository
+    work = Path(re.search(r"^# rendered manifests: (\S+)", out, re.M).group(1))
+    remote = f"{REGION}-docker.pkg.dev/{PROJECT}/ghcr/rahulkar/keelson"
+    images = {}
+    for p in work.rglob("*.yaml"):
+        d = yaml.safe_load(p.read_text(encoding="utf-8"))
+        if d.get("kind") in ("Service", "Job", "WorkerPool"):
+            images[p.relative_to(work).as_posix()] = containers(d)[0]["image"]
+    assert images["services/engine-api.yaml"] == f"{remote}/engine-cloudrun@{fake_digest('engine-cloudrun')}"
+    assert images["jobs/keelson-kc-config.yaml"] == f"{remote}/kc-config-cloudrun@{fake_digest('kc-config-cloudrun')}"
+    assert images["signal-hub/signal-hub-api.yaml"] == f"{remote}/signal-hub@{fake_digest('signal-hub')}"
+    assert all(i.startswith(remote + "/") and "@sha256:" in i for i in images.values()), images
+
+
+def test_release_apply_builds_nothing(tmp_path: Path, fake_env: tuple[Path, Path, dict[str, str]]) -> None:
+    res, tmp = release_run(tmp_path, fake_env)
+    assert res.returncode == 0, res.stdout[-3000:] + res.stderr[-3000:]
+    calls = calls_of(tmp)
+    first_gcloud = next(i for i, c in enumerate(calls) if c.startswith("gcloud "))
+    assert all(c.startswith("cosign ") for c in calls[:first_gcloud])
+    assert first_gcloud == 1 + 3 * len(deploy_release_map())  # blob + (signature, sbom, provenance) per image
+    assert not any(c.startswith("cosign ") for c in calls[first_gcloud:])
+    assert not any(c.startswith("docker ") for c in calls)
+    assert any("run services replace" in c for c in calls)
+
+
+@pytest.mark.parametrize("case,env,release,args,needle", [
+    ("unsigned image", {"FAKE_COSIGN_FAIL": fake_digest("optimizer")}, {}, (),
+     f"refusing to deploy unverified image {GHCR}/optimizer@{fake_digest('optimizer')}: signature: Error: no matching signatures"),
+    ("unsigned release file", {"FAKE_COSIGN_FAIL": "sigstore.json"}, {}, (), "refusing release"),
+    ("other domain", {}, {"domain": "other.example.com"}, (), "were built for 'other.example.com'"),
+    ("no domain overlays", {}, {"domain": "", "drop": ("ENGINE_CLOUDRUN", "KC_CONFIG_CLOUDRUN")}, (), "built for '<none>'"),
+    ("other commit", {"FAKE_GIT_SHA": "2e" * 20}, {}, (), "check out that commit"),
+    ("missing image", {}, {"drop": ("SIGNAL_HUB",)}, (), "the release has no RELEASE_IMAGE_SIGNAL_HUB"),
+    ("tag instead of digest", {}, {"extra": (f"RELEASE_IMAGE_EXTRA={GHCR}/extra:latest",)}, (),
+     "invalid release entry RELEASE_IMAGE_EXTRA"),
+    ("foreign registry", {}, {"extra": (f"RELEASE_IMAGE_EXTRA=docker.io/evil/x@{fake_digest('x')}",)}, (),
+     "invalid release entry"),
+    ("with --allow-unsigned", {}, {}, ("--allow-unsigned",), "mutually exclusive"),
+    ("with --skip-build", {}, {}, ("--skip-build",), "--skip-build has no meaning"),
+])
+def test_release_refusals_happen_before_gcloud(tmp_path: Path, fake_env: tuple[Path, Path, dict[str, str]], case: str,
+                                               env: dict[str, str], release: dict[str, object], args: tuple[str, ...],
+                                               needle: str) -> None:
+    res, tmp = release_run(tmp_path, fake_env, *args, extra_env=env, **release)
+    assert res.returncode == 2, (case, res.stdout[-2000:], res.stderr[-2000:])
+    assert needle in res.stderr, (case, res.stderr)
+    assert not any(c.startswith(("gcloud ", "docker ")) for c in calls_of(tmp)), case
+
+
+def test_allow_sha_mismatch_warns(tmp_path: Path, fake_env: tuple[Path, Path, dict[str, str]]) -> None:
+    res, _ = release_run(tmp_path, fake_env, "--dry-run", "--allow-sha-mismatch", extra_env={"FAKE_GIT_SHA": "2e" * 20})
+    assert res.returncode == 0, res.stderr[-2000:]
+    assert "differs from the checkout" in res.stderr
+
+
+def test_verify_only(tmp_path: Path, fake_env: tuple[Path, Path, dict[str, str]]) -> None:
+    res, tmp = release_run(tmp_path, fake_env, "--verify-only")
+    assert res.returncode == 0, res.stderr[-2000:]
+    assert f"verify-only: the release and all {len(deploy_release_map())} images verified" in res.stdout
+    assert calls_of(tmp) and all(c.startswith("cosign ") for c in calls_of(tmp))
+    env_file, sd, values = fake_env
+    res, _, _ = apply_with_fakes(tmp_path / "b", env_file, sd, values, args=("--verify-only",))
+    assert res.returncode == 2 and "--verify-only needs --release" in res.stderr
+
+
+def test_release_tag_downloads_from_the_signer_repository(tmp_path: Path,
+                                                          fake_env: tuple[Path, Path, dict[str, str]]) -> None:
+    env_file, sd, values = fake_env
+    served = write_release(tmp_path / "served").parent
+    env = {"FAKE_GIT_SHA": GIT_SHA, "FAKE_RELEASE_DIR": str(served)}
+    res, tmp, _ = apply_with_fakes(tmp_path / "a", env_file, sd, values, env, args=("--release-tag", "v1.2.0", "--verify-only"))
+    assert res.returncode == 0, res.stderr[-2000:]
+    url = "https://github.com/rahulkar/keelson-supply-chain-recovery/releases/download/v1.2.0"
+    curl = [c for c in calls_of(tmp) if c.startswith("curl ")]
+    assert curl == [f"curl -fsSL --proto =https --max-time 120 {url}/keelson-release.env",
+                    f"curl -fsSL --proto =https --max-time 120 {url}/keelson-release.env.sigstore.json"]
+    blob = next(c for c in calls_of(tmp) if c.startswith("cosign verify-blob"))
+    assert "keelson-release.env.sigstore.json" in blob
+    assert not any(c.startswith(("gcloud ", "docker ")) for c in calls_of(tmp))
+    # a missing asset or a malformed tag: exit 2, nothing else runs
+    (served / "keelson-release.env.sigstore.json").unlink()
+    res, tmp, _ = apply_with_fakes(tmp_path / "b", env_file, sd, values, env, args=("--release-tag", "v1.2.0"))
+    assert res.returncode == 2 and f"cannot download release v1.2.0 from {url}" in res.stderr
+    assert not any(c.startswith(("cosign ", "gcloud ", "docker ")) for c in calls_of(tmp))
+    for bad in ("v1.2", "1.2.0", "v1.2.0-rc1", "v1.2.0;id"):
+        res, tmp, _ = apply_with_fakes(tmp_path / f"c{bad}", env_file, sd, values, env, args=("--release-tag", bad))
+        assert res.returncode == 2 and f"invalid release tag {bad}" in res.stderr, bad
+        assert calls_of(tmp) == [], bad
+
+
+def test_release_map_matches_the_registry() -> None:
+    want = {img["deploy_var"]: k for k, img in RELEASE_IMAGES.items() if img.get("deploy_var")}
+    assert deploy_release_map() == want
+    verify = (ROOT / "scripts" / "supply-chain" / "lib" / "verify.sh").read_text(encoding="utf-8")
+    overlays = re.search(r"^SC_DOMAIN_OVERLAYS=\(([^)]*)\)", verify, re.M).group(1).split()
+    assert sorted(overlays) == sorted(k for k, img in RELEASE_IMAGES.items() if img.get("domain_overlay"))
+
+
+def test_versions_env_images_are_pinned_and_match_the_overlays() -> None:
+    pins = dict(ln.split("=", 1) for ln in (CR / "versions.env").read_text().splitlines() if ln and not ln.startswith("#"))
+    images = {k: v for k, v in pins.items() if k.endswith("_IMAGE")}
+    assert set(images) == {"KEYCLOAK_IMAGE", "LITELLM_IMAGE", "KC_CONFIG_IMAGE", "POSTGRES_CLIENT_IMAGE", "PHOENIX_IMAGE"}
+    for k, v in images.items():
+        assert re.fullmatch(r"[a-z0-9./_-]+:[A-Za-z0-9._-]+@sha256:[a-f0-9]{64}", v), (k, v)
+        assert not v.split("@")[0].endswith((":latest", ":stable")), (k, v)
+    defaults: dict[str, str] = {}
+    for df in [*(CR / "images").glob("*.Dockerfile"), CR / "images" / "db-init" / "Dockerfile"]:
+        defaults.update(re.findall(r"^ARG ([A-Z_]+_IMAGE)=(\S+)$", df.read_text(encoding="utf-8"), re.M))
+    for k in ("KEYCLOAK_IMAGE", "LITELLM_IMAGE", "KC_CONFIG_IMAGE", "POSTGRES_CLIENT_IMAGE"):
+        assert defaults[k] == images[k], k
+
+
+def test_phoenix_is_deployed_from_the_artifact_registry_mirror(tmp_path: Path,
+                                                               fake_env: tuple[Path, Path, dict[str, str]]) -> None:
+    """mirror() pulls the digest-pinned versions.env image, so it keeps its Docker Hub RepoDigest, which sorts
+    before `<region>-docker.pkg.dev/...`: the deployed reference is the one of the pushed mirror."""
+    env_file, sd, values = fake_env
+    hub = "arizephoenix/phoenix@sha256:" + "ab" * 32
+    res, _, _ = apply_with_fakes(tmp_path, env_file, sd, values, {"FAKE_DOCKER_OTHER_DIGEST": hub},
+                                 args=("--allow-unsigned", "--enable-phoenix"))
+    assert res.returncode == 0, res.stdout[-2000:] + res.stderr[-2000:]
+    work = Path(re.search(r"^# rendered manifests: (\S+)", res.stdout, re.M).group(1))
+    phoenix = yaml.safe_load((work / "services" / "phoenix.yaml").read_text(encoding="utf-8"))
+    assert containers(phoenix)[0]["image"] == \
+        f"{REGION}-docker.pkg.dev/{PROJECT}/keelson/phoenix@sha256:" + "0123456789abcdef" * 4
+    engine = yaml.safe_load((work / "services" / "engine-api.yaml").read_text(encoding="utf-8"))
+    assert containers(engine)[0]["image"].startswith(f"{REGION}-docker.pkg.dev/{PROJECT}/keelson/engine@sha256:")

@@ -1,0 +1,197 @@
+{
+  "schema": "keelson.images/1",
+  "comment": "Registry of every first-party image (one entry per Dockerfile/target) and every CI test suite. CI matrices (scripts/supply-chain/matrix.py), local suite runs (ci_run_suite.py), release signing (.github/workflows/release.yml) and the deploy map (scripts/cloudrun/deploy.sh) are derived from it; scripts/supply-chain/check_pins.py fails when a Dockerfile, a compose build or a test stage is not registered here. Append new images at the end. See docs/supply-chain.md.",
+  "images": [
+    {
+      "name": "engine",
+      "dockerfile": "services/engine/Dockerfile",
+      "context": ".",
+      "target": "runtime",
+      "release": true,
+      "comment": "engine-api, engine-worker and bootstrap; Cloud Run deploys the engine-cloudrun overlay of it",
+      "suites": [
+        {
+          "id": "engine-platform",
+          "target": "test",
+          "db": "pg-core",
+          "valkey": true,
+          "memory": "2g",
+          "env": {
+            "E1_TEST_ADMIN_DSN": "postgresql://postgres:test@e1-test-pg:5432/postgres",
+            "E1_TEST_VALKEY_URL": "redis://:test@e1-test-valkey:6379/0"
+          },
+          "cmd": ["python", "-m", "pytest", "-q", "-p", "no:cacheprovider", "tests/platform"],
+          "deselect": [
+            {"nodeid": "tests/platform/test_kb.py::test_pdf_bomb_is_refused_in_an_isolated_child", "reason": "120 §5: the isolated PDF child reports pdf_too_complex under container limits"},
+            {"nodeid": "tests/platform/test_kb.py::test_pdf_child_does_not_inherit_secrets", "reason": "120 §5: the isolated PDF child reports pdf_too_complex under container limits"},
+            {"nodeid": "tests/platform/test_kb.py::test_admin_api_rbac_upload_limits_pdf_and_audit", "reason": "120 §5: the isolated PDF child reports pdf_too_complex under container limits"}
+          ]
+        },
+        {
+          "id": "engine-runtime",
+          "target": "test",
+          "db": "pg-core",
+          "valkey": true,
+          "memory": "2g",
+          "env": {
+            "E1_TEST_ADMIN_DSN": "postgresql://postgres:test@e1-test-pg:5432/postgres",
+            "E1_TEST_VALKEY_URL": "redis://:test@e1-test-valkey:6379/0"
+          },
+          "cmd": ["python", "-m", "pytest", "-q", "-p", "no:cacheprovider", "tests/runtime"]
+        }
+      ]
+    },
+    {
+      "name": "optimizer",
+      "dockerfile": "services/optimizer/Dockerfile",
+      "context": ".",
+      "target": "runtime",
+      "release": true,
+      "deploy_var": "IMAGE_OPTIMIZER",
+      "suites": [
+        {"id": "optimizer", "target": "test", "memory": "1g"}
+      ]
+    },
+    {
+      "name": "signal-hub",
+      "dockerfile": "services/signal-hub/Dockerfile",
+      "context": ".",
+      "target": "runtime",
+      "release": true,
+      "deploy_var": "IMAGE_SIGNAL_HUB",
+      "suites": [
+        {
+          "id": "signal-hub",
+          "target": "test",
+          "db": "pg-core",
+          "memory": "1g",
+          "env": {"SIGNAL_HUB_TEST_ADMIN_DSN": "postgresql://postgres:test@e1-test-pg:5432/postgres"},
+          "deselect": [
+            {"nodeid": "tests/test_db_pipeline.py::test_bootstrap_with_non_superuser_admin", "reason": "120 §5: depends on the Postgres/PostGIS image privileges (pre-existing environment failure)"}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "merxa-api",
+      "dockerfile": "services/merxa-api/Dockerfile",
+      "context": "services/merxa-api",
+      "target": "runtime",
+      "release": true,
+      "deploy_var": "IMAGE_MERXA_API",
+      "suites": [
+        {
+          "id": "merxa-api",
+          "target": "test",
+          "db": "pg-core",
+          "memory": "1500m",
+          "env": {"MERXA_TEST_ADMIN_DSN": "postgresql://postgres:test@e1-test-pg:5432/postgres"}
+        }
+      ]
+    },
+    {
+      "name": "keelson-web",
+      "dockerfile": "apps/keelson-web/Dockerfile",
+      "context": ".",
+      "target": "runtime",
+      "release": true,
+      "deploy_var": "IMAGE_KEELSON_WEB",
+      "suites": [
+        {"id": "keelson-web", "kind": "build", "target": "test", "comment": "@keelson/web typecheck + lint + vitest"},
+        {"id": "web-packages", "kind": "build", "target": "workspace-test", "comment": "packages/*: contracts-ts gen-zod --check, tokens --check, typecheck, vitest"}
+      ]
+    },
+    {
+      "name": "merxa-web",
+      "dockerfile": "apps/merxa-web/Dockerfile",
+      "context": ".",
+      "target": "runtime",
+      "release": true,
+      "deploy_var": "IMAGE_MERXA_WEB",
+      "suites": [
+        {"id": "merxa-web", "kind": "build", "target": "test"}
+      ]
+    },
+    {
+      "name": "pg-core",
+      "dockerfile": "infra/postgres/core/Dockerfile",
+      "context": "infra/postgres/core",
+      "target": null,
+      "release": false,
+      "comment": "local Postgres 18 + PostGIS + pgvector (compose pg-core, CI test database); Cloud SQL replaces it on Cloud Run"
+    },
+    {
+      "name": "db-init",
+      "dockerfile": "infra/cloudrun/images/db-init/Dockerfile",
+      "context": "infra/cloudrun/images/db-init",
+      "target": null,
+      "release": true,
+      "deploy_var": "IMAGE_DB_INIT"
+    },
+    {
+      "name": "keycloak-cloudrun",
+      "dockerfile": "infra/cloudrun/images/keycloak.Dockerfile",
+      "context": "infra/cloudrun/images",
+      "target": null,
+      "release": true,
+      "deploy_var": "IMAGE_KEYCLOAK"
+    },
+    {
+      "name": "litellm-cloudrun",
+      "dockerfile": "infra/cloudrun/images/litellm.Dockerfile",
+      "context": ".",
+      "target": null,
+      "release": true,
+      "deploy_var": "IMAGE_LITELLM",
+      "verify_upstream": {"versions_env_key": "LITELLM_IMAGE", "pubkey": "infra/supply-chain/keys/litellm-cosign.pub"}
+    },
+    {
+      "name": "engine-cloudrun",
+      "dockerfile": "infra/cloudrun/images/engine.Dockerfile",
+      "context": ".",
+      "target": null,
+      "release": true,
+      "deploy_var": "IMAGE_ENGINE",
+      "overlay_of": "engine",
+      "overlay_arg": "ENGINE_IMAGE",
+      "domain_overlay": true,
+      "comment": "bakes models.lock, packs, tenants.yaml and geo with the public domain; built only when the repository variable KEELSON_PUBLIC_DOMAIN is set"
+    },
+    {
+      "name": "kc-config-cloudrun",
+      "dockerfile": "infra/cloudrun/images/kc-config.Dockerfile",
+      "context": ".",
+      "target": null,
+      "release": true,
+      "deploy_var": "IMAGE_KC_CONFIG",
+      "domain_overlay": true,
+      "comment": "realm files rewritten to the public domain; built only when KEELSON_PUBLIC_DOMAIN is set"
+    }
+  ],
+  "suites": [
+    {
+      "id": "contracts-py",
+      "image": "ghcr.io/astral-sh/uv:0.12.23-python3.14-trixie-slim@sha256:8e88a074b0969bdc461f681727238e109438d70771828909f9ef19cfcc96c43a",
+      "workdir": "packages/contracts-py",
+      "memory": "1g",
+      "env": {"UV_PROJECT_ENVIRONMENT": "/opt/venv", "UV_LINK_MODE": "copy", "MYPY_CACHE_DIR": "/tmp/mypy"},
+      "cmd": ["sh", "-c", "uv sync --frozen && uv run python -m pytest -q -p no:cacheprovider && uv run mypy && uv run python scripts/export_schemas.py --check"]
+    },
+    {
+      "id": "evals",
+      "image": "python:3.14.8-slim-trixie@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170",
+      "workdir": "evals",
+      "memory": "512m",
+      "env": {"PIP_ROOT_USER_ACTION": "ignore", "PIP_DISABLE_PIP_VERSION_CHECK": "1"},
+      "cmd": ["sh", "-c", "pip install -q -r requirements.txt && python -m pytest -q -p no:cacheprovider tests && python run_live.py --dry-run"]
+    },
+    {
+      "id": "supply-chain",
+      "image": "python:3.14.8-slim-trixie@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170",
+      "workdir": ".",
+      "memory": "512m",
+      "env": {"PIP_ROOT_USER_ACTION": "ignore", "PIP_DISABLE_PIP_VERSION_CHECK": "1"},
+      "cmd": ["sh", "-c", "pip install -q pyyaml==6.0.3 pytest==9.1.1 cryptography==50.0.2 && python scripts/supply-chain/check_pins.py && python -m pytest -q -p no:cacheprovider scripts/supply-chain/tests scripts/cloudrun/tests scripts/tests/test_init_secrets.py"]
+    }
+  ]
+}

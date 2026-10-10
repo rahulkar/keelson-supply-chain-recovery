@@ -18,8 +18,8 @@ ROOT="$(cd "$HERE/../../.." && pwd)"
 if command -v cygpath >/dev/null 2>&1; then
   HERE="$(cygpath -m "$HERE")"; ROOT="$(cygpath -m "$ROOT")"; export MSYS_NO_PATHCONV=1
 fi
-PY_IMAGE="python:3.14-slim-trixie"
-CADDY_IMAGE="caddy:2-alpine"
+PY_IMAGE="python:3.14.8-slim-trixie@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170"
+CADDY_IMAGE="caddy:2.11.7-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f"
 CADDYFILE="${CADDYFILE:-$ROOT/infra/caddy/Caddyfile}"
 if command -v cygpath >/dev/null 2>&1; then CADDYFILE="$(cygpath -m "$CADDYFILE")"; fi
 ID="keelson-caddytest-$$"

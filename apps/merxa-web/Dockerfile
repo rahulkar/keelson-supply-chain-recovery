@@ -1,15 +1,15 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.7.1@sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e
 # merxa-web: Merxa Retail Suite UI (Next.js 16 standalone, port 3001).
 # Build context: repository root (compose.yaml), but only apps/merxa-web is copied:
 # Merxa is a separate product and never sees Keelson sources.
 
-ARG NODE_IMAGE=node:24-slim
+ARG NODE_IMAGE=node:24.21.0-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20
 
 FROM ${NODE_IMAGE} AS deps
 WORKDIR /app
 ENV PNPM_HOME=/pnpm CI=true NEXT_TELEMETRY_DISABLED=1
 RUN corepack enable && corepack prepare pnpm@10.34.6 --activate
-COPY apps/merxa-web/package.json apps/merxa-web/pnpm-lock.yaml ./
+COPY apps/merxa-web/package.json apps/merxa-web/pnpm-lock.yaml apps/merxa-web/pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=merxa-web-pnpm,target=/pnpm/store \
     pnpm config set store-dir /pnpm/store && pnpm install --frozen-lockfile
 

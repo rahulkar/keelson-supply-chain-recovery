@@ -8,8 +8,10 @@
 # What it does (idempotent; every step checks before it creates) - details in docs/cloud-run.md:
 #   1. enables the APIs; VPC + subnet (Private Google Access), Cloud Router + Cloud NAT,
 #      Private Services Access (Cloud SQL private IP), PSC service connection policy (Memorystore)
-#   2. Artifact Registry repo; builds every app image + the Cloud Run overlays
-#      (infra/cloudrun/images) for linux/amd64, pushes them and deploys by digest
+#   2. Artifact Registry: with a signed release (--release / --release-tag), a remote repository
+#      `ghcr` proxying ghcr.io serves the release's verified images by the same digests (nothing is
+#      built); with --allow-unsigned (dev/smoke), every app image + the Cloud Run overlays
+#      (infra/cloudrun/images) are built for linux/amd64, pushed and deployed by digest
 #   3. Cloud SQL POSTGRES_18 (private IP, TLS only) and Memorystore for Valkey (cluster mode
 #      disabled, PSC, reached through Direct VPC egress)
 #   4. Secret Manager: one secret per secret in .env.example / secrets/ (+ GEMINI_API_KEY from the
@@ -22,14 +24,28 @@
 #      routing, incl. the keelson /api bypass), managed certificate, HTTP->HTTPS redirect,
 #      Cloud Armor on auth.<domain>, IAP on gateway.<domain> (LiteLLM) and traces.<domain> (Phoenix)
 #
+# Image source (one is required; docs/supply-chain.md):
+#   --release FILE                deploy a signed release: FILE = keelson-release.env from release.yml,
+#                                 its Sigstore bundle FILE.sigstore.json next to it
+#   --release-tag vX.Y.Z          the same, downloaded from the GitHub Release of SIGNER_REPOSITORY
+#   --allow-unsigned              build and deploy unsigned local images (dev/smoke only; refused
+#                                 when DEMO_MODE=0)
+# Before ANY gcloud call, a release is verified with cosign against infra/supply-chain/signing.env:
+# the release file's signature, then for every image the deploy uses its keyless signature by
+# release.yml (annotations git_sha, and domain for the overlays), SBOM and SLSA provenance; its git
+# sha must equal this checkout's HEAD (the manifests are rendered from it) and its domain --domain.
+# Any failure exits 2. Verification runs in --dry-run too (it changes nothing).
+#   --verify-only                 verify the release, print the result, exit (0 or 2); no gcloud
+#   --allow-sha-mismatch          accept a release built from another commit (warning)
+#   --signing-env F               signature policy (default infra/supply-chain/signing.env)
 # Options:
 #   --project P / --region R      required (or positional, or env PROJECT / REGION)
 #   --domain D                    public base domain: keelson.D, merxa.D, auth.D, gateway.D, traces.D
 #                                 (env DOMAIN; default PUBLIC_BASE_DOMAIN from .env unless localhost)
 #   --dry-run                     print every command, call neither gcloud nor docker (env DRY_RUN=1)
 #   --render-only DIR             only render the YAML files into DIR (no commands), then exit
-#   --tag T                       image tag (default: UTC timestamp)
-#   --skip-build                  do not build/push; deploy <registry>/<image>:<tag> as they are
+#   --tag T                       image tag of local builds (default: UTC timestamp)
+#   --skip-build                  (--allow-unsigned) do not build/push; deploy <registry>/<image>:<tag>
 #   --iap-members LIST            comma separated IAP principals for the consoles,
 #                                 e.g. group:platform-admins@example.com,user:ava@example.com
 #   --enable-phoenix              also deploy Phoenix (traces.<domain>); default: use Cloud Trace
@@ -41,7 +57,8 @@
 #   --env-file F / --secrets-dir D   default: <repo>/.env and <repo>/secrets
 #   -h | --help
 # Environment knobs: SQL_TIER (db-custom-1-3840), VALKEY_NODE_TYPE (shared-core-nano),
-#   WORKER_INSTANCES (1), SUBNET_RANGE (10.20.0.0/24), PSA_RANGE_PREFIX (20), GEMINI_API_KEY.
+#   WORKER_INSTANCES (1), SUBNET_RANGE (10.20.0.0/24), PSA_RANGE_PREFIX (20), GEMINI_API_KEY,
+#   COSIGN_BIN (cosign binary; default `cosign` on PATH, else the pinned cosign image via docker).
 set -Eeuo pipefail
 shopt -u patsub_replacement 2>/dev/null || true
 
@@ -59,9 +76,17 @@ DRY_RUN="${DRY_RUN:-0}"; RENDER_ONLY=""; TAG="${TAG:-}"; SKIP_BUILD="${SKIP_BUIL
 IAP_MEMBERS="${IAP_MEMBERS:-}"; ENABLE_PHOENIX="${ENABLE_PHOENIX:-0}"; SQL_ISOLATION="${SQL_ISOLATION:-0}"
 ENABLE_BASEMAP="${ENABLE_BASEMAP:-0}"; BASEMAP_DIR="${BASEMAP_DIR:-}"
 ENV_FILE="${ENV_FILE:-$ROOT/.env}"; SECRETS_DIR="${SECRETS_DIR:-$ROOT/secrets}"
+RELEASE_FILE=""; RELEASE_TAG=""; VERIFY_ONLY=0; ALLOW_UNSIGNED=0; ALLOW_SHA_MISMATCH=0
+SIGNING_ENV="$ROOT/infra/supply-chain/signing.env"
 positional=()
 while [ $# -gt 0 ]; do
   case "$1" in
+    --release) RELEASE_FILE="${2:?--release needs a file}"; shift 2 ;;
+    --release-tag) RELEASE_TAG="${2:?--release-tag needs vX.Y.Z}"; shift 2 ;;
+    --verify-only) VERIFY_ONLY=1; shift ;;
+    --allow-unsigned) ALLOW_UNSIGNED=1; shift ;;
+    --allow-sha-mismatch) ALLOW_SHA_MISMATCH=1; shift ;;
+    --signing-env) SIGNING_ENV="${2:?--signing-env needs a file}"; shift 2 ;;
     --project) PROJECT="${2:?--project needs a value}"; shift 2 ;;
     --project=*) PROJECT="${1#*=}"; shift ;;
     --region) REGION="${2:?--region needs a value}"; shift 2 ;;
@@ -135,6 +160,63 @@ cfg() { local v; v="${!1:-}"; [ -n "$v" ] || v="$(env_get "$1")"; printf '%s' "$
 DEMO_MODE="$(cfg DEMO_MODE 1)"; DEMO_ENABLED="$(cfg DEMO_ENABLED true)"; SEED_PROFILE="$(cfg SEED_PROFILE full)"
 BRAND_ENGINE_NAME="$(cfg BRAND_ENGINE_NAME Keelson)"; BRAND_VENDOR_NAME="$(cfg BRAND_VENDOR_NAME Merxa)"
 DEV_ALLOW_KC_ADMIN="$(cfg DEV_ALLOW_KC_ADMIN 0)"
+
+# ───────────────────────────── signed release gate (before any gcloud call) ─────────────────────────────
+# deploy.sh image variable <- RELEASE_IMAGE_<KEY> of keelson-release.env: the deploy_var / name pairs of
+# infra/supply-chain/images.json (scripts/supply-chain/check_pins.py P9 keeps them equal).
+RELEASE_IMAGE_MAP=(IMAGE_ENGINE:ENGINE_CLOUDRUN IMAGE_OPTIMIZER:OPTIMIZER IMAGE_MERXA_API:MERXA_API
+  IMAGE_KEELSON_WEB:KEELSON_WEB IMAGE_MERXA_WEB:MERXA_WEB IMAGE_LITELLM:LITELLM_CLOUDRUN
+  IMAGE_KEYCLOAK:KEYCLOAK_CLOUDRUN IMAGE_KC_CONFIG:KC_CONFIG_CLOUDRUN IMAGE_DB_INIT:DB_INIT
+  IMAGE_SIGNAL_HUB:SIGNAL_HUB)
+GHCR_REMOTE_REPO="${GHCR_REMOTE_REPO:-ghcr}"
+declare -A RELEASE_REFS=()
+RELEASE_MODE=0
+{ [ -n "$RELEASE_FILE" ] || [ -n "$RELEASE_TAG" ]; } && RELEASE_MODE=1
+release_preflight() {  # verify the release + every image it deploys; fills RELEASE_REFS; dies on failure
+  local pair var key ref sha url ann=()
+  # shellcheck source=scripts/supply-chain/lib/verify.sh
+  source "$ROOT/scripts/supply-chain/lib/verify.sh"
+  sc_load_signing_env "$SIGNING_ENV" || die "$SC_ERROR"
+  [ "$SC_SIGNER_MODE" = keyless ] ||
+    warn "SIGNER_MODE=$SC_SIGNER_MODE: signatures are checked against a TEST KEY, not release.yml - never for a real deploy"
+  if [ -n "$RELEASE_TAG" ]; then
+    [ -z "$RELEASE_FILE" ] || die "--release and --release-tag are mutually exclusive"
+    [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "invalid release tag $RELEASE_TAG (vX.Y.Z)"
+    command -v curl >/dev/null || die "curl is required for --release-tag"
+    RELEASE_FILE="$(mktemp -d "${TMPDIR:-/tmp}/keelson-release.XXXXXX")/keelson-release.env"
+    url="https://github.com/${SC_SIGNER_REPOSITORY}/releases/download/${RELEASE_TAG}"
+    # stdout redirects, not -o PATH: Git Bash with MSYS_NO_PATHCONV=1 would hand curl.exe a /tmp path unconverted
+    show curl -fsSL --proto =https "$url/keelson-release.env" "$url/keelson-release.env.sigstore.json"
+    if ! curl -fsSL --proto '=https' --max-time 120 "$url/keelson-release.env" >"$RELEASE_FILE" </dev/null ||
+      ! curl -fsSL --proto '=https' --max-time 120 "$url/keelson-release.env.sigstore.json" \
+        >"$RELEASE_FILE.sigstore.json" </dev/null; then
+      die "cannot download release $RELEASE_TAG from $url"
+    fi
+  fi
+  SC_TRACE=1
+  sc_verify_release "$RELEASE_FILE" || die "refusing release $RELEASE_FILE: $SC_ERROR"
+  # (cd + git, not git -C: Git Bash with MSYS_NO_PATHCONV=1 would hand git.exe an unconverted /c/... path)
+  sha="$(cd "$ROOT" && git rev-parse HEAD 2>/dev/null || true)"
+  if [ "$sha" != "${SC_RELEASE[RELEASE_GIT_SHA]}" ]; then
+    [ "$ALLOW_SHA_MISMATCH" = 1 ] || die "the release was built from ${SC_RELEASE[RELEASE_GIT_SHA]} but this checkout is at ${sha:-<unknown>}; the manifests are rendered from the checkout: check out that commit (or pass --allow-sha-mismatch)"
+    warn "release commit ${SC_RELEASE[RELEASE_GIT_SHA]} differs from the checkout ${sha:-<unknown>} (--allow-sha-mismatch)"
+  fi
+  [ "${SC_RELEASE[RELEASE_DOMAIN]:-}" = "$DOMAIN" ] ||
+    die "the release's domain overlays were built for '${SC_RELEASE[RELEASE_DOMAIN]:-<none>}' (repository variable KEELSON_PUBLIC_DOMAIN), not $DOMAIN"
+  for pair in "${RELEASE_IMAGE_MAP[@]}"; do
+    var="${pair%%:*}"; key="${pair#*:}"; ref="${SC_RELEASE[RELEASE_IMAGE_$key]:-}"
+    [ -n "$ref" ] || die "the release has no RELEASE_IMAGE_$key (needed for $var)"
+    ann=("git_sha=${SC_RELEASE[RELEASE_GIT_SHA]}")
+    case " ${SC_DOMAIN_OVERLAYS[*]} " in *" $key "*) ann+=("domain=$DOMAIN") ;; esac
+    sc_verify_ref "$ref" "${ann[@]}" || die "refusing to deploy unverified image $ref: $SC_ERROR"
+    RELEASE_REFS[$var]="$ref"
+  done
+  SC_TRACE=0
+  if [ "$ENABLE_PHOENIX" = 1 ]; then
+    sc_ref_ok "$PHOENIX_IMAGE" || die "PHOENIX_IMAGE in versions.env must be pinned by digest"
+  fi
+  note "release ${SC_RELEASE[RELEASE_REF]} (git ${SC_RELEASE[RELEASE_GIT_SHA]}, run ${SC_RELEASE[RELEASE_RUN_ID]}): ${#RELEASE_REFS[@]} images verified"
+}
 BS="projects/${PROJECT}/global/backendServices"
 # Cloud Armor rule 1000 on keycloak-bs (see step 6); tested against Keycloak's path handling by
 # scripts/cloudrun/tests/test_cloudrun.py (RE2-compatible: no look-arounds, no backreferences).
@@ -258,6 +340,24 @@ roles_on() {  # roles/databases that live on a Cloud SQL instance
 }
 sql_instances() { printf '%s\n' "$CORE_SQL" "$LITELLM_SQL" "$MERXA_SQL" | awk '!seen[$0]++'; }
 
+# ───────────────────────────── signature gate (no gcloud call happens before it) ─────────────────────────────
+if [ "$RELEASE_MODE" = 1 ]; then
+  [ "$ALLOW_UNSIGNED" != 1 ] || die "--allow-unsigned and a release are mutually exclusive"
+  [ "$SKIP_BUILD" != 1 ] || die "--skip-build has no meaning with a release (nothing is built)"
+  release_preflight
+elif [ "$VERIFY_ONLY" = 1 ]; then
+  die "--verify-only needs --release FILE or --release-tag vX.Y.Z"
+elif [ -z "$RENDER_ONLY" ]; then
+  [ "$ALLOW_UNSIGNED" = 1 ] ||
+    die "local builds are unsigned: deploy a signed release (--release FILE | --release-tag vX.Y.Z) or pass --allow-unsigned (dev/smoke only)"
+  [ "$DEMO_MODE" != 0 ] || die "--allow-unsigned is refused when DEMO_MODE=0 (production): deploy a signed release"
+  warn "deploying UNSIGNED local builds (--allow-unsigned): no signature, SBOM or provenance is checked"
+fi
+if [ "$VERIFY_ONLY" = 1 ]; then
+  note "verify-only: the release and all ${#RELEASE_REFS[@]} images verified; nothing was deployed"
+  exit 0
+fi
+
 # ───────────────────────────── derived names ─────────────────────────────
 PROJECT_NUMBER="${PROJECT_NUMBER:-}"
 if [ -z "$PROJECT_NUMBER" ]; then
@@ -278,6 +378,13 @@ signal_hub_init
 # shellcheck source=infra/cloudrun/basemap.sh
 source "$CR/basemap.sh"
 basemap_init
+# signed release: every first-party image is the verified ghcr.io digest, pulled through the Artifact
+# Registry remote repository (same digest = same content; the signatures were verified at the source)
+for v in "${!RELEASE_REFS[@]}"; do
+  ref="${RELEASE_REFS[$v]}"
+  case "$ref" in ghcr.io/*@sha256:*) ;; *) die "release image $ref is not on ghcr.io (the remote repository proxies ghcr.io only)" ;; esac
+  printf -v "$v" '%s-docker.pkg.dev/%s/%s/%s' "$REGION" "$PROJECT" "$GHCR_REMOTE_REPO" "${ref#ghcr.io/}"
+done
 CORE_SQL_IP="${CORE_SQL_IP:-10.0.0.3}"; SQL_IP=""; SQL_INSTANCE=""; DB_ROLES=""; DB_ROLE_ENV=""
 
 WORK="${RENDER_ONLY:-$(mktemp -d "${TMPDIR:-/tmp}/keelson-cloudrun.XXXXXX")}"
@@ -310,7 +417,7 @@ if [ -n "$RENDER_ONLY" ]; then
   exit 0
 fi
 
-note "Keelson -> Cloud Run: project=$PROJECT ($PROJECT_NUMBER) region=$REGION domain=$DOMAIN tag=$TAG dry_run=$DRY_RUN"
+note "Keelson -> Cloud Run: project=$PROJECT ($PROJECT_NUMBER) region=$REGION domain=$DOMAIN tag=$TAG dry_run=$DRY_RUN images=$([ "$RELEASE_MODE" = 1 ] && echo signed-release || echo unsigned-local)"
 note "rendered manifests: $WORK"
 
 # ───────────────────────────── preflight ─────────────────────────────
@@ -355,20 +462,37 @@ note "2/6 Artifact Registry and images (linux/amd64, deployed by digest)"
 exists gcloud artifacts repositories describe "$AR_REPO" --location="$REGION" ||
   gc artifacts repositories create "$AR_REPO" --repository-format=docker --location="$REGION" \
     --description="Keelson + Merxa images"
-run gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
-digest_of() {  # image:tag -> repo@sha256:... after push (dry-run: image:tag)
-  query "$1" docker inspect --format='{{index .RepoDigests 0}}' "$1"
+if [ "$RELEASE_MODE" = 1 ]; then
+  # Signed release: nothing is built. The remote repository serves the verified ghcr.io images by the
+  # same digests (RELEASE_REFS, verified before step 1).
+  exists gcloud artifacts repositories describe "$GHCR_REMOTE_REPO" --location="$REGION" ||
+    gc artifacts repositories create "$GHCR_REMOTE_REPO" --repository-format=docker --location="$REGION" \
+      --mode=remote-repository --remote-docker-repo=https://ghcr.io \
+      --description="ghcr.io proxy for signed Keelson releases (digests verified before deploy)"
+fi
+if [ "$RELEASE_MODE" != 1 ] || [ "$ENABLE_PHOENIX" = 1 ]; then
+  run gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+fi
+digest_of() {  # image:tag -> repo@sha256:... of THAT repository after push (dry-run: image:tag)
+  # RepoDigests is sorted, and an image pulled by digest (mirror) keeps its source registry's entry, which
+  # may sort first (arizephoenix/... < <region>-docker.pkg.dev/...): pick the pushed repository's digest.
+  local d
+  [ "$DRY_RUN" = 1 ] && { printf '%s' "$1"; return 0; }
+  d="$(docker inspect --format='{{range .RepoDigests}}{{println .}}{{end}}' "$1" </dev/null |
+    awk -v p="${1%:*}@sha256:" 'index($0, p) == 1 { print; exit }')"
+  [ -n "$d" ] || die "no registry digest of ${1%:*} for $1 after the push"
+  printf '%s' "$d"
 }
-build_push() {  # VAR dockerfile context [build args...]
+build_push() {  # VAR dockerfile context [build args...]  (a signed release builds nothing)
   local var="$1" file="$2" ctx="$3" ref; shift 3
   ref="${!var}"
-  if [ "$SKIP_BUILD" != 1 ]; then
+  if [ "$SKIP_BUILD" != 1 ] && [ "$RELEASE_MODE" != 1 ]; then
     run docker build --platform linux/amd64 -f "$file" -t "$ref" "$@" "$ctx"
     run docker push "$ref"
     printf -v "$var" '%s' "$(digest_of "$ref")"
   fi
 }
-mirror() {  # VAR source-image : third-party image re-tagged into Artifact Registry
+mirror() {  # VAR source-image : third-party image (pinned by digest in versions.env) re-tagged into Artifact Registry
   local var="$1" src="$2" ref="${!1}"
   if [ "$SKIP_BUILD" != 1 ]; then
     run docker pull --platform linux/amd64 "$src"
@@ -378,7 +502,7 @@ mirror() {  # VAR source-image : third-party image re-tagged into Artifact Regis
   fi
 }
 ENGINE_BASE="${REGISTRY}/engine-base:${TAG}"
-if [ "$SKIP_BUILD" != 1 ]; then
+if [ "$SKIP_BUILD" != 1 ] && [ "$RELEASE_MODE" != 1 ]; then
   run docker build --platform linux/amd64 -f "$ROOT/services/engine/Dockerfile" -t "$ENGINE_BASE" "$ROOT"
 fi
 build_push IMAGE_ENGINE "$CR/images/engine.Dockerfile" "$ROOT" \
@@ -462,7 +586,9 @@ if [ "$ENABLE_PHOENIX" = 1 ]; then
   PHOENIX_DB_PASSWORD="$(env_get PHOENIX_DB_PASSWORD)"
   [ -n "$PHOENIX_DB_PASSWORD" ] || PHOENIX_DB_PASSWORD="$(secret_value keelson-phoenix-db-password)"
   if [ -z "$PHOENIX_DB_PASSWORD" ] && [ "$DRY_RUN" != 1 ]; then
-    PHOENIX_DB_PASSWORD="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 40)"
+    # (pipefail off in this subshell: tr ends with SIGPIPE once head has its 40 bytes, which would abort set -e)
+    PHOENIX_DB_PASSWORD="$(set +o pipefail; LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 40)"
+    [ "${#PHOENIX_DB_PASSWORD}" = 40 ] || die "could not generate the Phoenix database password"
   fi
   put_secret keelson-phoenix-db-password "generated once" "$PHOENIX_DB_PASSWORD"
   put_secret keelson-phoenix-database-url "derived: phoenix@${CORE_SQL}" \

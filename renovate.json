@@ -1,0 +1,374 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Keelson dependency policy (docs/supply-chain.md, docs/contracts/129-m8-supply-chain.md). Caps mirror docs/contracts/60-build-guide.md and are also enforced by scripts/supply-chain/check_pins.py (P7); ADK/LiteLLM/MCP/AG-UI upgrades are gated by scripts/supply-chain/upgrade_gate.py.",
+  "extends": [
+    "config:recommended",
+    "docker:pinDigests",
+    "helpers:pinGitHubActionDigestsToSemver",
+    ":configMigration",
+    ":semanticCommitsDisabled",
+    ":timezone(Asia/Kolkata)"
+  ],
+  "enabledManagers": ["npm", "pep621", "pip_requirements", "dockerfile", "docker-compose", "github-actions", "custom.regex"],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/.pnpm-store/**",
+    ".native/**",
+    "e2e/playwright/artifacts/**",
+    "evals/results/**",
+    "scripts/supply-chain/tests/fixtures/**"
+  ],
+  "schedule": ["* 0-5 * * 1"],
+  "prConcurrentLimit": 8,
+  "prHourlyLimit": 4,
+  "labels": ["dependencies"],
+  "minimumReleaseAge": "3 days",
+  "internalChecksFilter": "strict",
+  "dependencyDashboard": true,
+  "osvVulnerabilityAlerts": true,
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security", "dependencies"]
+  },
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["* 0-5 1 * *"]
+  },
+  "constraints": {
+    "python": "==3.14.*",
+    "uv": "0.12.23"
+  },
+  "postUpdateOptions": ["pnpmDedupe"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "KEY_IMAGE=name:tag@sha256 pins read by scripts/cloudrun/deploy.sh and the signing policy",
+      "managerFilePatterns": ["/^infra/cloudrun/versions\\.env$/", "/^infra/supply-chain/signing\\.env$/"],
+      "matchStrings": ["[A-Z0-9_]+_IMAGE=(?<depName>[a-z0-9][a-z0-9._/-]*):(?<currentValue>[A-Za-z0-9._-]+)@(?<currentDigest>sha256:[a-f0-9]{64})"],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "pnpm activated through corepack in the Node Dockerfiles",
+      "managerFilePatterns": ["/(^|/)Dockerfile$/"],
+      "matchStrings": ["corepack prepare pnpm@(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+      "depNameTemplate": "pnpm",
+      "datasourceTemplate": "npm"
+    },
+    {
+      "customType": "regex",
+      "description": "name:tag@sha256 image literals in helper/test scripts, workflows and the CI suite registry",
+      "managerFilePatterns": [
+        "/^scripts/.+\\.(sh|ps1)$/",
+        "/^e2e/.+\\.sh$/",
+        "/^\\.github/workflows/.+\\.ya?ml$/",
+        "/^\\.github/actions/.+\\.ya?ml$/",
+        "/^infra/supply-chain/images\\.json$/"
+      ],
+      "matchStrings": ["(?<depName>(?:ghcr\\.io/|mcr\\.microsoft\\.com/|quay\\.io/)?[a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)*):(?<currentValue>[A-Za-z0-9][A-Za-z0-9._-]*)@(?<currentDigest>sha256:[a-f0-9]{64})"],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "pnpm of the Docker-free Windows mode (installed with npm; the hash-pinned archives in versions.psd1 stay manual)",
+      "managerFilePatterns": ["/^scripts/native/versions\\.psd1$/"],
+      "matchStrings": ["pnpm\\s*=\\s*@\\{\\s*Version\\s*=\\s*'(?<currentValue>[^']+)'"],
+      "depNameTemplate": "pnpm",
+      "datasourceTemplate": "npm"
+    },
+    {
+      "customType": "regex",
+      "description": "LiteLLM proxy package of the Docker-free Windows mode (installed with uv)",
+      "managerFilePatterns": ["/^scripts/native/versions\\.psd1$/"],
+      "matchStrings": ["litellm\\s*=\\s*@\\{\\s*Version\\s*=\\s*'(?<currentValue>[^']+)'"],
+      "depNameTemplate": "litellm",
+      "datasourceTemplate": "pypi"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "major updates wait for an explicit approval on the dependency dashboard",
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true,
+      "addLabels": ["major"]
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions",
+      "addLabels": ["deps:actions"]
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch", "digest", "pinDigest"],
+      "automerge": true
+    },
+    {
+      "matchDatasources": ["docker"],
+      "addLabels": ["deps:docker"]
+    },
+    {
+      "description": "monthly digest refresh of every pinned image (rebuilt upstream tags, base OS security fixes)",
+      "matchDatasources": ["docker"],
+      "matchUpdateTypes": ["digest", "pinDigest"],
+      "groupName": "container digests",
+      "schedule": ["* 0-5 1 * *"],
+      "minimumReleaseAge": null,
+      "automerge": true
+    },
+    {
+      "matchDatasources": ["docker"],
+      "matchDepNames": ["python"],
+      "allowedVersions": "/^3\\.14\\./",
+      "description": "requires-python <3.15 in every uv project"
+    },
+    {
+      "matchDatasources": ["docker"],
+      "matchDepNames": ["node"],
+      "allowedVersions": "/^24\\./",
+      "description": "Node 24 LTS; Node >= 25 no longer bundles corepack (the Dockerfiles run corepack enable)"
+    },
+    {
+      "matchPackageNames": ["@types/node"],
+      "allowedVersions": "<25"
+    },
+    {
+      "matchDatasources": ["docker"],
+      "matchDepNames": ["postgres"],
+      "allowedVersions": "/^18\\./",
+      "groupName": "postgres 18",
+      "description": "Cloud SQL runs POSTGRES_18"
+    },
+    {
+      "matchDatasources": ["docker"],
+      "matchDepNames": ["postgis/postgis"],
+      "versioning": "regex:^(?<compatibility>\\d+)-(?<major>\\d+)\\.(?<minor>\\d+)$",
+      "dependencyDashboardApproval": true,
+      "prBodyNotes": ["Re-check `PIN_POSTGIS` / `PIN_VECTOR` in infra/cloudrun/versions.env against Cloud SQL (docs/cloud-run.md)."]
+    },
+    {
+      "matchDatasources": ["docker"],
+      "matchDepNames": ["valkey/valkey"],
+      "allowedVersions": "/^8\\./",
+      "description": "Memorystore runs VALKEY_8_0"
+    },
+    {
+      "matchDatasources": ["docker"],
+      "matchDepNames": ["caddy"],
+      "allowedVersions": "/^2\\./",
+      "prBodyNotes": ["Update `caddy` (Version, Url, Sha256) in scripts/native/versions.psd1 in this PR: check_pins P8 fails until it matches."]
+    },
+    {
+      "matchDatasources": ["docker"],
+      "matchDepNames": ["ubuntu/squid"],
+      "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)-(?<compatibility>\\d+\\.\\d+_beta)$"
+    },
+    {
+      "matchDatasources": ["docker"],
+      "matchDepNames": ["arizephoenix/phoenix"],
+      "versioning": "regex:^version-(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)$"
+    },
+    {
+      "matchDepNames": ["quay.io/keycloak/keycloak", "adorsys/keycloak-config-cli"],
+      "groupName": "keycloak",
+      "dependencyDashboardApproval": true,
+      "prBodyNotes": ["Update `keycloak` / `kcconfig` (Version, Url, Sha256) in scripts/native/versions.psd1 in this PR: check_pins P8 fails until they match."]
+    },
+    {
+      "matchDepNames": ["quay.io/keycloak/keycloak"],
+      "allowedVersions": "/^26\\./"
+    },
+    {
+      "matchDepNames": ["adorsys/keycloak-config-cli"],
+      "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-(?<compatibility>\\d+)$"
+    },
+    {
+      "matchDepNames": ["ghcr.io/astral-sh/uv"],
+      "groupName": "uv",
+      "prBodyNotes": ["Update `uv` (Version, Url, Sha256) in scripts/native/versions.psd1 and the `uv` constraint in renovate.json in this PR."]
+    },
+    {
+      "matchPackageNames": ["pnpm"],
+      "groupName": "pnpm"
+    },
+    {
+      "matchPackageNames": ["@playwright/test", "@axe-core/playwright", "mcr.microsoft.com/playwright"],
+      "groupName": "playwright"
+    },
+    {
+      "matchDepNames": ["mcr.microsoft.com/playwright"],
+      "versioning": "regex:^v(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-(?<compatibility>noble)$"
+    },
+    {
+      "description": "CI tool images (shellcheck, actionlint, zizmor, renovate, cosign, registry): monthly, no runtime impact",
+      "matchDepNames": ["koalaman/shellcheck", "rhysd/actionlint", "ghcr.io/zizmorcore/zizmor", "ghcr.io/renovatebot/renovate", "ghcr.io/sigstore/cosign/cosign", "registry"],
+      "groupName": "ci tool images",
+      "schedule": ["* 0-5 1 * *"],
+      "automerge": true
+    },
+    {
+      "matchDepNames": ["koalaman/shellcheck", "ghcr.io/sigstore/cosign/cosign"],
+      "versioning": "regex:^v(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)$"
+    },
+    {
+      "description": "local image built by deploy.sh (infra/cloudrun/images/engine.Dockerfile ARG ENGINE_IMAGE)",
+      "matchDepNames": ["keelson-engine-api"],
+      "enabled": false
+    },
+    {
+      "matchPackageNames": ["next", "eslint-config-next", "@next/**"],
+      "groupName": "next"
+    },
+    {
+      "matchPackageNames": ["react", "react-dom", "@types/react", "@types/react-dom"],
+      "groupName": "react"
+    },
+    {
+      "matchPackageNames": ["motion"],
+      "allowedVersions": "<14",
+      "description": "60-build-guide: motion 13.x, NOT 14"
+    },
+    {
+      "matchPackageNames": ["@tanstack/react-table"],
+      "allowedVersions": "<9",
+      "description": "60-build-guide: @tanstack/react-table 8.21.x, NOT 9"
+    },
+    {
+      "matchPackageNames": ["typescript", "typescript-eslint", "@typescript-eslint/**"],
+      "groupName": "typescript"
+    },
+    {
+      "matchPackageNames": ["typescript"],
+      "allowedVersions": "<6.1",
+      "description": "typescript-eslint requires TypeScript <6.1"
+    },
+    {
+      "matchPackageNames": ["@deck.gl/**", "@luma.gl/**"],
+      "groupName": "deck.gl"
+    },
+    {
+      "matchPackageNames": ["maplibre-gl", "react-map-gl"],
+      "groupName": "maplibre"
+    },
+    {
+      "matchPackageNames": ["maplibre-gl"],
+      "allowedVersions": ">=6.4.1"
+    },
+    {
+      "matchPackageNames": ["@codemirror/**"],
+      "groupName": "codemirror"
+    },
+    {
+      "matchPackageNames": ["tailwindcss", "@tailwindcss/**"],
+      "groupName": "tailwind"
+    },
+    {
+      "matchPackageNames": ["ag-grid-community", "ag-grid-react"],
+      "groupName": "ag-grid"
+    },
+    {
+      "matchPackageNames": ["vitest", "vite", "@vitejs/**", "jsdom", "@testing-library/**", "axe-core"],
+      "groupName": "web test tooling"
+    },
+    {
+      "matchPackageNames": ["vitest", "vite", "@vitejs/**", "jsdom", "@testing-library/**", "axe-core"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
+      "matchPackageNames": ["zod", "json-schema-to-zod"],
+      "groupName": "zod (contracts)"
+    },
+    {
+      "matchDatasources": ["pypi"],
+      "addLabels": ["deps:python"]
+    },
+    {
+      "matchDepTypes": ["requires-python"],
+      "enabled": false
+    },
+    {
+      "matchPackageNames": ["pydantic", "pydantic-core", "pydantic-settings"],
+      "groupName": "pydantic"
+    },
+    {
+      "matchPackageNames": ["fastapi", "starlette", "uvicorn"],
+      "groupName": "python web stack"
+    },
+    {
+      "matchFileNames": ["services/engine/pyproject.toml"],
+      "matchPackageNames": ["fastapi"],
+      "allowedVersions": "<0.142",
+      "description": "google-adk 2.11 caps opentelemetry-api at 1.42.1 (60-build-guide)"
+    },
+    {
+      "matchPackageNames": ["sqlalchemy", "asyncpg"],
+      "groupName": "python db"
+    },
+    {
+      "matchPackageNames": ["cryptography", "pyjwt", "authlib"],
+      "groupName": "auth and crypto",
+      "addLabels": ["security-sensitive"]
+    },
+    {
+      "matchPackageNames": ["httpx", "httpx2", "cel-expr-python"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "matchPackageNames": ["ortools"],
+      "dependencyDashboardApproval": true,
+      "addLabels": ["needs-golden"],
+      "description": "protobuf coupling + golden LP fixtures"
+    },
+    {
+      "matchPackageNames": ["pytest", "pytest-asyncio", "respx", "ruff", "mypy", "hatchling"],
+      "groupName": "python dev tooling"
+    },
+    {
+      "matchPackageNames": ["pytest", "pytest-asyncio", "respx", "ruff", "mypy", "hatchling"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
+      "description": "gated: S1-S3 spikes + fake-model suite, replays (upgrade_gate.py labels spike-verified / replays-rerecorded)",
+      "matchPackageNames": ["google-adk", "google-genai"],
+      "groupName": "adk stack",
+      "addLabels": ["deps:adk-litellm", "needs-spike"],
+      "dependencyDashboardApproval": true,
+      "minimumReleaseAge": "7 days",
+      "automerge": false,
+      "prBodyNotes": ["Gate: S1-S3 + the fake-model suite; re-record LLM replays if request shapes change (docs/supply-chain.md, upgrade gate)."]
+    },
+    {
+      "description": "gated: never litellm 1.82.7/1.82.8 (plan §14); the proxy image follows the python package",
+      "matchPackageNames": ["litellm", "ghcr.io/berriai/litellm-non_root"],
+      "groupName": "litellm",
+      "allowedVersions": "!/^1\\.82\\.[78]$/",
+      "addLabels": ["deps:adk-litellm", "needs-spike"],
+      "dependencyDashboardApproval": true,
+      "minimumReleaseAge": "7 days",
+      "schedule": ["* 0-5 1 * *"],
+      "automerge": false,
+      "prBodyNotes": ["Gate: S1-S3 + the fake-model suite, replays re-recorded; the image must verify with infra/supply-chain/keys/litellm-cosign.pub (release.yml)."]
+    },
+    {
+      "matchPackageNames": ["mcp", "fastmcp"],
+      "groupName": "mcp",
+      "addLabels": ["needs-spike"],
+      "dependencyDashboardApproval": true,
+      "minimumReleaseAge": "7 days",
+      "automerge": false
+    },
+    {
+      "matchPackageNames": ["@ag-ui/core", "ag-ui-protocol"],
+      "groupName": "ag-ui",
+      "addLabels": ["needs-spike"],
+      "dependencyDashboardApproval": true,
+      "minimumReleaseAge": "7 days",
+      "automerge": false
+    },
+    {
+      "matchFileNames": ["apps/merxa-web/**", "services/merxa-api/**"],
+      "addLabels": ["merxa"]
+    }
+  ]
+}

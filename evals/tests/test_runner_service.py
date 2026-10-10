@@ -169,6 +169,29 @@ def test_cancel_between_turns_stops_and_still_tears_down(tmp_path: Path) -> None
     assert engine.finished == ("cancelled", None)
 
 
+def test_cancel_during_the_last_turn_is_cancelled_not_judged(tmp_path: Path) -> None:
+    """Cancelling the eval cancels the in-flight Keelson run (RUN_ERROR CANCELLED). On a case's
+    last (often only) turn there is no next turn to stop before: the case must still end
+    ``cancelled``, never pass / fail on a run that was cut short."""
+    stack = FakeStack()
+    stack.script["run-1"] = FakeRun("run-1", {"type": "RUN_ERROR", "code": "CANCELLED", "message": "Run cancelled."})
+    engine = FakeEngine(stack, _job("replay", ["beta"]))
+    engine.triggers[("turn_finished", "b1")] = {"cancel_requested": True}
+    _runner(stack, engine, tmp_path).run_once()
+    doc = engine.results["beta"]
+    assert doc["status"] == "cancelled" and doc["error_code"] == "cancelled", doc
+    assert engine.finished == ("cancelled", None)
+
+
+def test_a_cancelled_keelson_run_without_an_eval_cancel_is_judged(tmp_path: Path) -> None:
+    """Someone cancelled the Keelson run itself (not the eval): the case is judged as before."""
+    stack = FakeStack()
+    stack.script["run-1"] = FakeRun("run-1", {"type": "RUN_ERROR", "code": "CANCELLED", "message": "Run cancelled."})
+    engine = FakeEngine(stack, _job("replay", ["beta"]))
+    _runner(stack, engine, tmp_path).run_once()
+    assert engine.results["beta"]["error_code"] is None and engine.finished == ("succeeded", None)
+
+
 def test_budget_exhausted_skips_the_remaining_cases(tmp_path: Path) -> None:
     stack = FakeStack()
     _success(stack, "run-1", "run-2", "run-3")

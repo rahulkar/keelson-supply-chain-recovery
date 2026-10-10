@@ -490,6 +490,11 @@ def run_case(live: Live, case: Case, stamp: str, hooks: CaseHooks | None = None)
             if hooks.on_turn_finished is not None:
                 hooks.on_turn_finished(turn, turn_result)
             stop = STOP_CODES.get(obs.final_code or "")
+            if stop is None and obs.final_code == "CANCELLED" and hooks.stop_reason is not None \
+                    and hooks.stop_reason() == "cancelled":
+                # the eval run was cancelled, which cancels its in-flight Keelson run: a turn cut short
+                # (often the case's only one) is not judged
+                stop = "cancelled"
             if stop is not None:
                 # the remaining turns would only report the consequences (e.g. "no recommended_option yet")
                 result.error_code = stop

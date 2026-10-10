@@ -134,6 +134,13 @@ All variables of `compose.yaml` `*engine-env` (names are env var names):
 | `EVALS_LIVE_MAX_TOKENS`, `EVALS_LIVE_MAX_COST_MICROUSD` | `3000000`, `5000000` | M8 hard caps of one live eval run's budget (tokens; integer micro-USD) |
 | `EVALS_RUNNER_STALE_S`, `EVALS_LEASE_S`, `EVALS_MAX_IMPORT_BYTES` | `60`, `180`, `8388608` | M8 runner offline after; claimed-run lease (renewed by every runner call); largest imported results document |
 | `SCN_CRAWL_MAX_ROWS` | `2000000` | M7 tier-A crawl: rows one crawl may load (all entities; hard cap 10M) |
+| `SCN_MAPPING_ENGINE` | `duckdb` | M8: tier-A crawl engine — the DuckDB mapping compiler, or `interpreter` (the exact M7 path; same rows, kill switch) |
+| `SCN_RAW_STAGING`, `SCN_RAW_MAX_BYTES` | `1`, 512 MiB | M8: keep a crawl's raw pages (current snapshot + latest failed attempt) for staged previews; raw JSON one crawl may fetch (beyond: `too_many_rows`) |
+| `DUCKDB_MEMORY_LIMIT_MB`, `DUCKDB_THREADS` | `256`, `2` | M8: per DuckDB session (one crawl / preview; spills to a private temp dir). Compose sets engine-api to `128` |
+| `MAPPING_PREVIEW_MAX_ITEMS` | `20000` | M8: items per source a staged preview maps in engine-api (`capped: true` beyond) |
+| `MAPPING_PROPOSER`, `MAPPING_PROPOSER_ALIAS` | `auto` (compose: `heuristic`), `fast-default` | M8 proposed mappings: `auto` = rules refined by the AI when the tenant has a model, `heuristic` = rules only (no model call), `off` = 409; the agent's alias (Pro refused) |
+| `MAPPING_PROPOSE_MAX_CALLS`, `MAPPING_PROPOSE_SAMPLE_SIZE` | `24`, `20` | M8: read calls one proposal may make while sampling; items per sampled page (safety caps: may only lower these code constants) |
+| `MAPPING_PROPOSE_TIMEOUT_S`, `MAPPING_PROPOSE_LLM_TIMEOUT_S`, `MAPPING_PROPOSE_MAX_PROFILE_CHARS` | `120`, `60`, `24000` | M8: whole proposal (504 beyond) / AI step (falls back to the rules) / the profile data block sent to the model (at most 24000) |
 | `CONNECTOR_DEV_HOSTS` | `merxa.localhost` | comma-separated hosts allowed although not public (URL policy) |
 | `MERXA_WEBHOOK_SECRET` (any `*_WEBHOOK_SECRET`) | | named by a connector's `webhook_secret_ref`; `whsec_<base64>` |
 | `CONNECTOR_TEST_TIMEOUT_SECONDS` | `20` | per network step of a connection test |
@@ -1086,7 +1093,9 @@ truncated, lookups}`; a failure purges the rows written so far and keeps the pre
 every crawl. `SnapshotRow.label` / `.advisory` mark plans on crawled data as advisory. Expressions
 are evaluated by `core/mapping_eval.py` (hand-written interpreter over the contracts' AST: no
 `eval`, values are plain JSON, paths index dict keys / list positions only). Merxa `/mcp-lite`
-at demo scale is ~300k rows / ~1,500 calls (well inside `SCN_SYNC_TIMEOUT_SECONDS`).
+at demo scale is ~300k rows / ~1,500 calls (well inside `SCN_SYNC_TIMEOUT_SECONDS`). M8: this is
+now the `SCN_MAPPING_ENGINE=interpreter` path; the default compiles the mapping to DuckDB (see
+"Mapping compiler + proposed mappings" below).
 
 Per-op commit ledger (runtime writes, platform stores): `repo.ledger_record(CommitLedgerEntry)` /
 `repo.ledger_entries(change_set_id)` — states `attempted|succeeded|in_doubt|failed` (+ `verified`),
@@ -1181,6 +1190,41 @@ into cases, compare runs and track trends. The **in-app runner** is a separate c
 * **Imports** are idempotent on the normalised document (`results_doc_sha256`): a file, its
   re-serialisation and the export of its run dedupe; an in-app run's export re-imports as that run.
 * **History survives demo resets**: `eval_case_link` cascades with the case; runs and results stay.
+
+## Mapping compiler + proposed mappings (M8, `docs/contracts/121-m8-mapping-compiler.md`) — platform
+
+**Compiler** (`core/mapping_compiler.py` pure compile + explain, `core/mapping_exec.py` run,
+`core/duckdb_session.py`, `core/scn_staging.py`, migration `0011_m8_mapping_compiler.sql`). With
+`SCN_MAPPING_ENGINE=duckdb` (default) `scn_crawl.run_crawl` pages every **distinct** read once
+(styles and stores of `foreign-erp-lite` were paged twice by M7), stages each page in
+`scn_raw_page` (RLS; one set per crawl attempt, kept for the current snapshot and the latest failed
+attempt), projects the items onto the paths the mapping reads into a per-crawl, hardened in-memory
+DuckDB (no extensions, external access off, configuration locked, private spill dir), builds the
+lookups, maps every entity mapping with generated SQL (the M7 interpreter stays the normative
+semantics: a differential fuzz of 6,000 expressions + the pack mapping must agree), then checks
+duplicate `source_id`s and `scn.SCN_FOREIGN_KEYS` **before** writing a single row. The failing item
+of a mapping error is re-evaluated by the interpreter, so the message is the M7 one. `crawl` jsonb
+gains `engine, mapping_version, mapping_hash, sources[], checks[], skipped{}`.
+
+| Route (`api/routes_admin_mappings.py`) | |
+|---|---|
+| `POST /api/admin/connectors/{slug}/mappings/read/compile {mapping?}` | `MappingPlan`: distinct reads + users, lookups, per entity joins / grouping / per-column SQL, checks; catalogue problems as warnings; no vendor call |
+| `POST …/mappings/read/preview` `ReadPreviewRequest` | `ReadPreview`: `live` (≤ 3 pages per read, 409 `connector_inactive`) or `staged` (the last crawl's pages, no vendor call, works with the connector disabled; 404 `no_staged_data`); per-column null share / distinct / failures, FK + duplicate checks with examples; ≤ 2 at a time (429 `preview_busy`); audited `connector.mapping.preview`. `…/read/test` answers the same (live) |
+| `GET …/connectors/{slug}/staged` | the staged raw set (snapshot, status, sources, pages, items, bytes, fetch range) |
+| `GET /api/admin/mappings/proposer` | `{mode, enabled, alias, llm: {available, reason, message}}` |
+| `POST …/mappings/proposals` `MappingProposeRequest` | 201 `MappingProposal` (stored, never active): sampling over the reader session (approved trusted read tools only; 409 `connector_inactive` with `sample: true`), rule-based drafts (`core/mapping_heuristics.py`), AI refinement (`runtime/mapping_proposer.py`) when `proposer: auto` and `MAPPING_PROPOSER=auto`, falling back to the rules with a note; 409 `proposer_disabled`, 429 `proposal_busy`, 504 `proposal_timeout`; audited `connector.mapping.proposal.created` |
+| `GET …/mappings/proposals?limit=` / `GET …/proposals/{id}` / `POST …/proposals/{id}/discard` | newest 20 kept per connector |
+| `PUT …/mappings/{kind} {…, proposal_id}` | provenance `origin = proposal` (`pack` for from-pack, `change_request` when applied by one); an **action** mapping from a proposal is guarded: a tenant-admin gets 202 + change request `connector_mapping` (reason `ai_proposed_action_mapping`, base = the current version) |
+
+**Untrusted-text boundary** (`core/mapping_profile.py`): untrusted read tools are never sampled or
+described; vendor descriptions are cleaned, cut to 300 chars and screened (flagged ones dropped,
+note + audit `untrusted_text.flagged`), parameter `enum` values are kept only as shape-safe codes that
+pass the same screen; sampled items are reduced to per-path shapes and counts,
+examples only for shape-safe values (codes without whitespace, numbers, dates, weeks, booleans)
+that pass the screen; raw samples are never stored. The model gets that profile block fenced as
+data, answers the strict `MappingProposalLlm`, and every item is re-validated deterministically
+(grammar, paths in the sample, shapes, approved tools and access, idempotency from the confirmed
+classification); `injection_suspected` discards the whole answer. No write tool is ever called.
 
 ## Tests
 

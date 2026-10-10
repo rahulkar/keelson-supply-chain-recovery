@@ -164,6 +164,18 @@ convert to `z.any()` without an explicit open object.
 - Mapping expressions and templates are validated by contracts-py (`keelson_contracts.mapping`);
   the Zod schemas only check sizes/patterns, so editors should surface the engine's 422 messages.
 
+## M8 notes (`docs/contracts/121-m8-mapping-compiler.md`)
+
+- New schemas `mappingPlanSchema` (explain), `mappingPreviewRequestSchema` / `mappingPreviewSchema`
+  (live / staged read preview), `mappingProposeRequestSchema`, `mappingProposalSchema`,
+  `mappingProposalLlmSchema`; `mappingReadSchema` accepts record lookups and `group_by`.
+- `MAPPING_EXPRESSION_FUNCTIONS` gains `field`, `cents`, `iso_week`, `trim`, `upper`, `lower`;
+  `src/mapping-proposals.ts`: `MAPPING_AGGREGATE_FUNCTIONS`, `MAPPING_MAX_GROUP_BY`,
+  `PREVIEW_SOURCES`, `PROPOSAL_STATUSES`, `PROPOSERS`, `PROPOSE_MODES`, `PROPOSAL_NOTE_CODES`,
+  `CONFIDENCE_BP`, `confidenceTone(bp)` / `confidencePercent(bp)` (confidence is always shown as text
+  with its tone, never colour alone). Change-request kind `connector_mapping` and reason
+  `ai_proposed_action_mapping` come from the regenerated admin schema.
+
 ## M5 notes (`docs/contracts/95-m5-remediation.md`)
 
 - New block `remediation_checklist@1` (`remediationChecklistPropsSchema`, `ChecklistStep`,

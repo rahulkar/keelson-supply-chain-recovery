@@ -677,8 +677,10 @@ async def _fail_orphans(tenant: str, connector: str) -> None:
         orphans = [r[0] for r in res.all()]
     if orphans:
         from keelson_engine.core.scn_crawl import purge_rows
+        from keelson_engine.core.scn_staging import drop_sets
 
         await purge_rows(tenant, orphans)
+        await drop_sets(tenant, orphans)  # M8: an orphaned crawl's raw pages (half-fetched) go too
 
 
 async def _insert_loading(tenant: str, connector: str, reason: str) -> tuple[uuid.UUID, datetime]:
@@ -1218,6 +1220,9 @@ async def mark_noncurrent(tenant: str) -> int:
             ).all()
         ]
         marked = await _mark(s, tenant, candidates)
+    from keelson_engine.core.scn_staging import drop_noncurrent
+
+    await drop_noncurrent(tenant)  # M8: raw crawl pages of non-current snapshots, eagerly
     if marked:
         log.info("scn snapshots marked for gc", tenant=tenant, snapshots=len(marked))
     return len(marked)

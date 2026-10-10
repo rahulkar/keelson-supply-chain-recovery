@@ -52,6 +52,13 @@ export const MAPPING_EXPRESSION_FUNCTIONS = {
   lookup: [2, 3],
   coalesce: [2, 8],
   if_present: [3, 3],
+  // M8 (docs/contracts/121): record-lookup joins and coercion helpers
+  field: [3, 3],
+  cents: [1, 1],
+  iso_week: [1, 1],
+  trim: [1, 1],
+  upper: [1, 1],
+  lower: [1, 1],
 } as const satisfies Record<string, readonly [number, number]>;
 
 /** Change requests expire 72 h after they were made. */

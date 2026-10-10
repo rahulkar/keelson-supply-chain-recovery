@@ -404,6 +404,42 @@
       "title": "ActionDryRunResult"
     },
     {
+      "file": "mapping.plan.schema.json",
+      "name": "mapping.plan",
+      "source": "keelson_contracts.mapping.MappingPlan",
+      "title": "MappingPlan"
+    },
+    {
+      "file": "mapping.preview.schema.json",
+      "name": "mapping.preview",
+      "source": "keelson_contracts.mapping.ReadPreview",
+      "title": "ReadPreview"
+    },
+    {
+      "file": "mapping.preview-request.schema.json",
+      "name": "mapping.preview-request",
+      "source": "keelson_contracts.mapping.ReadPreviewRequest",
+      "title": "ReadPreviewRequest"
+    },
+    {
+      "file": "mapping.proposal.schema.json",
+      "name": "mapping.proposal",
+      "source": "keelson_contracts.mapping_proposal.MappingProposal",
+      "title": "MappingProposal"
+    },
+    {
+      "file": "mapping.proposal-llm.schema.json",
+      "name": "mapping.proposal-llm",
+      "source": "keelson_contracts.mapping_proposal.MappingProposalLlm",
+      "title": "MappingProposalLlm"
+    },
+    {
+      "file": "mapping.propose-request.schema.json",
+      "name": "mapping.propose-request",
+      "source": "keelson_contracts.mapping_proposal.MappingProposeRequest",
+      "title": "MappingProposeRequest"
+    },
+    {
       "file": "mapping.read.schema.json",
       "name": "mapping.read",
       "source": "keelson_contracts.mapping.ReadMapping",

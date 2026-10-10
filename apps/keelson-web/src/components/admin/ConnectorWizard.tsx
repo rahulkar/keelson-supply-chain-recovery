@@ -31,6 +31,7 @@ import {
 } from "@/lib/admin/wizard";
 import { AdminPageHeader, Facts, InlineError } from "./common";
 import { TierBadges, linkClass } from "./ConnectorsPage";
+import { proposeHref } from "./MappingProposalPanel";
 import { announceChangeRequest } from "./SecondAdmin";
 import { ToolsTable } from "./ToolsTable";
 
@@ -193,6 +194,9 @@ export function ConnectorWizard() {
     }
   };
 
+  // M8: a plain tier-A connector (no snapshot tools) is crawled through a read mapping: offer proposals.
+  const testedTiers = state.test.status === "done" ? state.test.result.tier : [];
+  const tierA = testedTiers.includes("A") && !testedTiers.includes("B");
   const locked = state.created !== null;
   const lockedNote = locked ? (
     <p className="text-caption text-fg-muted">Saved as a draft: these settings can no longer be changed here. Delete the draft to start again.</p>
@@ -426,7 +430,18 @@ export function ConnectorWizard() {
                 {state.basics.name.trim()} is active.
               </p>
               <p className="text-ui text-fg-muted">Bind its tools to agents on the Agents page.</p>
+              {tierA ? (
+                <p className="text-ui text-fg-muted" data-propose-cta="">
+                  It offers plain read and write tools (tier A): Keelson needs a read mapping to crawl its data. Let Keelson propose one from its tools —
+                  you review every field before anything is saved.
+                </p>
+              ) : null}
               <div className="flex flex-wrap gap-3 text-ui">
+                {tierA ? (
+                  <Link href={proposeHref(slug)} className={linkClass}>
+                    Propose mappings
+                  </Link>
+                ) : null}
                 <Link href={`/admin/connectors/${encodeURIComponent(slug)}`} className={linkClass}>
                   Open {state.basics.name.trim()}
                 </Link>

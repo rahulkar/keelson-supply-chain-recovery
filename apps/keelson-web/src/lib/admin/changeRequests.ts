@@ -66,6 +66,7 @@ export const CHANGE_KIND_LABELS: Record<ChangeRequestKind, string> = {
   connector_delete: "Delete a connector",
   kb_delete: "Delete a knowledge base",
   user_roles: "User roles",
+  connector_mapping: "Action mapping from a proposal",
 };
 
 /** Short, person-facing reason per guard code (the engine's `reason` sentence is shown too). */
@@ -87,6 +88,7 @@ export const GUARD_REASON_LABELS: Record<GuardReasonCode, string> = {
   connector_deleted: "Deletes a connector",
   kb_deleted: "Deletes a knowledge base",
   admin_role_granted: "Grants an admin role",
+  ai_proposed_action_mapping: "Saves an action mapping proposed by rules or AI",
 };
 
 export const CHANGE_STATUS_META: Record<ChangeRequestStatus, { label: string; tone: "warning" | "success" | "danger" | "neutral" | "info" }> = {

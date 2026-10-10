@@ -30,6 +30,7 @@ Same rules as :mod:`keelson_engine.api.routes_admin` (session + CSRF + Origin on
 from __future__ import annotations
 
 import datetime as dt
+import uuid
 from typing import Any, Literal
 
 from fastapi import APIRouter, Query
@@ -165,6 +166,9 @@ class MappingPutBody(_Body):
     base_version: int | None = Field(default=None, ge=1)
     """The version the edit is based on (``null`` = there is none yet); 409 otherwise."""
     mapping: dict[str, Any]
+    proposal_id: uuid.UUID | None = None
+    """M8: the proposal the mapping was opened from (provenance; an action mapping then needs a
+    second admin: 202 + change request ``connector_mapping``)."""
 
 
 class ReadTestBody(_Body):
@@ -218,8 +222,9 @@ async def mappings_version(slug: str, kind: Literal["read", "action"], version: 
 
 @router.put("/connectors/{slug}/mappings/{kind}")
 async def mappings_put(slug: str, kind: Literal["read", "action"], body: MappingPutBody, ctx: AdminWrite) -> JSONResponse:
-    row, created = await connector_mappings.put_mapping(ctx.tenant, slug, kind, body.mapping,
-                                                        base_version=body.base_version, actor=ctx.actor())
+    row, created = await connector_mappings.put_mapping(
+        ctx.tenant, slug, kind, body.mapping, base_version=body.base_version, actor=ctx.actor(),
+        proposal_id=str(body.proposal_id) if body.proposal_id else None, platform_admin=ctx.platform)
     return JSONResponse({**row, "unchanged": not created}, status_code=201 if created else 200)
 
 
@@ -281,7 +286,7 @@ async def mappings_from_pack(slug: str, body: FromPackBody, ctx: AdminWrite) -> 
         current = await connector_mappings.get_mapping(ctx.tenant, slug, kind)
         row, created = await connector_mappings.put_mapping(
             ctx.tenant, slug, kind, {k: v for k, v in docs[kind].items() if k != "kind"},
-            base_version=current["version"] if current else None, actor=ctx.actor())
+            base_version=current["version"] if current else None, actor=ctx.actor(), origin="pack")
         out[kind] = {"version": row["version"], "summary": row["summary"], "unchanged": not created}
     return {"connector": slug, "pack": body.pack, "mappings": out}
 

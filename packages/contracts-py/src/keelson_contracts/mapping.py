@@ -18,6 +18,7 @@ Expression language (``fields: {scn_column: expression}``)
     segment  := "." ident | "[" index "]" | "[" string "]"
     call     := fname "(" [ expr ( "," expr )* ] ")"
     fname    := "int" | "str" | "date" | "lookup" | "coalesce" | "if_present"
+              | "field" | "cents" | "iso_week" | "trim" | "upper" | "lower"          -- M8
     ident    := [A-Za-z_][A-Za-z0-9_]*  (never starting with "__")
     index    := [0-9]+                                    -- list position (no negatives)
     integer  := "-"? [0-9]+   (no leading zeros, |n| <= 2^53-1; floats do not exist)
@@ -37,10 +38,42 @@ characters, nesting depth 16, 64 nodes, 16 path segments. Semantics (engine):
   ``YYYY-MM-DD``; the optional format is a constant made of ``YYYY``, ``MM``, ``DD`` once each,
   joined by one of ``-`` ``/`` ``.`` or a space;
 * ``lookup('table', key[, default])``: the table is a string constant naming one of the mapping's
-  ``lookups``; the key is compared as text (``str(key)``); a miss yields ``default`` (a constant)
-  or ``null``;
-* ``coalesce(a, b, …)`` (2..8 arguments): the first non-null value;
-* ``if_present(x, then, else)``: ``then`` when ``x`` is neither ``null`` nor ``""``, else ``else``.
+  ``static`` / ``source`` lookups; the key is compared as text (the ``+`` operand rule: strings
+  as-is, integers in decimal, booleans ``true`` / ``false``; anything else is an error); a ``null``
+  key or a miss yields ``default`` (a constant) or ``null``;
+* ``coalesce(a, b, …)`` (2..8 arguments): the first non-null value (later arguments are not
+  evaluated: their errors never surface);
+* ``if_present(x, then, else)``: ``then`` when ``x`` is neither ``null`` nor ``""``, else ``else``
+  (only the chosen branch is evaluated).
+
+M8 (``121-m8-mapping-compiler.md``) adds, all additive (every M7 mapping keeps its meaning):
+
+* ``field('table', key, '$.path')``: a **record lookup** join. The table (a constant) names a
+  ``record`` lookup (one source item per key text, first item wins); ``$.path`` (a constant
+  JSONPath-lite path) is read from that item. A ``null`` key or a miss yields ``null``; the key
+  follows the ``lookup()`` text rule;
+* ``cents(x)``: money in integer minor units from an exact decimal amount: an integer (``12`` →
+  ``1200``) or a decimal text / JSON number (``'12.99'`` → ``1299``, ``'12.5'`` → ``1250``,
+  ``'-3'`` → ``-300``); more than two non-zero decimals, exponents, booleans and other shapes are
+  errors (Decimal arithmetic, never binary floating point);
+* ``iso_week(x)``: an ISO week ``YYYY-Www`` from an ISO date / date-time (as ``date()``) or from a
+  week text ``YYYY-Www`` / ``YYYYWww`` (validated against the ISO calendar);
+* ``trim(x)`` / ``upper(x)`` / ``lower(x)``: ASCII-only text helpers (``trim`` strips space, tab,
+  CR, LF, VT and FF at both ends; ``upper`` / ``lower`` change only ``a-z`` / ``A-Z``); ``null``
+  stays ``null``, a non-text value is an error.
+
+**Grouped entity mappings** (``EntityMapping.group_by``, M8): 1..4 group key expressions; one row
+per distinct key tuple (key texts as for ``lookup()``; an item with a ``null`` key is skipped),
+rows in the order of each group's first item. A grouped mapping's fields may be **aggregates** —
+only as the whole expression — over the group's items in crawl order::
+
+    agg := "first(" expr ")" | "min(" expr ")" | "max(" expr ")" | "sum(" expr ")" | "count()"
+
+``first`` = the value of the group's first item; ``min`` / ``max`` over the non-null values (all
+integers or all text; mixing them, booleans, floats or containers are errors at the item that
+breaks the rule); ``sum`` over the non-null integers (``null`` when there are none); ``count`` =
+items in the group. A non-aggregated field is evaluated on the group's first item and may only read
+paths that occur in the ``group_by`` expressions. ``group_by`` and ``dedupe`` exclude each other.
 
 Argument templates (``args`` of read sources, actions and read-backs)
 ---------------------------------------------------------------------
@@ -82,12 +115,13 @@ from .changeset import (
     ProductionOrderResequenceItem,
     TransferOrderCreateItem,
 )
-from .common import MAX_SAFE_INTEGER, ContractModel, NonNegInt, PositiveInt
+from .common import MAX_SAFE_INTEGER, ContractModel, NonNegInt, PositiveInt, Sha256Hex, sha256_hex
 from .connectors import ContentTrust, Idempotency, ToolAccess, ToolClassification
 from .scn import SCN_COLUMNS, SCN_ENTITIES, SCN_ROW_MODELS
 
 __all__ = [
     "ACTION_TEMPLATE_ROOTS",
+    "AGGREGATE_FUNCTIONS",
     "ARG_NAME_PATTERN",
     "ActionDryRunRequest",
     "ActionDryRunResult",
@@ -102,17 +136,33 @@ __all__ = [
     "Expr",
     "Expression",
     "ExpressionError",
+    "FieldExpression",
     "JsonPathLite",
     "LOOKUP_NAME_PATTERN",
     "LookupTable",
     "MAX_EXPRESSION_CHARS",
     "MAX_EXPRESSION_DEPTH",
     "MAX_EXPRESSION_NODES",
+    "MAX_GROUP_BY",
     "MAX_PATH_SEGMENTS",
+    "MappingPlan",
+    "MappingPlanCheck",
+    "MappingPlanColumn",
+    "MappingPlanEntity",
+    "MappingPlanJoin",
+    "MappingPlanLookup",
+    "MappingPlanSource",
     "PathExpr",
     "ReadMapping",
+    "ReadPreview",
+    "ReadPreviewCheck",
+    "ReadPreviewColumn",
+    "ReadPreviewEntity",
+    "ReadPreviewRequest",
+    "ReadPreviewStaged",
     "ReadSource",
     "Readback",
+    "RecordLookup",
     "RenderedCall",
     "ScnEntityName",
     "SourceLookup",
@@ -122,10 +172,17 @@ __all__ = [
     "action_mapping_violations",
     "expression_lookups",
     "expression_paths",
+    "expression_record_paths",
+    "expression_records",
+    "is_aggregate",
+    "mapping_hash",
+    "op_takes",
     "parse_expression",
     "parse_path",
+    "path_text",
     "read_mapping_violations",
     "required_scn_columns",
+    "source_key",
     "template_refs",
     "unmapped_ops",
 ]
@@ -148,6 +205,8 @@ MAX_ACTION_OPS: Final = 64
 MAX_PAGES_LIMIT: Final = 10_000
 MAX_PAGE_SIZE: Final = 1000
 
+MAX_GROUP_BY: Final = 4
+
 EXPRESSION_FUNCTIONS: Final[Mapping[str, tuple[int, int]]] = {
     "int": (1, 1),
     "str": (1, 1),
@@ -155,8 +214,24 @@ EXPRESSION_FUNCTIONS: Final[Mapping[str, tuple[int, int]]] = {
     "lookup": (2, 3),
     "coalesce": (2, 8),
     "if_present": (3, 3),
+    # M8 (121): record-lookup joins and coercion helpers
+    "field": (3, 3),
+    "cents": (1, 1),
+    "iso_week": (1, 1),
+    "trim": (1, 1),
+    "upper": (1, 1),
+    "lower": (1, 1),
 }
-"""Function name → (min, max) arity. Nothing else is callable."""
+"""Function name → (min, max) arity. Nothing else is callable (aggregates aside)."""
+
+AGGREGATE_FUNCTIONS: Final[Mapping[str, tuple[int, int]]] = {
+    "first": (1, 1),
+    "min": (1, 1),
+    "max": (1, 1),
+    "sum": (1, 1),
+    "count": (0, 0),
+}
+"""M8: aggregates of a ``group_by`` entity mapping's fields (only as the whole expression)."""
 
 ACTION_TEMPLATE_ROOTS: Final = frozenset({"payload", "target_ref", "expected_version", "request_id", "op"})
 """Placeholder roots of action and read-back templates."""
@@ -249,7 +324,7 @@ class ExpressionError(ValueError):
 
 
 class _Parser:
-    def __init__(self, text: str, *, limit: int) -> None:
+    def __init__(self, text: str, *, limit: int, aggregates: bool = False) -> None:
         if not isinstance(text, str):
             raise ExpressionError("expression must be a string", 0)
         if len(text) > limit:
@@ -261,6 +336,7 @@ class _Parser:
         self.pos = 0
         self.depth = 0
         self.nodes = 0
+        self.aggregates = aggregates
 
     # helpers
     def _error(self, message: str) -> ExpressionError:
@@ -336,7 +412,9 @@ class _Parser:
             if name in ("null", "true", "false"):
                 self._node()
                 return ConstExpr(None if name == "null" else name == "true")
-            if name not in EXPRESSION_FUNCTIONS:
+            if name in AGGREGATE_FUNCTIONS and not self.aggregates:
+                raise ExpressionError(f"{name}() is an aggregate: only a group_by mapping's fields use it", start)
+            if name not in EXPRESSION_FUNCTIONS and name not in AGGREGATE_FUNCTIONS:
                 raise ExpressionError(f"unknown function or name {name[:40]!r}", start)
             self._skip_ws()
             if self._peek() != "(":
@@ -362,7 +440,7 @@ class _Parser:
                     continue
                 self._expect(")")
                 break
-        lo, hi = EXPRESSION_FUNCTIONS[name]
+        lo, hi = EXPRESSION_FUNCTIONS.get(name) or AGGREGATE_FUNCTIONS[name]
         if not lo <= len(args) <= hi:
             want = str(lo) if lo == hi else f"{lo}..{hi}"
             raise ExpressionError(f"{name}() takes {want} arguments, got {len(args)}", start)
@@ -471,6 +549,17 @@ def _check_call(name: str, args: list[Expr], pos: int) -> None:
         fmt = args[1]
         if not (isinstance(fmt, ConstExpr) and isinstance(fmt.value, str) and _date_format_ok(fmt.value)):
             raise ExpressionError("date()'s format must be a constant like 'DD/MM/YYYY'", pos)
+    elif name == "field":
+        table, path = args[0], args[2]
+        table_name = table.value if isinstance(table, ConstExpr) else None
+        if not (isinstance(table_name, str) and _LOOKUP_NAME_RE.fullmatch(table_name)):
+            raise ExpressionError(f"field() needs a record table name constant matching {LOOKUP_NAME_PATTERN}", pos)
+        if not (isinstance(path, ConstExpr) and isinstance(path.value, str)):
+            raise ExpressionError("field()'s path must be a constant like '$.family'", pos)
+        try:
+            parse_path(path.value)
+        except ExpressionError as exc:
+            raise ExpressionError(f"field()'s path is not a JSONPath-lite path: {exc}", pos) from None
 
 
 def _date_format_ok(fmt: str) -> bool:
@@ -478,9 +567,22 @@ def _date_format_ok(fmt: str) -> bool:
     return m is not None and sorted((m.group(1), m.group(3), m.group(4))) == ["DD", "MM", "YYYY"]
 
 
-def parse_expression(text: str) -> Expr:
-    """Parse a mapping expression into its AST (raises :class:`ExpressionError`)."""
-    return _Parser(text, limit=MAX_EXPRESSION_CHARS).parse()
+def is_aggregate(expr: Expr) -> bool:
+    """Whether ``expr`` is an aggregate call (``first(…)``, ``count()`` …)."""
+    return isinstance(expr, CallExpr) and expr.fn in AGGREGATE_FUNCTIONS
+
+
+def parse_expression(text: str, *, aggregates: bool = False) -> Expr:
+    """Parse a mapping expression into its AST (raises :class:`ExpressionError`). With
+    ``aggregates`` (a ``group_by`` mapping's fields) the whole expression may be one aggregate
+    call; an aggregate is never nested."""
+    expr = _Parser(text, limit=MAX_EXPRESSION_CHARS, aggregates=aggregates).parse()
+    if aggregates:
+        inner = expr.args if is_aggregate(expr) and isinstance(expr, CallExpr) else (expr,)
+        for root in inner:
+            if any(is_aggregate(e) for e in _walk(root)):
+                raise ExpressionError("an aggregate is the whole expression, never nested (e.g. first($.x))", 0)
+    return expr
 
 
 def parse_path(text: str) -> PathExpr:
@@ -514,12 +616,50 @@ def expression_lookups(expr: Expr) -> set[str]:
 
 
 def expression_paths(expr: Expr) -> list[PathExpr]:
-    """Every source path an expression reads (in order)."""
+    """Every source path an expression reads (in order). ``field()``'s record path is a constant
+    of the record table, not a path of the item (see :func:`expression_record_paths`)."""
     return [e for e in _walk(expr) if isinstance(e, PathExpr)]
+
+
+def expression_records(expr: Expr) -> set[str]:
+    """Record tables an expression reads through ``field()`` (M8)."""
+    return {table for table, _path in expression_record_paths(expr)}
+
+
+def expression_record_paths(expr: Expr) -> list[tuple[str, PathExpr]]:
+    """``(record table, path)`` of every ``field()`` call (in order)."""
+    out: list[tuple[str, PathExpr]] = []
+    for e in _walk(expr):
+        if isinstance(e, CallExpr) and e.fn == "field":
+            table, path = e.args[0], e.args[2]
+            if isinstance(table, ConstExpr) and isinstance(path, ConstExpr) and isinstance(path.value, str):
+                out.append((str(table.value), parse_path(path.value)))
+    return out
+
+
+_PLAIN_KEY_RE: Final = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+
+
+def path_text(path: PathExpr) -> str:
+    """The canonical text of a path (``$.a.b[0]['x y']``): equal paths have equal texts."""
+    out = ["$"]
+    for seg in path.segments:
+        if isinstance(seg, int):
+            out.append(f"[{seg}]")
+        elif _PLAIN_KEY_RE.fullmatch(seg):
+            out.append(f".{seg}")
+        else:
+            out.append("['" + seg.replace("\\", "\\\\").replace("'", "\\'") + "']")
+    return "".join(out)
 
 
 def _check_expression(text: str) -> str:
     parse_expression(text)
+    return text
+
+
+def _check_field_expression(text: str) -> str:
+    parse_expression(text, aggregates=True)
     return text
 
 
@@ -534,6 +674,14 @@ Expression = Annotated[
     AfterValidator(_check_expression),
 ]
 """A mapping expression (validated by :func:`parse_expression`)."""
+
+FieldExpression = Annotated[
+    str,
+    Field(min_length=1, max_length=MAX_EXPRESSION_CHARS),
+    AfterValidator(_check_field_expression),
+]
+"""An entity mapping's column expression: an :data:`Expression`, or (M8) one aggregate over it —
+:class:`EntityMapping` allows aggregates only with ``group_by``."""
 
 JsonPathLite = Annotated[
     str,
@@ -691,15 +839,24 @@ class ReadSource(ContractModel):
         return self
 
 
+def _is_none(value: Any) -> bool:
+    return value is None
+
+
 class EntityMapping(ContractModel):
     """Rows of one ``scn/1.0`` entity from one source. Several mappings may fill the same entity
     (e.g. ``location`` from DCs and from stores). ``dedupe``: rows with the same ``source_id``
-    collapse into the first one (derived rows such as store clusters)."""
+    collapse into the first one (derived rows such as store clusters). ``group_by`` (M8): one row
+    per distinct group key tuple, fields may aggregate (see the module docstring); omitted from
+    dumps while unset."""
 
     entity: ScnEntityName
     source: ReadSource
-    fields: Annotated[dict[str, Expression], Field(min_length=1)]
+    fields: Annotated[dict[str, FieldExpression], Field(min_length=1)]
     dedupe: StrictBool = False
+    group_by: Annotated[list[Expression], Field(min_length=1, max_length=MAX_GROUP_BY)] | None = Field(
+        default=None, exclude_if=_is_none
+    )
 
     @model_validator(mode="after")
     def _columns(self) -> EntityMapping:
@@ -708,11 +865,31 @@ class EntityMapping(ContractModel):
             raise ValueError(f"{self.entity} has no columns {unknown}")
         if missing := [c for c in required_scn_columns(self.entity) if c not in self.fields]:
             raise ValueError(f"{self.entity} mapping misses required columns {missing}")
+        parsed = self.parsed_fields()
+        if self.group_by is None:
+            if aggregated := [c for c, ast in parsed.items() if is_aggregate(ast)]:
+                raise ValueError(f"{self.entity}: aggregates in {aggregated} need group_by")
+            return self
+        if self.dedupe:
+            raise ValueError("group_by and dedupe exclude each other (a group is already one row)")
+        grouped = {p.segments for g in self.parsed_group_by() for p in expression_paths(g)}
+        for column, ast in parsed.items():
+            if is_aggregate(ast):
+                continue
+            outside = [path_text(p) for p in expression_paths(ast) if p.segments not in grouped]
+            if outside:
+                raise ValueError(f"{self.entity}.{column} reads {outside[0]}, which is not in group_by: "
+                                 f"use an aggregate such as first({outside[0]})")
         return self
 
     def parsed_fields(self) -> dict[str, Expr]:
         """Column → AST (contract column order)."""
-        return {c: parse_expression(self.fields[c]) for c in SCN_COLUMNS[self.entity] if c in self.fields}
+        return {c: parse_expression(self.fields[c], aggregates=True) for c in SCN_COLUMNS[self.entity]
+                if c in self.fields}
+
+    def parsed_group_by(self) -> list[Expr]:
+        """The group key ASTs (``[]`` without ``group_by``)."""
+        return [parse_expression(g) for g in self.group_by or ()]
 
 
 LookupScalar = StrictStr | StrictInt | StrictBool | None
@@ -734,9 +911,15 @@ class StaticLookup(ContractModel):
         return self
 
 
+def _chains(*texts: str) -> bool:
+    asts = [parse_expression(t) for t in texts]
+    return any(expression_lookups(a) or expression_records(a) for a in asts)
+
+
 class SourceLookup(ContractModel):
-    """A table crawled from a read tool before the entities: ``key`` → ``value`` per item. Its
-    expressions may not call ``lookup()`` (no chains, no cycles)."""
+    """A table crawled from a read tool before the entities: ``key`` → ``value`` per item (keys as
+    text, first item wins; a ``null`` key is skipped). Its expressions may not call ``lookup()`` or
+    ``field()`` (no chains, no cycles)."""
 
     kind: Literal["source"]
     source: ReadSource
@@ -745,12 +928,29 @@ class SourceLookup(ContractModel):
 
     @model_validator(mode="after")
     def _no_chain(self) -> SourceLookup:
-        if expression_lookups(parse_expression(self.key)) or expression_lookups(parse_expression(self.value)):
-            raise ValueError("a source lookup's key/value may not call lookup()")
+        if _chains(self.key, self.value):
+            raise ValueError("a source lookup's key/value may not call lookup() or field()")
         return self
 
 
-LookupTable = Annotated[StaticLookup | SourceLookup, Field(discriminator="kind")]
+class RecordLookup(ContractModel):
+    """M8: a table of whole source items keyed by ``key`` (text, first item wins; a ``null`` key
+    is skipped), read with ``field('table', key, '$.path')``. Replaces one ``source`` lookup per
+    attribute of the same record (a style's family, colour and prices; a PO header's supplier,
+    factory and dates). Its key may not call ``lookup()`` or ``field()``."""
+
+    kind: Literal["record"]
+    source: ReadSource
+    key: Expression
+
+    @model_validator(mode="after")
+    def _no_chain(self) -> RecordLookup:
+        if _chains(self.key):
+            raise ValueError("a record lookup's key may not call lookup() or field()")
+        return self
+
+
+LookupTable = Annotated[StaticLookup | SourceLookup | RecordLookup, Field(discriminator="kind")]
 
 
 class ReadMapping(ContractModel):
@@ -766,10 +966,22 @@ class ReadMapping(ContractModel):
 
     @model_validator(mode="after")
     def _lookups_exist(self) -> ReadMapping:
+        records = {n for n, t in self.lookups.items() if isinstance(t, RecordLookup)}
+        values = set(self.lookups) - records
         for i, em in enumerate(self.entities):
-            for column, ast in em.parsed_fields().items():
-                if missing := sorted(expression_lookups(ast) - set(self.lookups)):
-                    raise ValueError(f"entities[{i}] ({em.entity}).{column} uses unknown lookup tables {missing}")
+            asts = [*em.parsed_fields().items(), *((f"group_by[{j}]", g) for j, g in enumerate(em.parsed_group_by()))]
+            for column, ast in asts:
+                where = f"entities[{i}] ({em.entity}).{column}"
+                used = expression_lookups(ast)
+                if missing := sorted(used - set(self.lookups)):
+                    raise ValueError(f"{where} uses unknown lookup tables {missing}")
+                if wrong := sorted(used & records):
+                    raise ValueError(f"{where} calls lookup() on record tables {wrong}: use field(table, key, '$.path')")
+                fields = expression_records(ast)
+                if missing := sorted(fields - set(self.lookups)):
+                    raise ValueError(f"{where} uses unknown record tables {missing}")
+                if wrong := sorted(fields & values):
+                    raise ValueError(f"{where} calls field() on value tables {wrong}: use lookup(table, key)")
         return self
 
     @property
@@ -786,14 +998,15 @@ def read_mapping_violations(
 ) -> list[str]:
     """Cross-checks against the connector's approved tool catalogue (``tools``: tool name →
     classification). The crawl calls every source tool up to ``max_pages`` times without an
-    approval gate, so each one (entity sources and ``source`` lookups) must be an approved
-    ``read`` tool; ``untrusted_text`` tools are refused too, because crawled rows become
-    ``scn/1.0`` data that investigators read as trusted."""
+    approval gate, so each one (entity sources, ``source`` and — M8 — ``record`` lookups) must be
+    an approved ``read`` tool; ``untrusted_text`` tools are refused too, because crawled rows
+    become ``scn/1.0`` data that investigators read as trusted."""
     problems: list[str] = []
     sources: list[tuple[str, ReadSource]] = [
         (f"entities[{i}] ({em.entity})", em.source) for i, em in enumerate(mapping.entities)
     ]
-    sources += [(f"lookups.{name}", t.source) for name, t in mapping.lookups.items() if isinstance(t, SourceLookup)]
+    sources += [(f"lookups.{name}", t.source) for name, t in mapping.lookups.items()
+                if isinstance(t, (SourceLookup, RecordLookup))]
     for where, src in sources:
         cls = tools.get(src.tool)
         if cls is None:
@@ -828,6 +1041,11 @@ def _item_has(op: str, field: str) -> bool:
     if model is None:
         return True
     return model.model_fields[field].annotation is not type(None)
+
+
+def op_takes(op: str, field: str) -> bool:
+    """M8: whether ``op``'s items carry ``target_ref`` / ``expected_version`` (action proposers)."""
+    return _item_has(op, field)
 
 
 def _args_template(value: dict[str, Any]) -> dict[str, Any]:
@@ -1052,3 +1270,177 @@ class ActionDryRunResult(ContractModel):
               or self.request_id_arg is not None or self.guided_reason is None):
             raise ValueError("an unmapped op has only a guided_reason")
         return self
+
+
+# ─────────────────────────── M8: identities, explain & preview ───────────────────────────
+
+SOURCE_KEY_PATTERN: Final = r"^[0-9a-f]{16}$"
+SourceKey = Annotated[str, Field(pattern=SOURCE_KEY_PATTERN)]
+LookupKind = Literal["static", "source", "record"]
+CheckSeverity = Literal["error", "warning"]
+MappingEngine = Literal["duckdb", "interpreter"]
+_Text = Annotated[str, Field(max_length=500)]
+
+
+def source_key(src: ReadSource) -> str:
+    """M8: the identity of a paged read — 16 hex of the sha256 of its canonical JSON. Entity
+    mappings and lookups with equal sources are fetched **once** per crawl."""
+    return sha256_hex(src.model_dump(mode="json"))[:16]
+
+
+def mapping_hash(mapping: ReadMapping | ActionMapping) -> str:
+    """sha256 (hex) of a mapping's canonical JSON (recorded on crawled snapshots)."""
+    return sha256_hex(mapping.model_dump(mode="json"))
+
+
+class MappingPlanSource(ContractModel):
+    """One distinct paged read of the compiled mapping."""
+
+    key: SourceKey
+    source: ReadSource
+    paths: Annotated[list[Annotated[str, Field(max_length=MAX_PATH_CHARS + 50)]], Field(max_length=2000)]
+    """Canonical texts of the item paths the mapping reads (each item is projected onto them)."""
+    used_by: Annotated[list[_Text], Field(min_length=1)]
+    """``entities[i] (entity)`` / ``lookups.name`` reading this source."""
+
+
+class MappingPlanLookup(ContractModel):
+    name: LookupName
+    kind: LookupKind
+    source_key: SourceKey | None
+    """``source`` / ``record`` tables: the read they are built from (built before the entities)."""
+    entries: NonNegInt | None
+    """``static`` tables: how many keys."""
+    key: Annotated[str, Field(max_length=MAX_EXPRESSION_CHARS)] | None
+    value: Annotated[str, Field(max_length=MAX_EXPRESSION_CHARS)] | None
+    paths: Annotated[list[Annotated[str, Field(max_length=MAX_PATH_CHARS + 50)]], Field(max_length=200)]
+    """``record`` tables: the record paths read through ``field()``."""
+
+
+class MappingPlanJoin(ContractModel):
+    table: LookupName
+    kind: LookupKind
+    calls: PositiveInt
+    """``lookup()`` / ``field()`` call sites of the entity mapping joining this table."""
+
+
+class MappingPlanColumn(ContractModel):
+    column: Annotated[str, Field(min_length=1, max_length=64)]
+    expression: Annotated[str, Field(max_length=MAX_EXPRESSION_CHARS)]
+    aggregate: Literal["first", "min", "max", "sum", "count"] | None
+    target_type: Annotated[str, Field(min_length=1, max_length=200)]
+    """The ``scn/1.0`` column type the value is validated against (``text``, ``integer >= 0``,
+    ``date``, ``iso week``, ``one of dc|store`` …)."""
+    required: StrictBool
+    sql: Annotated[str, Field(max_length=100_000)]
+    """The generated SQL of the column's value (tag, text, error columns)."""
+
+
+class MappingPlanEntity(ContractModel):
+    where: _Text
+    entity: ScnEntityName
+    source_key: SourceKey
+    dedupe: StrictBool
+    group_by: list[Annotated[str, Field(max_length=MAX_EXPRESSION_CHARS)]] | None
+    joins: list[MappingPlanJoin]
+    columns: Annotated[list[MappingPlanColumn], Field(min_length=1)]
+    sql: Annotated[str, Field(max_length=1_000_000)]
+    """The whole generated query (generated identifiers and escaped constants only)."""
+
+
+class MappingPlanCheck(ContractModel):
+    code: Literal["fk", "duplicate_source_id"]
+    label: _Text
+    entity: ScnEntityName
+    severity: CheckSeverity
+
+
+class MappingPlan(ContractModel):
+    """``POST /api/admin/connectors/{slug}/mappings/read/compile``: what the DuckDB mapping
+    compiler makes of a read mapping (M8 explain) — deduplicated sources, lookups built first, per
+    entity mapping the joins, grouping and the generated SQL per column, and the checks run
+    before anything is loaded."""
+
+    mapping_hash: Sha256Hex
+    engine: Literal["duckdb"] = "duckdb"
+    sources: Annotated[list[MappingPlanSource], Field(min_length=1)]
+    lookups: list[MappingPlanLookup]
+    entities: Annotated[list[MappingPlanEntity], Field(min_length=1)]
+    checks: list[MappingPlanCheck]
+    warnings: list[_Text]
+
+
+class ReadPreviewRequest(ContractModel):
+    """``POST /api/admin/connectors/{slug}/mappings/read/preview``. ``source: live`` pages at most
+    ``max_pages`` page(s) per distinct source with the reader credentials; ``staged`` maps the raw
+    pages of the last crawl stored in Keelson (no vendor call; works with the connector disabled),
+    at most ``max_items_per_source`` items per source."""
+
+    mapping: dict[str, Any] | None = None
+    """A draft read mapping (default: the saved one)."""
+    source: Literal["live", "staged"] = "live"
+    max_pages: Annotated[StrictInt, Field(ge=1, le=3)] = 1
+    max_items_per_source: Annotated[StrictInt, Field(ge=1, le=50_000)] = 20_000
+    sample: Annotated[StrictInt, Field(ge=1, le=20)] = 5
+
+
+class ReadPreviewColumn(ContractModel):
+    column: Annotated[str, Field(min_length=1, max_length=64)]
+    null_bp: Annotated[StrictInt, Field(ge=0, le=10_000)]
+    """Share of the entity mapping's rows where the column is ``null`` (basis points)."""
+    distinct: NonNegInt
+    failures: NonNegInt
+    """Items whose expression for this column could not be evaluated."""
+    first_failure: _Text | None
+
+
+class ReadPreviewEntity(ContractModel):
+    entity: ScnEntityName
+    where: _Text
+    rows: NonNegInt
+    """Rows that mapped and validated."""
+    failed: NonNegInt = 0
+    """Items (groups) that could not be mapped or validated."""
+    skipped: NonNegInt = 0
+    """``group_by`` items skipped for a ``null`` group key."""
+    sample: Annotated[list[dict[str, Any]], Field(max_length=20)]
+    error: _Text | None
+    """The first problem (``code: detail``, as the crawl would fail)."""
+    columns: list[ReadPreviewColumn] = Field(default_factory=list)
+
+
+class ReadPreviewCheck(ContractModel):
+    code: Literal["fk", "duplicate_source_id"]
+    label: _Text
+    entity: ScnEntityName
+    severity: CheckSeverity
+    violations: NonNegInt
+    examples: Annotated[list[Annotated[str, Field(max_length=300)]], Field(max_length=5)]
+
+
+class ReadPreviewStaged(ContractModel):
+    snapshot_id: Annotated[str, Field(min_length=1, max_length=64)]
+    """The crawl attempt whose raw pages were mapped."""
+    status: Literal["complete", "failed"]
+    fetched_from: str | None
+    fetched_to: str | None
+
+
+class ReadPreview(ContractModel):
+    """Answer of the read preview (and of the M7 ``…/read/test``, whose fields it keeps): per
+    entity mapping the rows that mapped, sample rows, the first error, per-column null rates,
+    distinct counts and failure counts, plus the FK / duplicate checks. Nothing is stored."""
+
+    ok: StrictBool
+    error: _Text | None
+    engine: MappingEngine = "duckdb"
+    source: Literal["live", "staged"] = "live"
+    staged: ReadPreviewStaged | None = None
+    capped: StrictBool = False
+    """``staged``: some source had more items than ``max_items_per_source``."""
+    pages: NonNegInt = 0
+    rows_seen: NonNegInt = 0
+    truncated: list[_Text] = Field(default_factory=list)
+    lookups: dict[str, NonNegInt] = Field(default_factory=dict)
+    entities: list[ReadPreviewEntity]
+    checks: list[ReadPreviewCheck] = Field(default_factory=list)

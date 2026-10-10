@@ -90,6 +90,10 @@ def test_expected_schema_set(script: ModuleType) -> None:
             "status", "run", "run-detail", "run-create", "run-event", "case-result", "compare", "trends",
             "threshold", "suite",
         )),
+        # M8 (121): mapping compiler explain + preview, proposed mappings
+        *(f"mapping.{n}.schema.json" for n in (
+            "plan", "preview-request", "preview", "propose-request", "proposal", "proposal-llm",
+        )),
     }
     assert names == expected
 

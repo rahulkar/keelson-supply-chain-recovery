@@ -346,6 +346,20 @@ Center (demo replay)"), re-notified as critical at the category-3 advisory with 
 (no case drafted); a final demo reset clears it (`--skip-final-reset` keeps it). `scripts/verify-live.sh`
 step `m8-feeds` polls the real NHC / EMS / OFAC / GDELT feeds once through the poller's egress.
 
+## M8 (`docs/contracts/121`): `api_m8_mappings_offline.py`
+
+Runs **inside the engine image** like the M7 offline script (`docker compose run --rm --no-deps -T -e
+LOG_LEVEL=warning -v D:/primark/e2e:/e2e:ro engine-api python -u /e2e/api_m8_mappings_offline.py`),
+against a stack started with `MAPPING_PROPOSER=heuristic` (the compose default). It imports the M7
+offline helpers (register `merxa-lite`, install the pack, crawl, Merxa's own totals).
+
+| script | model calls | what it proves |
+|---|---|---|
+| `api_m8_mappings_offline.py` | **none** | Demo reset; `merxa-lite` registered on northwind-test as in M7. **Proposed mappings**: `POST …/mappings/proposals {kinds: [read, action], proposer: auto}` answers `proposer: heuristic` with an `llm_disabled` note, shape-only profiles (no DC names or cities in the answer), a read draft that validates against the catalogue and covers location / item / po_line / inventory_position / demand_forecast / allocation with every required column, and an action draft mapping `transfer_order.create` → `create_transfer_order` and `allocation.set_qty` → `update_item` (best_effort, request id, read-back); Merxa saw **no write** (allocation versions and the transfer-order count unchanged); list / get. The read draft saved with `proposal_id` → `origin: proposal`, proposal `accepted`. **Explain** of the pack mapping: fewer distinct reads than uses, the two blocking FK checks, SQL per column. **Compiled crawl**: pack installed (`origin: pack`), worker crawl with `crawl.engine = duckdb`, per-source stats and the mapping hash, row counts equal to Merxa's own totals (the M7 assertion). **Staged preview** with `merxa-lite` disabled: `GET …/staged`, an edited mapping mapped against the staged pages (rows equal the crawl's unless capped at `MAPPING_PREVIEW_MAX_ITEMS`), a live preview → 409. **Four-eyes** (demo-retail, which has a second admin): ava registers a second `/mcp-lite` connector, sam proposes and saves the action draft with `proposal_id` → 202 `connector_mapping` (nothing applied), sam's own approve → 403 `self_approval`, ava rejects with a reason; that connector is deleted again. Clean-up: merxa-lite disabled; a final demo reset unless `--skip-final-reset`. |
+
+Not run by the workstream (the integrator runs it on the full stack); syntax-checked with
+`python -m py_compile` in the engine image.
+
 ## `api_m3_levers.py` — M3 levers through the API
 
 Same container, command shape and options as `api_thin_slice.py` (it imports that script's

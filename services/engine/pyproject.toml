@@ -24,6 +24,7 @@ dependencies = [
   "structlog>=25.1",
   "pyyaml>=6.0.2",
   "pyarrow>=21",
+  "duckdb==1.5.5",
   "pypdf>=6",
   "cel-expr-python==0.1.3",
 ]

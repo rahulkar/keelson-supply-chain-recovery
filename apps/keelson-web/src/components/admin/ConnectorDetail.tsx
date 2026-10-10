@@ -15,6 +15,7 @@ import { hasAnyRole } from "@/lib/roles";
 import { testLogItems, type TestState } from "@/lib/admin/wizard";
 import { AdminPageHeader, AdminSection, Facts, InlineError, ResourceView } from "./common";
 import { CapabilitiesSection, CrawlSection } from "./ConnectorCapabilities";
+import { ProposeMappingsCallout } from "./MappingProposalPanel";
 import { SecondAdminNote, announceChangeRequest } from "./SecondAdmin";
 import { TierBadges, linkClass } from "./ConnectorsPage";
 import { ToolsTable } from "./ToolsTable";
@@ -191,6 +192,7 @@ export function ConnectorDetail({ slug }: { slug: string }) {
         </ResourceView>
       </AdminSection>
 
+      {connector?.tier.includes("A") && !connector.tier.includes("B") ? <ProposeMappingsCallout slug={slug} /> : null}
       <CapabilitiesSection slug={slug} />
       {connector?.tier.includes("B") ? <CrawlSection slug={slug} sync="snapshot" /> : connector?.tier.includes("A") ? <CrawlSection slug={slug} sync="crawl" /> : null}
 

@@ -476,6 +476,36 @@ generated `evals*` schemas, formatting, run-request / import pre-checks, drill-d
 - Result text (check details, errors) is plain text: no markdown, no links. Tests:
   `test/m8-evals.test.tsx` with `test/fixtures/m8-evals.ts`.
 
+## M8 — mapping compiler + proposed mappings (`docs/contracts/121`)
+
+- **Propose mappings…** on the Mappings page (`MappingProposalPanel`; `?propose=1` opens it — the
+  connector page shows a call to action for tier-A connectors without a read mapping, the wizard links
+  to it after activation): choose read / action, sampling (disabled with the reason while the
+  connector is not active) and the AI step (disabled with the engine's reason when unavailable).
+  The result shows a headline ("AI unavailable: rule-based suggestions."), the notes, one card per
+  entity mapping / op with its read, a confidence badge (percentage + word, never colour alone),
+  origin (Rules / AI / Rules + AI), the per-column expression, rationale (plain text) and
+  alternatives; missing required columns are highlighted. **Open … draft in editor** puts YAML into
+  the editor with one comment per field (`85% · AI · why`) and the missing required columns as
+  `null` (so the contract check points at them); saving sends `proposal_id`. An action draft shows
+  *Requires a second admin* and *Send for approval*: the engine answers 202 with a change request
+  (`connector_mapping`) → banner + link to Pending changes. Earlier proposals load from a picker;
+  a proposal can be discarded.
+- **Explain** (`MappingPlanView`, `POST …/read/compile`): distinct reads with paging and their
+  users, lookups, per entity mapping its joins / grouping / column → expression → validated type,
+  *Show SQL* on demand, the checks run before loading.
+- **Preview last crawl** (`POST …/read/preview {source: staged}`): the draft against the last crawl's
+  staged pages, no vendor call (disabled with a note when `GET …/staged` is 404); the preview shows
+  per-column empty share / distinct values / failures and the FK / duplicate checks with examples.
+  *Test with one page* stays the live variant.
+
+Tests: `test/m8-mappings.test.tsx` with `test/fixtures/m8-mappings.ts` (checked against the generated
+contracts): draft YAML (comments, nulls, lookups), aggregate / function checks, the panel (AI and
+sampling disabled states, headline, confidence text, origins, rationale rendered inert, axe), open
+in editor → diagnostics → save with `proposal_id`, action draft → 202 banner + Pending changes link,
+earlier proposals + discard, errors, Explain (SQL disclosure, axe), staged preview (statistics, FK
+examples, disabled without staged data) and the connector call to action.
+
 ## Develop & test (Docker only — no Node toolchain on the host)
 
 From Git Bash at the repo root, with `node_modules` and `.next` in named volumes:

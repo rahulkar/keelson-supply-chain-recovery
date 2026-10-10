@@ -271,6 +271,7 @@ ChangeRequestKind = Literal[
     "connector_delete",
     "kb_delete",
     "user_roles",
+    "connector_mapping",
 ]
 """Which admin mutation the request applies when approved (its handler re-validates)."""
 CHANGE_REQUEST_KINDS: Final[tuple[str, ...]] = get_args(ChangeRequestKind)
@@ -299,6 +300,7 @@ GuardReasonCode = Literal[
     "connector_deleted",
     "kb_deleted",
     "admin_role_granted",
+    "ai_proposed_action_mapping",
 ]
 GUARD_REASON_CODES: Final[tuple[str, ...]] = get_args(GuardReasonCode)
 
@@ -324,6 +326,7 @@ GUARD_REASONS_BY_KIND: Final[Mapping[str, frozenset[str]]] = {
     "connector_delete": frozenset({"connector_deleted"}),
     "kb_delete": frozenset({"kb_deleted"}),
     "user_roles": frozenset({"admin_role_granted"}),
+    "connector_mapping": frozenset({"ai_proposed_action_mapping"}),
 }
 """Reason codes each kind may carry."""
 assert set(GUARD_REASONS_BY_KIND) == set(CHANGE_REQUEST_KINDS)
@@ -343,9 +346,9 @@ def _json_value(value: Any, what: str) -> None:
         raise ValueError(f"{what} is larger than {_MAX_JSON_CHARS // 1024} KiB")
 
 
-VERSIONED_CHANGE_KINDS: Final = frozenset({"agent_spec", "policy_set"})
-"""Kinds whose target is the versioned AgentSpec / policy set: ``base_version`` is required so
-approval can refuse a stale apply (``409``)."""
+VERSIONED_CHANGE_KINDS: Final = frozenset({"agent_spec", "policy_set", "connector_mapping"})
+"""Kinds whose target is versioned (AgentSpec, policy set, M8: connector mapping): ``base_version``
+is required so approval can refuse a stale apply (``409``)."""
 
 _SECRET_KEYS: Final = frozenset(
     {

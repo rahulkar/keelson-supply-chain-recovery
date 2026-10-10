@@ -219,7 +219,8 @@ def test_expression_helpers() -> None:
     ast = parse_expression("lookup('a', $.x) + coalesce(lookup('b', $.y.z), '')")
     assert expression_lookups(ast) == {"a", "b"}
     assert expression_paths(ast) == [PathExpr(("x",)), PathExpr(("y", "z"))]
-    assert set(EXPRESSION_FUNCTIONS) == {"int", "str", "date", "lookup", "coalesce", "if_present"}
+    assert set(EXPRESSION_FUNCTIONS) == {"int", "str", "date", "lookup", "coalesce", "if_present",
+                                         "field", "cents", "iso_week", "trim", "upper", "lower"}  # M8 additions
 
 
 def test_path_parser() -> None:

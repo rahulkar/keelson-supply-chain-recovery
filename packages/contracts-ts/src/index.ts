@@ -139,6 +139,22 @@ export {
   type EvalsTrends,
 } from "./generated";
 export * from "./evals";
+// M8 (docs/contracts/121): mapping compiler explain + preview, proposed mappings.
+export {
+  mappingPlanSchema,
+  mappingPreviewRequestSchema,
+  mappingPreviewSchema,
+  mappingProposalLlmSchema,
+  mappingProposalSchema,
+  mappingProposeRequestSchema,
+  type MappingPlan,
+  type MappingPreview,
+  type MappingPreviewRequest,
+  type MappingProposal,
+  type MappingProposalLlm,
+  type MappingProposeRequest,
+} from "./generated";
+export * from "./mapping-proposals";
 
 /** Taxonomy event types (`data/taxonomy/events.yaml`; contracts-py `EVENT_TYPE_KEYS`). */
 export const EVENT_TYPE_KEYS = llmDisruptionExtractSchema.shape.event_type.options;

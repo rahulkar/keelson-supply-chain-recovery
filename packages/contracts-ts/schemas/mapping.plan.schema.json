@@ -1,0 +1,496 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "``POST /api/admin/connectors/{slug}/mappings/read/compile``: what the DuckDB mapping\ncompiler makes of a read mapping (M8 explain) — deduplicated sources, lookups built first, per\nentity mapping the joins, grouping and the generated SQL per column, and the checks run\nbefore anything is loaded.",
+  "properties": {
+    "checks": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "enum": [
+              "fk",
+              "duplicate_source_id"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "entity": {
+            "enum": [
+              "location",
+              "item",
+              "bom_line",
+              "lane",
+              "lane_rate",
+              "sailing",
+              "po_line",
+              "production_order",
+              "inventory_position",
+              "demand_forecast",
+              "size_curve",
+              "allocation",
+              "transfer_order_line",
+              "online_order_line",
+              "promotion"
+            ],
+            "title": "Entity",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 500,
+            "title": "Label",
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "error",
+              "warning"
+            ],
+            "title": "Severity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "label",
+          "entity",
+          "severity"
+        ],
+        "title": "MappingPlanCheck",
+        "type": "object"
+      },
+      "title": "Checks",
+      "type": "array"
+    },
+    "engine": {
+      "const": "duckdb",
+      "default": "duckdb",
+      "title": "Engine",
+      "type": "string"
+    },
+    "entities": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "columns": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "aggregate": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "first",
+                        "min",
+                        "max",
+                        "sum",
+                        "count"
+                      ],
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Aggregate"
+                },
+                "column": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "title": "Column",
+                  "type": "string"
+                },
+                "expression": {
+                  "maxLength": 500,
+                  "title": "Expression",
+                  "type": "string"
+                },
+                "required": {
+                  "title": "Required",
+                  "type": "boolean"
+                },
+                "sql": {
+                  "maxLength": 100000,
+                  "title": "Sql",
+                  "type": "string"
+                },
+                "target_type": {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "title": "Target Type",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "column",
+                "expression",
+                "aggregate",
+                "target_type",
+                "required",
+                "sql"
+              ],
+              "title": "MappingPlanColumn",
+              "type": "object"
+            },
+            "minItems": 1,
+            "title": "Columns",
+            "type": "array"
+          },
+          "dedupe": {
+            "title": "Dedupe",
+            "type": "boolean"
+          },
+          "entity": {
+            "enum": [
+              "location",
+              "item",
+              "bom_line",
+              "lane",
+              "lane_rate",
+              "sailing",
+              "po_line",
+              "production_order",
+              "inventory_position",
+              "demand_forecast",
+              "size_curve",
+              "allocation",
+              "transfer_order_line",
+              "online_order_line",
+              "promotion"
+            ],
+            "title": "Entity",
+            "type": "string"
+          },
+          "group_by": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 500,
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group By"
+          },
+          "joins": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "calls": {
+                  "minimum": 1,
+                  "title": "Calls",
+                  "type": "integer"
+                },
+                "kind": {
+                  "enum": [
+                    "static",
+                    "source",
+                    "record"
+                  ],
+                  "title": "Kind",
+                  "type": "string"
+                },
+                "table": {
+                  "pattern": "^[a-z][a-z0-9_]{0,39}$",
+                  "title": "Table",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table",
+                "kind",
+                "calls"
+              ],
+              "title": "MappingPlanJoin",
+              "type": "object"
+            },
+            "title": "Joins",
+            "type": "array"
+          },
+          "source_key": {
+            "pattern": "^[0-9a-f]{16}$",
+            "title": "Source Key",
+            "type": "string"
+          },
+          "sql": {
+            "maxLength": 1000000,
+            "title": "Sql",
+            "type": "string"
+          },
+          "where": {
+            "maxLength": 500,
+            "title": "Where",
+            "type": "string"
+          }
+        },
+        "required": [
+          "where",
+          "entity",
+          "source_key",
+          "dedupe",
+          "group_by",
+          "joins",
+          "columns",
+          "sql"
+        ],
+        "title": "MappingPlanEntity",
+        "type": "object"
+      },
+      "minItems": 1,
+      "title": "Entities",
+      "type": "array"
+    },
+    "lookups": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "entries": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entries"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "kind": {
+            "enum": [
+              "static",
+              "source",
+              "record"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "pattern": "^[a-z][a-z0-9_]{0,39}$",
+            "title": "Name",
+            "type": "string"
+          },
+          "paths": {
+            "items": {
+              "maxLength": 250,
+              "type": "string"
+            },
+            "maxItems": 200,
+            "title": "Paths",
+            "type": "array"
+          },
+          "source_key": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{16}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Key"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "source_key",
+          "entries",
+          "key",
+          "value",
+          "paths"
+        ],
+        "title": "MappingPlanLookup",
+        "type": "object"
+      },
+      "title": "Lookups",
+      "type": "array"
+    },
+    "mapping_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Mapping Hash",
+      "type": "string"
+    },
+    "sources": {
+      "items": {
+        "additionalProperties": false,
+        "description": "One distinct paged read of the compiled mapping.",
+        "properties": {
+          "key": {
+            "pattern": "^[0-9a-f]{16}$",
+            "title": "Key",
+            "type": "string"
+          },
+          "paths": {
+            "items": {
+              "maxLength": 250,
+              "type": "string"
+            },
+            "maxItems": 2000,
+            "title": "Paths",
+            "type": "array"
+          },
+          "source": {
+            "additionalProperties": false,
+            "description": "One paged read-tool call sequence.\n\nPaging: with ``cursor_path`` null the crawler sends page numbers ``first_page, first_page+1, …``\nunder ``page_param`` and stops at an empty or short page (fewer than ``page_size`` items);\nwith ``cursor_path`` set it sends no cursor first, then the cursor read from the previous\nresult under ``page_param``, and stops when the cursor is missing, ``null``, ``\"\"`` or\nrepeats. It never fetches more than ``max_pages`` (hitting the cap is reported as truncation).\n``page_size`` is sent under ``page_size_param`` when that is set. Without ``page_param`` the\ntool is called once (``max_pages`` must be 1). ``items_path`` selects the result's list of\nitems (``$`` = the result itself).",
+            "properties": {
+              "args": {
+                "additionalProperties": true,
+                "title": "Args",
+                "type": "object"
+              },
+              "cursor_path": {
+                "anyOf": [
+                  {
+                    "maxLength": 200,
+                    "minLength": 1,
+                    "pattern": "^\\$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Cursor Path"
+              },
+              "first_page": {
+                "default": 1,
+                "maximum": 1,
+                "minimum": 0,
+                "title": "First Page",
+                "type": "integer"
+              },
+              "items_path": {
+                "maxLength": 200,
+                "minLength": 1,
+                "pattern": "^\\$",
+                "title": "Items Path",
+                "type": "string"
+              },
+              "max_pages": {
+                "maximum": 10000,
+                "minimum": 1,
+                "title": "Max Pages",
+                "type": "integer"
+              },
+              "page_param": {
+                "anyOf": [
+                  {
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Page Param"
+              },
+              "page_size": {
+                "maximum": 1000,
+                "minimum": 1,
+                "title": "Page Size",
+                "type": "integer"
+              },
+              "page_size_param": {
+                "anyOf": [
+                  {
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Page Size Param"
+              },
+              "tool": {
+                "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+                "title": "Tool",
+                "type": "string"
+              }
+            },
+            "required": [
+              "tool",
+              "page_param",
+              "page_size",
+              "items_path",
+              "cursor_path",
+              "max_pages"
+            ],
+            "title": "ReadSource",
+            "type": "object"
+          },
+          "used_by": {
+            "items": {
+              "maxLength": 500,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Used By",
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "source",
+          "paths",
+          "used_by"
+        ],
+        "title": "MappingPlanSource",
+        "type": "object"
+      },
+      "minItems": 1,
+      "title": "Sources",
+      "type": "array"
+    },
+    "warnings": {
+      "items": {
+        "maxLength": 500,
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "mapping_hash",
+    "sources",
+    "lookups",
+    "entities",
+    "checks",
+    "warnings"
+  ],
+  "title": "MappingPlan",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.mapping.MappingPlan"
+}

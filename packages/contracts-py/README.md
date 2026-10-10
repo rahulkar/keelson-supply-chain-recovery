@@ -386,6 +386,33 @@ Submodules are imported explicitly (`from keelson_contracts.blocks import make_b
   `budget_required`, `budget_too_high` (above `EVALS_LIVE_MAX_*`).
 - **Schemas.** `evals.status|run|run-detail|run-create|run-event|case-result|compare|trends|threshold|suite`.
 
+## M8 additions — mapping compiler + proposed mappings (`121-m8-mapping-compiler.md`, backward compatible)
+
+- **Expression language (`mapping`).** New functions `field('table', key, '$.path')` (record-lookup
+  join), `cents(x)` (exact decimal money → minor units), `iso_week(x)`, `trim` / `upper` / `lower`
+  (ASCII only); `RecordLookup {kind: record, source, key}` in the lookup union (`lookup()` names
+  static / source tables, `field()` record tables; no chains); `EntityMapping.group_by` (1..4 keys,
+  omitted from dumps while unset) whose fields may be one aggregate `first|min|max|sum|count`
+  (`AGGREGATE_FUNCTIONS`, `parse_expression(text, aggregates=True)`, `is_aggregate`); non-aggregated
+  fields read only group-key paths; `group_by` and `dedupe` exclude each other. `read_mapping_violations`
+  checks record sources too. Helpers `source_key`, `mapping_hash`, `path_text`,
+  `expression_records` / `expression_record_paths`, `op_takes`. Every M7 mapping keeps its meaning;
+  the one deliberate change: `source` lookup keys use the `lookup()` text rule (`true` → `'true'`).
+- **Explain / preview (`mapping`).** `MappingPlan` (+ `MappingPlanSource|Lookup|Entity|Join|Column|Check`),
+  `ReadPreviewRequest`, `ReadPreview` (+ `ReadPreviewEntity|Column|Check|Staged`; a superset of the M7
+  read-test answer).
+- **`scn.SCN_FOREIGN_KEYS`.** `ForeignKey {entity, columns, target_entity, target_columns, severity,
+  label, kinds, target_kinds}`: the two `error` references every sync checked since M3, plus
+  `warning` references (allocation, forecast, PO destination, SKU → style, location parents, …).
+- **Proposals (`mapping_proposal`, new).** Shape-only `SourceProfile` / `PathProfile`, `MappingProposeRequest`,
+  `MappingProposal` (`read_draft()` = complete entities + the lookups they use, `action_draft()`),
+  `ProposedEntity|Field|Lookup|Op|Alternative`, `ProposalNote` codes; the strict LLM output
+  `MappingProposalLlm` (`strict_schema_violations` clean) and `mapping_proposal_llm_violations`
+  (what the engine drops before merging), `llm_args`, `CONFIDENCE_BP`.
+- **`admin`.** `ChangeRequestKind` + `connector_mapping` (versioned: needs `base_version`),
+  `GuardReasonCode` + `ai_proposed_action_mapping`.
+- **Schemas.** `mapping.plan|preview-request|preview|propose-request|proposal|proposal-llm`.
+
 ## Develop (inside Docker, per `docs/contracts/60-build-guide.md`)
 
 ```bash

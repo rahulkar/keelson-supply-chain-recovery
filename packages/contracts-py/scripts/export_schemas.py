@@ -31,6 +31,9 @@ alert detail/status update/rule, scenario pack, tenant network). M7 adds the bac
 (``signals.alert-detail`` gains the optional ``memberships``). The M8 Evals UI (``docs/contracts/128``)
 adds ``evals.*`` (status, runs, run detail / create / events, case results, compare, trends,
 thresholds, runner suite).
+M8 mapping compiler (``docs/contracts/121``) adds ``mapping.plan`` / ``mapping.preview(-request)``
+(the DuckDB mapping compiler's explain + preview) and ``mapping.propose-request`` /
+``mapping.proposal`` / ``mapping.proposal-llm`` (proposed mappings).
 """
 
 from __future__ import annotations
@@ -45,8 +48,23 @@ from typing import Any
 from pydantic import BaseModel, TypeAdapter
 
 import keelson_contracts
-from keelson_contracts import admin, agents, agui, blocks, commit, connectors, demo, llm, mapping, policy, runs, scn, signals
-from keelson_contracts import evals
+from keelson_contracts import (
+    admin,
+    agents,
+    agui,
+    blocks,
+    commit,
+    connectors,
+    demo,
+    evals,
+    llm,
+    mapping,
+    mapping_proposal,
+    policy,
+    runs,
+    scn,
+    signals,
+)
 
 JSON_SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
 DEFAULT_OUT = Path(__file__).resolve().parents[2] / "contracts-ts" / "schemas"
@@ -158,6 +176,16 @@ def schema_builders() -> dict[str, tuple[str, Callable[[], dict[str, Any]]]]:
         ("evals.suite", evals.EvalSuiteInfo),
     )
     for name, m8_model in m8_evals_models:
+        out[name] = (f"{m8_model.__module__}.{m8_model.__name__}", _model(m8_model))
+    m8_models: tuple[tuple[str, type[BaseModel]], ...] = (
+        ("mapping.plan", mapping.MappingPlan),
+        ("mapping.preview-request", mapping.ReadPreviewRequest),
+        ("mapping.preview", mapping.ReadPreview),
+        ("mapping.propose-request", mapping_proposal.MappingProposeRequest),
+        ("mapping.proposal", mapping_proposal.MappingProposal),
+        ("mapping.proposal-llm", mapping_proposal.MappingProposalLlm),
+    )
+    for name, m8_model in m8_models:
         out[name] = (f"{m8_model.__module__}.{m8_model.__name__}", _model(m8_model))
     for model in llm.LLM_OUTPUT_MODELS:
         out[f"llm.{_kebab(model.__name__)}"] = (

@@ -77,6 +77,11 @@ async def test_runner_api_is_off_without_a_token_and_needs_the_right_one(
     bad = await runner_call(api, "POST", "/heartbeat", {"runner_id": RUNNER, "version": "x",
                                                         "suite": {"suite_hash": "x", "cases": []}})
     assert bad.status_code == 422
+    # a catalogue the model accepts but the table's 256 KiB does not: a 422, never a 500
+    wide = {"title": "\U0001f600" * 200, "tags": ["\U0001f600" * 40] * 20, "turns": 1, "turn_kinds": ["message"],
+            "needs_live_embeddings": False, "injects": False}
+    huge = await heartbeat(api, cases=[{**wide, "id": f"case_{i}"} for i in range(200)])
+    assert huge.status_code == 422 and huge.json()["code"] == "suite_too_large", huge.text
 
 
 # ───────────────────────────── the happy path ─────────────────────────────

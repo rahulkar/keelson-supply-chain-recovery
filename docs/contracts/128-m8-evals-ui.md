@@ -179,7 +179,7 @@ report runs, never queue one or change configuration.
 
 | Call | Effect |
 |---|---|
-| `POST /heartbeat {runner_id, version, suite}` | upsert `eval_runner` → `{poll_after_s}` |
+| `POST /heartbeat {runner_id, version, suite}` | upsert `eval_runner` → `{poll_after_s}` (a catalogue above 256 KiB of jsonb text → `422 suite_too_large`) |
 | `POST /claim {runner_id}` | reaps expired leases, then `UPDATE … WHERE id = (SELECT … FOR UPDATE SKIP LOCKED)` → `200 {job: EvalRunnerJob}` (lease `EVALS_LEASE_S`) or `204` |
 | `POST /runs/{id}/events {runner_id, events ≤ 50}` | appends (seq assigned server-side, ≤ 5000 per run, strings cleaned; an event's `data` above 16 KiB of jsonb text → `422 event_too_large`) → `{cancel_requested, budget_exhausted, lease_expires_at}` |
 | `POST /runs/{id}/cases/{case}/attach {runner_id, keelson_case_id}` | link: the case is in the run's tenant (else `404 case_not_found`), created after the run started (`409 case_predates_run`), not linked elsewhere (`409 case_already_linked`); idempotent for the same pair |

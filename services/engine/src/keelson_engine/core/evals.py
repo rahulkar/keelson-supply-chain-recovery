@@ -123,6 +123,8 @@ MAX_EVENTS_PER_POST = 50
 MAX_EVENTS_PER_RUN = 5000
 EVENT_DATA_MAX_BYTES = 16384
 """``eval_run_event.data``'s size check (``octet_length(data::text)``)."""
+SUITE_MAX_BYTES = 262144
+"""``eval_runner.suite``'s size check."""
 EVENTS_PAGE = 200
 RUNNER_ROWS_KEPT_DAYS = 7
 TERMINAL = ("succeeded", "failed", "cancelled")
@@ -299,6 +301,8 @@ async def reap_expired() -> list[str]:
 
 
 async def runner_heartbeat(runner_id: str, version: str, suite: EvalSuiteInfo) -> None:
+    if _jsonb_text_bytes(suite.model_dump(mode="json")) > SUITE_MAX_BYTES:  # what the table refuses: a 422
+        raise AdminError(422, "suite_too_large", f"the case catalogue exceeds {SUITE_MAX_BYTES} bytes")
     async with system_session() as s:
         await s.execute(
             text(

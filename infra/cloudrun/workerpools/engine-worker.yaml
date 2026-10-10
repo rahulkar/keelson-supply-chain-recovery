@@ -70,6 +70,9 @@ spec:
             # engine LLM record/replay: off in production (compose's dev/demo default records)
             - name: LLM_REPLAY_MODE
               value: "off"
+            # M8 (121): rule-based drafts refined by the model; compose defaults to heuristic while credits are out
+            - name: MAPPING_PROPOSER
+              value: "auto"
             - name: KEELSON_DATABASE_URL
               valueFrom:
                 secretKeyRef:

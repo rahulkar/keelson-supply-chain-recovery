@@ -39,8 +39,13 @@ SECRETISH = re.compile(r"(SECRET|PASSWORD|_KEY$|DATABASE_URL$|^VALKEY_URL$|^PGPA
 # SIGNALS_DATA_KEY is optional (the hub derives its at-rest key from SIGNAL_HUB_SHARED_SECRET when unset,
 # services/signal-hub/README.md); EVALS_RESULTS_DIR + /app/evals/results expose local CLI eval results to
 # the admin listing (110 §6), and the Cloud Run engine has none (the listing reports the directory absent).
+# M8: the in-app eval runner (profile evals, docs/contracts/128) is a local compose service with no Cloud Run
+# counterpart: its token is stored (ENV_SECRETS) but bound to nothing, and its switches stay compose-only.
+# engine-api caps DuckDB at 128 MiB only because its compose container has 512m (Cloud Run gives it 1Gi, so
+# the 256 MiB default applies, 121).
 COMPOSE_ONLY_SECRETS = {"SIGNALS_DATA_KEY"}
-COMPOSE_ONLY_ENGINE_ENV = {"EVALS_RESULTS_DIR"}
+COMPOSE_ONLY_ENGINE_ENV = {"EVALS_RESULTS_DIR", "EVALS_RUNNER_TOKEN", "EVALS_LIVE_ENABLED", "EVALS_LIVE_MAX_TOKENS",
+                           "EVALS_LIVE_MAX_COST_MICROUSD", "DUCKDB_MEMORY_LIMIT_MB"}
 COMPOSE_ONLY_ENGINE_MOUNTS = {"/app/evals/results"}
 # Caddy hosts of optional local compose profiles that are never deployed to Cloud Run
 # (M8: the adapter sidecar demo "Fernhill ERP", profile adapters, docs/contracts/122).
@@ -568,7 +573,7 @@ def test_basemap_dry_run_uploads_manifest_last(fakebin: tuple[Path, Path], fake_
     bm = tmp_path / "basemap"
     (bm / "v4").mkdir(parents=True)
     (bm / "manifest.json").write_text("{}", encoding="utf-8")
-    res = deploy(PROJECT, REGION, "--domain", DOMAIN, "--dry-run", "--tag", "t1", "--enable-basemap", "--basemap-dir", str(bm),
+    res = deploy(PROJECT, REGION, "--domain", DOMAIN, "--allow-unsigned", "--dry-run", "--tag", "t1", "--enable-basemap", "--basemap-dir", str(bm),
                  fakebin=fakebin, env_file=env_file, secrets_dir=sd, extra_env={"TMPDIR": str(tmp_path)})
     out = res.stdout
     _, marker = fakebin
@@ -605,7 +610,7 @@ def test_basemap_dry_run_uploads_manifest_last(fakebin: tuple[Path, Path], fake_
 def test_basemap_needs_a_directory_outside_dry_run(fakebin: tuple[Path, Path], fake_env: tuple[Path, Path, dict[str, str]],
                                                    tmp_path: Path) -> None:
     env_file, sd, _ = fake_env
-    res = deploy(PROJECT, REGION, "--domain", DOMAIN, "--enable-basemap", "--basemap-dir", str(tmp_path / "missing"),
+    res = deploy(PROJECT, REGION, "--domain", DOMAIN, "--allow-unsigned", "--enable-basemap", "--basemap-dir", str(tmp_path / "missing"),
                  fakebin=fakebin, env_file=env_file, secrets_dir=sd, extra_env={"PROJECT_NUMBER": "123"}, check=False)
     assert res.returncode == 2 and "--enable-basemap needs --basemap-dir" in res.stderr
     _, marker = fakebin
@@ -619,8 +624,8 @@ def test_basemap_csp_build_arg_only_when_set(dry: subprocess.CompletedProcess[st
     default = web.search(dry.stdout)
     assert default and "KEELSON_CSP_MAP_ORIGINS" not in default.group(0)
     env_file, sd, _ = fake_env
-    res = deploy(PROJECT, REGION, "--domain", DOMAIN, "--dry-run", "--tag", "t1", fakebin=fakebin, env_file=env_file,
-                 secrets_dir=sd, extra_env={"TMPDIR": str(tmp_path), "KEELSON_CSP_MAP_ORIGINS": "none"})
+    res = deploy(PROJECT, REGION, "--domain", DOMAIN, "--dry-run", "--tag", "t1", "--allow-unsigned", fakebin=fakebin,
+                 env_file=env_file, secrets_dir=sd, extra_env={"TMPDIR": str(tmp_path), "KEELSON_CSP_MAP_ORIGINS": "none"})
     strict = web.search(res.stdout)
     assert strict and "--build-arg KEELSON_CSP_MAP_ORIGINS=none" in strict.group(0)
 

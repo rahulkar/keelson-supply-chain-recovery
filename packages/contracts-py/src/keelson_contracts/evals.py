@@ -514,7 +514,7 @@ _LIVE_OR_UNKNOWN: Final[list[str]] = ["record_or_replay", "record", "unknown"]
 """Imported CLI files without a mode label were live runs (the CLI's default)."""
 
 DEFAULT_EVAL_THRESHOLDS: Final[tuple[EvalThreshold, ...]] = tuple(
-    EvalThreshold(metric=m, op=METRIC_OPS[m], value=v, modes=modes)  # type: ignore[arg-type]
+    EvalThreshold(metric=m, op=METRIC_OPS[m], value=v, modes=modes)
     for m, v, modes in (
         ("pass_rate_bp", 8000, _ALL_MODES),
         ("adversarial_pass_rate_bp", 10_000, _ALL_MODES),
@@ -1119,7 +1119,7 @@ def _case(raw: Mapping[str, Any], case_id: str, detail_limit: int) -> EvalCaseRe
         case_id=case_id,
         title=clean_text(raw.get("title") or case_id, 200) or case_id,
         tags=tags,
-        status=_status(raw.get("status"), error, error_code, all_checks),  # type: ignore[arg-type]
+        status=_status(raw.get("status"), error, error_code, all_checks),
         keelson_case_id=kc if isinstance(kc, str) and re.fullmatch(_REF_PATTERN, kc) else None,
         error=error,
         error_code=error_code,
@@ -1241,10 +1241,10 @@ def results_doc_header(doc: Any) -> EvalDocHeader:
     suite_hash = doc.get("suite_hash")
     target = doc.get("keelson_url")
     return EvalDocHeader(
-        doc_schema=schema,  # type: ignore[arg-type]
+        doc_schema=schema,
         started_at=started,
         finished_at=_when(doc.get("finished_at")),
-        mode=mode if mode in EVAL_MODES else "unknown",  # type: ignore[arg-type]
+        mode=mode if mode in EVAL_MODES else "unknown",
         runner=runner if runner in ("cli", "in_app") else ("cli" if schema == EVALS_SCHEMA_V1 else "unknown"),
         suite_hash=suite_hash if isinstance(suite_hash, str) and re.fullmatch(r"[0-9a-f]{64}", suite_hash) else None,
         target=clean_text(target, 200) or None if isinstance(target, str) else None,

@@ -180,7 +180,10 @@ echoed. `RELEASE_IMAGE_MAP` maps `IMAGE_ENGINE←ENGINE_CLOUDRUN`, `IMAGE_OPTIMI
 --remote-docker-repo=https://ghcr.io`, name overridable with `GHCR_REMOTE_REPO`) is created once and
 every `IMAGE_*` becomes `<region>-docker.pkg.dev/<project>/ghcr/<path>@<verified digest>`;
 `docker auth` is configured only when something is still pushed (Phoenix). `--allow-unsigned` keeps
-the M7 behaviour exactly (all existing tests pass with the flag).
+the M7 behaviour exactly (all existing tests pass with the flag). `--release-tag` downloads with curl
+over HTTPS only (`--proto =https`, stdout redirects) from the GitHub Release of `SIGNER_REPOSITORY`;
+the release's commit is read with `cd "$ROOT" && git rev-parse HEAD` (no path arguments to native
+tools, so the gate also works from Git Bash with `MSYS_NO_PATHCONV=1`).
 
 ### 2.9 compose-release.sh
 
@@ -244,12 +247,12 @@ None (120 §2 allocates no migration to this workstream).
 
 | Suite | Command | Result (2026-10-10) |
 |---|---|---|
-| Tooling: check_pins, shellcheck (all scripts), pytest (`scripts/supply-chain/tests` + `scripts/cloudrun/tests` + `scripts/tests/test_init_secrets.py`), actionlint, zizmor | `scripts/supply-chain/tests/run.sh` | 0 failed parts; pytest 268 passed |
+| Tooling: check_pins, shellcheck (all scripts), pytest (`scripts/supply-chain/tests` + `scripts/cloudrun/tests` + `scripts/tests/test_init_secrets.py`), actionlint, zizmor | `scripts/supply-chain/tests/run.sh` | 0 failed parts; pytest 269 passed |
 | Renovate validator + extraction (every pinned image extracted once, no manager duplicates, uv/npm projects, actions, nothing from fixtures) | `run.sh --with-renovate` | pass |
-| Offline cosign e2e: local registry, real cosign v3.1.3 key mode: signed passes; unsigned / wrong key / tag / other `git_sha` fail; deploy.sh `--verify-only` accepts the signed release and refuses an unsigned image and a tampered file with no gcloud call; compose-release writes only for the good release and its override renders with `compose.yaml` | `run.sh --with-docker` (`tests/e2e_sign_verify.sh`) | 16/16 checks |
-| Cloud Run: shellcheck, pytest 99 (incl. the new release-gate tests), dbinit against Postgres 18 with the pinned images, parity self-test | `scripts/cloudrun/tests/run.sh` | pass (dbinit needs `keelson-pg-core:latest`, built for the run) |
+| Offline cosign e2e: local registry, real cosign v3.1.3 key mode: signed passes; unsigned / wrong key / tag / other `git_sha` fail; deploy.sh `--verify-only` accepts the signed release and refuses an unsigned image and a tampered file with no gcloud call; compose-release writes only for the good release and its override renders with `compose.yaml` | `run.sh --with-docker` (`tests/e2e_sign_verify.sh`) | 14/14 checks |
+| Cloud Run: shellcheck, pytest 100 (incl. the new release-gate and `--release-tag` download tests), dbinit against Postgres 18 with the pinned images, parity self-test | `scripts/cloudrun/tests/run.sh` | pass (dbinit needs `keelson-pg-core:latest`, built for the run) |
 | `ci_run_suite.py optimizer` (pinned optimizer Dockerfile built, suite run, cleanup) | through a docker-CLI container | build OK, 209 passed, 4 wall-clock budget tests (5 s) failed under shared-host load; the same 4 fail in the shared m8 harness on unchanged optimizer code (§10) |
-| `workspace-test` commands + frozen installs with `minimumReleaseAge` | m8-js harness: `pnpm fetch/install --frozen-lockfile`, `gen-zod --check`, `gen-tokens --check`, `packages/*` typecheck + test | pass; a stale generated module makes `gen-zod --check` fail |
+| `workspace-test` commands + frozen installs with `minimumReleaseAge` | m8-js harness: `pnpm fetch/install --frozen-lockfile`, `gen-zod --check`, `gen-tokens --check`, `packages/*` typecheck + test | pass (251 viz tests among them); a stale generated module makes `gen-zod --check` fail. The `docker build --target workspace-test` itself was not run on this shared host (full pnpm fetch); CI's `web (web-packages)` job builds it |
 | Live pins / key | `pin-image.sh --verify` equivalent over all 21 pinned refs; `verify-images.sh --compose` | all digests current; LiteLLM signature PASS |
 
 Unit tests per tool: `test_check_pins.py` (pass + fail fixture per rule, exit code, real repo clean),

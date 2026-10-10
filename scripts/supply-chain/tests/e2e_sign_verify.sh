@@ -69,7 +69,8 @@ for n in a b c; do
 done
 
 # 2. keys, signatures, attestations (key mode, no transparency log)
-GIT_SHA="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || printf '%040d' 0)"
+# (cd + git, not git -C: Git Bash with MSYS_NO_PATHCONV=1 would hand git.exe an unconverted /c/... path)
+GIT_SHA="$(cd "$ROOT" && git rev-parse HEAD 2>/dev/null || printf '%040d' 0)"
 mkdir -p "$WORK/k1" "$WORK/k2"
 for k in k1 k2; do
   cos generate-key-pair --output-key-prefix "$k/cosign" >/dev/null 2>&1 || { echo "key generation failed" >&2; exit 99; }

@@ -92,7 +92,7 @@ def test_release_file(tmp_path: Path) -> None:
     assert calls[0].startswith("verify-blob ") and f"--bundle {rel}.sigstore.json {rel}" in calls[0]
     images = {i.release_key: i for i in reg.load(ROOT).release_images}
     assert {x["image"] for x in lines[1:]} == set(images)
-    for key, img in images.items():
+    for img in images.values():
         ref = f"{GHCR}/{img.name}@{digest(img.name)}"
         sig = next(c for c in calls if c.startswith("verify ") and c.endswith(ref))
         assert f"-a git_sha={SHA}" in sig

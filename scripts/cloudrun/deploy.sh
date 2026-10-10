@@ -178,15 +178,18 @@ release_preflight() {  # verify the release + every image it deploys; fills RELE
     command -v curl >/dev/null || die "curl is required for --release-tag"
     RELEASE_FILE="$(mktemp -d "${TMPDIR:-/tmp}/keelson-release.XXXXXX")/keelson-release.env"
     url="https://github.com/${SC_SIGNER_REPOSITORY}/releases/download/${RELEASE_TAG}"
-    show curl -fsSL --proto =https -o "$RELEASE_FILE" "$url/keelson-release.env"
-    if ! curl -fsSL --proto '=https' --max-time 120 -o "$RELEASE_FILE" "$url/keelson-release.env" </dev/null ||
-      ! curl -fsSL --proto '=https' --max-time 120 -o "$RELEASE_FILE.sigstore.json" "$url/keelson-release.env.sigstore.json" </dev/null; then
+    # stdout redirects, not -o PATH: Git Bash with MSYS_NO_PATHCONV=1 would hand curl.exe a /tmp path unconverted
+    show curl -fsSL --proto =https "$url/keelson-release.env" "$url/keelson-release.env.sigstore.json"
+    if ! curl -fsSL --proto '=https' --max-time 120 "$url/keelson-release.env" >"$RELEASE_FILE" </dev/null ||
+      ! curl -fsSL --proto '=https' --max-time 120 "$url/keelson-release.env.sigstore.json" \
+        >"$RELEASE_FILE.sigstore.json" </dev/null; then
       die "cannot download release $RELEASE_TAG from $url"
     fi
   fi
   SC_TRACE=1
   sc_verify_release "$RELEASE_FILE" || die "refusing release $RELEASE_FILE: $SC_ERROR"
-  sha="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || true)"
+  # (cd + git, not git -C: Git Bash with MSYS_NO_PATHCONV=1 would hand git.exe an unconverted /c/... path)
+  sha="$(cd "$ROOT" && git rev-parse HEAD 2>/dev/null || true)"
   if [ "$sha" != "${SC_RELEASE[RELEASE_GIT_SHA]}" ]; then
     [ "$ALLOW_SHA_MISMATCH" = 1 ] || die "the release was built from ${SC_RELEASE[RELEASE_GIT_SHA]} but this checkout is at ${sha:-<unknown>}; the manifests are rendered from the checkout: check out that commit (or pass --allow-sha-mismatch)"
     warn "release commit ${SC_RELEASE[RELEASE_GIT_SHA]} differs from the checkout ${sha:-<unknown>} (--allow-sha-mismatch)"

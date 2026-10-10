@@ -618,9 +618,17 @@ if [ -n "${FAKE_COSIGN_FAIL:-}" ]; then
 fi
 exit 0
 """
-# Fake git: `git -C <root> rev-parse HEAD` answers $FAKE_GIT_SHA.
+# Fake git: `git rev-parse HEAD` answers $FAKE_GIT_SHA.
 FAKE_GIT = r"""#!/bin/sh
 case "$*" in *"rev-parse HEAD"*) echo "${FAKE_GIT_SHA:-0000000000000000000000000000000000000000}" ;; *) exit 1 ;; esac
+"""
+# Fake curl (--release-tag): records argv in calls.log, prints $FAKE_RELEASE_DIR/<last URL segment> or 404s.
+FAKE_CURL = r"""#!/bin/sh
+echo "curl $*" >> "$FAKE_DIR/calls.log"
+for a; do url="$a"; done
+f="${FAKE_RELEASE_DIR:-/nonexistent}/${url##*/}"
+[ -f "$f" ] || { echo "curl: (22) The requested URL returned error: 404" >&2; exit 22; }
+cat "$f"
 """
 
 
@@ -630,7 +638,7 @@ def apply_with_fakes(tmp_path: Path, env_file: Path, sd: Path, values: dict[str,
     bindir = tmp_path / "bin"
     bindir.mkdir(parents=True, exist_ok=True)
     for name, body in (("gcloud", FAKE_GCLOUD), ("docker", FAKE_DOCKER), ("jq", FAKE_JQ), ("cosign", FAKE_COSIGN),
-                       ("git", FAKE_GIT)):
+                       ("git", FAKE_GIT), ("curl", FAKE_CURL)):
         p = bindir / name
         p.write_text(body, encoding="utf-8")
         p.chmod(0o755)
@@ -952,6 +960,31 @@ def test_verify_only(tmp_path: Path, fake_env: tuple[Path, Path, dict[str, str]]
     env_file, sd, values = fake_env
     res, _, _ = apply_with_fakes(tmp_path / "b", env_file, sd, values, args=("--verify-only",))
     assert res.returncode == 2 and "--verify-only needs --release" in res.stderr
+
+
+def test_release_tag_downloads_from_the_signer_repository(tmp_path: Path,
+                                                          fake_env: tuple[Path, Path, dict[str, str]]) -> None:
+    env_file, sd, values = fake_env
+    served = write_release(tmp_path / "served").parent
+    env = {"FAKE_GIT_SHA": GIT_SHA, "FAKE_RELEASE_DIR": str(served)}
+    res, tmp, _ = apply_with_fakes(tmp_path / "a", env_file, sd, values, env, args=("--release-tag", "v1.2.0", "--verify-only"))
+    assert res.returncode == 0, res.stderr[-2000:]
+    url = "https://github.com/rahulkar/keelson-supply-chain-recovery/releases/download/v1.2.0"
+    curl = [c for c in calls_of(tmp) if c.startswith("curl ")]
+    assert curl == [f"curl -fsSL --proto =https --max-time 120 {url}/keelson-release.env",
+                    f"curl -fsSL --proto =https --max-time 120 {url}/keelson-release.env.sigstore.json"]
+    blob = next(c for c in calls_of(tmp) if c.startswith("cosign verify-blob"))
+    assert "keelson-release.env.sigstore.json" in blob
+    assert not any(c.startswith(("gcloud ", "docker ")) for c in calls_of(tmp))
+    # a missing asset or a malformed tag: exit 2, nothing else runs
+    (served / "keelson-release.env.sigstore.json").unlink()
+    res, tmp, _ = apply_with_fakes(tmp_path / "b", env_file, sd, values, env, args=("--release-tag", "v1.2.0"))
+    assert res.returncode == 2 and f"cannot download release v1.2.0 from {url}" in res.stderr
+    assert not any(c.startswith(("cosign ", "gcloud ", "docker ")) for c in calls_of(tmp))
+    for bad in ("v1.2", "1.2.0", "v1.2.0-rc1", "v1.2.0;id"):
+        res, tmp, _ = apply_with_fakes(tmp_path / f"c{bad}", env_file, sd, values, env, args=("--release-tag", bad))
+        assert res.returncode == 2 and f"invalid release tag {bad}" in res.stderr, bad
+        assert calls_of(tmp) == [], bad
 
 
 def test_release_map_matches_the_registry() -> None:

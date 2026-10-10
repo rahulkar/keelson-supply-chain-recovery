@@ -171,6 +171,29 @@ describe("ScenarioCompare with bands, CO₂e and profiles", () => {
     expect(container.querySelector("[data-emissions-note]")).toBeNull();
   });
 
+  it("flags carbon-priced profiles when an option has no CO₂e (review fix: it would count as 0 kg)", async () => {
+    const env = fixture("scenario_compare.robust");
+    const props = env.props as ScenarioCompareProps;
+    props.options[1]!.scorecard = { ...props.options[1]!.scorecard, incremental_co2e_kg: null, co2e_breakdown: null };
+    const { container } = await renderReady(env);
+    const rank = screen.getByRole("group", { name: "Rank by" });
+    const low = within(rank).getByRole("button", { name: "Low carbon" });
+    expect(low).toBeDisabled();
+    expect(low).toHaveAttribute("title", "Prices CO₂e, which some options don't have");
+    expect(within(rank).getByRole("button", { name: "Cost first" })).toBeEnabled();
+    expect(within(rank).getByRole("button", { name: "Net benefit" })).toHaveAttribute("aria-pressed", "true");
+    expect(container.querySelector("[data-co2-unranked]")).toHaveTextContent(
+      `CO₂e is missing for ${props.options[1]!.title}: a carbon price counts it as 0 kg`,
+    );
+    await expectNoA11yViolations(container);
+  });
+
+  it("does not flag the profiles when every option carries CO₂e", async () => {
+    const { container } = await renderReady(fixture("scenario_compare.robust"));
+    expect(within(screen.getByRole("group", { name: "Rank by" })).getByRole("button", { name: "Low carbon" })).toBeEnabled();
+    expect(container.querySelector("[data-co2-unranked]")).toBeNull();
+  });
+
   it("“How sure are we?” — the range chart turns into a p10 / p50 / p90 table", async () => {
     const user = userEvent.setup();
     await renderReady(fixture("scenario_compare.robust"));

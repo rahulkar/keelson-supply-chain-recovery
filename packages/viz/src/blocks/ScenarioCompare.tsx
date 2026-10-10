@@ -276,6 +276,18 @@ export function ScenarioCompare({ props, envelope }: BlockComponentProps<Scenari
       title: co2Ready ? undefined : `No CO₂e for ${missingCo2.join(", ")}`,
     },
   ];
+  // A carbon price ranks a missing CO₂e as 0 kg (126 §4): such profiles are flagged, and the
+  // non-default ones can't be picked (the default one is what the recommendation used).
+  const co2Blind = !co2Ready && profiles.some((p) => p.carbon_price_cents_per_t > 0);
+  const profileChoices: ChoiceChip[] = profiles.map((p) => {
+    const blind = co2Blind && p.carbon_price_cents_per_t > 0 && !p.default;
+    return {
+      id: p.id,
+      label: p.label,
+      disabled: blind,
+      title: blind ? "Prices CO₂e, which some options don't have" : p.default ? "The workspace default" : undefined,
+    };
+  });
 
   return (
     <BlockFrame envelope={envelope} defaultTitle="Compare options" icon={<ChartScatter />} actions={<AdvisoryBadge advisory={props.advisory} />}>
@@ -311,15 +323,16 @@ export function ScenarioCompare({ props, envelope }: BlockComponentProps<Scenari
       </figure>
       {profiles.length > 1 ? (
         <div className="flex flex-col gap-1" data-profiles="">
-          <ChoiceChips
-            label="Rank by"
-            choices={profiles.map((p) => ({ id: p.id, label: p.label, title: p.default ? "The workspace default" : undefined }))}
-            value={profileId ?? ""}
-            onChange={setProfileId}
-          />
+          <ChoiceChips label="Rank by" choices={profileChoices} value={profileId ?? ""} onChange={setProfileId} />
           <p className="text-caption text-fg-subtle">
             Ranking only: the recommendation follows the workspace default{defaultProfile ? ` (${defaultProfile.label})` : ""}.
           </p>
+          {co2Blind ? (
+            <p className="text-caption text-fg-subtle" data-co2-unranked="">
+              {anyCo2 ? `CO₂e is missing for ${missingCo2.join(", ")}` : "No option carries CO₂e"}: a carbon price counts it as 0 kg, so
+              profiles with one can&apos;t rank these options by CO₂e.
+            </p>
+          ) : null}
         </div>
       ) : null}
       <ScorecardTable options={shown.options} metrics={metrics} rankBy={rankBy ? { profileId: rankBy.id, label: rankBy.label } : null} />

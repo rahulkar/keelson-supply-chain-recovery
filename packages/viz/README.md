@@ -290,7 +290,8 @@ axe on every visual (graph and table views).
   View as table with p10 / median / p90 / planned / chance of a stock-out / best in % of futures).
 - `ScenarioCompare`: "Compare against" chips (the server's x axis | Extra CO₂e; the CO₂e chip is disabled
   with the options it is missing for), "Rank by" profile chips (rank column + "Top under …" badge;
-  ranking only — the recommendation follows the default profile), likely-range captions under banded
+  ranking only — the recommendation follows the default profile; while an option lacks CO₂e, profiles
+  with a carbon price are flagged — it counts as 0 kg — and the non-default ones are disabled), likely-range captions under banded
   values (with an sr-only "10th–90th percentile of N sampled futures"), an Extra CO₂e column, the CO₂e
   footnote (transport only, factor source, indicative). Without M8 data the block renders as in M7.
 - `KpiTiles`: a "Likely A–B" line under a value with a `band` (also on the recommended option card).

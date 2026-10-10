@@ -47,12 +47,14 @@ export const PROTOMAPS_TILES_MAJOR = 4;
 
 /**
  * Relative path inside the base map directory: no scheme, no leading `/`, no `.`/`..` segment,
- * no backslash or `%` (so nothing can escape the directory or the origin once joined).
+ * no backslash or `%` (so nothing can escape the directory or the origin once joined), no `{` / `}`
+ * (MapLibre would substitute `{z}`, `{x}`, … in the `pmtiles://` tile URL built from the archive
+ * path; the only template, `glyphs`, is a literal).
  */
 const relativePath = z
   .string()
   .max(200)
-  .regex(/^[A-Za-z0-9 ._{}@-]+(?:\/[A-Za-z0-9 ._{}@-]+)*$/, "must be a plain relative path")
+  .regex(/^[A-Za-z0-9 ._@-]+(?:\/[A-Za-z0-9 ._@-]+)*$/, "must be a plain relative path")
   .refine((p) => !p.split("/").some((s) => s === "." || s === ".."), "must not contain dot segments");
 
 const sha256 = z.string().regex(/^[0-9a-f]{64}$/);

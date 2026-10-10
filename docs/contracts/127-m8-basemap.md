@@ -82,9 +82,11 @@ to the manifest's directory; the browser builds all URLs itself.
 Rules (`basemapManifestSchema`, zod **strict**: unknown keys reject the whole manifest):
 `schema` literal; `basemap_version` major must be **4** (the `@protomaps/basemaps` 5.x styles target
 tiles v4); `source.url` only `https://build.protomaps.com/<8 digits>.pmtiles` (informational, never
-fetched by the browser); paths match `^[A-Za-z0-9 ._{}@-]+(/[A-Za-z0-9 ._{}@-]+)*$` without `.` / `..`
-segments (no scheme, no leading `/`, no `//host`, no `\`, no `%`), the archive ends in `.pmtiles`;
-`glyphs` is the literal template; zooms 0–15 with min ≤ max. There is deliberately **no display
+fetched by the browser); paths match `^[A-Za-z0-9 ._@-]+(/[A-Za-z0-9 ._@-]+)*$` without `.` / `..`
+segments (no scheme, no leading `/`, no `//host`, no `\`, no `%`, no `{` / `}`: MapLibre would
+substitute `{z}` / `{x}` / … in the `pmtiles://` tile URL built from the archive path), the archive
+ends in `.pmtiles`; `glyphs` is the literal template; zooms 0–15 with min ≤ max (the fetch tool's
+`isSafeRelativePath` / `--check` apply the same path rule). There is deliberately **no display
 text** (no attribution) in the manifest: MapLibre renders attribution as HTML and the manifest and
 archive are third-party data.
 
@@ -302,11 +304,11 @@ Software: `pmtiles` 4.5.0 and `@protomaps/basemaps` 5.7.2 (BSD-3-Clause), go-pmt
 
 | Suite | Command | Result |
 |---|---|---|
-| viz (vitest) | `m8-js.sh … 'pnpm --filter @keelson/viz typecheck && pnpm --filter @keelson/viz test'` | 14 files, 333 tests passed (new: `basemap`, `protomaps-style`, `networkmap-basemap`, `maplibre-controls-css`, extended `mapcanvas`) |
+| viz (vitest) | `m8-js.sh … 'pnpm --filter @keelson/viz typecheck && pnpm --filter @keelson/viz test'` | 14 files, 335 tests passed (new: `basemap`, `protomaps-style`, `networkmap-basemap`, `maplibre-controls-css`, extended `mapcanvas`) |
 | web (vitest + typecheck + lint) | `m8-js.sh … 'pnpm --filter @keelson/web typecheck && … lint && … test'` | 35 files, 492 tests passed (new: `lib/server/basemap`, manifest route; extended `next-config`, `proxy`) |
-| fetch tool (node --test) | `docker run … m8-node node --test "scripts/basemap/tests/*.test.mjs"` and `docker build -f infra/basemap/Dockerfile --target test .` | 34 tests passed (both) |
+| fetch tool (node --test) | `docker run … m8-node node --test "scripts/basemap/tests/*.test.mjs"` and `docker build -f infra/basemap/Dockerfile --target test .` | 34 tests passed (both while building; after the review fixes re-run with `node --test` — the `test` stage runs the same files) |
 | Caddy routes | `scripts/tests/caddy/run.sh` | all passed (new: byte ranges, headers, hidden / traversal, 204 when not installed; the same base map checks on a root below a dot directory, as in native mode) |
-| Cloud Run | `scripts/cloudrun/tests/run.sh` parts shellcheck + pytest | shellcheck clean; pytest 82 passed, 3 failed — the same 3 fail on the M8 base commit (see Known issues) |
+| Cloud Run | `scripts/cloudrun/tests/run.sh` parts shellcheck + pytest | shellcheck clean (incl. `basemap.sh` via `deploy.sh -x`, `scripts/basemap/{fetch,export}.sh`); pytest 83 passed, 3 failed — the same 3 fail on the M8 base commit (see Known issues) |
 | e2e | `e2e/playwright/tests/m8-basemap.spec.ts` | type-checked (`tsc --noEmit`); run by the integrator on the full stack |
 
 Manual checks done while building: a real `--profile lite` fetch into a scratch volume (29 MB,
@@ -342,6 +344,10 @@ From the **design brief** (simplifications and corrections):
 7. The spec doc number is **127** (overview allocation), not 120.
 8. `KEELSON_BASEMAP` is a commented line in `.env.example` (compose defaults it), so `init_secrets.py`
    and the Cloud Run secret-wiring test stay untouched.
+9. Traversal attempts under `/basemap/` (`/basemap/../x`, `/basemap/%2e%2e/x`) are not answered 404 by
+   the base map route: Caddy decodes and cleans the path first, so they leave `/basemap/*` and are
+   ordinary keelson-web requests (session gate / page 404) — never a file outside the root (route
+   test `basemap_hidden_and_no_traversal`). Listings and dotfiles inside `/basemap/` are 404.
 
 ## 10. Deferred
 
@@ -376,6 +382,11 @@ From the **design brief** (simplifications and corrections):
   service behind the same path is the alternative.
 - Deleting the `basemap` volume (e.g. a Docker volume clean-up) silently returns the map to
   OpenFreeMap / the outline until `scripts/basemap/fetch.sh` is run again (~1–3 min).
+- A browser tab keeps the manifest it read for the page's lifetime. A re-install with a new build
+  and the default `--keep 1` (or the Cloud Run pruning rsync) deletes the archive such a tab still
+  reads: its maps show missing tiles in areas / zooms it had not loaded yet (single-tile errors do not
+  switch the base map) until the page is reloaded. Use `--keep 2` when re-installing under load (the
+  free-space check already reserves room for two archives).
 
 ## 12. Integration notes
 

@@ -46,8 +46,12 @@ export const SPRITE_THEMES = Object.freeze(["light", "dark"]);
 export const GLYPHS_TEMPLATE = "fonts/{fontstack}/{range}.pbf";
 export const LICENSE_FILES = Object.freeze(["LICENSES/NOTICE.md", "LICENSES/OFL.txt", "LICENSES/sprites-MIT.md"]);
 
-/** A relative asset path: no scheme, no leading slash, no `..`/`.` segment, no backslash. */
-const SAFE_PATH = /^[A-Za-z0-9 ._{}@-]+(?:\/[A-Za-z0-9 ._{}@-]+)*$/;
+/**
+ * A relative asset path: no scheme, no leading slash, no `..`/`.` segment, no backslash, no `{`/`}`
+ * (URL template placeholders; the glyphs template is checked as a literal). Same rule as the
+ * browser's `basemapManifestSchema` paths.
+ */
+const SAFE_PATH = /^[A-Za-z0-9 ._@-]+(?:\/[A-Za-z0-9 ._@-]+)*$/;
 export function isSafeRelativePath(p) {
   return typeof p === "string" && p.length <= 200 && SAFE_PATH.test(p) && !p.split("/").some((s) => s === "." || s === "..");
 }

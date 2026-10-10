@@ -447,3 +447,95 @@ def test_no_reset_refuses_cases_with_signal_turns() -> None:
                                              "teardown": _signal_case().teardown.model_copy(update={"reset_merxa": False})})
     result = run_live.run_case(live, case, "stamp")
     assert result.error and "inject" in result.error
+
+
+# ─────────────────────────────── M8: hooks, stop codes, usage ───────────────────────────────
+
+
+def _usage_final(final: dict[str, Any], tokens: int) -> dict[str, Any]:
+    row = {"calls": 2, "replayed": 0, "prompt_tokens": tokens - 100, "completion_tokens": 100,
+           "reasoning_tokens": 0, "total_tokens": tokens, "latency_ms": 900, "cost_usd": 0.002}
+    return {**final, "metadata": {"usage": {"trace_id": "t", "total": row, "agents": {"planner": row}}}}
+
+
+def test_hooks_run_in_order_and_usage_is_exact() -> None:
+    stack = FakeStack()
+    _script(stack)
+    stack.script["run-1"].final = _usage_final(stack.script["run-1"].final, 1000)
+    stack.script["run-2"].final = _usage_final(stack.script["run-2"].final, 4000)
+    stack.on_follow["run-2"] = lambda: stack.audit.append({
+        "id": 11, "action": "untrusted_text.flagged", "target": "list_supplier_messages:ev_1",
+        "after": {"case_id": "case-1", "by": "guard"}})
+    seen: list[str] = []
+    hooks = run_live.CaseHooks(
+        on_case_created=lambda cid: seen.append(f"created:{cid}:{len([c for c in stack.calls if c[0] == 'POST' and c[1].endswith('/messages')])}"),
+        on_turn_started=lambda t: seen.append(f"start:{t.id}"),
+        on_turn_finished=lambda t, tr: seen.append(f"done:{t.id}:{tr.final_code}"),
+        stop_reason=lambda: None,
+    )
+    result = run_live.run_case(run_live.Live(fake_ts(stack), _args()), _adversarial_case(), "STAMP", hooks)
+    # the case is linked before its first message is posted
+    assert seen == ["created:case-1:0", "start:report", "done:report:None", "start:probe", "done:probe:None"]
+    assert result.status == "pass", [c for c in result.all_checks() if not c.ok]
+    assert result.turns[0].usage is not None and result.turns[0].usage["total"]["total_tokens"] == 5000
+    assert result.turns[0].usage["runs"] == 2 and result.turns[0].usage["total"]["cost_microusd"] == 4000
+    assert result.usage is not None and result.usage["total"]["total_tokens"] == 5000  # probe run reported none
+    doc = result.to_json()
+    assert doc["usage"]["total"]["total_tokens"] == 5000 and doc["duration_ms"] >= 0 and doc["error_code"] is None
+
+
+def test_attach_failure_aborts_before_any_message() -> None:
+    stack = FakeStack()
+    _script(stack)
+
+    def refuse(case_id: str) -> None:
+        raise RuntimeError("attach refused")
+
+    result = run_live.run_case(run_live.Live(fake_ts(stack), _args()), _adversarial_case(), "STAMP",
+                               run_live.CaseHooks(on_case_created=refuse))
+    assert result.status == "error" and "attach refused" in str(result.error)
+    assert not any(m == "POST" and u.endswith("/messages") for m, u, _b in stack.calls)
+    assert [c[0] for c in stack.calls].count("RESET") == 2  # the teardown reset still runs
+
+
+def test_replay_miss_stops_the_case_as_an_error() -> None:
+    stack = FakeStack()
+    _script(stack)
+    stack.script["run-1"] = FakeRun("run-1", {"type": "RUN_ERROR", "code": "LLM_REPLAY_MISS", "message": "x"})
+    result = run_live.run_case(run_live.Live(fake_ts(stack), _args()), _adversarial_case(), "STAMP")
+    assert result.status == "error" and result.error_code == "replay_miss"
+    assert len(result.turns) == 1 and result.turns[0].final_code == "LLM_REPLAY_MISS"
+    assert stack.actions == []  # the apply probe never ran
+    assert result.to_json()["turns"][0]["final_code"] == "LLM_REPLAY_MISS"
+
+
+def test_stop_reason_before_a_turn() -> None:
+    stack = FakeStack()
+    _script(stack)
+    reasons = iter([None, "cancelled"])
+    result = run_live.run_case(run_live.Live(fake_ts(stack), _args()), _adversarial_case(), "STAMP",
+                               run_live.CaseHooks(stop_reason=lambda: next(reasons)))
+    assert result.status == "cancelled" and result.error_code == "cancelled"
+    assert [t.id for t in result.turns] == ["report"] and stack.actions == []
+    assert [c[0] for c in stack.calls].count("RESET") == 2
+
+
+def test_cli_doc_is_v2_with_mode_label_and_suite_hash(tmp_path: Path, monkeypatch: Any) -> None:
+    stack = FakeStack()
+    stack.script["run-1"] = FakeRun("run-1", {"type": "RUN_FINISHED", "outcome": {"type": "success"}},
+                                    blocks=dict(ANALYSIS_BLOCKS))
+    cases_dir = tmp_path / "cases"
+    cases_dir.mkdir()
+    (cases_dir / "q.yaml").write_text("id: q\ntitle: Q\nturns:\n  - id: a\n    message: hi\n", encoding="utf-8")
+    monkeypatch.setattr(run_live, "load_e2e", lambda root: fake_ts(stack))
+    code = run_live.main(["--cases-dir", str(cases_dir), "--results-dir", str(tmp_path / "out"), "--tokens-wait", "0",
+                          "--mode-label", "replay"])
+    assert code == 0
+    import json as _json
+
+    [path] = list((tmp_path / "out").glob("*.json"))
+    doc = _json.loads(path.read_text(encoding="utf-8"))
+    assert doc["schema"] == "keelson-evals/2" and doc["mode"] == "replay" and doc["runner"] == "cli"
+    assert len(doc["suite_hash"]) == 64
+    turn = doc["cases"][0]["turns"][0]
+    assert {"timings_ms", "usage", "final_code"} <= set(turn) and "timings_s" in turn

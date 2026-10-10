@@ -206,6 +206,66 @@
       "title": "DemoResetResult"
     },
     {
+      "file": "evals.case-result.schema.json",
+      "name": "evals.case-result",
+      "source": "keelson_contracts.evals.EvalCaseResult",
+      "title": "EvalCaseResult"
+    },
+    {
+      "file": "evals.compare.schema.json",
+      "name": "evals.compare",
+      "source": "keelson_contracts.evals.EvalCompare",
+      "title": "EvalCompare"
+    },
+    {
+      "file": "evals.run.schema.json",
+      "name": "evals.run",
+      "source": "keelson_contracts.evals.EvalRun",
+      "title": "EvalRun"
+    },
+    {
+      "file": "evals.run-create.schema.json",
+      "name": "evals.run-create",
+      "source": "keelson_contracts.evals.EvalRunCreate",
+      "title": "EvalRunCreate"
+    },
+    {
+      "file": "evals.run-detail.schema.json",
+      "name": "evals.run-detail",
+      "source": "keelson_contracts.evals.EvalRunDetail",
+      "title": "EvalRunDetail"
+    },
+    {
+      "file": "evals.run-event.schema.json",
+      "name": "evals.run-event",
+      "source": "keelson_contracts.evals.EvalRunEvent",
+      "title": "EvalRunEvent"
+    },
+    {
+      "file": "evals.status.schema.json",
+      "name": "evals.status",
+      "source": "keelson_contracts.evals.EvalsStatus",
+      "title": "EvalsStatus"
+    },
+    {
+      "file": "evals.suite.schema.json",
+      "name": "evals.suite",
+      "source": "keelson_contracts.evals.EvalSuiteInfo",
+      "title": "EvalSuiteInfo"
+    },
+    {
+      "file": "evals.threshold.schema.json",
+      "name": "evals.threshold",
+      "source": "keelson_contracts.evals.EvalThreshold",
+      "title": "EvalThreshold"
+    },
+    {
+      "file": "evals.trends.schema.json",
+      "name": "evals.trends",
+      "source": "keelson_contracts.evals.EvalTrends",
+      "title": "EvalTrends"
+    },
+    {
       "file": "llm.claim.schema.json",
       "name": "llm.claim",
       "source": "keelson_contracts.llm.Claim",

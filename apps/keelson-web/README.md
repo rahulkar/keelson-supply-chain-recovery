@@ -416,6 +416,7 @@ Engine routes as implemented in `services/engine/.../api/routes_admin_m7.py` (sh
   links; admin rows' before / after diff) above the M2 admin audit log. **Evals** (platform admins,
   `GET /api/admin/evals?limit=10`): summary tiles, cases with result, checks passed (engine counts),
   score columns, failures; unreadable result files and a missing results mount are explained.
+  M8 replaced this page with the Evals UI below.
 
 Tests: `test/m7.test.tsx` with `test/fixtures/m7.ts` (fixtures checked against the generated
 contracts): change-request rules (self-approval, expiry, 202 parsing), Pending changes (own
@@ -454,6 +455,26 @@ Tests: `test/m8-signals.test.tsx` with `test/fixtures/m8-signals.ts` (fixtures c
 generated contracts): tolerant parsing, rows and chips, the drawer section with axe and a plain-text
 HTML-looking headline, hidden without memberships, the admin section read-only (axe) and editable
 (validation, exact PUT body, 409 message), hidden on 404.
+### M8 Evals UI (`docs/contracts/128-m8-evals-ui.md` §6)
+
+Platform admins only (page gate + engine 403). Client: `src/lib/admin/evalRuns.ts` (parsing with the
+generated `evals*` schemas, formatting, run-request / import pre-checks, drill-down helpers) and the
+`AdminApi` evals methods; components in `src/components/admin/evals/`.
+
+- `/admin/evals` — status card (runner online / offline with the start hint, engine mode, suite,
+  live caps or why live is off, recordings coverage + "replay runs will stop at the first model call"
+  warning), active run (`EvalProgress`: polls `events?after=` every 2 s while queued / running, stops
+  at a final status; live tokens / cost against the budget; Cancel), trends (All / Replay / Live,
+  `@keelson/viz` `TrendChart` small multiples with targets, case × run status strip), runs table (pick
+  two → Compare), results folder (Import / Import all new). Dialogs: `NewEvalRunDialog` (mode reasons,
+  case checklist, reset acknowledgement, live budget + typed `RUN LIVE`), `ImportEvalsDialog`
+  (`.json` ≤ 8 MiB, early checks, duplicate notice).
+- `/admin/evals/runs/[runId]` — summary, threshold outcomes (targets, never gates), progress, cases,
+  adversarial matrix, Export JSON, Compare with previous.
+- `/admin/evals/runs/[runId]/cases/[caseId]` — tabs Checks, Trajectory, Entities, Latency, Usage,
+  Adversarial. `/admin/evals/compare?base=&head=` — deltas and case changes (regressed / fixed toned).
+- Result text (check details, errors) is plain text: no markdown, no links. Tests:
+  `test/m8-evals.test.tsx` with `test/fixtures/m8-evals.ts`.
 
 ## Develop & test (Docker only — no Node toolchain on the host)
 

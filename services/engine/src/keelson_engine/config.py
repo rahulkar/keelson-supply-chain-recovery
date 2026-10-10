@@ -183,6 +183,23 @@ class Settings(BaseSettings):
     scn_crawl_max_rows: int = Field(default=2_000_000, ge=1000, le=10_000_000)
     """Upper bound of the rows one tier-A crawl may load."""
 
+    # ── M8 Evals UI (128) ────────────────────────────────────────────────────
+    evals_runner_token: SecretStr = SecretStr("")
+    """Bearer token of the in-app eval runner (``/api/internal/evals/runner/*``, compose service
+    ``evals-runner``); empty = the runner API answers 404 and in-app runs are unavailable."""
+    evals_live_enabled: bool = False
+    """Allow live (model-calling) eval runs. Replay runs never call a provider and need no switch."""
+    evals_live_max_tokens: int = Field(default=3_000_000, ge=1, le=50_000_000)
+    """Hard cap of one live run's token budget (admins choose a budget up to it)."""
+    evals_live_max_cost_microusd: int = Field(default=5_000_000, ge=1, le=100_000_000)
+    """Hard cap of one live run's cost budget (integer micro-USD; LiteLLM prices in USD)."""
+    evals_runner_stale_s: int = Field(default=60, ge=10, le=3600)
+    """A runner not seen for longer is offline (no new runs can start)."""
+    evals_lease_s: int = Field(default=180, ge=30, le=3600)
+    """Lease of a claimed run; every runner call renews it, an expired one ends the run (runner_lost)."""
+    evals_max_import_bytes: int = Field(default=8 * 1024 * 1024, ge=1024, le=64 * 1024 * 1024)
+    """Largest results document ``POST /api/admin/evals/import`` (and the folder import) accepts."""
+
     # ── runs ─────────────────────────────────────────────────────────────────
     run_lease_seconds: int = 60
     event_stream_maxlen: int = 1000

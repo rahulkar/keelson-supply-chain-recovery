@@ -1,7 +1,9 @@
 /**
  * Evals results (`docs/contracts/110` §6): `GET /api/admin/evals` (platform admins) lists the
  * latest `evals/results/<UTC stamp>.json` files (schema `keelson-evals/1`, written by
- * `evals/run_live.py`; mounted read-only) with per-case scores. There is no in-app runner.
+ * `evals/run_live.py`; mounted read-only) with per-case scores. M8 (`docs/contracts/128`): the Evals page
+ * shows this listing as its "Results folder" (`GET /api/admin/evals/files` adds `imported_run_id`);
+ * runs, history and drill-down live in `./evalRuns.ts`.
  *
  * The engine answers `{items: [{run, file, error, schema, started_at, finished_at, summary,
  * cases: [{id, title, tags, status, duration_s, checks, checks_failed, scores}]}],

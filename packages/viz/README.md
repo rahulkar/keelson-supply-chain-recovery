@@ -282,6 +282,15 @@ provider. `tests/setup.ts` answers every un-stubbed `fetch` with 404 (no test re
   after the M5 ones. Tests: `tests/m6.test.tsx` (contract validation, content, untrusted title as
   text, invalid id, vocabulary, axe).
 
+## M8 (docs/contracts/128 — Evals UI)
+
+- **TrendChart** (`src/charts/TrendChart.tsx`): `TrendChart({data: [{label, value | null}], caption,
+  format?, threshold?: {value, label}, labelHeader?, height?})` — a small ECharts line chart of one
+  metric over runs (SVG renderer, modules loaded on demand like `BarChart`, token colours, `null` =
+  a gap), with an optional dashed target line. The drawing is `aria-hidden`; every point and the
+  target are in a visually hidden table named by the caption. No new dependency (echarts 6.1.0).
+  Tests: `tests/TrendChart.test.tsx`.
+
 ## M7 (docs/contracts/110)
 
 - **Advisory label** (`src/blocks/Advisory.tsx`): plans built on a **crawled** snapshot (tier-A

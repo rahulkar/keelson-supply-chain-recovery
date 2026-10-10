@@ -85,6 +85,11 @@ def test_expected_schema_set(script: ModuleType) -> None:
         *(f"signals.{n}.schema.json" for n in (
             "event-membership", "clustering-config", "clustering-config-update", "clustering-status",
         )),
+        # M8 (128): Evals UI
+        *(f"evals.{n}.schema.json" for n in (
+            "status", "run", "run-detail", "run-create", "run-event", "case-result", "compare", "trends",
+            "threshold", "suite",
+        )),
     }
     assert names == expected
 

@@ -115,6 +115,31 @@ export {
 } from "./generated";
 export * from "./backoffice";
 
+// M8 (docs/contracts/128): Evals UI — in-app runs, history, case drill-down, compare, trends.
+export {
+  evalsCaseResultSchema,
+  evalsCompareSchema,
+  evalsRunCreateSchema,
+  evalsRunDetailSchema,
+  evalsRunEventSchema,
+  evalsRunSchema,
+  evalsStatusSchema,
+  evalsSuiteSchema,
+  evalsThresholdSchema,
+  evalsTrendsSchema,
+  type EvalsCaseResult,
+  type EvalsCompare,
+  type EvalsRun,
+  type EvalsRunCreate,
+  type EvalsRunDetail,
+  type EvalsRunEvent,
+  type EvalsStatus,
+  type EvalsSuite,
+  type EvalsThreshold,
+  type EvalsTrends,
+} from "./generated";
+export * from "./evals";
+
 /** Taxonomy event types (`data/taxonomy/events.yaml`; contracts-py `EVENT_TYPE_KEYS`). */
 export const EVENT_TYPE_KEYS = llmDisruptionExtractSchema.shape.event_type.options;
 export type EventTypeKey = (typeof EVENT_TYPE_KEYS)[number];

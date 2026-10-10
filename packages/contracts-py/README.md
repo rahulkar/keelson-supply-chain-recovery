@@ -32,6 +32,7 @@ validation of every built AG-UI event against the official models.
 | `mapping` | M7 tier-A `ReadMapping` (`EntityMapping`, `ReadSource`, `StaticLookup` / `SourceLookup`), `ActionMapping` (`ActionOpMapping`, `Readback`), dry-run `ActionDryRunRequest` / `ActionDryRunResult`; the safe expression grammar (`parse_expression` → AST `PathExpr` / `ConstExpr` / `CallExpr` / `ConcatExpr`, `parse_path`, `Expression`, `JsonPathLite`), argument templates (`template_refs`), `action_mapping_violations`, `unmapped_ops`, `required_scn_columns` |
 | `commit` | M7 per-op `CommitLedgerEntry` (`attempted`, `succeeded`, `in_doubt`, `failed`, `verified`; `LedgerReadback`), `ledger_next_action`, `atomic_group_bulk_allowed` |
 | `scn` | `scn/1.0` row models per entity (`SCN_ROW_MODELS`, `SCN_COLUMNS` in contract order, `parse_row`, `to_e6`), `SnapshotManifest`, `SnapshotExport`, `ChangesSince`, `SnapshotStatus`, `part_uri_allowed`; M7 `SnapshotConsistency`, `AsOfRange`, `SnapshotLabel`, `CRAWLED_ADVISORY_TEXT` |
+| `evals` | M8 Evals UI: `EvalCaseResult` (+ turns, checks, trajectory, entities, latency, usage), `EvalRunSummary`, `EvalThreshold` + `DEFAULT_EVAL_THRESHOLDS` + `evaluate_thresholds`, `EvalRunCreate` + `eval_run_create_error`, API views (`EvalRun`, `EvalRunDetail`, `EvalRunEvent`, `EvalCompare`, `EvalTrends`, `EvalsStatus`), runner protocol (`EvalSuiteInfo`, `EvalRunnerJob`, `EvalRunEventIn`), the results file format (`results_doc_to_case_results`, `case_result_from_doc` / `case_result_to_doc`, `results_doc_sha256`) |
 
 Submodules are imported explicitly (`from keelson_contracts.blocks import make_block`).
 
@@ -362,6 +363,28 @@ Submodules are imported explicitly (`from keelson_contracts.blocks import make_b
   one count per method, pending / failed embedding jobs).
 - **Schemas.** `signals.event-membership|clustering-config|clustering-config-update|clustering-status`;
   `signals.alert-detail` gains the optional `memberships`.
+## M8 additions (`128-m8-evals-ui.md`, new module `evals`)
+
+- **Integer units.** Ratios `*_bp`, latencies `*_ms`, cost `cost_microusd` (LiteLLM prices in USD; never
+  mixed with the gateway's EUR budgets), tokens. Floats exist only in the CLI's results files:
+  `keelson-evals/1` (M4–M7) and `keelson-evals/2` (a superset that adds the integer fields, per-turn
+  `trajectory` / `entities` / `targets` / `usage` / `final_code`, per-case `usage` / `error_code`, the run's
+  `mode` / `runner` / `suite_hash`). `case_result_from_doc` converts one case of either (half-up:
+  `0.9 → 9000 bp`, `226.21 s → 226210 ms`; `metrics.tokens` = the approximate gateway delta →
+  `tokens_gateway`); `case_result_to_doc` is its inverse and round-trips exactly.
+- **Untrusted input.** Imports and runner reports: only known fields are read, control / zero-width /
+  bidi characters stripped, strings truncated, lists capped (100 cases, 20 turns, 300 checks per turn,
+  100 trajectory calls), a case result ≤ 1 MiB (details shortened, else refused). `keelson_case_id`
+  keeps only id characters; `keelson_url` becomes a `target` label.
+- **Identity.** `results_doc_sha256(header, cases)` hashes the normalised content (start/finish second,
+  mode, suite hash, converted cases) so a file, its re-serialisation and the engine's export dedupe.
+- **Thresholds.** Targets, never gates: `EvalThreshold {metric, op (fixed per metric, `METRIC_OPS`),
+  value, modes}`; `evaluate_thresholds` → `ok | breach | not_measured | not_applicable` (latency, token
+  and cost targets apply to live and `unknown` runs only).
+- **Requests.** `EvalRunCreate {mode = replay, case_ids?, acknowledge_reset: true, confirm_live?,
+  budget?, note?}`; `eval_run_create_error` → `confirm_required` (live needs `RUN LIVE`),
+  `budget_required`, `budget_too_high` (above `EVALS_LIVE_MAX_*`).
+- **Schemas.** `evals.status|run|run-detail|run-create|run-event|case-result|compare|trends|threshold|suite`.
 
 ## Develop (inside Docker, per `docs/contracts/60-build-guide.md`)
 

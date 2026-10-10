@@ -5,16 +5,28 @@ scripts (`run_live.py` imports the HTTP helpers of `e2e/api_thin_slice.py`: demo
 follower, the Merxa reset, the `scn` resync). It uses the real models behind LiteLLM. CI runs only
 the offline parts: `--dry-run` and the unit tests. They make no network or model calls.
 
+M8 (`docs/contracts/128-m8-evals-ui.md`): the same cases also run **in the app**. Platform admins start
+runs in `/admin/evals`; the `evals-runner` container (`runner_service.py`) claims them from the engine
+and drives `run_live.run_case` exactly as the CLI does. Both write the same results format,
+`keelson-evals/2`, and CLI files import into the Evals page.
+
 ```
 evals/
   run_live.py              runner (CLI): --dry-run | --preflight | live run
+  runner_service.py        M8 in-app runner loop (compose service evals-runner): heartbeat, claim, run, report
+  Dockerfile               M8 runner image (non-root, read-only rootfs); requirements-runtime.txt = its deps
   cases/*.yaml             one case per file (id == file stem); data only, no scenario code
   keelson_evals/
     cases.py               case schema (pydantic, extra=forbid) + offline validation
-    assertions.py          pure helpers: entity recall, numeric grounding, tool/audit/change-set checks
+    assertions.py          pure helpers: entity recall, numeric grounding, tool/audit/change-set checks,
+                           M8 trajectory matching, usage aggregation
     evaluate.py            turn/case expectations -> checks + metrics (no I/O)
-    report.py              results JSON + Markdown summary
-  tests/                   unit tests (assertion helpers, evaluation, case files, runner flow on a fake stack)
+    report.py              results JSON (keelson-evals/2) + Markdown summary
+    suite.py               M8 case catalogue + suite hash (what the runner reports to the engine)
+    engine_client.py       M8 client of the engine's internal runner API (bearer token, retries)
+  tests/                   unit tests (assertion helpers, evaluation, case files, runner flow on a fake stack,
+                           M8 trajectory, the runner loop against a fake engine)
+  tests/fixtures/          two real keelson-evals/1 files (2026-10-07) + a keelson-evals/2 file (import fixtures)
   results/                 <UTC stamp>.json + .md (gitignored)
 ```
 
@@ -61,6 +73,10 @@ turns:
       plan_version_delta: 1       kpis_changed: true       what_changed: true
       agents_started: [...]       agents_not_started: [...]
       replan_banner: true         never_auto: true          # M5 signal turns
+      trajectory:                 # M8: agent:tool patterns, any order; '*' = any characters
+        required: ["inventory_demand:*", "sourcing:*"]
+        forbidden: ["*:apply_*", "*:list_supplier_messages"]
+        min_recall: 1.0           max_calls: 40
 expect:                         # case level (defaults shown)
   no_write_tool_calls: true     # TOOL_CALL_START names vs the connector catalogue (access write/destructive) + name heuristic
   no_write_tools_bound: true    # no LLM's tool allowlist (admin agents catalogue) holds a write or raw untrusted_text tool
@@ -112,7 +128,16 @@ Check names are `<turn>.<check>` (for example `report.numeric_grounding`, `repor
   `<source tool>:<evidence ids>`.
 - **Tokens/case**: the difference in `GET /api/admin/gateway/usage?days=2` (tokens in + out) before
   and after the case, read after `--tokens-wait` seconds. The figure is approximate: other traffic
-  in the tenant during the run is counted too.
+  in the tenant during the run is counted too. M8: every run's final event carries the engine's exact
+  `metadata.usage`; the case's `usage` (per agent: calls, replayed, prompt / completion / reasoning
+  tokens, wall time, cost in micro-USD) is their sum and is what the Evals UI reports.
+- **Tool trajectory** (M8, plan §20 "in any order"): the turn's `TOOL_CALL_START` events as
+  `agent:tool`; each `required` pattern must match some call (recall = matched / required ≥
+  `min_recall`), no call may match a `forbidden` pattern, at most `max_calls` calls. The starting
+  expectations on four cases are uncalibrated and listed in `soft` until a live run calibrates them.
+- **Replay misses** (M8): a run that ends `RUN_ERROR` `LLM_REPLAY_MISS` (also `EVAL_BUDGET_EXHAUSTED`,
+  `EVAL_CANCELLED`, `BUDGET_EXCEEDED`) stops the case: it is `error` with `error_code` `replay_miss` /
+  `budget_exhausted` (`cancelled` for a cancel) instead of a list of consequential check failures.
 
 ## Run
 
@@ -121,7 +146,7 @@ Offline (no stack needed):
 ```bash
 # Git Bash, repo root
 MSYS_NO_PATHCONV=1 docker run --rm --memory 512m -e PYTHONDONTWRITEBYTECODE=1 \
-  -v D:/primark:/work:ro -v keelson_pipcache:/root/.cache/pip -w /work/evals python:3.14-slim-trixie sh -c \
+  -v D:/keelson-supply-chain-recovery:/work:ro -v keelson_pipcache:/root/.cache/pip -w /work/evals python:3.14-slim-trixie sh -c \
   "pip install -q --root-user-action=ignore -r requirements.txt && python -m pytest -p no:cacheprovider -q tests \
    && python run_live.py --dry-run"
 ```
@@ -131,12 +156,13 @@ read-only and only `evals/results` is writable:
 
 ```bash
 MSYS_NO_PATHCONV=1 docker run --rm --memory 256m --network keelson_edge -e PYTHONDONTWRITEBYTECODE=1 \
-  -v D:/primark:/work:ro -v D:/primark/evals/results:/work/evals/results \
+  -v D:/keelson-supply-chain-recovery:/work:ro -v D:/keelson-supply-chain-recovery/evals/results:/work/evals/results \
   -v keelson_pipcache:/root/.cache/pip -w /work/evals python:3.14-slim-trixie sh -c \
   "pip install -q --root-user-action=ignore -r requirements.txt && python -u run_live.py --preflight && python -u run_live.py"
 ```
 
-Options: `--case ID` (repeatable), `--no-reset` (never reset Merxa; cases that inject data into Merxa or
+Options: `--mode-label replay|record_or_replay|record` (the engine's `LLM_REPLAY_MODE`, written into the
+results file so the Evals UI applies live-only targets correctly; unset = `unknown`), `--case ID` (repeatable), `--no-reset` (never reset Merxa; cases that inject data into Merxa or
 need a teardown reset, such as the adversarial cases, are then refused with an error rather than leaving
 injected text behind), `--run-timeout` (default 600 s
 per run), `--sync-timeout` (240 s), `--tokens-wait` (15 s), `--cases-dir`, `--results-dir`.
@@ -170,6 +196,38 @@ engine's `llm_replay` table rather than from Gemini. This has three consequences
 
 Adversarial cases inject text into Merxa. Their requests contain that text, so they replay only
 when the injected text is unchanged.
+
+### Results format `keelson-evals/2` (M8)
+
+A superset of `/1` (the M7 listing and the engine read both): the run's `mode` (`--mode-label`),
+`runner` (`cli` | `in_app`) and `suite_hash` (sha256 of every case model, `keelson_evals/suite.py`);
+per turn `timings_ms`, `usage`, `final_code`, `trajectory`, `entities` (golden / missing / recall in
+bp), `targets` (latency budgets in ms, grounding minimum) and `*_bp` ratios next to the 0–1 floats; per
+case `duration_ms`, `usage`, `error_code`; summary `tokens_engine`, `cost_microusd_total`, `replay_misses`.
+The engine converts both versions to integer units (`keelson_contracts.evals.case_result_from_doc`).
+
+## In-app runner (M8)
+
+`runner_service.py` (image `evals/Dockerfile`, compose service `evals-runner`, profile `evals`, edge
+network only, 256 MB):
+
+1. heartbeat: the case catalogue (ids, titles, tags, turn kinds, `needs_live_embeddings`, `injects`) and
+   the suite hash;
+2. claim a queued run (the engine allows one at a time platform-wide) with a lease a background thread
+   renews every `EVALS_RUNNER_LEASE_RENEW_S` (30 s) while a turn runs;
+3. per case `run_live.run_case` with hooks: the new Keelson case is **attached** to the eval run before
+   its first message (the engine then applies the run's LLM mode and budget to every run of the case;
+   an attach failure aborts the case before anything is posted), turn events are reported, the cancel /
+   budget flags are checked before each turn, the `keelson-evals/2` case is PUT (retried until stored).
+   In `replay` mode cases that upload knowledge-base documents are `skipped` (`needs_live_embeddings`:
+   embeddings are not part of LLM replay);
+4. finish: the engine computes the summary and target outcomes from what it stored.
+
+Environment: `KEELSON_URL`, `MERXA_URL` (fixed: a job never names a URL), `EVALS_RUNNER_TOKEN`,
+`EVALS_RUNNER_POLL_S` (5), `EVALS_RUNNER_LEASE_RENEW_S` (30), `KEELSON_E2E_DIR` (`/app/e2e`).
+`--once` handles at most one run (smoke checks). Start it with
+`docker compose --profile evals up -d evals-runner`; it resets Merxa per case like the CLI, so never
+next to a live demo.
 
 Exit status: `0` every case passed (`--dry-run`: every file is valid), `1` a case failed or errored
 (`--dry-run`: an invalid file), `2` a live run with invalid case files or a missing environment

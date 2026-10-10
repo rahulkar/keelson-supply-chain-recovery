@@ -22,6 +22,7 @@ __all__ = [
     "CaseError",
     "CaseExpect",
     "Setup",
+    "TrajectoryExpect",
     "Turn",
     "TurnExpect",
     "check_names",
@@ -128,6 +129,29 @@ class EntitiesExpect(_M):
     min_recall: Ratio = 1.0
 
 
+TOOL_PATTERN = r"^[A-Za-z0-9_.*-]{1,80}:[A-Za-z0-9_.*-]{1,120}$"
+ToolPattern = Annotated[str, Field(pattern=TOOL_PATTERN)]
+
+
+class TrajectoryExpect(_M):
+    """(M8) Tool trajectory in any order (plan §20 "tool trajectory in any order"): ``agent:tool``
+    patterns over the turn's ``TOOL_CALL_START`` events; ``*`` matches any run of characters
+    (``inventory_demand:*``, ``*:apply_*``). ``required`` patterns must each match at least one
+    call (recall = matched / required ≥ ``min_recall``), ``forbidden`` ones none, and the turn
+    makes at most ``max_calls`` tool calls."""
+
+    required: list[ToolPattern] = Field(default_factory=list)
+    forbidden: list[ToolPattern] = Field(default_factory=list)
+    min_recall: Ratio = 1.0
+    max_calls: Annotated[int, Field(ge=0)] | None = None
+
+    @model_validator(mode="after")
+    def _something(self) -> TrajectoryExpect:
+        if not self.required and not self.forbidden and self.max_calls is None:
+            raise ValueError("give required, forbidden and/or max_calls")
+        return self
+
+
 class GroundingExpect(_M):
     min: Ratio = 1.0
     """Share of digit-bearing narrative tokens traceable to the case's structured data."""
@@ -202,6 +226,8 @@ class TurnExpect(_M):
     """(M5, ``95`` §1 rule 2) Nothing the turn compiled was approved by policy: no commit tracker,
     every approval card asks for people, and no Merxa change set newly reached a committed status
     while the turn ran."""
+    trajectory: TrajectoryExpect | None = None
+    """(M8) Expected / forbidden ``agent:tool`` calls, in any order."""
 
 
 class SignalTurn(_M):
@@ -331,7 +357,7 @@ def check_names(case: Case) -> set[str]:
         names |= {p + f"block:{k}" for k in e.blocks_present} | {p + f"no_block:{k}" for k in e.blocks_absent}
         for attr in ("case_mode", "options", "recommended_lost_units", "affected_entities", "numeric_grounding",
                      "latency_s", "exposure", "answer", "plan_version_delta", "kpis_changed", "what_changed",
-                     "replan_banner", "never_auto"):
+                     "replan_banner", "never_auto", "trajectory"):
             if getattr(e, attr) is not None:
                 names.add(p + attr)
         if e.numeric_grounding is not None:

@@ -68,12 +68,35 @@ import {
   type PolicyRuleView,
   type PolicyTestResult,
 } from "./policies";
-import type { AdminUserCreate, AdminUserPatch, MappingDryRunRequest, PolicyContext } from "@keelson/contracts";
+import type { AdminUserCreate, AdminUserPatch, EvalsCompare, EvalsRunCreate, MappingDryRunRequest, PolicyContext } from "@keelson/contracts";
 import { z } from "zod";
 import { ApiError } from "../api/client";
 import { changeRequestAnswerSchema, changeRequestListSchema, guardedSchemaFor, pendingCountSchema, type ChangeRequest, type Guarded } from "./changeRequests";
 import { activityPageSchema, isAuditCategory, type ActivityPage, type ActivityQuery } from "./audit";
 import { evalsResponseSchema, type EvalList } from "./evals";
+import {
+  evalCaseResultSchema,
+  evalCompareSchema,
+  evalEventsSchema,
+  evalFilesSchema,
+  evalRunDetailSchema,
+  evalRunListSchema,
+  evalRunSchema,
+  evalStatusSchema,
+  evalTrendsSchema,
+  folderImportSchema,
+  importAnswerSchema,
+  type EvalCaseResult,
+  type EvalEvents,
+  type EvalFiles,
+  type EvalRun,
+  type EvalRunDetail,
+  type EvalRunList,
+  type EvalStatusData,
+  type EvalTrendsData,
+  type FolderImport,
+  type ImportAnswer,
+} from "./evalRuns";
 import { playgroundStatusSchema, type PlaygroundStatus } from "./playground";
 import {
   capabilitiesSchema,
@@ -601,5 +624,70 @@ export class AdminApi {
   /** Latest eval runs (platform admins; read from the mounted `evals/results`). */
   evals(): Promise<EvalList> {
     return this.api.call("/api/admin/evals?limit=10", { schema: evalsResponseSchema });
+  }
+
+  // M8 Evals UI (docs/contracts/128 §4): platform admins only.
+  evalsStatus(): Promise<EvalStatusData> {
+    return this.api.call("/api/admin/evals/status", { schema: evalStatusSchema });
+  }
+
+  evalRuns(q: { limit?: number; before?: string | null; mode?: string | null; source?: string | null } = {}): Promise<EvalRunList> {
+    const params = new URLSearchParams({ limit: String(Math.min(100, Math.max(1, Math.floor(q.limit ?? 20)))) });
+    if (q.before) params.set("before", uuidSeg(q.before));
+    if (q.mode) params.set("mode", q.mode);
+    if (q.source) params.set("source", q.source);
+    return this.api.call(`/api/admin/evals/runs?${params.toString()}`, { schema: evalRunListSchema });
+  }
+
+  /** `409 evals_unavailable {reason}` / `eval_running`, `422 unknown_cases` / `confirm_required` / `budget_*`. */
+  createEvalRun(body: EvalsRunCreate): Promise<EvalRun> {
+    return this.api.call("/api/admin/evals/runs", { method: "POST", body, schema: evalRunSchema });
+  }
+
+  evalRun(runId: string): Promise<EvalRunDetail> {
+    return this.api.call(`/api/admin/evals/runs/${uuidSeg(runId)}`, { schema: evalRunDetailSchema });
+  }
+
+  evalRunEvents(runId: string, after = 0): Promise<EvalEvents> {
+    return this.api.call(`/api/admin/evals/runs/${uuidSeg(runId)}/events?after=${Math.max(0, Math.floor(after))}`, { schema: evalEventsSchema });
+  }
+
+  evalCase(runId: string, caseId: string): Promise<EvalCaseResult> {
+    return this.api.call(`/api/admin/evals/runs/${uuidSeg(runId)}/cases/${safeSeg(caseId)}`, { schema: evalCaseResultSchema });
+  }
+
+  cancelEvalRun(runId: string): Promise<EvalRun> {
+    return this.api.call(`/api/admin/evals/runs/${uuidSeg(runId)}/cancel`, { method: "POST", schema: evalRunSchema });
+  }
+
+  /** Same-origin download link of a finished run (`keelson-evals/2`, re-imports as the run). */
+  evalExportHref(runId: string): string {
+    return `/api/admin/evals/runs/${uuidSeg(runId)}/export`;
+  }
+
+  /** A parsed results document (`keelson-evals/1|2`); `200 duplicate: true` when it was imported before. */
+  importEvals(doc: Record<string, unknown>, fileName?: string | undefined): Promise<ImportAnswer> {
+    const q = fileName ? `?file_name=${encodeURIComponent(fileName.slice(0, 120))}` : "";
+    return this.api.call(`/api/admin/evals/import${q}`, { method: "POST", body: doc, schema: importAnswerSchema });
+  }
+
+  /** Every new file of the mounted results folder, or only `file` (a `<UTC stamp>.json` name). */
+  importEvalsFolder(file?: string | undefined): Promise<FolderImport> {
+    const q = file ? `?file=${encodeURIComponent(file.slice(0, 40))}` : "";
+    return this.api.call(`/api/admin/evals/import/folder${q}`, { method: "POST", schema: folderImportSchema });
+  }
+
+  evalFiles(): Promise<EvalFiles> {
+    return this.api.call("/api/admin/evals/files", { schema: evalFilesSchema });
+  }
+
+  compareEvalRuns(base: string, head: string): Promise<EvalsCompare> {
+    return this.api.call(`/api/admin/evals/compare?base=${uuidSeg(base)}&head=${uuidSeg(head)}`, { schema: evalCompareSchema });
+  }
+
+  evalTrends(mode: "all" | "replay" | "live" = "all", limit = 30): Promise<EvalTrendsData> {
+    const params = new URLSearchParams({ limit: String(Math.min(100, Math.max(2, Math.floor(limit)))) });
+    if (mode !== "all") params.set("mode", mode);
+    return this.api.call(`/api/admin/evals/trends?${params.toString()}`, { schema: evalTrendsSchema });
   }
 }

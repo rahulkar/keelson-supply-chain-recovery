@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from keelson_evals.assertions import Check
 from keelson_evals.report import CaseResult, TurnResult, case_status, render_markdown, summarise, write_results
 
@@ -53,3 +55,45 @@ def test_write_results_and_markdown(tmp_path: Path) -> None:
     assert "`b` soft `t.latency_s`" in md
     assert "`c` ERROR: create case: HTTP 500" in md
     assert render_markdown(doc) == md
+
+
+# ───────────────────────────── M8: keelson-evals/2 ─────────────────────────────
+
+
+def test_v2_case_shape_and_integer_fields() -> None:
+    from keelson_evals.report import SCHEMA
+
+    ok = _results()[0]
+    ok.turns[0].metrics.update({"trajectory": {"required": ["a:*"]}, "entities": {"golden": ["UK1"]},
+                                "targets": {"latency_ms": {"first_stage": 2000}}, "trajectory_recall": 0.5})
+    ok.turns[0].usage = {"runs": 1, "total": {"total_tokens": 10}, "agents": {}}
+    ok.usage = {"runs": 1, "total": {"total_tokens": 10, "cost_microusd": 25}, "agents": {}}
+    doc = ok.to_json()
+    turn = doc["turns"][0]
+    assert SCHEMA == "keelson-evals/2"
+    assert turn["timings_ms"] == {"first_stage": 1000, "exposure": 10000, "options": 90000, "total": 95000}
+    assert turn["trajectory"] == {"required": ["a:*"]} and turn["entities"] == {"golden": ["UK1"]}
+    assert turn["targets"] == {"latency_ms": {"first_stage": 2000}}
+    assert "trajectory" not in turn["metrics"] and turn["metrics"]["trajectory_recall_bp"] == 5000
+    assert doc["metrics"]["entity_recall_bp"] == 9000 and doc["metrics"]["entity_recall"] == 0.9  # v1 field kept
+    assert doc["duration_ms"] == 100_000 and doc["usage"]["total"]["total_tokens"] == 10
+    s = summarise([ok])
+    assert s["tokens_engine"] == 10 and s["cost_microusd_total"] == 25 and s["replay_misses"] == 0
+
+
+def test_status_order_skipped_cancelled_error() -> None:
+    assert case_status(None, [Check("x", False)], skipped="no embeddings", error_code="needs_live_embeddings") == "skipped"
+    assert case_status("stopped", [Check("x", True)], error_code="cancelled") == "cancelled"
+    assert case_status("turn report: LLM_REPLAY_MISS", [], error_code="replay_miss") == "error"
+    miss = CaseResult("m", "M", error="turn a: the run ended with LLM_REPLAY_MISS", error_code="replay_miss")
+    assert summarise([miss])["replay_misses"] == 1 and summarise([miss])["errors"] == 1
+
+
+def test_v2_documents_convert_with_the_contracts_when_installed() -> None:
+    contracts = pytest.importorskip("keelson_contracts.evals")
+    results = _results()
+    doc = {"schema": "keelson-evals/2", "started_at": "2026-10-07T10:00:00+00:00", "keelson_url": "http://k",
+           "mode": "replay", "runner": "cli", "cases": [r.to_json() for r in results], "summary": summarise(results)}
+    header, cases = contracts.results_doc_to_case_results(json.loads(json.dumps(doc)))
+    assert header.mode == "replay" and [c.status for c in cases] == ["pass", "fail", "error"]
+    assert cases[0].turns[0].timings.options_ms == 90_000 and cases[0].tokens_gateway == 1000

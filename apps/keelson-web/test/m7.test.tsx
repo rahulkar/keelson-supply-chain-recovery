@@ -24,7 +24,7 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { AuditPage, activityQuery } from "@/components/admin/AuditPage";
 import { ChangeRequestsPage, pointerLabel } from "@/components/admin/ChangeRequestsPage";
 import { ConnectorDetail } from "@/components/admin/ConnectorDetail";
-import { EvalsPage } from "@/components/admin/EvalsPage";
+import { EvalResultsFolder } from "@/components/admin/evals/EvalResultsFolder";
 import { KnowledgePage } from "@/components/admin/KnowledgePage";
 import { MappingsPage } from "@/components/admin/MappingsPage";
 import { SignalsPage } from "@/components/admin/SignalsPage";
@@ -269,6 +269,7 @@ function m7Routes(s: M7Server): Route {
       return jsonResponse(200, { ...s.rules, hub_synced: true });
     }
     if (method === "GET" && p === "/evals") return jsonResponse(200, s.evals);
+    if (method === "GET" && p === "/evals/files") return jsonResponse(200, s.evals);
     if (method === "GET" && p === "/agents/playground") return jsonResponse(200, { available: true, mode: "record_or_replay", reason: null, message: null });
     if (method === "POST" && p === "/agents/playground") return sse(F.playgroundFrames());
     if ((r = /^\/kb\/([^/]+)$/.exec(p)) && method === "DELETE") {
@@ -1199,24 +1200,23 @@ describe("evals", () => {
     expect(evalsResponseSchema.parse({ items: [], directory_available: false }).directoryAvailable).toBe(false);
   });
 
-  it("page: summary tiles, cases with score columns, failed counts; run picker shows unreadable runs", async () => {
-    const user = userEvent.setup();
-    const { container } = renderM7(<EvalsPage />, AVA());
-    const table = await screen.findByRole("table", { name: "Cases" });
-    expect(within(table).getByRole("columnheader", { name: "Numeric grounding" })).toBeInTheDocument();
-    expect(within(table).getByRole("columnheader", { name: "Entity recall" })).toBeInTheDocument();
-    const fail = within(table).getByRole("rowheader", { name: /Port strike/ }).closest("tr")!;
-    expect(fail).toHaveTextContent("6 / 8");
-    expect(fail).toHaveTextContent("2 failed");
-    expect(fail).toHaveTextContent("90 %");
+  // M8 (128): the listed files are the Evals page's "Results folder" (runs, history and drill-down
+  // are covered in m8-evals.test.tsx).
+  it("results folder: per-file case counts; unreadable files keep their error", async () => {
+    const { container } = renderM7(<EvalResultsFolder refreshKey="0" onImported={() => {}} />, AVA());
+    const table = await screen.findByRole("table", { name: "Results files" });
+    const ok = within(table).getByRole("rowheader", { name: "20261008T080000Z.json" }).closest("tr")!;
+    expect(ok).toHaveTextContent("1 / 2 passed · 20 checks");
+    expect(within(ok).getByRole("button", { name: /Import/ })).toBeInTheDocument();
+    const bad = within(table).getByRole("rowheader", { name: "20261007T080000Z.json" }).closest("tr")!;
+    expect(bad).toHaveTextContent("unreadable: JSONDecodeError");
+    expect(within(bad).queryByRole("button", { name: /Import/ })).toBeNull();
     await expectNoA11yViolations(container);
-    await user.selectOptions(screen.getByLabelText("Run"), "20261007T080000Z.json");
-    expect(await screen.findByRole("alert")).toHaveTextContent("couldn't be read");
   });
 
   it("no results folder mounted → says so", async () => {
     m7.evals = { items: [], directory_available: false };
-    renderM7(<EvalsPage />, AVA());
+    renderM7(<EvalResultsFolder refreshKey="0" onImported={() => {}} />, AVA());
     expect(await screen.findByText(/isn't mounted into the engine/)).toBeInTheDocument();
   });
 });

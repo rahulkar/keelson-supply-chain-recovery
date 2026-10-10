@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "``GET /api/admin/evals/trends``: finished runs, oldest first.",
+  "properties": {
+    "cases": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "case_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$",
+            "title": "Case Id",
+            "type": "string"
+          },
+          "statuses": {
+            "items": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "pass",
+                    "fail",
+                    "error",
+                    "skipped",
+                    "cancelled"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Statuses",
+            "type": "array"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "case_id",
+          "title",
+          "statuses"
+        ],
+        "title": "EvalTrendCase",
+        "type": "object"
+      },
+      "maxItems": 200,
+      "title": "Cases",
+      "type": "array"
+    },
+    "runs": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "breaches": {
+            "minimum": 0,
+            "title": "Breaches",
+            "type": "integer"
+          },
+          "id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "metrics": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Metrics",
+            "type": "object"
+          },
+          "mode": {
+            "enum": [
+              "replay",
+              "record_or_replay",
+              "record",
+              "unknown"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "in_app",
+              "import"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "tokens_source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "engine",
+                  "gateway",
+                  "mixed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens Source"
+          }
+        },
+        "required": [
+          "id",
+          "at",
+          "mode",
+          "source",
+          "status",
+          "metrics",
+          "breaches",
+          "tokens_source"
+        ],
+        "title": "EvalTrendRun",
+        "type": "object"
+      },
+      "maxItems": 100,
+      "title": "Runs",
+      "type": "array"
+    },
+    "thresholds": {
+      "items": {
+        "additionalProperties": false,
+        "description": "A target (never a gate): ``op: min`` = actual ≥ value, ``max`` = actual ≤ value.",
+        "properties": {
+          "metric": {
+            "enum": [
+              "pass_rate_bp",
+              "adversarial_pass_rate_bp",
+              "entity_recall_mean_bp",
+              "numeric_grounding_min_bp",
+              "trajectory_recall_mean_bp",
+              "first_stage_p50_ms",
+              "exposure_max_ms",
+              "options_max_ms",
+              "tokens_per_case_mean",
+              "cost_per_case_mean_microusd"
+            ],
+            "title": "Metric",
+            "type": "string"
+          },
+          "modes": {
+            "items": {
+              "enum": [
+                "replay",
+                "record_or_replay",
+                "record",
+                "unknown"
+              ],
+              "type": "string"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "Modes",
+            "type": "array"
+          },
+          "op": {
+            "enum": [
+              "min",
+              "max"
+            ],
+            "title": "Op",
+            "type": "string"
+          },
+          "value": {
+            "minimum": 0,
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "metric",
+          "op",
+          "value",
+          "modes"
+        ],
+        "title": "EvalThreshold",
+        "type": "object"
+      },
+      "maxItems": 20,
+      "title": "Thresholds",
+      "type": "array"
+    }
+  },
+  "required": [
+    "runs",
+    "cases",
+    "thresholds"
+  ],
+  "title": "EvalTrends",
+  "type": "object",
+  "x-keelson-source": "keelson_contracts.evals.EvalTrends"
+}

@@ -98,6 +98,15 @@ class RunContext:
     """Model turns per investigator task (``<agent>:<task key>``; ``investigation.max_investigator_turns``)."""
     usage: UsageMeter = field(default_factory=UsageMeter)
     """LLM usage of this run per agent (tokens, latency, cost); ``runtime.usage``."""
+    eval_run_id: str | None = None
+    """(M8) The eval run this run's case is linked to (``core.evals``); ``None`` = not an eval case."""
+    llm_replay_override: str | None = None
+    """(M8) The LLM record/replay mode the eval run forces on this run (``replay.effective_mode``:
+    a ``replay``-only process always stays ``replay``)."""
+    eval_token_cap: int | None = None
+    """(M8) Live eval runs: tokens this run may still use under the eval run's budget (BudgetPlugin)."""
+    eval_cost_cap_microusd: int | None = None
+    """(M8) Live eval runs: cost (micro-USD) this run may still incur under the eval run's budget."""
 
     def lock(self, name: str) -> asyncio.Lock:
         return self.locks.setdefault(name, asyncio.Lock())

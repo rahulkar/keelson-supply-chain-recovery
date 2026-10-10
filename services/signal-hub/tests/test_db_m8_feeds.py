@@ -530,6 +530,25 @@ async def test_meteoalarm_pending_cap_documents_follow_without_a_feed_change(poo
     assert r.status == "not_modified" and details() == [CAP_ORANGE_WIND, CAP_RED_COASTAL]
 
 
+async def test_zero_follow_up_caps_keep_the_feeds_conditional(pool: asyncpg.Pool, gaz: Gazetteer,
+                                                            upstream: Upstream) -> None:
+    """A cap that can never fetch a storm's products or a CAP document (0, or below the two NHC
+    products of one storm) only turns those downloads off: nothing is left "pending", so the feeds
+    keep their validators and an unchanged feed is a 304 (never a full download every poll)."""
+    upstream.nhc_gis_missing = ()
+    runner = _runner(pool, gaz, upstream, nhc_max_gis_fetches=1, meteoalarm_max_detail_fetches=0)
+    cid, now = "meteoalarm.netherlands", T0 + 12 * H
+    (nhc_r,) = await runner.poll("nhc", now=T0)
+    (meteo_r,) = await runner.poll("meteoalarm", now=now, connector_id=cid)
+    assert nhc_r.status == "ok" and meteo_r.status == "ok"
+    assert not [p for p in upstream.paths("www.nhc.noaa.gov") if p.endswith(".kmz")]
+    assert upstream.paths("feeds.meteoalarm.org") == ["meteoalarm-legacy-atom-netherlands"]
+    assert (await runner.cursor("nhc"))["etag"] == '"nhc-1"' and (await runner.cursor(cid))["etag"] == '"ma-1"'
+    (nhc_r,) = await runner.poll("nhc", now=T0 + 0.25 * H)
+    (meteo_r,) = await runner.poll("meteoalarm", now=now + 0.25 * H, connector_id=cid)
+    assert nhc_r.status == "not_modified" and meteo_r.status == "not_modified"
+
+
 # ───────────────────────────── opt-in subscriptions ─────────────────────────────
 
 

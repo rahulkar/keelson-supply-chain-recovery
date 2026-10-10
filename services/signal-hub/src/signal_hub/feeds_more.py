@@ -183,7 +183,9 @@ async def poll_nhc(runner: FeedRunner, spec: SourceSpec, now: dt.datetime) -> Po
                     gis[sid] = last
                     continue
                 if fetched + len(urls) > s.nhc_max_gis_fetches:
-                    pending = True
+                    # a later poll can fetch them only when one storm's products fit the cap at all (a
+                    # cap of 0 just turns GIS downloads off, it must not cost the feed its 304s)
+                    pending = pending or len(urls) <= s.nhc_max_gis_fetches
                     if last:  # the last cone until this advisory's arrives (never a bare position meanwhile)
                         gis[sid] = last
                     continue
@@ -447,8 +449,9 @@ async def poll_meteoalarm(runner: FeedRunner, spec: SourceSpec, now: dt.datetime
         if len(cursor["details"]) > MAX_DETAIL_CACHE:
             cursor["details"] = dict(sorted(cursor["details"].items())[-MAX_DETAIL_CACHE:])
         # CAP documents left for a later poll (over the cap, or a failed download): keep no validators,
-        # so the next poll reads the feed in full instead of a 304 that would leave them unfetched
-        pending = any(ident not in known for ident in links)
+        # so the next poll reads the feed in full instead of a 304 that would leave them unfetched (a cap
+        # of 0 just turns CAP downloads off: nothing is ever pending then)
+        pending = s.meteoalarm_max_detail_fetches > 0 and any(ident not in known for ident in links)
         await runner._save(cid, now=now, cadence_s=cadence, status="ok", etag=None if pending else result.etag,
                            last_modified=None if pending else result.last_modified, cursor=cursor, items=len(drafts))
         return PollResult(cid, "ok", len(drafts), report, skipped=skipped, withdrawn=withdrawn)

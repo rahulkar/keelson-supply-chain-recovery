@@ -51,7 +51,7 @@ from adapter_sidecar.config import (
     UpdateStep,
 )
 from adapter_sidecar.db import is_sqlite, quote_ident
-from adapter_sidecar.templates import parse_ref, render, resolve
+from adapter_sidecar.templates import TemplateError, parse_ref, render, resolve
 
 Mode = Literal["validate", "apply"]
 
@@ -311,6 +311,9 @@ class Executor:
         except StepFailure as exc:
             await sp.rollback()
             return self._fail(res, exc)
+        except TemplateError as exc:  # a payload value a text template cannot hold (an object or a list)
+            await sp.rollback()
+            return self._fail(res, StepFailure("invalid_payload", str(exc)))
         await sp.commit()
         self.txn.touched |= touched
         res.before = self._mask(res.before)

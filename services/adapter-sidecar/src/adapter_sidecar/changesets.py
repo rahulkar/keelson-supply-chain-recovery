@@ -41,6 +41,7 @@ from keelson_contracts.changeset import CHANGE_SET_ITEM_ADAPTER, change_set_hash
 log = get_logger(__name__)
 
 MAX_ITEMS = 500
+PG_INT_MAX = 2_147_483_647
 EDITABLE = ("draft", "validated")
 VIA_KEELSON = "Keelson"
 VIA_MCP = "MCP"
@@ -73,9 +74,24 @@ def _has_nul(value: Any) -> bool:
     return False
 
 
+def _int_out_of_range(value: Any) -> bool:
+    """An integer outside ±``PG_INT_MAX`` anywhere in ``value`` (Merxa's rule: every payload integer
+    fits a Postgres ``int`` column, whatever the backend)."""
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, int):
+        return not -PG_INT_MAX <= value <= PG_INT_MAX
+    if isinstance(value, dict):
+        return any(_int_out_of_range(v) for v in value.values())
+    if isinstance(value, list):
+        return any(_int_out_of_range(v) for v in value)
+    return False
+
+
 def normalize_items(items: Any) -> list[dict[str, Any]]:
     """Structural + typed validation at add time (``keelson_contracts.changeset``: typed ops, no
-    floats, ISO dates); semantic checks happen in validate."""
+    floats, ISO dates; integers within the Postgres ``int`` range); semantic checks happen in
+    validate."""
     if not isinstance(items, list) or not items:
         raise Problem(400, "invalid_items", "items must be a non-empty array")
     if len(items) > MAX_ITEMS:
@@ -91,6 +107,8 @@ def normalize_items(items: Any) -> list[dict[str, Any]]:
                 "payload": it.get("payload") if it.get("payload") is not None else {}}
         if _has_nul(item):
             raise Problem(400, "invalid_items", f"items[{i}] contains a NUL character")
+        if _int_out_of_range(item["payload"]) or _int_out_of_range(item["expected_version"]):
+            raise Problem(400, "invalid_items", f"items[{i}] contains an integer outside ±{PG_INT_MAX}")
         try:
             CHANGE_SET_ITEM_ADAPTER.validate_python({"seq": 1, **item})
         except ValidationError as exc:

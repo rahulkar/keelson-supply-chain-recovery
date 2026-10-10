@@ -118,6 +118,9 @@ async def test_validation_errors(any_backend: Running) -> None:
             ({**TO_ITEM, "payload": {**TO_ITEM["payload"], "ship_date": "20/10/2026"}}, "invalid_items"),
             ({**a, "expected_version": None}, "invalid_items"),
             ({**a, "op": "po_line.cancel"}, "Input should be"),  # not in the published op enum
+            # every integer fits a Postgres int (Merxa's rule), whatever the backend stores
+            ({**a, "payload": {"qty": 2**40}}, r"invalid_items: .*outside ±2147483647"),
+            ({**a, "expected_version": 2**40}, r"invalid_items: .*outside ±2147483647"),
         ):
             with pytest.raises(ToolError, match=msg):
                 await c.call_tool("add_change_set_items", {"change_set_id": created["change_set_id"], "items": [bad],
@@ -132,6 +135,32 @@ async def test_validation_errors(any_backend: Running) -> None:
                                                          "expected_version": 1, "payload": {}}], idempotency_key=key())
     out = await svc.validate(p, cs2["change_set_id"], idempotency_key=key())
     assert out["items"][0]["errors"][0].startswith("unsupported_op:")
+
+
+async def test_unplaceable_payload_value_is_an_item_error(fernhill: Running,
+                                                          monkeypatch: pytest.MonkeyPatch) -> None:
+    """A generic op's payload value that a text template cannot hold (an object) is an item error
+    of the preview, not a crash of validate_change_set."""
+    from adapter_sidecar.auth import Principal
+    from adapter_sidecar.config import OpSpec
+
+    svc = fernhill.sidecar.changesets
+    op = OpSpec.model_validate({
+        "target": {"table": "store_allocations", "key": {"code": "{{target_ref}}"}},
+        "steps": [{"update": {"table": "store_allocations", "key": {"code": "{{target_ref}}"},
+                              "set": {"status": "{{payload.status}} (via Keelson)"}}}]})
+    monkeypatch.setattr(svc, "cfg", svc.cfg.model_copy(update={"ops": {**svc.cfg.ops, "allocation.set_status": op}}))
+    p = Principal("key:keelson", "key:keelson", frozenset({"changes:preview"}))
+    cs = await svc.create(p, title="x", origin=None, idempotency_key=key())
+    await svc.add_items(p, cs["change_set_id"], idempotency_key=key(), items=[
+        {"op": "allocation.set_status", "target_ref": "AL-0003", "expected_version": None,
+         "payload": {"status": {"nested": "x"}}},
+        {"op": "allocation.set_status", "target_ref": "AL-0004", "expected_version": None,
+         "payload": {"status": "released"}}])
+    out = await svc.validate(p, cs["change_set_id"], idempotency_key=key())
+    assert out["status"] == "invalid"
+    assert out["items"][0]["errors"][0].startswith("invalid_payload: cannot place a dict inside text")
+    assert out["items"][1]["ok"] and out["items"][1]["after"]["status"] == "released (via Keelson)"
 
 
 async def test_apply_and_reconcile_read_backs(any_backend: Running, keelson: FakeKeelson) -> None:
